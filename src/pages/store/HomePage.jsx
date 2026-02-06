@@ -11,6 +11,45 @@ const FALLBACK_IMAGES = [
     "https://lh3.googleusercontent.com/aida-public/AB6AXuBWW2jOajHtqeEph58h7PAe319UVZAkLVC-4pp4FxPzXJREB62MW--mPq1DZ02MlVONb9e2mXwZzlsTQ2abNemV7nozlLe7HDM1GN2CXJ-oazr-AzW4AD-3xB_wbhCfTeQD74-VAVj1Q4dClIcGGit4rfLf_S8B7_4ZXmBIKcjvtXvAEbTRkCZdjH5gSrc4eZbqzohoASzpmDWDGvmE2ISYW4UXQ-VYiv7eRmHmorsM4HfSgWafndQ8t-x0oFT2NscKyEC5PGpajx8",
 ];
 
+const FALLBACK_FEATURED = [
+    {
+        id: "demo-1",
+        name: "Grifería de lujo cromada",
+        price: 120,
+        badge: { text: "En stock", className: "bg-green-500" },
+        image: FALLBACK_IMAGES[0],
+        alt: "Grifería cromada moderna",
+        stock: 12,
+    },
+    {
+        id: "demo-2",
+        name: "Mueble de baño roble",
+        price: 350,
+        badge: { text: "Últimas unidades", className: "bg-orange-500" },
+        image: FALLBACK_IMAGES[1],
+        alt: "Mueble minimalista de baño",
+        stock: 3,
+    },
+    {
+        id: "demo-3",
+        name: "Kit sanitario premium",
+        price: 280,
+        badge: { text: "En stock", className: "bg-green-500" },
+        image: FALLBACK_IMAGES[2],
+        alt: "Set sanitario blanco moderno",
+        stock: 8,
+    },
+    {
+        id: "demo-4",
+        name: "Ducha lluvia",
+        price: 150,
+        badge: { text: "Nuevo", className: "bg-primary" },
+        image: FALLBACK_IMAGES[3],
+        alt: "Cabezal de ducha tipo lluvia",
+        stock: 6,
+    },
+];
+
 const buildFeaturedCard = (product, index) => {
     const data = product.data || {};
     const rawImages = Array.isArray(data.images) ? data.images : [];
@@ -40,7 +79,22 @@ const buildFeaturedCard = (product, index) => {
 
 export default function HomePage() {
     const [sections, setSections] = useState(HOME_PAGE_DATA.sections);
-    const [featuredProducts, setFeaturedProducts] = useState([]);
+    const [featuredProducts, setFeaturedProducts] = useState(FALLBACK_FEATURED);
+
+    const headerConfig = useMemo(
+        () => ({
+            navLinks: [
+                { label: "Sanitarios", icon: "bathroom", href: "#catalog" },
+                { label: "Grifería", icon: "water_drop", href: "#catalog" },
+                { label: "Accesorios", icon: "construction", href: "#catalog" },
+                { label: "Amoblamientos", icon: "chair", href: "#catalog" },
+            ],
+            brandName: "El Teflon",
+            brandUppercase: true,
+            searchPlaceholder: "Buscar productos...",
+        }),
+        []
+    );
 
     useEffect(() => {
         let active = true;
@@ -93,11 +147,13 @@ export default function HomePage() {
                 if (!active) return;
 
                 const items = Array.isArray(data.items) ? data.items : [];
-                setFeaturedProducts(items.map(buildFeaturedCard));
+                if (items.length) {
+                    setFeaturedProducts(items.map(buildFeaturedCard));
+                }
             } catch (err) {
                 console.error('No se pudieron cargar los productos destacados', err);
                 if (active) {
-                    setFeaturedProducts([]);
+                    setFeaturedProducts(FALLBACK_FEATURED);
                 }
             }
         };
@@ -126,7 +182,7 @@ export default function HomePage() {
     }, [featuredProducts, sections]);
 
     return (
-        <StoreLayout>
+        <StoreLayout headerConfig={headerConfig}>
             <PageBuilder sections={hydratedSections} />
         </StoreLayout>
     );
