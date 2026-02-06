@@ -6,10 +6,31 @@ export default function Header({ search, setSearch, navLinks }) {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-solid border-[#f5f2f0] dark:border-[#3d2e21] bg-white/90 dark:bg-background-dark/90 backdrop-blur-md">
+            {/* Top Brand Bar */}
+            <div className="bg-[#f8f7f5] dark:bg-[#1a130c] border-b border-[#f5f2f0] dark:border-[#3d2e21] py-1.5 px-10">
+                <div className="mx-auto max-w-[1280px] flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#8a7560]">
+                    <div className="flex items-center gap-6">
+                        <span>Distribuidores Oficiales:</span>
+                        <div className="flex items-center gap-4 grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all">
+                            <span className="cursor-default">FV</span>
+                            <span className="cursor-default">FERRUM</span>
+                            <span className="cursor-default">PIAZZA</span>
+                            <span className="cursor-default">ROCA</span>
+                        </div>
+                    </div>
+                    <div className="hidden md:flex items-center gap-4">
+                        <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+                            Envíos a todo el país
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <div className="mx-auto flex max-w-[1280px] items-center justify-between px-10 py-3">
                 <div className="flex items-center gap-8">
-                    <div className="flex items-center gap-4 text-primary">
-                        <div className="size-8">
+                    <div className="flex items-center gap-4 text-primary group cursor-pointer" onClick={() => window.location.hash = '#'}>
+                        <div className="size-8 transition-transform group-hover:scale-110">
                             <svg
                                 fill="none"
                                 viewBox="0 0 48 48"
@@ -27,12 +48,12 @@ export default function Header({ search, setSearch, navLinks }) {
                                 />
                             </svg>
                         </div>
-                        <h2 className="text-xl font-black uppercase tracking-tight" onClick={() => window.location.hash = '#'}>
+                        <h2 className="text-xl font-black uppercase tracking-tight">
                             El Teflon
                         </h2>
                     </div>
 
-                    <nav className="flex items-center gap-6">
+                    <nav className="hidden lg:flex items-center gap-6">
                         {navLinks.map((label) => (
                             <a
                                 key={label}
@@ -46,13 +67,13 @@ export default function Header({ search, setSearch, navLinks }) {
                 </div>
 
                 <div className="flex flex-1 justify-end gap-6 items-center">
-                    <label className="relative flex w-full max-w-xs h-10">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[#8a7560]">
+                    <label className="relative flex w-full max-w-xs h-10 group">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[#8a7560] group-focus-within:text-primary transition-colors">
                             search
                         </span>
                         <input
-                            className="w-full rounded-lg border-none bg-[#f5f2f0] dark:bg-[#3d2e21] pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary"
-                            placeholder="Search products..."
+                            className="w-full rounded-lg border-none bg-[#f5f2f0] dark:bg-[#3d2e21] pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary transition-all"
+                            placeholder="Buscar productos..."
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -63,7 +84,7 @@ export default function Header({ search, setSearch, navLinks }) {
                         <button
                             type="button"
                             onClick={() => window.location.hash = '#cart'}
-                            className="flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
+                            className="flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary hover:text-white transition-all"
                             aria-label="Cart"
                         >
                             <span className="material-symbols-outlined text-lg">
@@ -73,7 +94,7 @@ export default function Header({ search, setSearch, navLinks }) {
 
                         <button
                             type="button"
-                            className="flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
+                            className="flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary hover:text-white transition-all"
                             aria-label="Account"
                         >
                             <span className="material-symbols-outlined text-lg">
@@ -84,7 +105,7 @@ export default function Header({ search, setSearch, navLinks }) {
                         <button
                             type="button"
                             onClick={toggleTheme}
-                            className="flex items-center justify-center rounded-lg h-10 px-3 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
+                            className="flex items-center justify-center rounded-lg h-10 px-3 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary hover:text-white transition-all"
                             aria-label="Toggle theme"
                             title="Toggle theme"
                         >
