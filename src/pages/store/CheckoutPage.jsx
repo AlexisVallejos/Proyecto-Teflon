@@ -1,30 +1,22 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
+import { useStore } from "../../context/StoreContext";
+import { useTenant } from "../../context/TenantContext";
+import { getApiBase, getTenantHeaders } from "../../utils/api";
 
 export default function CheckoutPage() {
+    const { cartItems, clearCart } = useStore();
+    const { settings } = useTenant();
+    const commerce = settings?.commerce || {};
+    const currency = commerce.currency || "ARS";
+    const locale = commerce.locale || "es-AR";
 
-    // Mock items (los podés traer del carrito real)
-    const [items] = useState([
-        {
-            id: "FV-ARIZONA",
-            name: "Chrome Faucet FV Arizona",
-            qty: 1,
-            price: 45000,
-            image:
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuB4G6ttvkeHKzUkmhgM3qcXPz92YR4-fDaon4Z2QM9AYMkU_HLBW3g0hC-KW6tJfgJ0dI_65LpOdTaQI7-gjZxNhSGs7sRNLn53uN1xfhIbsCVDfV6HxcXaXTuOSMUkwlTCZdS9xesKogmljWq-h2e-EZP2oir3P3yz4XUA3OyXGkw8Ss8mwmzCft13Tt75PtWjzRDnr5hXsHzdT-XjFeM63YJD4ccPwkM9NYNarMgeZrrQaMyUneb_W_ZN3itCfNEyTF5BcSZDvM4",
-            alt: "Chrome bathroom faucet",
-        },
-        {
-            id: "PVC-110-4M",
-            name: "PVC Pipe 110mm x 4m",
-            qty: 2,
-            price: 12500,
-            image:
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuDP1SjRWdl-gWajRD-mrLIAM3GnJulsEPysk36aC_u6A_LFT4hNyAVydjp8eVfHjgC97diQR2TSXGoqvVWamHSs1bi8EM8NA_Y6ScB_gm4vg0GJCENkYiMiGTqBFxzWbGYNoheWdK_PnJ5o_gZbUaArEnb3w3fRaQWcdB9PZmKVo18I0IYber49lUH4Rcf67mb5NwtEkKN66J-Oofns1-WRX_14RECwj5yO5fhlx0x24aWK9Lc_GaAEwqEHSNmE0QK5cU96B0E9SaA",
-            alt: "PVC pipe 110mm",
-        },
-    ]);
+    const [items, setItems] = useState(cartItems);
+    const [validation, setValidation] = useState(null);
+    const [validationError, setValidationError] = useState(null);
+    const [creating, setCreating] = useState(false);
+    const [checkoutError, setCheckoutError] = useState(null);
 
     // Form state
     const [shippingInfo, setShippingInfo] = useState({
@@ -33,85 +25,243 @@ export default function CheckoutPage() {
         postalCode: "",
     });
 
+    const shippingFlat = Number(commerce.shipping_flat || 0);
+
     const DELIVERY = {
         home: {
             key: "home",
-            title: "Home Delivery",
-            desc: "Delivery within 24-48 hours in Mar del Plata",
-            price: 1500,
+            title: "Entrega a domicilio",
+            desc: "Recibí tu pedido en 24/48 hs en Mar del Plata",
+            price: shippingFlat,
         },
         mdp: {
             key: "mdp",
-            title: "Pickup: Store Mar del Plata",
-            desc: "Ready in 2 hours. Av. Independencia 1234",
-            price: 0,
+            title: "Retiro: Sucursal Mar del Plata",
+            desc: "Listo en 2 horas. Av. Independencia 1234",
+            price: shippingFlat,
         },
         necochea: {
             key: "necochea",
-            title: "Pickup: Store Necochea",
-            desc: "Ready in 4 hours. Calle 64 Nro 3456",
-            price: 0,
+            title: "Retiro: Sucursal Necochea",
+            desc: "Listo en 4 horas. Calle 64 Nro 3456",
+            price: shippingFlat,
         },
     };
 
     const [deliveryMethod, setDeliveryMethod] = useState("home");
 
-    const [paymentMethod, setPaymentMethod] = useState("card"); // card | bank | mp
+    const mode = commerce.mode || "online";
+    const paymentOptions = useMemo(() => {
+        const options = [];
+        if (mode !== "whatsapp") {
+            options.push({ key: "mp", label: "Mercado Pago" });
+        }
+        if (mode !== "online") {
+            options.push({ key: "whatsapp", label: "WhatsApp" });
+        }
+        return options;
+    }, [mode]);
+
+    const [paymentMethod, setPaymentMethod] = useState(paymentOptions[0]?.key || "mp");
+
+    useEffect(() => {
+        if (!paymentOptions.find((opt) => opt.key === paymentMethod)) {
+            setPaymentMethod(paymentOptions[0]?.key || "mp");
+        }
+    }, [paymentOptions, paymentMethod]);
 
     // Accordion open
     const [openStep, setOpenStep] = useState(1); // 1..3
 
-    const subtotal = useMemo(
-        () => items.reduce((acc, it) => acc + it.price * it.qty, 0),
-        [items]
-    );
+    useEffect(() => {
+        setItems(cartItems);
+    }, [cartItems]);
 
-    const shipping = useMemo(() => DELIVERY[deliveryMethod].price, [deliveryMethod]);
+    useEffect(() => {
+        let active = true;
 
-    const iva = useMemo(() => (subtotal + shipping) * 0.21, [subtotal, shipping]);
+        const validateCart = async () => {
+            if (!items.length) {
+                setValidation(null);
+                setValidationError(null);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${getApiBase()}/checkout/validate`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...getTenantHeaders(),
+                    },
+                    body: JSON.stringify({
+                        items: items.map((item) => ({
+                            product_id: item.id,
+                            qty: item.qty,
+                        })),
+                    }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error?.errors?.[0] || "No se pudo validar el carrito");
+                }
+
+                const data = await response.json();
+                if (!active) return;
+
+                setValidation(data);
+                setValidationError(null);
+            } catch (err) {
+                console.error("Error al validar el carrito", err);
+                if (active) {
+                    setValidation(null);
+                    setValidationError("No se pudo validar el carrito. Revisá los productos.");
+                }
+            }
+        };
+
+        validateCart();
+
+        return () => {
+            active = false;
+        };
+    }, [items]);
+
+    const subtotal = useMemo(() => {
+        if (validation?.subtotal != null) {
+            return Number(validation.subtotal);
+        }
+        return items.reduce((acc, it) => acc + it.price * it.qty, 0);
+    }, [items, validation]);
+
+    const displayCurrency = validation?.currency || currency;
+    const taxRate = Number(commerce.tax_rate || 0);
+    const shipping = subtotal > 0 ? shippingFlat : 0;
+    const iva = (subtotal + shipping) * taxRate;
     const total = subtotal + shipping + iva;
 
-    const handleCompletePurchase = () => {
-        // Aca conectarías tu API / MP / Stripe etc.
-        alert(
-            `Compra lista (mock)\n\nDelivery: ${DELIVERY[deliveryMethod].title}\nPago: ${paymentMethod}\nTotal: ${formatCurrency(
-                total
-            )}`
-        );
+    const summaryItems = validation?.items?.length
+        ? validation.items.map((item) => {
+              const fallback = items.find((it) => it.id === item.product_id);
+              return {
+                  id: item.product_id,
+                  name: item.name,
+                  qty: item.qty,
+                  price: item.unit_price,
+                  image: fallback?.image,
+                  alt: fallback?.alt || item.name,
+              };
+          })
+        : items;
+
+    const handleCompletePurchase = async () => {
+        if (!items.length) return;
+
+        setCreating(true);
+        setCheckoutError(null);
+
+        try {
+            const response = await fetch(`${getApiBase()}/checkout/create`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...getTenantHeaders(),
+                },
+                body: JSON.stringify({
+                    items: items.map((item) => ({
+                        product_id: item.id,
+                        qty: item.qty,
+                    })),
+                    customer: {
+                        ...shippingInfo,
+                        delivery_method: deliveryMethod,
+                        payment_method: paymentMethod,
+                    },
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error?.errors?.[0] || "No se pudo crear la orden");
+            }
+
+            const data = await response.json();
+            clearCart();
+
+            if (paymentMethod === "mp" && data.payment?.init_point) {
+                window.location.href = data.payment.init_point;
+                return;
+            }
+
+            if (paymentMethod === "whatsapp" && data.whatsapp_url) {
+                window.open(data.whatsapp_url, "_blank", "noopener,noreferrer");
+                return;
+            }
+
+            setCheckoutError("No se pudo iniciar el pago. Probá nuevamente.");
+        } catch (err) {
+            console.error("Error al crear la orden", err);
+            setCheckoutError("No se pudo iniciar el pago. Probá nuevamente.");
+        } finally {
+            setCreating(false);
+        }
     };
+
+    if (!items.length) {
+        return (
+            <StoreLayout>
+                <main className="max-w-[960px] mx-auto w-full px-4 md:px-10 py-16 text-center">
+                    <h1 className="text-3xl font-black mb-4">No hay productos para pagar</h1>
+                    <p className="text-[#8a7560] mb-8">
+                        Sumá productos al carrito para continuar.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => (window.location.hash = '#catalog')}
+                        className="bg-primary text-white font-bold px-6 py-3 rounded-lg"
+                    >
+                        Ir al catálogo
+                    </button>
+                </main>
+            </StoreLayout>
+        );
+    }
 
     return (
         <StoreLayout>
             <main className="max-w-[1280px] mx-auto w-full px-4 md:px-10 py-8">
                 {/* Breadcrumbs */}
                 <div className="flex flex-wrap gap-2 pb-4">
-                    <a
+                    <button
                         className="text-[#8a7560] text-sm font-medium hover:text-primary cursor-pointer"
-                        onClick={() => window.location.hash = '#'}
+                        onClick={() => (window.location.hash = '#')}
+                        type="button"
                     >
-                        Home
-                    </a>
+                        Inicio
+                    </button>
                     <span className="text-[#8a7560] text-sm font-medium">
                         /
                     </span>
-                    <a
+                    <button
                         className="text-[#8a7560] text-sm font-medium hover:text-primary"
-                        href="#"
+                        onClick={() => (window.location.hash = '#cart')}
+                        type="button"
                     >
-                        Cart
-                    </a>
+                        Carrito
+                    </button>
                     <span className="text-[#8a7560] text-sm font-medium">
                         /
                     </span>
                     <span className="text-[#181411] dark:text-white text-sm font-medium">
-                        Checkout
+                        Finalizar compra
                     </span>
                 </div>
 
                 {/* Heading */}
                 <div className="pb-8">
                     <h1 className="text-[#181411] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">
-                        Checkout
+                        Finalizar compra
                     </h1>
                 </div>
 
@@ -126,7 +276,7 @@ export default function CheckoutPage() {
                             {/* 1 Shipping */}
                             <Accordion
                                 step={1}
-                                title="Shipping Information"
+                                title="Información de envío"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(1)}
                             >
@@ -134,7 +284,7 @@ export default function CheckoutPage() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="col-span-2">
                                             <label className="block text-sm font-medium mb-1">
-                                                Full Address
+                                                Dirección completa
                                             </label>
                                             <input
                                                 className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
@@ -151,7 +301,7 @@ export default function CheckoutPage() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-1">
-                                                City
+                                                Ciudad
                                             </label>
                                             <input
                                                 className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
@@ -168,7 +318,7 @@ export default function CheckoutPage() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-1">
-                                                Postal Code
+                                                Código postal
                                             </label>
                                             <input
                                                 className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
@@ -190,7 +340,7 @@ export default function CheckoutPage() {
                                             onClick={() => setOpenStep(2)}
                                             className="px-4 h-10 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
                                         >
-                                            Continue
+                                            Continuar
                                             <span className="material-symbols-outlined text-base">
                                                 arrow_forward
                                             </span>
@@ -202,7 +352,7 @@ export default function CheckoutPage() {
                             {/* 2 Delivery */}
                             <Accordion
                                 step={2}
-                                title="Delivery Method"
+                                title="Método de entrega"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(2)}
                             >
@@ -233,7 +383,9 @@ export default function CheckoutPage() {
                                                     </p>
                                                 </div>
                                                 <span className="ml-auto font-bold">
-                                                    {opt.price === 0 ? "Free" : formatCurrency(opt.price)}
+                                                    {opt.price === 0
+                                                        ? "Gratis"
+                                                        : formatCurrency(opt.price, displayCurrency, locale)}
                                                 </span>
                                             </label>
                                         );
@@ -244,13 +396,13 @@ export default function CheckoutPage() {
                                             onClick={() => setOpenStep(1)}
                                             className="px-4 h-10 rounded-lg bg-background-light dark:bg-[#3d2e1f] border border-[#e6e0db] dark:border-[#3d2e1f] font-bold hover:border-primary/50 transition-colors"
                                         >
-                                            Back
+                                            Volver
                                         </button>
                                         <button
                                             onClick={() => setOpenStep(3)}
                                             className="px-4 h-10 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
                                         >
-                                            Continue
+                                            Continuar
                                             <span className="material-symbols-outlined text-base">
                                                 arrow_forward
                                             </span>
@@ -262,61 +414,66 @@ export default function CheckoutPage() {
                             {/* 3 Payment */}
                             <Accordion
                                 step={3}
-                                title="Payment Method"
+                                title="Método de pago"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(3)}
                             >
-                                <div className="pt-4 pb-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <PayOption
-                                        active={paymentMethod === "card"}
-                                        onClick={() => setPaymentMethod("card")}
-                                        icon="credit_card"
-                                        label="Credit Card"
-                                    />
-                                    <PayOption
-                                        active={paymentMethod === "bank"}
-                                        onClick={() => setPaymentMethod("bank")}
-                                        icon="account_balance"
-                                        label="Bank Transfer"
-                                    />
-                                    <PayOption
-                                        active={paymentMethod === "mp"}
-                                        onClick={() => setPaymentMethod("mp")}
-                                        customIcon={
-                                            <div className="h-[30px] w-[30px] bg-sky-500 rounded-full flex items-center justify-center mb-2">
-                                                <span className="text-white font-bold text-[10px]">MP</span>
-                                            </div>
-                                        }
-                                        label="Mercado Pago"
-                                    />
+                                <div className="pt-4 pb-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {paymentOptions.map((opt) => (
+                                        <PayOption
+                                            key={opt.key}
+                                            active={paymentMethod === opt.key}
+                                            onClick={() => setPaymentMethod(opt.key)}
+                                            icon={opt.key === "whatsapp" ? "chat" : "account_balance_wallet"}
+                                            label={opt.label}
+                                            highlight={opt.key === "mp"}
+                                        />
+                                    ))}
                                 </div>
                             </Accordion>
                         </div>
+
+                        {validationError ? (
+                            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+                                {validationError}
+                            </div>
+                        ) : null}
+                        {checkoutError ? (
+                            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+                                {checkoutError}
+                            </div>
+                        ) : null}
                     </div>
 
                     {/* Right column */}
                     <div className="w-full lg:w-[400px]">
                         <div className="sticky top-24 bg-white dark:bg-[#2c221a] rounded-xl border border-[#e6e0db] dark:border-[#3d2e1f] p-6 shadow-sm">
-                            <h3 className="text-lg font-bold mb-6">Order Summary</h3>
+                            <h3 className="text-lg font-bold mb-6">Resumen del pedido</h3>
 
                             {/* Items */}
                             <div className="space-y-4 mb-6">
-                                {items.map((it) => (
+                                {summaryItems.map((it) => (
                                     <div key={it.id} className="flex gap-4">
                                         <div className="size-16 rounded-lg bg-background-light dark:bg-[#3d2e1f] border border-[#e6e0db] dark:border-[#3d2e1f] overflow-hidden flex-shrink-0">
-                                            <img
-                                                className="w-full h-full object-cover"
-                                                src={it.image}
-                                                alt={it.alt}
+                                            <div
+                                                className="w-full h-full bg-center bg-no-repeat bg-cover"
+                                                style={{
+                                                    backgroundImage: it.image
+                                                        ? `url("${it.image}")`
+                                                        : "none",
+                                                }}
+                                                role="img"
+                                                aria-label={it.alt || it.name}
+                                                title={it.alt || it.name}
                                             />
                                         </div>
                                         <div className="flex-1">
                                             <p className="text-sm font-bold line-clamp-1">{it.name}</p>
                                             <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                                                Qty: {it.qty}
+                                                Cant.: {it.qty}
                                             </p>
                                             <p className="text-sm font-bold mt-1">
-                                                {formatCurrency(it.price * it.qty)}
+                                                {formatCurrency(it.price * it.qty, displayCurrency, locale)}
                                             </p>
                                         </div>
                                     </div>
@@ -325,26 +482,29 @@ export default function CheckoutPage() {
 
                             {/* Totals */}
                             <div className="border-t border-[#e6e0db] dark:border-[#3d2e1f] pt-4 space-y-3">
-                                <Line label="Subtotal" value={formatCurrency(subtotal)} />
-                                <Line label="Shipping" value={formatCurrency(shipping)} />
-                                <Line label="Taxes (IVA 21%)" value={formatCurrency(iva)} />
+                                <Line label="Subtotal" value={formatCurrency(subtotal, displayCurrency, locale)} />
+                                <Line label="Envío" value={formatCurrency(shipping, displayCurrency, locale)} />
+                                <Line label="Impuestos" value={formatCurrency(iva, displayCurrency, locale)} />
                             </div>
 
                             <div className="mt-6 p-4 rounded-lg bg-[#181411] dark:bg-black text-white flex justify-between items-center">
                                 <span className="font-medium">Total</span>
-                                <span className="text-2xl font-black">{formatCurrency(total)}</span>
+                                <span className="text-2xl font-black">
+                                    {formatCurrency(total, displayCurrency, locale)}
+                                </span>
                             </div>
 
                             <button
                                 onClick={handleCompletePurchase}
-                                className="w-full mt-6 py-4 bg-primary text-white font-black text-lg rounded-lg shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-3"
+                                className="w-full mt-6 py-4 bg-primary text-white font-black text-lg rounded-lg shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-3 disabled:opacity-60"
+                                disabled={creating || !items.length || !!validationError}
                             >
-                                <span>Complete Purchase</span>
+                                <span>{creating ? "Procesando..." : "Confirmar compra"}</span>
                                 <span className="material-symbols-outlined">lock</span>
                             </button>
 
                             <p className="text-[10px] text-center mt-4 text-[#8a7560] dark:text-[#a59280] uppercase tracking-wider">
-                                Secure checkout powered by Sanitarios El Teflon
+                                Compra segura con Mercado Pago
                             </p>
                         </div>
                     </div>
@@ -369,9 +529,9 @@ function StepProgress({ openStep }) {
                 <div className="w-[1.5px] bg-primary h-12" />
             </div>
             <div className="flex flex-col pt-1 pb-4">
-                <p className="text-primary text-base font-bold">Shipping &amp; Delivery</p>
+                <p className="text-primary text-base font-bold">Envío y entrega</p>
                 <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                    Provide address or select store pickup
+                    Completá la dirección o elegí retiro
                 </p>
             </div>
 
@@ -384,10 +544,10 @@ function StepProgress({ openStep }) {
             </div>
             <div className={`flex flex-col pt-1 pb-4 ${openStep >= 2 ? "" : "opacity-50"}`}>
                 <p className="text-[#181411] dark:text-white text-base font-medium">
-                    Payment Method
+                    Método de pago
                 </p>
                 <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                    Select how you'd like to pay
+                    Seleccioná cómo querés pagar
                 </p>
             </div>
 
@@ -398,7 +558,7 @@ function StepProgress({ openStep }) {
                 </div>
             </div>
             <div className={`flex flex-col pt-1 ${openStep >= 3 ? "" : "opacity-50"}`}>
-                <p className="text-[#181411] dark:text-white text-base font-medium">Confirmation</p>
+                <p className="text-[#181411] dark:text-white text-base font-medium">Confirmación</p>
             </div>
         </div>
     );
@@ -445,7 +605,7 @@ function Accordion({ step, title, openStep, onOpen, children }) {
     );
 }
 
-function PayOption({ active, onClick, icon, label, customIcon }) {
+function PayOption({ active, onClick, icon, label, highlight }) {
     return (
         <button
             type="button"
@@ -457,18 +617,14 @@ function PayOption({ active, onClick, icon, label, customIcon }) {
                     : "border-[#e6e0db] dark:border-[#3d2e1f] hover:border-primary hover:bg-primary/5",
             ].join(" ")}
         >
-            {customIcon ? (
-                customIcon
-            ) : (
-                <span
-                    className={[
-                        "material-symbols-outlined text-3xl mb-2",
-                        active ? "text-primary" : "text-[#8a7560]",
-                    ].join(" ")}
-                >
-                    {icon}
-                </span>
-            )}
+            <span
+                className={[
+                    "material-symbols-outlined text-3xl mb-2",
+                    highlight ? "text-primary" : active ? "text-primary" : "text-[#8a7560]",
+                ].join(" ")}
+            >
+                {icon}
+            </span>
             <p className="text-xs font-bold text-center">{label}</p>
         </button>
     );

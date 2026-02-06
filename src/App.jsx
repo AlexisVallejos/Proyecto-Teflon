@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TenantProvider } from './context/TenantContext';
+import { StoreProvider } from './context/StoreContext';
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
@@ -38,9 +39,11 @@ function AppContent() {
 function App() {
     return (
         <TenantProvider>
-            <ThemeProvider>
-                <AppContent />
-            </ThemeProvider>
+            <StoreProvider>
+                <ThemeProvider>
+                    <AppContent />
+                </ThemeProvider>
+            </StoreProvider>
         </TenantProvider>
     );
 }

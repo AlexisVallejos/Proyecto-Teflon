@@ -18,29 +18,29 @@ export default function Services() {
             <div className="mx-auto max-w-[1280px]">
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold tracking-tight">
-                        Our Professional Services
+                        Nuestros servicios profesionales
                     </h2>
                     <p className="text-[#8a7560] max-w-2xl mx-auto mt-2">
-                        Beyond products, we provide the support you need for your
-                        projects to succeed.
+                        Además de productos, ofrecemos el soporte que necesitás
+                        para que tus proyectos sean un éxito.
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <ServiceCard
                         icon="support_agent"
-                        title="Expert Advice"
-                        text="Our technical team helps you choose the right materials for any plumbing or hardware project."
+                        title="Asesoramiento experto"
+                        text="Nuestro equipo técnico te ayuda a elegir los materiales correctos para cada proyecto."
                     />
                     <ServiceCard
                         icon="local_shipping"
-                        title="Fast Shipping"
-                        text="Same-day local delivery in Mar del Plata and express nationwide shipping for all orders."
+                        title="Envíos rápidos"
+                        text="Entrega local en el día y envíos express a todo el país."
                     />
                     <ServiceCard
                         icon="construction"
-                        title="Technical Support"
-                        text="Installation guides and post-purchase technical support for all our premium grifería brands."
+                        title="Soporte técnico"
+                        text="Guías de instalación y asistencia postventa para nuestras marcas premium de grifería."
                     />
                 </div>
             </div>

@@ -4,22 +4,40 @@ import { useTenant } from './TenantContext';
 const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
-    const tenant = useTenant();
+    const { tenant, settings } = useTenant();
     const [isDarkMode, setIsDarkMode] = React.useState(false);
 
     useEffect(() => {
-        if (tenant?.theme?.colors) {
-            const root = document.documentElement;
-            Object.entries(tenant.theme.colors).forEach(([key, value]) => {
+        const theme = settings?.theme || tenant?.theme || {};
+        const palette = theme.colors || {};
+        const fallbackPalette = {};
+
+        ['primary', 'accent', 'background', 'text'].forEach((key) => {
+            if (theme[key]) {
+                fallbackPalette[key] = theme[key];
+            }
+        });
+
+        const colors = Object.keys(palette).length ? palette : fallbackPalette;
+        const root = document.documentElement;
+
+        Object.entries(colors).forEach(([key, value]) => {
+            if (typeof value === 'string') {
                 root.style.setProperty(`--color-${key}`, value);
-            });
+            }
+        });
+
+        const fontFamily =
+            theme.font_family || theme.fontFamily || theme.typography?.fontFamily;
+        if (fontFamily) {
+            root.style.setProperty('--font-family', fontFamily);
         }
-    }, [tenant]);
+    }, [settings, tenant]);
 
     const toggleTheme = () => setIsDarkMode((prev) => !prev);
 
     return (
-        <ThemeContext.Provider value={{ theme: tenant.theme, isDarkMode, toggleTheme }}>
+        <ThemeContext.Provider value={{ theme: settings?.theme || tenant?.theme, isDarkMode, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
     );

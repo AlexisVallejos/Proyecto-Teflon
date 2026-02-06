@@ -1,6 +1,16 @@
 import React from 'react';
+import { useTenant } from '../../context/TenantContext';
 
 export default function Footer() {
+    const { tenant, settings } = useTenant();
+    const brandName = settings?.branding?.name || tenant?.name || "Tienda";
+    const whatsappNumber = String(settings?.commerce?.whatsapp_number || '').replace(/\D/g, '');
+
+    const openWhatsapp = () => {
+        if (!whatsappNumber) return;
+        window.open(`https://wa.me/${whatsappNumber}`, '_blank', 'noopener,noreferrer');
+    };
+
     return (
         <footer className="bg-background-dark text-white pt-16 pb-8">
             <div className="mx-auto max-w-[1280px] px-10">
@@ -11,13 +21,13 @@ export default function Footer() {
                                 plumbing
                             </span>
                             <h2 className="text-2xl font-black uppercase tracking-tight text-white">
-                                El Teflon
+                                {brandName}
                             </h2>
                         </div>
 
                         <p className="text-white/60 mb-6 leading-relaxed">
-                            Leading provider of sanitary and hardware solutions in Mar
-                            del Plata since 1995. Quality you can trust.
+                            Soluciones sanitarias y de ferretería desde 1995. Calidad y
+                            servicio para proyectos profesionales y del hogar.
                         </p>
 
                         <div className="flex gap-4">
@@ -49,33 +59,33 @@ export default function Footer() {
                     </div>
 
                     <div>
-                        <h4 className="text-lg font-bold mb-6">Quick Links</h4>
+                        <h4 className="text-lg font-bold mb-6">Enlaces rápidos</h4>
                         <ul className="space-y-4 text-white/60">
                             <li>
-                                <a className="hover:text-primary transition-colors" href="#">
-                                    Our Products
+                                <a className="hover:text-primary transition-colors" href="#catalog">
+                                    Nuestros productos
                                 </a>
                             </li>
                             <li>
                                 <a className="hover:text-primary transition-colors" href="#">
-                                    Installation Guide
+                                    Guías de instalación
                                 </a>
                             </li>
                             <li>
                                 <a className="hover:text-primary transition-colors" href="#">
-                                    Shipping Policy
+                                    Política de envíos
                                 </a>
                             </li>
                             <li>
                                 <a className="hover:text-primary transition-colors" href="#">
-                                    Bulk Orders
+                                    Ventas mayoristas
                                 </a>
                             </li>
                         </ul>
                     </div>
 
                     <div>
-                        <h4 className="text-lg font-bold mb-6">Contact Us</h4>
+                        <h4 className="text-lg font-bold mb-6">Contacto</h4>
                         <ul className="space-y-4 text-white/60">
                             <li className="flex gap-3">
                                 <span className="material-symbols-outlined text-primary">
@@ -99,28 +109,30 @@ export default function Footer() {
                     </div>
 
                     <div>
-                        <h4 className="text-lg font-bold mb-6">WhatsApp Support</h4>
+                        <h4 className="text-lg font-bold mb-6">Soporte por WhatsApp</h4>
                         <p className="text-white/60 mb-4">
-                            Chat directly with our sales team for quick quotes.
+                            Chateá con nuestro equipo de ventas para cotizaciones rápidas.
                         </p>
                         <button
                             type="button"
-                            className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-[#25D366] text-white font-bold hover:opacity-90 transition-opacity"
+                            onClick={openWhatsapp}
+                            className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-[#25D366] text-white font-bold hover:opacity-90 transition-opacity disabled:opacity-60"
+                            disabled={!whatsappNumber}
                         >
                             <span className="material-symbols-outlined">chat</span>
-                            Message Us
+                            Escribinos
                         </button>
                     </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row justify-between items-center text-white/40 text-sm">
-                    <p>© 2024 Sanitarios El Teflon. All rights reserved.</p>
+                    <p>(c) 2024 {brandName}. Todos los derechos reservados.</p>
                     <div className="flex gap-8 mt-4 md:mt-0">
                         <a className="hover:text-white transition-colors" href="#">
-                            Privacy Policy
+                            Política de privacidad
                         </a>
                         <a className="hover:text-white transition-colors" href="#">
-                            Terms of Service
+                            Términos y condiciones
                         </a>
                     </div>
                 </div>
