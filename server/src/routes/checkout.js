@@ -17,7 +17,7 @@ function normalizeItems(items) {
     }));
 }
 
-async function validateItems(tenantId, items) {
+async function validateItems(tenantId, items, isWholesale = false) {
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
 
@@ -26,7 +26,7 @@ async function validateItems(tenantId, items) {
   }
 
   const result = await pool.query(
-    'select id, sku, name, price, currency, stock from product_cache where tenant_id = $1 and id = ANY($2::uuid[])',
+    'select id, sku, name, price, price_wholesale, currency, stock from product_cache where tenant_id = $1 and id = ANY($2::uuid[])',
     [tenantId, ids]
   );
 
@@ -47,15 +47,16 @@ async function validateItems(tenantId, items) {
     }
 
     currency = currency || product.currency;
-    subtotal += Number(product.price) * item.qty;
+    const unitPrice = (isWholesale && product.price_wholesale) ? Number(product.price_wholesale) : Number(product.price);
+    subtotal += unitPrice * item.qty;
 
     return {
       product_id: product.id,
       sku: product.sku,
       name: product.name,
       qty: item.qty,
-      unit_price: Number(product.price),
-      total: Number(product.price) * item.qty,
+      unit_price: unitPrice,
+      total: unitPrice * item.qty,
       currency: product.currency,
     };
   }).filter(Boolean);
@@ -71,7 +72,8 @@ async function validateItems(tenantId, items) {
 
 checkoutRouter.post('/validate', async (req, res, next) => {
   try {
-    const result = await validateItems(req.tenant.id, req.body.items);
+    const isWholesale = req.user?.role === 'wholesale';
+    const result = await validateItems(req.tenant.id, req.body.items, isWholesale);
     if (!result.valid) {
       return res.status(400).json(result);
     }
@@ -84,7 +86,8 @@ checkoutRouter.post('/validate', async (req, res, next) => {
 checkoutRouter.post('/create', async (req, res, next) => {
   const client = await pool.connect();
   try {
-    const validation = await validateItems(req.tenant.id, req.body.items);
+    const isWholesale = req.user?.role === 'wholesale';
+    const validation = await validateItems(req.tenant.id, req.body.items, isWholesale);
     if (!validation.valid) {
       return res.status(400).json(validation);
     }

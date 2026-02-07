@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node src/index.js",
+    "dev": "node --watch src/index.js",
     "start": "node src/index.js"
   },
   "dependencies": {
@@ -13,6 +13,7 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "mercadopago": "^2.0.0",
+    "multer": "^2.0.2",
     "pg": "^8.12.0"
   }
 }

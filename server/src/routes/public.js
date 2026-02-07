@@ -19,6 +19,30 @@ publicRouter.get('/tenant', async (req, res, next) => {
   }
 });
 
+publicRouter.get('/categories', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'select id, name, slug from categories where tenant_id = $1 order by name asc',
+      [req.tenant.id]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+publicRouter.get('/brands', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'select distinct brand from product_cache where tenant_id = $1 and brand is not null order by brand asc',
+      [req.tenant.id]
+    );
+    return res.json(result.rows.map(r => r.brand));
+  } catch (err) {
+    return next(err);
+  }
+});
+
 publicRouter.get('/pages/:slug', async (req, res, next) => {
   try {
     const pageRes = await pool.query(
@@ -54,6 +78,11 @@ publicRouter.get('/products', async (req, res, next) => {
   try {
     const tenantId = req.tenant.id;
     const q = String(req.query.q || '').trim();
+    const category = req.query.category;
+    const brand = req.query.brand;
+    const minPrice = req.query.minPrice;
+    const maxPrice = req.query.maxPrice;
+
     const limit = Math.min(parseInt(req.query.limit || '24', 10), 100);
     const page = Math.max(parseInt(req.query.page || '1', 10), 1);
     const offset = (page - 1) * limit;
@@ -63,7 +92,31 @@ publicRouter.get('/products', async (req, res, next) => {
 
     if (q) {
       params.push(`%${q}%`);
-      where += ` and (p.name ilike $2 or p.description ilike $2)`;
+      where += ` and (p.name ilike $${params.length} or p.description ilike $${params.length})`;
+    }
+
+    if (category) {
+      params.push(category);
+      where += ` and p.id in (select product_id from product_categories pc join categories c on c.id = pc.category_id where c.slug = $${params.length} or c.id::text = $${params.length})`;
+    }
+
+    if (req.query.featured === 'true') {
+      where += ` and o.featured = true`;
+    }
+
+    if (brand) {
+      params.push(brand);
+      where += ` and p.brand = $${params.length}`;
+    }
+
+    if (minPrice) {
+      params.push(minPrice);
+      where += ` and p.price >= $${params.length}`;
+    }
+
+    if (maxPrice) {
+      params.push(maxPrice);
+      where += ` and p.price <= $${params.length}`;
     }
 
     params.push(limit);
@@ -72,7 +125,7 @@ publicRouter.get('/products', async (req, res, next) => {
     const offsetIndex = params.length;
 
     const sql = [
-      'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.currency, p.stock, p.data',
+      'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data',
       'from product_cache p',
       'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
       `where ${where}`,
@@ -87,8 +140,10 @@ publicRouter.get('/products', async (req, res, next) => {
       name: row.name,
       description: row.description,
       price: row.price,
+      price_wholesale: row.price_wholesale,
       currency: row.currency,
       stock: row.stock,
+      brand: row.brand,
       data: row.data || {},
     }));
 
@@ -100,9 +155,16 @@ publicRouter.get('/products', async (req, res, next) => {
 
 publicRouter.get('/products/:id', async (req, res, next) => {
   try {
+    const id = req.params.id;
+    // Simple UUID validation to prevent DB crash
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+
     const result = await pool.query(
-      'select id, erp_id, sku, name, description, price, currency, stock, data from product_cache where tenant_id = $1 and id = $2',
-      [req.tenant.id, req.params.id]
+      'select id, erp_id, sku, name, description, price, price_wholesale, currency, stock, brand, data from product_cache where tenant_id = $1 and id = $2',
+      [req.tenant.id, id]
     );
     if (!result.rowCount) {
       return res.status(404).json({ error: 'product_not_found' });
@@ -116,8 +178,10 @@ publicRouter.get('/products/:id', async (req, res, next) => {
       name: row.name,
       description: row.description,
       price: row.price,
+      price_wholesale: row.price_wholesale,
       currency: row.currency,
       stock: row.stock,
+      brand: row.brand,
       data: row.data || {},
     });
   } catch (err) {
@@ -138,7 +202,7 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
     const collection = collectionRes.rows[0];
     const productsRes = await pool.query(
       [
-        'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.currency, p.stock, p.data',
+        'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data',
         'from collection_items ci',
         'join product_cache p on p.id = ci.product_id',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
@@ -155,8 +219,10 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
       name: row.name,
       description: row.description,
       price: row.price,
+      price_wholesale: row.price_wholesale,
       currency: row.currency,
       stock: row.stock,
+      brand: row.brand,
       data: row.data || {},
     }));
 

@@ -1,7 +1,40 @@
-import express from 'express';
+import { Router } from 'express';
 import { pool } from '../db.js';
+import multer from 'multer';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 
-export const tenantRouter = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Multer configuration for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/products/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|webp|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes (JPEG, PNG, WebP, GIF)'));
+    }
+  }
+});
+
+export const tenantRouter = Router();
 
 function getTenantId(req, res) {
   const tenantId = req.user && req.user.tenantId;
@@ -142,8 +175,10 @@ tenantRouter.put('/pages/:slug', async (req, res, next) => {
     );
 
     let sortOrder = 0;
+    console.log(`Saving ${sections.length} sections for slug: ${req.params.slug}`);
     for (const section of sections) {
       sortOrder += 1;
+      console.log(` - Section: ${section.type}, Props:`, JSON.stringify(section.props));
       await client.query(
         [
           'insert into page_sections (page_id, state, type, enabled, sort_order, props)',
@@ -211,3 +246,139 @@ tenantRouter.post('/pages/:slug/publish', async (req, res, next) => {
     client.release();
   }
 });
+
+// Product Management
+tenantRouter.get('/products', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const result = await pool.query(
+      [
+        'select p.id, p.erp_id, p.sku, p.name, p.price, p.price_wholesale, p.stock, p.brand, p.data, (o.featured = true) as is_featured',
+        'from product_cache p',
+        'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
+        'where p.tenant_id = $1',
+        'order by p.name asc'
+      ].join(' '),
+      [tenantId]
+    );
+    return res.json({ items: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/products', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const { sku, name, price, price_wholesale, stock, brand, description, images, is_featured, category_id, features, specifications, collection, delivery_time, warranty } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'name_required' });
+  }
+
+  // Process images array
+  let imageData = [];
+  if (Array.isArray(images) && images.length > 0) {
+    imageData = images.map((img, index) => ({
+      url: img.url || img,
+      alt: img.alt || name,
+      primary: img.primary === true || index === 0 // First image is primary by default
+    }));
+  } else if (typeof images === 'string') {
+    // Backward compatibility: single URL string
+    imageData = [{ url: images, alt: name, primary: true }];
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const productData = {
+      images: imageData,
+      features: features || [],
+      specifications: specifications || {},
+      collection: collection || null,
+      delivery_time: delivery_time || null,
+      warranty: warranty || null
+    };
+
+    const result = await client.query(
+      'insert into product_cache (tenant_id, sku, name, price, price_wholesale, stock, brand, description, data) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id',
+      [tenantId, sku || null, name, price || 0, price_wholesale || price || 0, stock || 0, brand || null, description || null, JSON.stringify(productData)]
+    );
+
+    const productId = result.rows[0].id;
+
+    // Associate with category if provided
+    if (category_id) {
+      await client.query(
+        'insert into product_categories (product_id, category_id) values ($1, $2) on conflict do nothing',
+        [productId, category_id]
+      );
+    }
+
+    if (is_featured) {
+      await client.query(
+        'insert into product_overrides (tenant_id, product_id, featured) values ($1, $2, true) on conflict (tenant_id, product_id) do update set featured = true',
+        [tenantId, productId]
+      );
+    }
+
+    await client.query('COMMIT');
+    return res.json({ id: productId, ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+});
+
+// Image Upload Endpoint
+tenantRouter.post('/products/upload-image', upload.single('image'), (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'no_file_uploaded' });
+    }
+
+    // Generate public URL for the uploaded image
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    const imageUrl = `${protocol}://${host}/uploads/products/${req.file.filename}`;
+
+    return res.json({ url: imageUrl, filename: req.file.filename });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.put('/products/:id/featured', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const { featured } = req.body;
+  const productId = req.params.id;
+
+  // Validate UUID to prevent DB crash
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // Note: the above regex was missing a block for the 4-char part, but let's use a better one or the same as public.js
+  const betterUuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  if (!betterUuidRegex.test(productId)) {
+    return res.status(400).json({ error: 'invalid_product_id' });
+  }
+
+  try {
+    await pool.query(
+      'insert into product_overrides (tenant_id, product_id, featured) values ($1, $2, $3) on conflict (tenant_id, product_id) do update set featured = $3',
+      [tenantId, productId, !!featured]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    return next(err);
+  }
+});
+

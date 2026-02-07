@@ -79,8 +79,10 @@ CREATE TABLE product_cache (
   name text NOT NULL,
   description text,
   price numeric(12,2) NOT NULL DEFAULT 0,
+  price_wholesale numeric(12,2) NOT NULL DEFAULT 0,
   currency text NOT NULL DEFAULT 'ARS',
   stock int NOT NULL DEFAULT 0,
+  brand text,
   status text NOT NULL DEFAULT 'active',
   data jsonb NOT NULL DEFAULT '{}'::jsonb,
   updated_at timestamptz NOT NULL DEFAULT now()

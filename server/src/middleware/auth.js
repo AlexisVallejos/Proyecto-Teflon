@@ -21,6 +21,23 @@ export function authenticate(req, res, next) {
   }
 }
 
+export function optionalAuthenticate(req, res, next) {
+  const authHeader = req.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return next();
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = {
+      id: payload.sub,
+      role: payload.role,
+      tenantId: payload.tenant_id || null,
+    };
+    return next();
+  } catch (err) {
+    return next();
+  }
+}
+
 export function requireRole(roles) {
   const allow = Array.isArray(roles) ? roles : [roles];
   return (req, res, next) => {

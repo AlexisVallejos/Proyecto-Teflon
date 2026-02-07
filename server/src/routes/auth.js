@@ -92,3 +92,37 @@ authRouter.post('/login', async (req, res, next) => {
     return next(err);
   }
 });
+
+authRouter.post('/signup', async (req, res, next) => {
+  try {
+    const { email, password, role, tenant_id } = req.body;
+    if (!email || !password || !tenant_id) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+
+    const validRoles = ['retail', 'wholesale'];
+    const assignedRole = validRoles.includes(role) ? role : 'retail';
+
+    const countRes = await pool.query('select count(*) from users where email = $1', [email]);
+    if (parseInt(countRes.rows[0].count) > 0) {
+      return res.status(409).json({ error: 'user_exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const userRes = await pool.query(
+      'insert into users (email, password_hash, role, status) values ($1, $2, $3, $4) returning id, email, role',
+      [email, passwordHash, assignedRole, 'active']
+    );
+
+    const user = userRes.rows[0];
+    await pool.query(
+      'insert into user_tenants (user_id, tenant_id, role) values ($1, $2, $3)',
+      [user.id, tenant_id, assignedRole]
+    );
+
+    const token = signToken({ sub: user.id, role: user.role, tenant_id });
+    return res.status(201).json({ token, user: { ...user, tenant_id } });
+  } catch (err) {
+    return next(err);
+  }
+});
