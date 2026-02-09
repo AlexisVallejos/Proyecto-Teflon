@@ -2,6 +2,7 @@ import React from "react";
 import { useStore } from "../context/StoreContext";
 import { useTenant } from "../context/TenantContext";
 import { formatCurrency } from "../utils/format";
+import { getLowStockThreshold, getStockStatus, isInStock } from "../utils/stock";
 
 export default function ProductCard({ product }) {
   const { addToCart } = useStore();
@@ -10,12 +11,15 @@ export default function ProductCard({ product }) {
   const locale = settings?.commerce?.locale || "es-AR";
 
   const { id, sku, name, price, badge, image, alt, stock } = product;
-  const inStock = typeof stock === "number" ? stock > 0 : true;
+  const showStock = settings?.commerce?.show_stock !== false;
+  const lowStockThreshold = getLowStockThreshold(settings);
+  const stockStatus = showStock ? getStockStatus(stock, lowStockThreshold) : null;
+  const inStock = isInStock(stock);
 
   const handleAdd = (e) => {
     e.stopPropagation();
     if (!inStock) return;
-    addToCart({ id, sku, name, price, image, alt });
+    addToCart({ id, sku, name, price, image, alt, stock });
   };
 
   const navigateToProduct = () => {
@@ -45,6 +49,13 @@ export default function ProductCard({ product }) {
 
       <div className="px-2 pb-2 text-left">
         <h3 className="text-lg font-bold dark:text-white line-clamp-1">{name}</h3>
+        {stockStatus ? (
+          <span
+            className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${stockStatus.bg} ${stockStatus.tone}`}
+          >
+            {stockStatus.label}
+          </span>
+        ) : null}
         {settings?.commerce?.show_prices !== false ? (
           <p className="text-2xl font-black text-primary mt-1">
             {formatCurrency(price, currency, locale)}
@@ -60,10 +71,9 @@ export default function ProductCard({ product }) {
           disabled={!inStock}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-white"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><path d="M12 9h6"></path><path d="M15 6v6"></path></svg>
-          Add to Cart
+          {inStock ? "Agregar al carrito" : "Sin stock"}
         </button>
       </div>
     </div>
   );
 }
-

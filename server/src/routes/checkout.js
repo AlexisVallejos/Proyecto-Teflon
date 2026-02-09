@@ -104,6 +104,15 @@ checkoutRouter.post('/create', async (req, res, next) => {
     const total = validation.subtotal + shipping + tax;
 
     await client.query('BEGIN');
+    for (const item of validation.items) {
+      const stockRes = await client.query(
+        'update product_cache set stock = stock - $1, updated_at = now() where tenant_id = $2 and id = $3 and stock >= $1 returning stock',
+        [item.qty, req.tenant.id, item.product_id]
+      );
+      if (!stockRes.rowCount) {
+        throw new Error(`insufficient_stock:${item.product_id}`);
+      }
+    }
     const orderRes = await client.query(
       [
         'insert into orders (tenant_id, status, currency, subtotal, tax, shipping, total, customer)',
@@ -191,6 +200,9 @@ checkoutRouter.post('/create', async (req, res, next) => {
     return res.json({ order_id: orderId, payment, whatsapp_url });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (String(err?.message || '').startsWith('insufficient_stock:')) {
+      return res.status(400).json({ valid: false, errors: [err.message] });
+    }
     return next(err);
   } finally {
     client.release();

@@ -1,13 +1,19 @@
 import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { navigate } from '../../utils/navigation';
 
 export default function AdminLayout({ children, activeSection = 'home', onSectionChange }) {
     const { isDarkMode, toggleTheme } = useTheme();
+    const { logout } = useAuth();
     const handleSectionChange = (section) => {
         if (typeof onSectionChange === 'function') {
             onSectionChange(section);
         }
+    };
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
     };
 
     const navButtonClasses = (isActive) =>
@@ -75,6 +81,13 @@ export default function AdminLayout({ children, activeSection = 'home', onSectio
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                         Volver a la tienda
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 text-sm text-red-500 hover:text-red-600 mb-4"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path><path d="M12 19H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h7"></path></svg>
+                        Salir del admin
                     </button>
 
                     <button

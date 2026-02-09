@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils/format";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
 import { navigate } from "../../utils/navigation";
+import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 
 const FALLBACK_IMAGE = "https://via.placeholder.com/900";
 
@@ -23,6 +24,8 @@ export default function ProductDetail() {
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
     const showPrices = settings?.commerce?.show_prices !== false;
+    const showStock = settings?.commerce?.show_stock !== false;
+    const lowStockThreshold = getLowStockThreshold(settings);
 
     const [productId, setProductId] = useState(getProductId);
     const [product, setProduct] = useState(null);
@@ -114,7 +117,8 @@ export default function ProductDetail() {
         };
     }, [product, isWholesale]);
 
-    const canBuy = view ? (typeof view.stock === "number" ? view.stock > 0 : true) : false;
+    const canBuy = view ? isInStock(view.stock) : false;
+    const stockStatus = view && showStock ? getStockStatus(view.stock, lowStockThreshold) : null;
 
     const handleAdd = () => {
         if (!view || !canBuy) return;
@@ -125,6 +129,7 @@ export default function ProductDetail() {
             price: view.price,
             image: view.image,
             alt: view.alt,
+            stock: view.stock,
             variant: view.extra?.variant || "",
         });
     };
@@ -205,6 +210,18 @@ export default function ProductDetail() {
                             <p className="text-[#8a7560] leading-relaxed">
                                 {view.description || "No description available."}
                             </p>
+                            {stockStatus ? (
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${stockStatus.bg} ${stockStatus.tone}`}
+                                    >
+                                        {stockStatus.label}
+                                    </span>
+                                    {typeof view.stock === "number" ? (
+                                        <span className="text-xs text-[#8a7560]">Stock: {view.stock}</span>
+                                    ) : null}
+                                </div>
+                            ) : null}
 
                             <div className="flex flex-wrap gap-3">
                                 <button
@@ -213,20 +230,16 @@ export default function ProductDetail() {
                                     className="h-12 px-6 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 transition-colors disabled:opacity-60"
                                     disabled={!canBuy}
                                 >
-                                    {canBuy ? "Add to cart" : "Out of stock"}
+                                    {canBuy ? "Agregar al carrito" : "Sin stock"}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => navigate("/catalog")}
                                     className="h-12 px-6 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] font-bold text-[#181411] dark:text-white hover:border-primary/50"
                                 >
-                                    Back to catalog
+                                    Volver al catalogo
                                 </button>
                             </div>
-
-                            {typeof view.stock === "number" ? (
-                                <p className="text-xs text-[#8a7560]">Stock: {view.stock}</p>
-                            ) : null}
                         </div>
                     </div>
                 )}

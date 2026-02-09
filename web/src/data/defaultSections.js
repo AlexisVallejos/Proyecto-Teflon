@@ -154,10 +154,10 @@ export const DEFAULT_ABOUT_SECTIONS = [
             backgroundImage:
                 'https://lh3.googleusercontent.com/aida-public/AB6AXuDd5sRN9c3Iyg5tub-t6DownNaquR6DBO7x9kWyTXKAhtTfCcSMSUTP3XZGAiL1-Mj-9MbM-m0jm0ijRI13F0_dNFIyToqwNriV9r4akyx6ZAWADgUH407R7Tas-tfzDuwHbfz29pugtdtM3dlMJNOiv20x3Gv8czAs6T9Sq2RN7e0tDp-X78LAcNw4Fz02UVghwohyhXjshm1zUxjj620L3W_ET5Q_zILEvX-EgPT6IDycP7lycSMQhu25nTE1qZeNJUjPddDvAg0',
             styles: {
-                backgroundColor: '#f27f0d',
+                backgroundColor: '#ffffff',
                 overlayColor: '#000000',
                 overlayOpacity: 0.25,
-                textColor: '#ffffff',
+                textColor: '#181411',
             },
         },
     },

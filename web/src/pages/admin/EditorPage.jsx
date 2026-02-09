@@ -12,6 +12,7 @@ export default function EditorPage() {
         name: '',
         sku: '',
         price: '',
+        stock: 0,
         description: '',
         images: [],
         is_featured: false,
@@ -301,16 +302,23 @@ export default function EditorPage() {
             const res = await fetch(`${getApiBase()}/tenant/products`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(newProduct)
+                body: JSON.stringify({
+                    ...newProduct,
+                    stock: Number(newProduct.stock || 0),
+                })
             });
 
             if (res.ok) {
                 const created = await res.json();
-                setProducts([...products, { ...newProduct, id: created.id, is_featured: newProduct.is_featured }]);
+                setProducts([
+                    ...products,
+                    { ...newProduct, id: created.id, stock: Number(newProduct.stock || 0), is_featured: newProduct.is_featured },
+                ]);
                 setNewProduct({
                     name: '',
                     sku: '',
                     price: '',
+                    stock: 0,
                     description: '',
                     images: [],
                     is_featured: false,
@@ -698,6 +706,15 @@ export default function EditorPage() {
                                                 placeholder="Precio"
                                                 onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
                                                 className="w-24 px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={newProduct.stock}
+                                                placeholder="Stock"
+                                                onChange={e => setNewProduct({ ...newProduct, stock: e.target.value })}
+                                                className="w-20 px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono"
                                             />
                                         </div>
                                         <select

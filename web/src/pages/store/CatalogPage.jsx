@@ -5,6 +5,7 @@ import { getApiBase, getTenantHeaders } from "../../utils/api";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
+import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 
 export default function CatalogPage() {
     const { search } = useStore();
@@ -13,6 +14,8 @@ export default function CatalogPage() {
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
     const showPrices = settings?.commerce?.show_prices !== false;
+    const showStock = settings?.commerce?.show_stock !== false;
+    const lowStockThreshold = getLowStockThreshold(settings);
 
     const [page, setPage] = useState(1);
     const [categories, setCategories] = useState([]);
@@ -348,6 +351,8 @@ export default function CatalogPage() {
                                                 showPrices={showPrices}
                                                 currency={currency}
                                                 locale={locale}
+                                                showStock={showStock}
+                                                lowStockThreshold={lowStockThreshold}
                                             />
                                         ))}
 
@@ -410,11 +415,12 @@ export default function CatalogPage() {
     );
 }
 
-function CatalogProductCard({ product, showPrices, currency, locale }) {
+function CatalogProductCard({ product, showPrices, currency, locale, showStock, lowStockThreshold }) {
     const { addToCart } = useStore();
     const { name, desc, price, oldPrice, tag, image, alt, stock } = product;
     const [isFavorite, setIsFavorite] = useState(false);
-    const inStock = typeof stock === "number" ? stock > 0 : true;
+    const inStock = isInStock(stock);
+    const stockStatus = showStock ? getStockStatus(stock, lowStockThreshold) : null;
 
     const navigateToProduct = () => {
         window.history.pushState({}, '', `/product/${product.id}`);
@@ -470,6 +476,13 @@ function CatalogProductCard({ product, showPrices, currency, locale }) {
                     </h3>
                     <p className="text-[#8a7560] text-sm line-clamp-2">{desc}</p>
                 </div>
+                {stockStatus ? (
+                    <span
+                        className={`inline-flex items-center w-fit rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${stockStatus.bg} ${stockStatus.tone}`}
+                    >
+                        {stockStatus.label}
+                    </span>
+                ) : null}
 
                 <div className="flex items-center justify-between mt-2">
                     <div className="flex flex-col">

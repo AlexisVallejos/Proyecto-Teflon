@@ -3,6 +3,7 @@ import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
+import { navigate } from "../../utils/navigation";
 
 export default function CartPage() {
     const { cartItems, updateQty, removeItem, addToCart } = useStore();
@@ -153,7 +154,7 @@ export default function CartPage() {
                             </div>
 
                             <button
-                                onClick={() => (window.location.hash = '#checkout')}
+                                onClick={() => navigate("/checkout")}
                                 className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg transition-colors flex items-center justify-center gap-2 mb-4"
                             >
                                 Continuar al checkout

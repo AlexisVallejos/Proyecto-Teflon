@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
         locale: 'es-AR',
         show_prices: true,
         show_stock: true,
+        low_stock_threshold: 3,
         mode: 'hybrid',
         whatsapp_number: '',
         tax_rate: 0.21,

@@ -9,6 +9,11 @@ const safeNumber = (value, fallback = 0) => {
     return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const normalizeStock = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 export const StoreProvider = ({ children }) => {
     const [search, setSearch] = useState("");
     const [cartItems, setCartItems] = useState(() => {
@@ -42,13 +47,23 @@ export const StoreProvider = ({ children }) => {
     const addToCart = (product, qty = 1) => {
         if (!product || !product.id) return;
         const nextQty = Math.max(1, safeNumber(qty, 1));
+        const stockValue = normalizeStock(product.stock);
 
         setCartItems((prev) => {
             const existing = prev.find((item) => item.id === product.id);
+            const maxQty = stockValue != null ? Math.max(stockValue, 0) : null;
+            if (maxQty !== null && maxQty <= 0) {
+                return prev;
+            }
             if (existing) {
+                const desiredQty = existing.qty + nextQty;
+                const cappedQty = maxQty != null ? Math.min(desiredQty, maxQty) : desiredQty;
+                if (cappedQty === existing.qty) {
+                    return prev;
+                }
                 return prev.map((item) =>
                     item.id === product.id
-                        ? { ...item, qty: item.qty + nextQty }
+                        ? { ...item, qty: cappedQty, stock: stockValue ?? item.stock }
                         : item
                 );
             }
@@ -60,10 +75,11 @@ export const StoreProvider = ({ children }) => {
                     sku: product.sku || product.erp_id || product.id,
                     name: product.name || "Producto",
                     price: safeNumber(product.price, 0),
-                    qty: nextQty,
+                    qty: maxQty != null ? Math.min(nextQty, maxQty) : nextQty,
                     image: product.image || product.image_url || "",
                     alt: product.alt || product.name || "Producto",
                     variant: product.variant || "",
+                    stock: stockValue ?? undefined,
                 },
             ];
         });
@@ -72,7 +88,13 @@ export const StoreProvider = ({ children }) => {
     const updateQty = (id, qty) => {
         const nextQty = Math.max(1, safeNumber(qty, 1));
         setCartItems((prev) =>
-            prev.map((item) => (item.id === id ? { ...item, qty: nextQty } : item))
+            prev.flatMap((item) => {
+                if (item.id !== id) return [item];
+                const maxQty = typeof item.stock === "number" ? item.stock : null;
+                const cappedQty = maxQty != null ? Math.min(nextQty, maxQty) : nextQty;
+                if (cappedQty < 1) return [];
+                return [{ ...item, qty: cappedQty }];
+            })
         );
     };
 
