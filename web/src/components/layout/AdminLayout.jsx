@@ -2,8 +2,20 @@ import React from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { navigate } from '../../utils/navigation';
 
-export default function AdminLayout({ children }) {
+export default function AdminLayout({ children, activeSection = 'home', onSectionChange }) {
     const { isDarkMode, toggleTheme } = useTheme();
+    const handleSectionChange = (section) => {
+        if (typeof onSectionChange === 'function') {
+            onSectionChange(section);
+        }
+    };
+
+    const navButtonClasses = (isActive) =>
+        `flex items-center gap-3 w-full p-2 rounded-lg transition-colors ${
+            isActive
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'hover:bg-gray-100 dark:hover:bg-[#2c2116] text-gray-600 dark:text-gray-300'
+        }`;
 
     return (
         <div className={`flex h-screen bg-gray-100 ${isDarkMode ? 'dark' : ''}`}>
@@ -18,19 +30,39 @@ export default function AdminLayout({ children }) {
                     <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                         Páginas
                     </div>
-                    <button className="flex items-center gap-3 w-full p-2 rounded-lg bg-primary/10 text-primary font-medium">
+                    <button
+                        type="button"
+                        onClick={() => handleSectionChange('home')}
+                        className={navButtonClasses(activeSection === 'home')}
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                         Inicio
                     </button>
-                    <button className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2c2116] text-gray-600 dark:text-gray-300 transition-colors">
+                    <button
+                        type="button"
+                        onClick={() => handleSectionChange('catalog')}
+                        className={navButtonClasses(activeSection === 'catalog')}
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
                         Catálogo
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleSectionChange('about')}
+                        className={navButtonClasses(activeSection === 'about')}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        Sobre nosotros
                     </button>
 
                     <div className="mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                         Configuración
                     </div>
-                    <button className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2c2116] text-gray-600 dark:text-gray-300 transition-colors">
+                    <button
+                        type="button"
+                        onClick={() => handleSectionChange('appearance')}
+                        className={navButtonClasses(activeSection === 'appearance')}
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.644-.438-1.125 0-.927.758-1.688 1.688-1.688h1.952c2.312 0 4.587-2.236 4.587-4.75C22 6.5 17.5 2 12 2z"></path></svg>
                         Apariencia
                     </button>

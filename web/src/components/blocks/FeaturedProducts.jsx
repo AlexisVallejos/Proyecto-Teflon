@@ -6,6 +6,8 @@ export default function FeaturedProducts({
   products,
   title = "Featured Products",
   subtitle = "Our most popular hardware and sanitary selections.",
+  ctaLabel = "See all products",
+  ctaLink = "#catalog",
   styles = {}
 }) {
   const { search } = useStore();
@@ -37,13 +39,15 @@ export default function FeaturedProducts({
               {subtitle}
             </p>
           </div>
-          <a
-            className="text-primary font-bold hover:underline flex items-center gap-1"
-            href="#catalog"
-          >
-            See all products{" "}
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-          </a>
+          {ctaLabel ? (
+            <a
+              className="text-primary font-bold hover:underline flex items-center gap-1"
+              href={ctaLink}
+            >
+              {ctaLabel}{" "}
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </a>
+          ) : null}
         </div>
 
         {visibleProducts.length ? (
@@ -61,4 +65,3 @@ export default function FeaturedProducts({
     </section>
   );
 }
-

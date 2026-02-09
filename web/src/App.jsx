@@ -10,15 +10,18 @@ import CatalogPage from './pages/store/CatalogPage';
 import CartPage from './pages/store/CartPage';
 import CheckoutPage from './pages/store/CheckoutPage';
 import ProductDetail from './pages/store/ProductDetail';
+import AboutPage from './pages/store/AboutPage';
 import LoginPage from './pages/store/LoginPage';
 import SignupPage from './pages/store/SignupPage';
+import ProfilePage from './pages/store/ProfilePage';
 import EditorPage from './pages/admin/EditorPage';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function AppContent() {
     const [route, setRoute] = useState(window.location.pathname);
     const { isDarkMode } = useTheme();
+    const { isAdmin, loading: authLoading, user } = useAuth();
 
     useEffect(() => {
         const handleLocationChange = () => setRoute(window.location.pathname);
@@ -36,13 +39,28 @@ function AppContent() {
     }, []);
 
     let Component = HomePage;
-    if (route === '/catalog') Component = CatalogPage;
+    if (route === '/admin') {
+        if (authLoading) {
+            Component = () => (
+                <div className="min-h-screen flex items-center justify-center text-sm text-[#8a7560]">
+                    Cargando...
+                </div>
+            );
+        } else if (isAdmin) {
+            Component = EditorPage;
+        } else if (user) {
+            Component = ProfilePage;
+        } else {
+            Component = LoginPage;
+        }
+    } else if (route === '/profile') Component = ProfilePage;
+    else if (route === '/catalog') Component = CatalogPage;
+    else if (route === '/about' || route === '/sobre-nosotros') Component = AboutPage;
     else if (route === '/cart') Component = CartPage;
     else if (route === '/checkout') Component = CheckoutPage;
     else if (route.startsWith('/product')) Component = ProductDetail;
     else if (route === '/login') Component = LoginPage;
     else if (route === '/signup') Component = SignupPage;
-    else if (route === '/admin') Component = EditorPage;
 
     return (
         <div className={`w-full min-h-screen bg-gray-50 transition-colors duration-200 ${isDarkMode ? 'dark' : ''}`}>

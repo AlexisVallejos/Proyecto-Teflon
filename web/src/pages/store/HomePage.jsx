@@ -108,8 +108,12 @@ export default function HomePage() {
                 ) : (
                     <>
                         <HeroSlider />
-                        <FeaturedProducts products={featuredProducts} />
-                        <Services />
+                        <section id="ofertas">
+                            <FeaturedProducts products={featuredProducts} />
+                        </section>
+                        <section id="sobre-nosotros">
+                            <Services />
+                        </section>
                     </>
                 )}
             </div>

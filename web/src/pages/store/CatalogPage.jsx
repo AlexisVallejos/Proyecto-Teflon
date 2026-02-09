@@ -9,7 +9,7 @@ import { useAuth } from "../../context/AuthContext";
 export default function CatalogPage() {
     const { search } = useStore();
     const { settings } = useTenant();
-    const { isWholesale } = useAuth();
+    const { isWholesale, isAdmin } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
     const showPrices = settings?.commerce?.show_prices !== false;
@@ -310,7 +310,8 @@ export default function CatalogPage() {
                             </div>
                         </div>
 
-                        <div className="bg-primary/5 dark:bg-primary/10 p-6 rounded-xl border border-primary/20 relative overflow-hidden group">
+                        {isAdmin ? (
+                            <div className="bg-primary/5 dark:bg-primary/10 p-6 rounded-xl border border-primary/20 relative overflow-hidden group">
                             <div className="relative z-10">
                                 <p className="text-primary font-bold text-lg mb-1">Configuración del tema</p>
                                 <p className="text-xs text-[#8a7560] dark:text-[#a08b76] mb-4">
@@ -322,7 +323,8 @@ export default function CatalogPage() {
                                 </button>
                             </div>
                             <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="absolute -right-4 -bottom-4 text-primary/10 rotate-12 group-hover:rotate-0 transition-transform duration-500"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.5 1.5"></path><path d="M2 2l1.5 7.5"></path></svg>
-                        </div>
+                            </div>
+                        ) : null}
                     </aside>
 
                     {/* Product Grid */}
@@ -349,7 +351,7 @@ export default function CatalogPage() {
                                             />
                                         ))}
 
-                                        <AddNewCard />
+                                        {isAdmin ? <AddNewCard /> : null}
                                     </div>
                                 )}
                             </>

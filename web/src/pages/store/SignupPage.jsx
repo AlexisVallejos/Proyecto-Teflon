@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
+import { navigate } from '../../utils/navigation';
 
 export default function SignupPage() {
     const { signup } = useAuth();
@@ -16,7 +17,7 @@ export default function SignupPage() {
         setLoading(true);
         try {
             await signup(email, password, role);
-            window.location.hash = '#';
+            navigate('/profile');
         } catch (err) {
             setError(err.message);
         } finally {
@@ -102,7 +103,7 @@ export default function SignupPage() {
                         <p className="text-[#8a7560] text-sm">
                             ¿Ya tenés cuenta?{' '}
                             <button
-                                onClick={() => window.location.hash = '#login'}
+                                onClick={() => navigate('/login')}
                                 className="text-primary font-bold hover:underline"
                             >
                                 Iniciar sesión

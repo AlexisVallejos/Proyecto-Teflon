@@ -1,6 +1,6 @@
 import React from "react";
 
-function ServiceCard({ icon, title, text, styles = {} }) {
+function ServiceCard({ icon, title, text, description, styles = {} }) {
   const {
     cardBg = "bg-white dark:bg-[#3d2e21]",
     iconColor = "text-primary",
@@ -8,6 +8,7 @@ function ServiceCard({ icon, title, text, styles = {} }) {
     titleSize = "text-xl",
     textColor = "text-[#8a7560] dark:text-white/60",
   } = styles;
+  const body = text ?? description ?? "";
 
   const ICON_MAP = {
     support_agent: (
@@ -27,7 +28,7 @@ function ServiceCard({ icon, title, text, styles = {} }) {
         {ICON_MAP[icon] || icon}
       </div>
       <h3 className={`${titleSize} font-bold mb-2 dark:text-white`}>{title}</h3>
-      <p className={textColor}>{text}</p>
+      <p className={textColor}>{body}</p>
     </div>
   );
 }
@@ -71,6 +72,7 @@ export default function Services({
               icon={item.icon}
               title={item.title}
               text={item.text}
+              description={item.description}
               styles={cardStyles}
             />
           ))}
@@ -79,4 +81,3 @@ export default function Services({
     </section>
   );
 }
-

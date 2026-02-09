@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import Header from './Header';
 import Footer from './Footer';
-import { useTenant } from '../../context/TenantContext';
 
 export default function StoreLayout({ children }) {
-    const { settings } = useTenant();
-    const navLinks = settings?.branding?.navbar?.links || [];
+    const navLinks = [
+        { label: 'Inicio', href: '/' },
+        { label: 'Catalogo', href: '/catalog' },
+        { label: 'Ofertas', href: '/#ofertas' },
+        { label: 'Sobre nosotros', href: '/about' },
+    ];
 
     return (
-        <div className="bg-background-light dark:bg-background-dark font-[var(--font-family)] text-[#181411] dark:text-[#f8f7f5] min-h-screen flex flex-col">
+        <div className="bg-background-light dark:bg-background-dark font-[var(--font-family)] text-[color:var(--color-text,#181411)] dark:text-[#f8f7f5] min-h-screen flex flex-col">
             <Header navLinks={navLinks} />
             <main className="flex-grow">
                 {children}

@@ -17,8 +17,11 @@ export const ThemeProvider = ({ children }) => {
                 fallbackPalette[key] = theme[key];
             }
         });
+        if (!fallbackPalette.text && theme.secondary) {
+            fallbackPalette.text = theme.secondary;
+        }
 
-        const colors = Object.keys(palette).length ? palette : fallbackPalette;
+        const colors = { ...fallbackPalette, ...palette };
         const root = document.documentElement;
 
         Object.entries(colors).forEach(([key, value]) => {

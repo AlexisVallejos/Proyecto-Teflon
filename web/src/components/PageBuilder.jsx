@@ -2,11 +2,28 @@ import React from 'react';
 import HeroSlider from './blocks/HeroSlider';
 import FeaturedProducts from './blocks/FeaturedProducts';
 import Services from './blocks/Services';
+import AboutHero from './blocks/AboutHero';
+import AboutMission from './blocks/AboutMission';
+import AboutStats from './blocks/AboutStats';
+import AboutValues from './blocks/AboutValues';
+import AboutTeam from './blocks/AboutTeam';
+import AboutCTA from './blocks/AboutCTA';
 
 const COMPONENT_MAP = {
     HeroSlider,
     FeaturedProducts,
     Services,
+    AboutHero,
+    AboutMission,
+    AboutStats,
+    AboutValues,
+    AboutTeam,
+    AboutCTA,
+};
+
+const ANCHOR_MAP = {
+    FeaturedProducts: 'ofertas',
+    Services: 'sobre-nosotros',
 };
 
 export default function PageBuilder({ sections = [] }) {
@@ -18,10 +35,17 @@ export default function PageBuilder({ sections = [] }) {
         );
     }
 
+    const usedAnchors = new Set();
+
     return (
         <div className="flex flex-col">
             {sections.map((section, index) => {
                 const Component = COMPONENT_MAP[section.type];
+                const anchor = section.props?.anchor || ANCHOR_MAP[section.type];
+                const anchorId = anchor && !usedAnchors.has(anchor) ? anchor : null;
+                if (anchorId) {
+                    usedAnchors.add(anchorId);
+                }
 
                 if (!Component) {
                     console.warn(`Tipo de componente desconocido: ${section.type}`);
@@ -35,7 +59,11 @@ export default function PageBuilder({ sections = [] }) {
                     );
                 }
 
-                return <Component key={section.id || index} {...section.props} />;
+                return (
+                    <section key={section.id || index} id={anchorId || undefined}>
+                        <Component {...section.props} />
+                    </section>
+                );
             })}
         </div>
     );

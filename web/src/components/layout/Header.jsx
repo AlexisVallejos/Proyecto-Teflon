@@ -2,6 +2,7 @@ import React from "react";
 import { useTenant } from "../../context/TenantContext";
 import { useStore } from "../../context/StoreContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 
 const DEFAULT_PLACEHOLDER = "Search products...";
@@ -40,6 +41,7 @@ export default function Header({
   const { tenant, settings } = useTenant();
   const { search, setSearch, cartCount } = useStore();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, isAdmin } = useAuth();
 
   const resolvedBrand =
     brandName || settings?.branding?.name || tenant?.name || "El Teflon";
@@ -52,6 +54,14 @@ export default function Header({
   const handleSearchKey = (event) => {
     if (event.key === "Enter") {
       navigate("/catalog");
+    }
+  };
+
+  const handleAccountClick = () => {
+    if (user) {
+      navigate(isAdmin ? "/admin" : "/profile");
+    } else {
+      navigate("/login");
     }
   };
 
@@ -132,7 +142,7 @@ export default function Header({
             {showAccount ? (
               <button
                 type="button"
-                onClick={() => navigate("/login")}
+                onClick={handleAccountClick}
                 className="flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
                 aria-label="Account"
               >
@@ -159,4 +169,3 @@ export default function Header({
     </header>
   );
 }
-

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
+import { navigate } from '../../utils/navigation';
 
 export default function LoginPage() {
     const { login } = useAuth();
@@ -14,8 +15,13 @@ export default function LoginPage() {
         setError('');
         setLoading(true);
         try {
-            await login(email, password);
-            window.location.hash = '#';
+            const data = await login(email, password);
+            const role = data?.user?.role;
+            if (role === 'tenant_admin' || role === 'master_admin') {
+                navigate('/admin');
+            } else {
+                navigate('/profile');
+            }
         } catch (err) {
             setError(err.message);
         } finally {
@@ -40,13 +46,13 @@ export default function LoginPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-bold text-[#181411] dark:text-white mb-2">Email</label>
+                            <label className="block text-sm font-bold text-[#181411] dark:text-white mb-2">Usuario o email</label>
                             <input
-                                type="email"
+                                type="text"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full px-4 py-3 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white"
-                                placeholder="tu@email.com"
+                                placeholder="admin o tu@email.com"
                                 required
                             />
                         </div>
@@ -75,7 +81,7 @@ export default function LoginPage() {
                         <p className="text-[#8a7560] text-sm">
                             ¿No tenés cuenta?{' '}
                             <button
-                                onClick={() => window.location.hash = '#signup'}
+                                onClick={() => navigate('/signup')}
                                 className="text-primary font-bold hover:underline"
                             >
                                 Registrarse

@@ -11,7 +11,7 @@ import { adminRouter } from './routes/admin.js';
 import { checkoutRouter } from './routes/checkout.js';
 import { authRouter } from './routes/auth.js';
 import { webhooksRouter } from './routes/webhooks.js';
-import { authenticate, optionalAuthenticate } from './middleware/auth.js';
+import { authenticate, optionalAuthenticate, requireRole } from './middleware/auth.js';
 
 const app = express();
 app.set('trust proxy', true);
@@ -35,11 +35,11 @@ app.use('/public', publicRouter);
 app.use('/checkout', optionalAuthenticate, checkoutRouter);
 app.use('/webhooks', webhooksRouter);
 
-app.use('/tenant', authenticate, tenantRouter);
+const ADMIN_ROLES = ['tenant_admin', 'master_admin'];
+app.use('/tenant', authenticate, requireRole(ADMIN_ROLES), tenantRouter);
 app.use('/admin', authenticate, adminRouter);
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`API listening on port ${port}`);
 });
-
