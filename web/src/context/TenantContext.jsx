@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
         background: '#ffffff',
         text: '#181411',
         font_family: 'Inter, sans-serif',
+        mode: 'light',
     },
     commerce: {
         currency: 'ARS',

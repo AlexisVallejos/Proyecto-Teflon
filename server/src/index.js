@@ -36,8 +36,16 @@ app.use('/checkout', optionalAuthenticate, checkoutRouter);
 app.use('/webhooks', webhooksRouter);
 
 const ADMIN_ROLES = ['tenant_admin', 'master_admin'];
-app.use('/tenant', authenticate, requireRole(ADMIN_ROLES), tenantRouter);
-app.use('/admin', authenticate, adminRouter);
+const disableAuth = process.env.DISABLE_AUTH === 'true';
+
+if (disableAuth) {
+  console.warn('AUTH DISABLED: /tenant and /admin routes are open without token.');
+  app.use('/tenant', tenantRouter);
+  app.use('/admin', adminRouter);
+} else {
+  app.use('/tenant', authenticate, requireRole(ADMIN_ROLES), tenantRouter);
+  app.use('/admin', authenticate, adminRouter);
+}
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {

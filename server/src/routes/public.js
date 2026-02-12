@@ -189,6 +189,67 @@ publicRouter.get('/products/:id', async (req, res, next) => {
   }
 });
 
+publicRouter.get('/products/:id/related', async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+
+    const limit = Math.min(parseInt(req.query.limit || '4', 10), 12);
+
+    const categoriesRes = await pool.query(
+      [
+        'select pc.category_id',
+        'from product_categories pc',
+        'join product_cache p on p.id = pc.product_id',
+        'where p.tenant_id = $1 and p.id = $2',
+      ].join(' '),
+      [req.tenant.id, id]
+    );
+
+    const categoryIds = categoriesRes.rows.map((row) => row.category_id);
+    if (!categoryIds.length) {
+      return res.json({ items: [] });
+    }
+
+    const relatedRes = await pool.query(
+      [
+        'select distinct on (p.id) p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data',
+        'from product_cache p',
+        'join product_categories pc on pc.product_id = p.id',
+        'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
+        'where p.tenant_id = $1',
+        'and p.id <> $2',
+        'and pc.category_id = any($3::uuid[])',
+        'and (o.hidden is null or o.hidden = false)',
+        'order by p.id, p.name asc',
+        'limit $4',
+      ].join(' '),
+      [req.tenant.id, id, categoryIds, limit]
+    );
+
+    const items = relatedRes.rows.map((row) => ({
+      id: row.id,
+      erp_id: row.erp_id,
+      sku: row.sku,
+      name: row.name,
+      description: row.description,
+      price: row.price,
+      price_wholesale: row.price_wholesale,
+      currency: row.currency,
+      stock: row.stock,
+      brand: row.brand,
+      data: row.data || {},
+    }));
+
+    return res.json({ items });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 publicRouter.get('/collections/:slug', async (req, res, next) => {
   try {
     const collectionRes = await pool.query(

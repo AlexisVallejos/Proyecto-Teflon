@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import PageBuilder from '../../components/PageBuilder';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
@@ -8,6 +8,13 @@ export default function EditorPage() {
     const [activeTab, setActiveTab] = useState('home');
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [categorySaving, setCategorySaving] = useState(false);
+    const [stockEdits, setStockEdits] = useState({});
+    const [stockSavingId, setStockSavingId] = useState(null);
+    const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+    const [serviceIconUploading, setServiceIconUploading] = useState(false);
+    const [clearingFeatured, setClearingFeatured] = useState(false);
     const [newProduct, setNewProduct] = useState({
         name: '',
         sku: '',
@@ -45,7 +52,7 @@ export default function EditorPage() {
                 ]
             }
         },
-        theme: { primary: '#f97316', secondary: '#181411', font_family: 'Inter' },
+        theme: { primary: '#f97316', secondary: '#181411', font_family: 'Inter', mode: 'light' },
         commerce: { whatsapp_number: '', email: '', address: '' }
     });
     const [pageSections, setPageSections] = useState({
@@ -71,6 +78,27 @@ export default function EditorPage() {
         setToast({ show: true, message });
         setTimeout(() => setToast({ show: false, message: '' }), 3000);
     };
+
+    const isImageIcon = (value) =>
+        typeof value === 'string' &&
+        (value.startsWith('http://') ||
+            value.startsWith('https://') ||
+            value.startsWith('/uploads/') ||
+            value.startsWith('data:'));
+
+    const loadCategories = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = { ...getTenantHeaders(), 'Authorization': `Bearer ${token}` };
+            const res = await fetch(`${getApiBase()}/tenant/categories`, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                setCategories(data || []);
+            }
+        } catch (err) {
+            console.error('Failed to load categories', err);
+        }
+    }, []);
 
     useEffect(() => {
         const loadData = async () => {
@@ -139,22 +167,8 @@ export default function EditorPage() {
     }, []);
 
     useEffect(() => {
-        // Load categories
-        const loadCategories = async () => {
-            try {
-                const token = localStorage.getItem('teflon_token');
-                const headers = { ...getTenantHeaders(), 'Authorization': `Bearer ${token}` };
-                const res = await fetch(`${getApiBase()}/public/categories`, { headers });
-                if (res.ok) {
-                    const data = await res.json();
-                    setCategories(data || []);
-                }
-            } catch (err) {
-                console.error('Failed to load categories', err);
-            }
-        };
         loadCategories();
-    }, []);
+    }, [loadCategories]);
 
     const handleSaveAll = async () => {
         setSaving(true);
@@ -288,6 +302,39 @@ export default function EditorPage() {
         setSections(newSections);
     };
 
+    const handleCreateCategory = async () => {
+        const name = newCategoryName.trim();
+        if (!name) return;
+        setCategorySaving(true);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            const res = await fetch(`${getApiBase()}/tenant/categories`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ name })
+            });
+
+            if (res.ok) {
+                setNewCategoryName('');
+                await loadCategories();
+                showSuccess('Categoria creada con exito');
+            } else {
+                alert('Error al crear categoria');
+            }
+        } catch (err) {
+            console.error('Failed to create category', err);
+            alert('Error al crear categoria');
+        } finally {
+            setCategorySaving(false);
+        }
+    };
+
     const handleCreateProduct = async () => {
         if (!newProduct.name) return;
         setSaving(true);
@@ -360,6 +407,101 @@ export default function EditorPage() {
             }
         } catch (err) {
             console.error('Failed to toggle featured', err);
+        }
+    };
+
+    const handleAddStock = async (id) => {
+        const raw = stockEdits[id];
+        if (raw === undefined || raw === null || String(raw).trim() === '') return;
+        const delta = Number(raw);
+        if (Number.isNaN(delta) || delta === 0) return;
+
+        setStockSavingId(id);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+
+            const res = await fetch(`${getApiBase()}/tenant/products/${id}/stock`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({ delta })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setProducts(prev => prev.map(p => p.id === id ? { ...p, stock: data.stock } : p));
+                setStockEdits(prev => ({ ...prev, [id]: '' }));
+                showSuccess('Stock actualizado');
+            } else {
+                alert('Error al actualizar stock');
+            }
+        } catch (err) {
+            console.error('Failed to update stock', err);
+            alert('Error al actualizar stock');
+        } finally {
+            setStockSavingId(null);
+        }
+    };
+
+    const handleDeleteProduct = async (id) => {
+        if (!window.confirm('Eliminar este producto?')) return;
+        setDeleteLoadingId(id);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+
+            const res = await fetch(`${getApiBase()}/tenant/products/${id}`, {
+                method: 'DELETE',
+                headers
+            });
+
+            if (res.ok) {
+                setProducts(prev => prev.filter(p => p.id !== id));
+                showSuccess('Producto eliminado');
+            } else {
+                alert('Error al eliminar producto');
+            }
+        } catch (err) {
+            console.error('Failed to delete product', err);
+            alert('Error al eliminar producto');
+        } finally {
+            setDeleteLoadingId(null);
+        }
+    };
+
+    const handleClearFeatured = async () => {
+        if (!window.confirm('Quitar todos los destacados?')) return;
+        setClearingFeatured(true);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+
+            const res = await fetch(`${getApiBase()}/tenant/products/featured/clear`, {
+                method: 'PUT',
+                headers
+            });
+
+            if (res.ok) {
+                setProducts(prev => prev.map(p => ({ ...p, is_featured: false })));
+                showSuccess('Destacados limpiados');
+            } else {
+                alert('Error al limpiar destacados');
+            }
+        } catch (err) {
+            console.error('Failed to clear featured', err);
+            alert('Error al limpiar destacados');
+        } finally {
+            setClearingFeatured(false);
         }
     };
 
@@ -486,6 +628,49 @@ export default function EditorPage() {
         }
     };
 
+    const handleServiceIconUpload = async (event, sectionIndex, itemIndex) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (typeof sectionIndex !== 'number') return;
+        if (typeof itemIndex !== 'number') return;
+
+        setServiceIconUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const token = localStorage.getItem('teflon_token');
+            const response = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
+                method: 'POST',
+                headers: {
+                    ...getTenantHeaders(),
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const { url } = await response.json();
+                const newSections = [...sections];
+                const currentProps = newSections[sectionIndex].props || {};
+                const currentItems = Array.isArray(currentProps.items) ? [...currentProps.items] : [];
+                const currentItem = currentItems[itemIndex] || {};
+                currentItems[itemIndex] = { ...currentItem, icon: url };
+                newSections[sectionIndex].props = { ...currentProps, items: currentItems };
+                setSections(newSections);
+                showSuccess('Icono subido con exito');
+            } else {
+                alert('Error al subir el icono');
+            }
+        } catch (err) {
+            console.error('Upload failed', err);
+            alert('Error al subir el icono');
+        } finally {
+            setServiceIconUploading(false);
+            event.target.value = '';
+        }
+    };
+
     const updateSectionProps = (index, nextProps) => {
         const newSections = [...sections];
         const currentProps = newSections[index].props || {};
@@ -508,6 +693,7 @@ export default function EditorPage() {
         setEditingSection(null);
         setShowAddSection(false);
     };
+    const sidebarWidthClass = activeTab === 'catalog' ? 'w-100' : 'w-100';
 
     if (loading) return <div className="p-10 text-center">Cargando editor...</div>;
 
@@ -528,7 +714,7 @@ export default function EditorPage() {
 
             <div className="flex h-[calc(100vh-64px)] overflow-hidden">
                 {/* Sidebar */}
-                <aside className="w-80 bg-white dark:bg-[#1a130c] border-r border-[#e5e1de] dark:border-[#3d2f21] flex flex-col">
+                <aside className={`${sidebarWidthClass} bg-white dark:bg-[#1a130c] border-r border-[#e5e1de] dark:border-[#3d2f21] flex flex-col`}>
                     <div className="p-4 border-b border-[#e5e1de] dark:border-[#3d2f21]">
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7560]">
                             {activeTab === 'appearance'
@@ -578,6 +764,28 @@ export default function EditorPage() {
                                             onChange={e => setSettings({ ...settings, theme: { ...settings.theme, font_family: e.target.value } })}
                                             className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
                                         />
+                                        <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/70 dark:bg-[#1a130c]">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Modo oscuro</p>
+                                                <p className="text-[10px] font-bold text-[#181411] dark:text-white">
+                                                    {settings.theme.mode === 'dark' ? 'Activado' : 'Desactivado'}
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSettings({
+                                                    ...settings,
+                                                    theme: { ...settings.theme, mode: settings.theme.mode === 'dark' ? 'light' : 'dark' }
+                                                })}
+                                                className="text-primary"
+                                            >
+                                                {settings.theme.mode === 'dark' ? (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7"></rect><circle cx="16" cy="12" r="3" fill="currentColor"></circle></svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7"></rect><circle cx="8" cy="12" r="3"></circle></svg>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -683,6 +891,42 @@ export default function EditorPage() {
                         ) : activeTab === 'catalog' ? (
                             <div className="space-y-6 animate-in fade-in duration-300 pb-10">
                                 <div>
+                                    <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mb-4">Categorias</p>
+                                    <div className="space-y-3 bg-zinc-50 dark:bg-white/5 p-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={newCategoryName}
+                                                placeholder="Nueva categoria"
+                                                onChange={e => setNewCategoryName(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleCreateCategory();
+                                                    }
+                                                }}
+                                                className="flex-1 px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs"
+                                            />
+                                            <button
+                                                onClick={handleCreateCategory}
+                                                disabled={categorySaving || !newCategoryName.trim()}
+                                                className="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50"
+                                            >
+                                                {categorySaving ? 'Guardando...' : 'Agregar'}
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {categories.length === 0 ? (
+                                                <span className="text-[10px] text-[#8a7560]">Sin categorias</span>
+                                            ) : categories.map(cat => (
+                                                <span key={cat.id} className="px-2 py-1 rounded-lg bg-white dark:bg-[#1a130c] border border-[#e5e1de] dark:border-[#3d2f21] text-[10px] font-bold text-[#181411] dark:text-white">
+                                                    {cat.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
                                     <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mb-4">Crear Producto</p>
                                     <div className="space-y-3 bg-zinc-50 dark:bg-white/5 p-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
                                         <input
@@ -712,9 +956,9 @@ export default function EditorPage() {
                                                 min="0"
                                                 step="1"
                                                 value={newProduct.stock}
-                                                placeholder="Stock"
+                                                placeholder="Stock inicial"
                                                 onChange={e => setNewProduct({ ...newProduct, stock: e.target.value })}
-                                                className="w-20 px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono"
+                                                className="w-24 px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono"
                                             />
                                         </div>
                                         <select
@@ -722,7 +966,7 @@ export default function EditorPage() {
                                             onChange={e => setNewProduct({ ...newProduct, category_id: e.target.value })}
                                             className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs"
                                         >
-                                            <option value="">Sin categoría</option>
+                                            <option value="">Sin categoria</option>
                                             {categories.map(cat => (
                                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                                             ))}
@@ -972,7 +1216,17 @@ export default function EditorPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mt-4">Lista de Productos</p>
+                                    <div className="flex items-center justify-between mt-4">
+                                        <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest">Lista de Productos</p>
+                                        <button
+                                            type="button"
+                                            onClick={handleClearFeatured}
+                                            disabled={clearingFeatured}
+                                            className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 disabled:opacity-50"
+                                        >
+                                            {clearingFeatured ? 'Limpiando...' : 'Quitar destacados'}
+                                        </button>
+                                    </div>
                                     {products.map(p => (
                                         <div key={p.id} className="p-3 bg-white dark:bg-[#2c2116] border border-[#e5e1de] dark:border-[#3d2f21] rounded-2xl flex items-center justify-between">
                                             <div className="flex items-center gap-3">
@@ -984,13 +1238,44 @@ export default function EditorPage() {
                                                     <p className="text-[9px] font-bold text-[#8a7560]">${p.price}</p>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => handleToggleFeatured(p.id, p.is_featured)}
-                                                className={`p-2 rounded-lg transition-all ${p.is_featured ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'}`}
-                                                title={p.is_featured ? 'Destacado' : 'No destacado'}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={p.is_featured ? "currentColor" : "none"} stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                            </button>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <span className="text-[9px] font-bold text-[#8a7560]">Stock: {p.stock ?? 0}</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            value={stockEdits[p.id] ?? ''}
+                                                            placeholder="+/-"
+                                                            onChange={e => setStockEdits(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                                            className="w-16 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-mono text-right"
+                                                        />
+                                                        <button
+                                                            onClick={() => handleAddStock(p.id)}
+                                                            disabled={stockSavingId === p.id || !String(stockEdits[p.id] ?? '').trim()}
+                                                            className="px-2 py-1 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[9px] font-black uppercase tracking-widest disabled:opacity-50"
+                                                        >
+                                                            {stockSavingId === p.id ? '...' : 'Sumar'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleToggleFeatured(p.id, p.is_featured)}
+                                                        className={`p-2 rounded-lg transition-all ${p.is_featured ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'}`}
+                                                        title={p.is_featured ? 'Destacado' : 'No destacado'}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={p.is_featured ? "currentColor" : "none"} stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteProduct(p.id)}
+                                                        disabled={deleteLoadingId === p.id}
+                                                        className="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
+                                                        title="Eliminar"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1239,6 +1524,47 @@ export default function EditorPage() {
                                                         }}
                                                         className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
                                                     />
+                                                    <div className="space-y-2">
+                                                        <input
+                                                            type="text"
+                                                            value={item.icon || ''}
+                                                            placeholder="Icono (support_agent, local_shipping o URL)"
+                                                            onChange={e => {
+                                                                const newSections = [...sections];
+                                                                const currentProps = newSections[editingSection.index].props || {};
+                                                                const currentItems = Array.isArray(currentProps.items) ? [...currentProps.items] : [];
+                                                                const currentItem = currentItems[itemIndex] || {};
+                                                                currentItems[itemIndex] = { ...currentItem, icon: e.target.value };
+                                                                newSections[editingSection.index].props = { ...currentProps, items: currentItems };
+                                                                setSections(newSections);
+                                                            }}
+                                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
+                                                        />
+                                                        <div className="flex items-center gap-2">
+                                                            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
+                                                                <input
+                                                                    type="file"
+                                                                    accept="image/*"
+                                                                    onChange={(event) => handleServiceIconUpload(event, editingSection.index, itemIndex)}
+                                                                    className="hidden"
+                                                                    disabled={serviceIconUploading}
+                                                                />
+                                                                {serviceIconUploading ? (
+                                                                    <>
+                                                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                                        <span>Subiendo...</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <span>Subir icono</span>
+                                                                )}
+                                                            </label>
+                                                            {isImageIcon(item.icon) ? (
+                                                                <div className="w-10 h-10 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] overflow-hidden flex items-center justify-center">
+                                                                    <img src={item.icon} alt="" className="w-8 h-8 object-contain" />
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))}
                                             <button

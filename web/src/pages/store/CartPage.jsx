@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
 import { navigate } from "../../utils/navigation";
+import { getApiBase, getTenantHeaders } from "../../utils/api";
 
 export default function CartPage() {
     const { cartItems, updateQty, removeItem, addToCart } = useStore();
@@ -11,28 +12,64 @@ export default function CartPage() {
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
     const showPrices = settings?.commerce?.show_prices !== false;
+    const [suggestedProducts, setSuggestedProducts] = useState([]);
+    const [loadingSuggested, setLoadingSuggested] = useState(false);
 
-    const frequentlyBought = useMemo(
-        () => [
-            {
-                id: "ADD-INS-001",
-                name: "Kit de instalación",
-                price: 2499,
-                image:
-                    "https://lh3.googleusercontent.com/aida-public/AB6AXuAi9SmBaQmnYzStL8Gj4LTvnSZ7g224X01bDGcuTtFUMgpyfvf0QXmV7U1Yuig9YznlmPgrW-TxpMiriX27oI8fnTekPNxR8VK_wv6lbSOTp9ISGejQRMoujHtzd4fBr-_ik0srmNKh3RQg49L7uuZMhsujGdGlNvjOHduVVB6VXGo1n_iHJ-aF-LviHagqS7Is9ybIIo2IaN1o62VEm8zOltEq82ctJSCTA9a2ritultjetB72IjhfQ2yGoE0c2REJjktmiN27LgQ",
-                alt: "Kit de instalación",
-            },
-            {
-                id: "ADD-SIL-002",
-                name: "Sellador de silicona",
-                price: 1250,
-                image:
-                    "https://lh3.googleusercontent.com/aida-public/AB6AXuAot3vJROZtP44PaIZ0wb_jJjqR0WKvwN53AyUXh2SIs5lPwb5Yg7tGpgHDRPAdzzSJeScEyxjJvySYuticwqBuCNoXGB3tZ4Mct2DmSl8qALnIwTUsFttZxIdLY4J_z3IIP_cT807TmSub1WTHsTUnvxXqRNgpYcKTnB4iaslPulsdBzJjrKtPQKpjb3HvDVJhIHNIAjm5o_Sc1IF2M4MH1VCcu3zwmjxJLIzGN0SJSUKoGhmrYpB-0Dfl9J2-N-gFX76D0vO_YAs",
-                alt: "Sellador de silicona",
-            },
-        ],
-        []
-    );
+    useEffect(() => {
+        let active = true;
+
+        const loadSuggested = async () => {
+            setLoadingSuggested(true);
+            try {
+                const res = await fetch(`${getApiBase()}/public/products?limit=24`, {
+                    headers: getTenantHeaders(),
+                });
+                if (!res.ok) {
+                    throw new Error(`Suggested products request failed: ${res.status}`);
+                }
+                const data = await res.json();
+                if (!active) return;
+                const items = Array.isArray(data.items) ? data.items : [];
+                const shuffled = [...items].sort(() => Math.random() - 0.5);
+                setSuggestedProducts(shuffled.slice(0, 4));
+            } catch (err) {
+                console.error("Failed to load suggested products", err);
+                if (!active) return;
+                setSuggestedProducts([]);
+            } finally {
+                if (active) {
+                    setLoadingSuggested(false);
+                }
+            }
+        };
+
+        loadSuggested();
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const frequentlyBought = useMemo(() => {
+        return suggestedProducts.map((product) => {
+            const data = product.data || {};
+            const rawImages = Array.isArray(data.images) ? data.images : [];
+            const rawFirst = rawImages[0];
+            const image =
+                data.image ||
+                data.image_url ||
+                (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
+                "https://via.placeholder.com/200";
+            return {
+                id: product.id,
+                sku: product.sku || product.erp_id,
+                name: product.name || "Producto",
+                price: Number(product.price || 0),
+                image,
+                alt: data.image_alt || product.name || "Producto",
+                stock: product.stock,
+            };
+        });
+    }, [suggestedProducts]);
 
     const cartCount = useMemo(
         () => cartItems.reduce((acc, it) => acc + it.qty, 0),
@@ -63,7 +100,7 @@ export default function CartPage() {
                     </p>
                     <button
                         type="button"
-                        onClick={() => (window.location.hash = '#catalog')}
+                        onClick={() => navigate("/catalog")}
                         className="bg-primary text-white font-bold px-6 py-3 rounded-lg"
                     >
                         Ir al catálogo
@@ -110,16 +147,26 @@ export default function CartPage() {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {frequentlyBought.map((x) => (
-                                    <UpsellCard
-                                        key={x.id}
-                                        item={x}
-                                        onAdd={() => addToCart(x)}
-                                        currency={currency}
-                                        locale={locale}
-                                        showPrices={showPrices}
-                                    />
-                                ))}
+                                {loadingSuggested ? (
+                                    <div className="col-span-full rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6 text-center text-[#8a7560]">
+                                        Cargando sugeridos...
+                                    </div>
+                                ) : frequentlyBought.length ? (
+                                    frequentlyBought.map((x) => (
+                                        <UpsellCard
+                                            key={x.id}
+                                            item={x}
+                                            onAdd={() => addToCart(x)}
+                                            currency={currency}
+                                            locale={locale}
+                                            showPrices={showPrices}
+                                        />
+                                    ))
+                                ) : (
+                                    <div className="col-span-full rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6 text-center text-[#8a7560]">
+                                        No hay sugeridos disponibles.
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -308,3 +355,5 @@ function UpsellCard({ item, onAdd, currency, locale, showPrices }) {
         </div>
     );
 }
+
+

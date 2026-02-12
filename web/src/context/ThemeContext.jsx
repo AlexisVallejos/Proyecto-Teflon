@@ -9,6 +9,12 @@ export const ThemeProvider = ({ children }) => {
 
     useEffect(() => {
         const theme = settings?.theme || tenant?.theme || {};
+        const mode = theme.mode || (theme.dark_mode ? 'dark' : 'light');
+        if (mode === 'dark') {
+            setIsDarkMode(true);
+        } else if (mode === 'light') {
+            setIsDarkMode(false);
+        }
         const palette = theme.colors || {};
         const fallbackPalette = {};
 

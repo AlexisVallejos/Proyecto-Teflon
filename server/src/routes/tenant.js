@@ -37,12 +37,29 @@ const upload = multer({
 export const tenantRouter = Router();
 
 function getTenantId(req, res) {
-  const tenantId = req.user && req.user.tenantId;
+  const headerTenant = req.get('x-tenant-id');
+  const tenantId = (req.user && req.user.tenantId) || headerTenant || null;
   if (!tenantId) {
     res.status(400).json({ error: 'tenant_required' });
     return null;
   }
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(tenantId)) {
+    res.status(400).json({ error: 'invalid_tenant_id' });
+    return null;
+  }
   return tenantId;
+}
+
+function slugify(value) {
+  if (!value) return '';
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 tenantRouter.get('/settings', async (req, res, next) => {
@@ -247,6 +264,58 @@ tenantRouter.post('/pages/:slug/publish', async (req, res, next) => {
   }
 });
 
+// Category Management
+tenantRouter.get('/categories', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const result = await pool.query(
+      'select id, name, slug from categories where tenant_id = $1 order by name asc',
+      [tenantId]
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/categories', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const name = String(req.body?.name || '').trim();
+  const customSlug = String(req.body?.slug || '').trim();
+  if (!name) {
+    return res.status(400).json({ error: 'name_required' });
+  }
+
+  let baseSlug = slugify(customSlug || name);
+  if (!baseSlug) {
+    baseSlug = `category-${Date.now()}`;
+  }
+
+  const client = await pool.connect();
+  try {
+    let suffix = 1;
+    while (true) {
+      const candidate = suffix === 1 ? baseSlug : `${baseSlug}-${suffix}`;
+      const insertRes = await client.query(
+        'insert into categories (tenant_id, name, slug) values ($1, $2, $3) on conflict (tenant_id, slug) do nothing returning id, name, slug',
+        [tenantId, name, candidate]
+      );
+      if (insertRes.rowCount) {
+        return res.status(201).json(insertRes.rows[0]);
+      }
+      suffix += 1;
+    }
+  } catch (err) {
+    return next(err);
+  } finally {
+    client.release();
+  }
+});
+
 // Product Management
 tenantRouter.get('/products', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
@@ -264,6 +333,81 @@ tenantRouter.get('/products', async (req, res, next) => {
       [tenantId]
     );
     return res.json({ items: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.put('/products/:id/stock', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const productId = req.params.id;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(productId)) {
+    return res.status(400).json({ error: 'invalid_product_id' });
+  }
+
+  const { stock, delta } = req.body || {};
+  const hasDelta = delta !== undefined && delta !== null && delta !== '';
+  const hasStock = stock !== undefined && stock !== null && stock !== '';
+
+  if (!hasDelta && !hasStock) {
+    return res.status(400).json({ error: 'stock_required' });
+  }
+
+  try {
+    if (hasDelta) {
+      const deltaValue = Number(delta);
+      if (Number.isNaN(deltaValue)) {
+        return res.status(400).json({ error: 'invalid_delta' });
+      }
+      const result = await pool.query(
+        'update product_cache set stock = greatest(stock + $1, 0), updated_at = now() where tenant_id = $2 and id = $3 returning stock',
+        [deltaValue, tenantId, productId]
+      );
+      if (!result.rowCount) {
+        return res.status(404).json({ error: 'product_not_found' });
+      }
+      return res.json({ ok: true, stock: result.rows[0].stock });
+    }
+
+    const stockValue = Number(stock);
+    if (Number.isNaN(stockValue)) {
+      return res.status(400).json({ error: 'invalid_stock' });
+    }
+    const result = await pool.query(
+      'update product_cache set stock = greatest($1, 0), updated_at = now() where tenant_id = $2 and id = $3 returning stock',
+      [stockValue, tenantId, productId]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+    return res.json({ ok: true, stock: result.rows[0].stock });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.delete('/products/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const productId = req.params.id;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(productId)) {
+    return res.status(400).json({ error: 'invalid_product_id' });
+  }
+
+  try {
+    const result = await pool.query(
+      'delete from product_cache where tenant_id = $1 and id = $2 returning id',
+      [tenantId, productId]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+    return res.json({ ok: true });
   } catch (err) {
     return next(err);
   }
@@ -382,3 +526,17 @@ tenantRouter.put('/products/:id/featured', async (req, res, next) => {
   }
 });
 
+tenantRouter.put('/products/featured/clear', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    await pool.query(
+      'update product_overrides set featured = false where tenant_id = $1 and featured = true',
+      [tenantId]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    return next(err);
+  }
+});

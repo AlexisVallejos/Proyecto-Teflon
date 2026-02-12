@@ -22,10 +22,32 @@ function ServiceCard({ icon, title, text, description, styles = {} }) {
     )
   };
 
+  const isImageUrl = typeof icon === "string" && (
+    icon.startsWith("http://") ||
+    icon.startsWith("https://") ||
+    icon.startsWith("/uploads/") ||
+    icon.startsWith("data:")
+  );
+
+  let iconNode = null;
+  if (React.isValidElement(icon)) {
+    iconNode = icon;
+  } else if (typeof icon === "string") {
+    if (ICON_MAP[icon]) {
+      iconNode = ICON_MAP[icon];
+    } else if (isImageUrl) {
+      iconNode = <img src={icon} alt="" className="h-10 w-10 object-contain" loading="lazy" />;
+    } else {
+      iconNode = ICON_MAP.support_agent;
+    }
+  } else {
+    iconNode = ICON_MAP.support_agent;
+  }
+
   return (
     <div className={`flex flex-col items-center text-center p-8 rounded-2xl shadow-sm ${cardBg}`}>
       <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${iconBg} ${iconColor}`}>
-        {ICON_MAP[icon] || icon}
+        {iconNode}
       </div>
       <h3 className={`${titleSize} font-bold mb-2 dark:text-white`}>{title}</h3>
       <p className={textColor}>{body}</p>

@@ -5,12 +5,13 @@ import { getApiBase, getTenantHeaders } from "../../utils/api";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
+import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 
 export default function CatalogPage() {
     const { search } = useStore();
     const { settings } = useTenant();
-    const { isWholesale, isAdmin } = useAuth();
+    const { isWholesale } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
     const showPrices = settings?.commerce?.show_prices !== false;
@@ -182,6 +183,12 @@ export default function CatalogPage() {
         return list;
     }, [selectedCategory, selectedBrand, categories, brands]);
 
+    const selectedCategoryName = useMemo(() => {
+        if (!selectedCategory) return null;
+        const cat = categories.find(c => c.id === selectedCategory || c.name === selectedCategory);
+        return cat?.name || selectedCategory;
+    }, [selectedCategory, categories]);
+
     return (
         <StoreLayout>
             <main className="max-w-[1440px] mx-auto flex flex-col min-h-screen">
@@ -190,19 +197,27 @@ export default function CatalogPage() {
                     <div className="flex flex-wrap gap-2 py-2">
                         <button
                             type="button"
-                            onClick={() => (window.location.hash = '#')}
+                            onClick={() => navigate("/")}
                             className="text-[#8a7560] text-sm font-medium leading-normal hover:text-primary transition-colors"
                         >
                             Inicio
                         </button>
                         <span className="text-[#8a7560] text-sm font-medium leading-normal">/</span>
-                        <span className="text-[#8a7560] text-sm font-medium leading-normal">
+                        <button
+                            type="button"
+                            onClick={() => { setSelectedCategory(null); setPage(1); }}
+                            className="text-[#8a7560] text-sm font-medium leading-normal hover:text-primary transition-colors"
+                        >
                             Catálogo
-                        </span>
-                        <span className="text-[#8a7560] text-sm font-medium leading-normal">/</span>
-                        <span className="text-[#181411] dark:text-white text-sm font-medium leading-normal">
-                            Baño y cocina
-                        </span>
+                        </button>
+                        {selectedCategoryName ? (
+                            <>
+                                <span className="text-[#8a7560] text-sm font-medium leading-normal">/</span>
+                                <span className="text-[#181411] dark:text-white text-sm font-medium leading-normal">
+                                    {selectedCategoryName}
+                                </span>
+                            </>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-wrap justify-between items-end gap-3 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] mb-6">
@@ -313,21 +328,7 @@ export default function CatalogPage() {
                             </div>
                         </div>
 
-                        {isAdmin ? (
-                            <div className="bg-primary/5 dark:bg-primary/10 p-6 rounded-xl border border-primary/20 relative overflow-hidden group">
-                            <div className="relative z-10">
-                                <p className="text-primary font-bold text-lg mb-1">Configuración del tema</p>
-                                <p className="text-xs text-[#8a7560] dark:text-[#a08b76] mb-4">
-                                    Personalizá el catálogo en un clic.
-                                </p>
-                                <button className="text-xs font-bold uppercase tracking-wider text-[#181411] dark:text-white flex items-center gap-1 hover:underline">
-                                    Abrir editor visual
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                </button>
-                            </div>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="absolute -right-4 -bottom-4 text-primary/10 rotate-12 group-hover:rotate-0 transition-transform duration-500"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.5 1.5"></path><path d="M2 2l1.5 7.5"></path></svg>
-                            </div>
-                        ) : null}
+                        
                     </aside>
 
                     {/* Product Grid */}
@@ -355,8 +356,6 @@ export default function CatalogPage() {
                                                 lowStockThreshold={lowStockThreshold}
                                             />
                                         ))}
-
-                                        {isAdmin ? <AddNewCard /> : null}
                                     </div>
                                 )}
                             </>
@@ -521,16 +520,3 @@ function CatalogProductCard({ product, showPrices, currency, locale, showStock, 
     );
 }
 
-function AddNewCard() {
-    return (
-        <div className="border-2 border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl flex flex-col items-center justify-center p-10 text-center bg-white/70 dark:bg-[#1a130c] hover:border-primary transition-colors">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </div>
-            <p className="text-[#181411] dark:text-white font-bold">Agregar producto</p>
-            <p className="text-[#8a7560] text-xs mt-1">
-                Ajustá la grilla desde el editor.
-            </p>
-        </div>
-    );
-}
