@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "teflon_cart_v1";
+const FAVORITES_KEY = "teflon_favorites_v1";
 
 const StoreContext = createContext(null);
 
@@ -14,6 +15,19 @@ const normalizeStock = (value) => {
     return Number.isFinite(parsed) ? parsed : null;
 };
 
+const normalizeFavorite = (product) => {
+    if (!product || !product.id) return null;
+    return {
+        id: product.id,
+        sku: product.sku || product.erp_id || product.id,
+        name: product.name || "Producto",
+        price: safeNumber(product.price, 0),
+        image: product.image || product.image_url || "",
+        alt: product.alt || product.name || "Producto",
+        stock: normalizeStock(product.stock) ?? undefined,
+    };
+};
+
 export const StoreProvider = ({ children }) => {
     const [search, setSearch] = useState("");
     const [cartItems, setCartItems] = useState(() => {
@@ -25,6 +39,15 @@ export const StoreProvider = ({ children }) => {
             return [];
         }
     });
+    const [favorites, setFavorites] = useState(() => {
+        try {
+            const raw = localStorage.getItem(FAVORITES_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (err) {
+            console.warn("No se pudo leer favoritos guardados", err);
+            return [];
+        }
+    });
 
     useEffect(() => {
         try {
@@ -33,6 +56,14 @@ export const StoreProvider = ({ children }) => {
             console.warn("No se pudo guardar el carrito", err);
         }
     }, [cartItems]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+        } catch (err) {
+            console.warn("No se pudo guardar favoritos", err);
+        }
+    }, [favorites]);
 
     const cartCount = useMemo(
         () => cartItems.reduce((acc, item) => acc + item.qty, 0),
@@ -106,6 +137,39 @@ export const StoreProvider = ({ children }) => {
         setCartItems([]);
     };
 
+    const isFavorite = useCallback(
+        (id) => favorites.some((item) => item.id === id),
+        [favorites]
+    );
+
+    const addFavorite = useCallback((product) => {
+        const normalized = normalizeFavorite(product);
+        if (!normalized) return;
+        setFavorites((prev) => {
+            if (prev.some((item) => item.id === normalized.id)) return prev;
+            return [...prev, normalized];
+        });
+    }, []);
+
+    const removeFavorite = useCallback((id) => {
+        setFavorites((prev) => prev.filter((item) => item.id !== id));
+    }, []);
+
+    const toggleFavorite = useCallback((product) => {
+        const normalized = normalizeFavorite(product);
+        if (!normalized) return false;
+        let added = false;
+        setFavorites((prev) => {
+            const exists = prev.some((item) => item.id === normalized.id);
+            added = !exists;
+            if (exists) {
+                return prev.filter((item) => item.id !== normalized.id);
+            }
+            return [...prev, normalized];
+        });
+        return added;
+    }, []);
+
     return (
         <StoreContext.Provider
             value={{
@@ -118,6 +182,11 @@ export const StoreProvider = ({ children }) => {
                 updateQty,
                 removeItem,
                 clearCart,
+                favorites,
+                isFavorite,
+                addFavorite,
+                removeFavorite,
+                toggleFavorite,
             }}
         >
             {children}

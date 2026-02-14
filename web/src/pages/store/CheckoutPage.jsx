@@ -1,16 +1,20 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
+import { useAuth } from "../../context/AuthContext";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
+import { navigate } from "../../utils/navigation";
 
 export default function CheckoutPage() {
     const { cartItems, clearCart } = useStore();
     const { settings } = useTenant();
+    const { user } = useAuth();
     const commerce = settings?.commerce || {};
     const currency = commerce.currency || "ARS";
     const locale = commerce.locale || "es-AR";
+    const whatsappNumber = (commerce.whatsapp_number || "2236334301").replace(/\D/g, "");
 
     const [items, setItems] = useState(cartItems);
     const [validation, setValidation] = useState(null);
@@ -24,6 +28,7 @@ export default function CheckoutPage() {
         city: "",
         postalCode: "",
     });
+    const shippingAutofillRef = useRef(false);
 
     const shippingFlat = Number(commerce.shipping_flat || 0);
 
@@ -50,17 +55,26 @@ export default function CheckoutPage() {
 
     const [deliveryMethod, setDeliveryMethod] = useState("home");
 
-    const mode = commerce.mode || "online";
-    const paymentOptions = useMemo(() => {
-        const options = [];
-        if (mode !== "whatsapp") {
-            options.push({ key: "mp", label: "Mercado Pago" });
-        }
-        if (mode !== "online") {
-            options.push({ key: "whatsapp", label: "WhatsApp" });
-        }
-        return options;
-    }, [mode]);
+    const paymentOptions = useMemo(
+        () => [
+            {
+                key: "mp",
+                label: "Mercado Pago (pago online)",
+                highlight: true,
+                icon: (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                ),
+            },
+            {
+                key: "whatsapp",
+                label: "WhatsApp (efectivo o transferencia)",
+                icon: (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-7.6 8.38 8.38 0 0 1 3.8.9L21 4.5z"></path></svg>
+                ),
+            },
+        ],
+        []
+    );
 
     const [paymentMethod, setPaymentMethod] = useState(paymentOptions[0]?.key || "mp");
 
@@ -70,12 +84,37 @@ export default function CheckoutPage() {
         }
     }, [paymentOptions, paymentMethod]);
 
+    const [orderSuccess, setOrderSuccess] = useState(null);
+
     // Accordion open
     const [openStep, setOpenStep] = useState(1); // 1..3
 
     useEffect(() => {
         setItems(cartItems);
     }, [cartItems]);
+
+    useEffect(() => {
+        if (!user || shippingAutofillRef.current) return;
+        const key = `teflon_profile_address_${user.id || user.email}`;
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            const prefill = {
+                fullAddress: parsed.line1 || parsed.fullAddress || "",
+                city: parsed.city || "",
+                postalCode: parsed.postal || parsed.postalCode || "",
+            };
+            setShippingInfo((prev) => ({
+                fullAddress: prev.fullAddress || prefill.fullAddress,
+                city: prev.city || prefill.city,
+                postalCode: prev.postalCode || prefill.postalCode,
+            }));
+            shippingAutofillRef.current = true;
+        } catch (err) {
+            console.warn("No se pudo cargar la direccion de perfil", err);
+        }
+    }, [user]);
 
     useEffect(() => {
         let active = true;
@@ -156,6 +195,85 @@ export default function CheckoutPage() {
         })
         : items;
 
+    const paymentSummary = useMemo(() => {
+        if (paymentMethod === "mp") {
+            return "Mercado Pago (pago online). Luego de confirmar, te redirigimos al pago.";
+        }
+        if (paymentMethod === "whatsapp") {
+            return "WhatsApp (efectivo o transferencia). Luego de confirmar, abrimos WhatsApp con el detalle.";
+        }
+        return "";
+    }, [paymentMethod]);
+
+    const paymentLabel = useMemo(
+        () => paymentOptions.find((opt) => opt.key === paymentMethod)?.label || "",
+        [paymentOptions, paymentMethod]
+    );
+
+    const getProfileAddress = () => {
+        if (!user) return {};
+        const key = `teflon_profile_address_${user.id || user.email}`;
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return {
+                fullName: parsed.fullName || "",
+                phone: parsed.phone || parsed.phoneNumber || "",
+                line1: parsed.line1 || "",
+                city: parsed.city || "",
+                postal: parsed.postal || "",
+            };
+        } catch (err) {
+            console.warn("No se pudo leer la direccion de perfil", err);
+            return {};
+        }
+    };
+
+    const buildWhatsappMessage = (note = "") => {
+        const profile = getProfileAddress();
+        const name =
+            profile.fullName ||
+            (user?.email ? user.email.split("@")[0] : "Cliente");
+        const phone = profile.phone || "Sin telefono";
+        const deliveryLabel = DELIVERY[deliveryMethod]?.title || deliveryMethod;
+        const paymentLine =
+            paymentMethod === "mp"
+                ? "Pago: Mercado Pago (online)"
+                : "Pago: WhatsApp (efectivo o transferencia)";
+        const addressParts = [
+            shippingInfo.fullAddress || profile.line1,
+            shippingInfo.city || profile.city,
+            shippingInfo.postalCode || profile.postal,
+        ]
+            .filter(Boolean)
+            .join(", ");
+        const lines = [
+            "Pedido nuevo",
+            `Cliente: ${name}`,
+            `Telefono: ${phone}`,
+            `Direccion: ${addressParts || "Sin direccion"}`,
+            `Entrega: ${deliveryLabel}`,
+            paymentLine,
+            "",
+            "Productos:",
+            ...items.map(
+                (item) =>
+                    `- ${item.name} (SKU: ${item.sku || item.id}) x${item.qty}`
+            ),
+        ];
+        if (note) {
+            lines.push("", note);
+        }
+        return lines.join("\n");
+    };
+
+    const buildWhatsappUrl = (note = "") => {
+        const message = buildWhatsappMessage(note);
+        const number = whatsappNumber || "2236334301";
+        return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    };
+
     const handleCompletePurchase = async () => {
         if (!items.length) return;
 
@@ -184,27 +302,64 @@ export default function CheckoutPage() {
             });
 
             if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(error?.errors?.[0] || "No se pudo crear la orden");
+                let detail = "";
+                try {
+                    const error = await response.json();
+                    detail = error?.errors?.[0] || error?.error || "";
+                } catch (err) {
+                    try {
+                        detail = await response.text();
+                    } catch (innerErr) {
+                        detail = "";
+                    }
+                }
+                const message = detail ? `No se pudo crear la orden: ${detail}` : "No se pudo crear la orden";
+                throw new Error(message);
             }
 
             const data = await response.json();
+
+            const orderInfo = {
+                id: data.order?.id || data.order_id || data.id || "",
+                method: paymentMethod,
+                paymentLabel,
+                deliveryMethod,
+                deliveryLabel: DELIVERY[deliveryMethod]?.title || deliveryMethod,
+                items: items.map((item) => ({
+                    id: item.id,
+                    sku: item.sku || item.id,
+                    name: item.name,
+                    qty: item.qty,
+                })),
+                whatsappUrl: buildWhatsappUrl(),
+                whatsappReceiptUrl: buildWhatsappUrl(
+                    "Pago realizado. Adjunto comprobante."
+                ),
+                createdAt: new Date().toISOString(),
+            };
+
+            try {
+                localStorage.setItem("teflon_last_order", JSON.stringify(orderInfo));
+            } catch (err) {
+                console.warn("No se pudo guardar el pedido", err);
+            }
+
             clearCart();
+
+            setOrderSuccess(orderInfo);
+            setOpenStep(3);
 
             if (paymentMethod === "mp" && data.payment?.init_point) {
                 window.location.href = data.payment.init_point;
                 return;
             }
 
-            if (paymentMethod === "whatsapp" && data.whatsapp_url) {
-                window.open(data.whatsapp_url, "_blank", "noopener,noreferrer");
-                return;
+            if (paymentMethod === "whatsapp") {
+                navigate("/order-success");
             }
-
-            setCheckoutError("No se pudo iniciar el pago. Probá nuevamente.");
         } catch (err) {
             console.error("Error al crear la orden", err);
-            setCheckoutError("No se pudo iniciar el pago. Probá nuevamente.");
+            setCheckoutError("No se pudo iniciar el pago. Proba nuevamente.");
         } finally {
             setCreating(false);
         }
@@ -416,21 +571,50 @@ export default function CheckoutPage() {
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(3)}
                             >
-                                <div className="pt-4 pb-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {paymentOptions.map((opt) => (
-                                        <PayOption
-                                            key={opt.key}
-                                            active={paymentMethod === opt.key}
-                                            onClick={() => setPaymentMethod(opt.key)}
-                                            icon={opt.key === "whatsapp" ? (
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3z"></path></svg>
+                                <div className="pt-4 pb-2 space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {paymentOptions.map((opt) => (
+                                            <PayOption
+                                                key={opt.key}
+                                                active={paymentMethod === opt.key}
+                                                onClick={() => setPaymentMethod(opt.key)}
+                                                icon={opt.icon}
+                                                label={opt.label}
+                                                highlight={opt.highlight}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <div className="rounded-lg border border-[#e6e0db] dark:border-[#3d2e1f] p-4 text-sm text-[#8a7560] dark:text-[#a59280]">
+                                        {paymentSummary}
+                                    </div>
+
+                                    {orderSuccess ? (
+                                        <div className="rounded-lg border border-green-200 bg-green-50 text-green-700 px-4 py-3 text-sm space-y-2">
+                                            <p className="font-bold">Pedido confirmado</p>
+                                            <p>Metodo: {orderSuccess.paymentLabel || paymentLabel}</p>
+                                            {orderSuccess.id ? (
+                                                <p>ID: {orderSuccess.id}</p>
+                                            ) : null}
+                                            {orderSuccess.method === "whatsapp" ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => window.open(orderSuccess.whatsappUrl, "_blank", "noopener,noreferrer")}
+                                                    className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 text-white font-bold"
+                                                >
+                                                    Abrir WhatsApp
+                                                </button>
                                             ) : (
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => window.open(orderSuccess.whatsappReceiptUrl || orderSuccess.whatsappUrl, "_blank", "noopener,noreferrer")}
+                                                    className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 text-white font-bold"
+                                                >
+                                                    Enviar comprobante por WhatsApp
+                                                </button>
                                             )}
-                                            label={opt.label}
-                                            highlight={opt.key === "mp"}
-                                        />
-                                    ))}
+                                        </div>
+                                    ) : null}
                                 </div>
                             </Accordion>
                         </div>
@@ -608,18 +792,6 @@ function Accordion({ step, title, openStep, onOpen, children }) {
 }
 
 function PayOption({ active, onClick, icon, label, highlight }) {
-    const ICON_MAP = {
-        whatsapp: (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-7.6 8.38 8.38 0 0 1 3.8.9L21 4.5z"></path></svg>
-        ),
-        account_balance: (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 22h18"></path><path d="M6 18v-7"></path><path d="M10 18v-7"></path><path d="M14 18v-7"></path><path d="M18 18v-7"></path><path d="M12 2l10 7H2l10-7z"></path></svg>
-        ),
-        dock: (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
-        ),
-    };
-
     return (
         <button
             type="button"
@@ -637,7 +809,7 @@ function PayOption({ active, onClick, icon, label, highlight }) {
                     highlight ? "text-primary" : active ? "text-primary" : "text-[#8a7560]",
                 ].join(" ")}
             >
-                {ICON_MAP[icon] || icon}
+                {icon}
             </div>
             <p className="text-xs font-bold text-center">{label}</p>
         </button>

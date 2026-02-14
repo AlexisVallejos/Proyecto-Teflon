@@ -17,7 +17,7 @@ const getProductId = () => {
 };
 
 export default function ProductDetail() {
-    const { addToCart } = useStore();
+    const { addToCart, toggleFavorite, isFavorite } = useStore();
     const { settings } = useTenant();
     const { isWholesale } = useAuth();
 
@@ -249,6 +249,7 @@ export default function ProductDetail() {
 
     const canBuy = view ? isInStock(view.stock) : false;
     const stockStatus = view && showStock ? getStockStatus(view.stock, lowStockThreshold) : null;
+    const favoriteActive = view ? isFavorite(view.id) : false;
 
     const handleAdd = () => {
         if (!view || !canBuy) return;
@@ -411,9 +412,14 @@ export default function ProductDetail() {
 
                                 <button
                                     type="button"
+                                    onClick={() => {
+                                        if (view) {
+                                            toggleFavorite(view);
+                                        }
+                                    }}
                                     className="h-11 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] font-bold text-[#181411] dark:text-white hover:border-primary/50"
                                 >
-                                    Agregar a favoritos
+                                    {favoriteActive ? "Quitar de favoritos" : "Agregar a favoritos"}
                                 </button>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

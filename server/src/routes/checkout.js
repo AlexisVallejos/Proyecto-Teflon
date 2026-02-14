@@ -91,6 +91,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
     if (!validation.valid) {
       return res.status(400).json(validation);
     }
+    const requestedPayment = req.body?.customer?.payment_method || req.body?.payment_method || null;
 
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
@@ -106,7 +107,12 @@ checkoutRouter.post('/create', async (req, res, next) => {
     await client.query('BEGIN');
     for (const item of validation.items) {
       const stockRes = await client.query(
-        'update product_cache set stock = stock - $1, updated_at = now() where tenant_id = $2 and id = $3 and stock >= $1 returning stock',
+        [
+          'update product_cache',
+          'set stock = case when stock is null then null else stock - $1 end, updated_at = now()',
+          'where tenant_id = $2 and id = $3 and (stock is null or stock >= $1)',
+          'returning stock',
+        ].join(' '),
         [item.qty, req.tenant.id, item.product_id]
       );
       if (!stockRes.rowCount) {
@@ -145,7 +151,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
     let payment = null;
     let whatsapp_url = null;
 
-    if (mode !== 'whatsapp') {
+    if (mode !== 'whatsapp' && requestedPayment !== 'whatsapp') {
       const preference = await createPreference({
         items: validation.items.map((item) => ({
           title: item.name,
@@ -188,7 +194,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
       );
     }
 
-    if (mode !== 'online') {
+    if (requestedPayment === 'whatsapp' || mode !== 'online') {
       const whatsappNumber = String(commerce.whatsapp_number || '').replace(/\D/g, '');
       if (whatsappNumber) {
         const message = `Order ${orderId} total ${total}`;

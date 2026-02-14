@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
@@ -31,6 +31,8 @@ export default function CatalogPage() {
     const [loading, setLoading] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
     const [limit] = useState(24);
+    const [toast, setToast] = useState({ show: false, message: "" });
+    const toastTimerRef = useRef(null);
 
     const fallbackImages = useMemo(
         () => [
@@ -45,6 +47,14 @@ export default function CatalogPage() {
     useEffect(() => {
         setPage(1);
     }, [search]);
+
+    useEffect(() => {
+        return () => {
+            if (toastTimerRef.current) {
+                clearTimeout(toastTimerRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         const fetchMetadata = async () => {
@@ -189,8 +199,35 @@ export default function CatalogPage() {
         return cat?.name || selectedCategory;
     }, [selectedCategory, categories]);
 
+    const showToast = (message) => {
+        setToast({ show: true, message });
+        if (toastTimerRef.current) {
+            clearTimeout(toastTimerRef.current);
+        }
+        toastTimerRef.current = setTimeout(() => {
+            setToast({ show: false, message: "" });
+        }, 2600);
+    };
+
+    const handleFavoriteChange = (_product, added) => {
+        if (added) {
+            showToast("Producto añadido a favoritos");
+        }
+    };
+
     return (
         <StoreLayout>
+            <div className={`fixed top-10 left-1/2 -translate-x-1/2 z-[9999] transition-all duration-500 ease-out ${toast.show ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'}`}>
+                <div className="bg-green-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border-2 border-green-400">
+                    <div className="bg-white/20 p-2 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <div>
+                        <p className="font-black text-lg tracking-tight leading-none">Excelente!</p>
+                        <p className="text-sm font-bold text-green-50 text-nowrap">{toast.message}</p>
+                    </div>
+                </div>
+            </div>
             <main className="max-w-[1440px] mx-auto flex flex-col min-h-screen">
                 {/* Breadcrumbs & Category Title */}
                 <div className="px-10 pt-6">
@@ -354,6 +391,7 @@ export default function CatalogPage() {
                                                 locale={locale}
                                                 showStock={showStock}
                                                 lowStockThreshold={lowStockThreshold}
+                                                onFavoriteChange={handleFavoriteChange}
                                             />
                                         ))}
                                     </div>
@@ -414,10 +452,10 @@ export default function CatalogPage() {
     );
 }
 
-function CatalogProductCard({ product, showPrices, currency, locale, showStock, lowStockThreshold }) {
-    const { addToCart } = useStore();
+function CatalogProductCard({ product, showPrices, currency, locale, showStock, lowStockThreshold, onFavoriteChange }) {
+    const { addToCart, toggleFavorite, isFavorite } = useStore();
     const { name, desc, price, oldPrice, tag, image, alt, stock } = product;
-    const [isFavorite, setIsFavorite] = useState(false);
+    const favoriteActive = isFavorite(product.id);
     const inStock = isInStock(stock);
     const stockStatus = showStock ? getStockStatus(stock, lowStockThreshold) : null;
 
@@ -442,10 +480,17 @@ function CatalogProductCard({ product, showPrices, currency, locale, showStock, 
 
                 <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                        onClick={(e) => { e.stopPropagation(); setIsFavorite(!isFavorite); }}
-                        className={`p-2 rounded-full shadow-sm transition-all ${isFavorite ? 'bg-primary text-white' : 'bg-white/90 text-[#181411] hover:bg-primary hover:text-white'}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const next = !favoriteActive;
+                            toggleFavorite(product);
+                            if (onFavoriteChange) {
+                                onFavoriteChange(product, next);
+                            }
+                        }}
+                        className={`p-2 rounded-full shadow-sm transition-all ${favoriteActive ? 'bg-primary text-white' : 'bg-white/90 text-[#181411] hover:bg-primary hover:text-white'}`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.72-8.72 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={favoriteActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.72-8.72 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); navigateToProduct(); }}
