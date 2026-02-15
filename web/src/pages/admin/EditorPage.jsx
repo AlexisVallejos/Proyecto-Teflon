@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+﻿import React, { useCallback, useState, useEffect, useRef } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import PageBuilder from '../../components/PageBuilder';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
@@ -14,6 +14,7 @@ export default function EditorPage() {
     const [stockSavingId, setStockSavingId] = useState(null);
     const [deleteLoadingId, setDeleteLoadingId] = useState(null);
     const [serviceIconUploading, setServiceIconUploading] = useState(false);
+    const [logoUploading, setLogoUploading] = useState(false);
     const [clearingFeatured, setClearingFeatured] = useState(false);
     const [newProduct, setNewProduct] = useState({
         name: '',
@@ -30,7 +31,6 @@ export default function EditorPage() {
         delivery_time: '',
         warranty: ''
     });
-    const [newImageUrl, setNewImageUrl] = useState('');
     const [uploading, setUploading] = useState(false);
     const [heroUploading, setHeroUploading] = useState(false);
     const [settings, setSettings] = useState({
@@ -61,6 +61,8 @@ export default function EditorPage() {
     });
     const [editingSection, setEditingSection] = useState(null);
     const [showAddSection, setShowAddSection] = useState(false);
+    const [moveAnimations, setMoveAnimations] = useState({});
+    const moveAnimationTimeout = useRef(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '' });
@@ -78,6 +80,12 @@ export default function EditorPage() {
         setToast({ show: true, message });
         setTimeout(() => setToast({ show: false, message: '' }), 3000);
     };
+
+    useEffect(() => () => {
+        if (moveAnimationTimeout.current) {
+            clearTimeout(moveAnimationTimeout.current);
+        }
+    }, []);
 
     const isImageIcon = (value) =>
         typeof value === 'string' &&
@@ -296,10 +304,19 @@ export default function EditorPage() {
         const targetIndex = index + direction;
         if (targetIndex < 0 || targetIndex >= sections.length) return;
 
+        const movingId = newSections[index].id;
+        const swapId = newSections[targetIndex].id;
         const temp = newSections[index];
         newSections[index] = newSections[targetIndex];
         newSections[targetIndex] = temp;
         setSections(newSections);
+        setMoveAnimations({ [movingId]: direction, [swapId]: -direction });
+        if (moveAnimationTimeout.current) {
+            clearTimeout(moveAnimationTimeout.current);
+        }
+        moveAnimationTimeout.current = setTimeout(() => {
+            setMoveAnimations({});
+        }, 320);
     };
 
     const handleCreateCategory = async () => {
@@ -376,7 +393,6 @@ export default function EditorPage() {
                     delivery_time: '',
                     warranty: ''
                 });
-                setNewImageUrl('');
                 showSuccess('Producto creado con éxito');
             }
         } catch (err) {
@@ -511,36 +527,29 @@ export default function EditorPage() {
 
         setUploading(true);
         try {
-            const formData = new FormData();
-            formData.append('image', file);
-
-            const token = localStorage.getItem('teflon_token');
-            const response = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
-                method: 'POST',
-                headers: {
-                    ...getTenantHeaders(),
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (response.ok) {
-                const { url } = await response.json();
-                setNewProduct({
-                    ...newProduct,
-                    images: [...newProduct.images, {
-                        url,
-                        alt: newProduct.name || 'Producto',
-                        primary: newProduct.images.length === 0
-                    }]
-                });
-                showSuccess('Imagen subida con éxito');
-            } else {
-                alert('Error al subir la imagen');
+            const dataUrl = await readImageAsDataUrl(file);
+            if (!dataUrl) {
+                alert('No se pudo leer la imagen');
+                return;
             }
+            setNewProduct((prev) => {
+                const currentImages = Array.isArray(prev.images) ? prev.images : [];
+                return {
+                    ...prev,
+                    images: [
+                        ...currentImages,
+                        {
+                            url: dataUrl,
+                            alt: prev.name || 'Producto',
+                            primary: currentImages.length === 0
+                        }
+                    ]
+                };
+            });
+            showSuccess('Imagen cargada');
         } catch (err) {
-            console.error('Upload failed', err);
-            alert('Error al subir la imagen');
+            console.error('Image read failed', err);
+            alert('Error al leer la imagen');
         } finally {
             setUploading(false);
             // Reset file input
@@ -556,37 +565,33 @@ export default function EditorPage() {
 
         setHeroUploading(true);
         try {
-            const formData = new FormData();
-            formData.append('image', file);
-
-            const token = localStorage.getItem('teflon_token');
-            const response = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
-                method: 'POST',
-                headers: {
-                    ...getTenantHeaders(),
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (response.ok) {
-                const { url } = await response.json();
-                const newSections = [...sections];
-                const currentProps = newSections[index].props || {};
-                newSections[index].props = { ...currentProps, image: url };
-                setSections(newSections);
-                showSuccess('Imagen subida con exito');
-            } else {
-                alert('Error al subir la imagen');
+            const dataUrl = await readImageAsDataUrl(file);
+            if (!dataUrl) {
+                alert('No se pudo leer la imagen');
+                return;
             }
+            const newSections = [...sections];
+            const currentProps = newSections[index].props || {};
+            newSections[index].props = { ...currentProps, image: dataUrl };
+            setSections(newSections);
+            showSuccess('Imagen cargada');
         } catch (err) {
-            console.error('Upload failed', err);
-            alert('Error al subir la imagen');
+            console.error('Image read failed', err);
+            alert('Error al leer la imagen');
         } finally {
             setHeroUploading(false);
             event.target.value = '';
         }
     };
+
+    function readImageAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(file);
+        });
+    }
 
     const handleSectionImageUpload = async (event, index, field) => {
         const file = event.target.files[0];
@@ -596,32 +601,19 @@ export default function EditorPage() {
 
         setHeroUploading(true);
         try {
-            const formData = new FormData();
-            formData.append('image', file);
-
-            const token = localStorage.getItem('teflon_token');
-            const response = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
-                method: 'POST',
-                headers: {
-                    ...getTenantHeaders(),
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (response.ok) {
-                const { url } = await response.json();
-                const newSections = [...sections];
-                const currentProps = newSections[index].props || {};
-                newSections[index].props = { ...currentProps, [field]: url };
-                setSections(newSections);
-                showSuccess('Imagen subida con exito');
-            } else {
-                alert('Error al subir la imagen');
+            const dataUrl = await readImageAsDataUrl(file);
+            if (!dataUrl) {
+                alert('No se pudo leer la imagen');
+                return;
             }
+            const newSections = [...sections];
+            const currentProps = newSections[index].props || {};
+            newSections[index].props = { ...currentProps, [field]: dataUrl };
+            setSections(newSections);
+            showSuccess('Imagen cargada');
         } catch (err) {
-            console.error('Upload failed', err);
-            alert('Error al subir la imagen');
+            console.error('Image read failed', err);
+            alert('Error al leer la imagen');
         } finally {
             setHeroUploading(false);
             event.target.value = '';
@@ -636,37 +628,52 @@ export default function EditorPage() {
 
         setServiceIconUploading(true);
         try {
-            const formData = new FormData();
-            formData.append('image', file);
-
-            const token = localStorage.getItem('teflon_token');
-            const response = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
-                method: 'POST',
-                headers: {
-                    ...getTenantHeaders(),
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: formData
-            });
-
-            if (response.ok) {
-                const { url } = await response.json();
-                const newSections = [...sections];
-                const currentProps = newSections[sectionIndex].props || {};
-                const currentItems = Array.isArray(currentProps.items) ? [...currentProps.items] : [];
-                const currentItem = currentItems[itemIndex] || {};
-                currentItems[itemIndex] = { ...currentItem, icon: url };
-                newSections[sectionIndex].props = { ...currentProps, items: currentItems };
-                setSections(newSections);
-                showSuccess('Icono subido con exito');
-            } else {
-                alert('Error al subir el icono');
+            const dataUrl = await readImageAsDataUrl(file);
+            if (!dataUrl) {
+                alert('No se pudo leer el icono');
+                return;
             }
+            const newSections = [...sections];
+            const currentProps = newSections[sectionIndex].props || {};
+            const currentItems = Array.isArray(currentProps.items) ? [...currentProps.items] : [];
+            const currentItem = currentItems[itemIndex] || {};
+            currentItems[itemIndex] = { ...currentItem, icon: dataUrl };
+            newSections[sectionIndex].props = { ...currentProps, items: currentItems };
+            setSections(newSections);
+            showSuccess('Icono cargado');
         } catch (err) {
-            console.error('Upload failed', err);
-            alert('Error al subir el icono');
+            console.error('Image read failed', err);
+            alert('Error al leer el icono');
         } finally {
             setServiceIconUploading(false);
+            event.target.value = '';
+        }
+    };
+
+    const handleLogoUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setLogoUploading(true);
+        try {
+            const dataUrl = await readImageAsDataUrl(file);
+            if (!dataUrl) {
+                alert('No se pudo leer el logo');
+                return;
+            }
+            setSettings((prev) => ({
+                ...prev,
+                branding: {
+                    ...prev.branding,
+                    logo_url: dataUrl
+                }
+            }));
+            showSuccess('Logo cargado');
+        } catch (err) {
+            console.error('Image read failed', err);
+            alert('Error al leer el logo');
+        } finally {
+            setLogoUploading(false);
             event.target.value = '';
         }
     };
@@ -728,6 +735,7 @@ export default function EditorPage() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        <div key={activeTab} className="animate-in fade-in slide-in-from-right-2 duration-300">
                         {activeTab === 'appearance' ? (
                             <div className="space-y-6 animate-in fade-in duration-300">
                                 <div>
@@ -757,13 +765,6 @@ export default function EditorPage() {
                                                 <span className="text-[10px] font-black font-mono opacity-50 uppercase tracking-widest">{settings.theme.text || settings.theme.secondary || '#181411'}</span>
                                             </div>
                                         </div>
-                                        <input
-                                            type="text"
-                                            value={settings.theme.font_family || settings.theme.fontFamily || ''}
-                                            placeholder="Fuente (ej: Inter)"
-                                            onChange={e => setSettings({ ...settings, theme: { ...settings.theme, font_family: e.target.value } })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
                                         <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/70 dark:bg-[#1a130c]">
                                             <div>
                                                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Modo oscuro</p>
@@ -799,13 +800,30 @@ export default function EditorPage() {
                                             onChange={e => setSettings({ ...settings, branding: { ...settings.branding, name: e.target.value } })}
                                             className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
                                         />
-                                        <input
-                                            type="text"
-                                            value={settings.branding.logo_url}
-                                            placeholder="Logo URL"
-                                            onChange={e => setSettings({ ...settings, branding: { ...settings.branding, logo_url: e.target.value } })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
+                                        <div className="flex items-center gap-3">
+                                            <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleLogoUpload}
+                                                    className="hidden"
+                                                    disabled={logoUploading}
+                                                />
+                                                {logoUploading ? (
+                                                    <>
+                                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                        <span>Subiendo...</span>
+                                                    </>
+                                                ) : (
+                                                    <span>Subir logo</span>
+                                                )}
+                                            </label>
+                                            {settings.branding.logo_url ? (
+                                                <div className="w-10 h-10 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] overflow-hidden flex items-center justify-center">
+                                                    <img src={settings.branding.logo_url} alt="Logo" className="w-8 h-8 object-contain" />
+                                                </div>
+                                            ) : null}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1013,7 +1031,7 @@ export default function EditorPage() {
                                                                 <img src={img.url} alt="" className="w-full h-full object-cover" onError={e => e.target.style.display = 'none'} />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-[9px] text-[#8a7560] truncate">{img.url}</p>
+                                                                <p className="text-[9px] text-[#8a7560] truncate">{img.url?.startsWith('data:') ? 'Imagen cargada' : img.url}</p>
                                                             </div>
                                                             <button
                                                                 onClick={() => {
@@ -1043,38 +1061,6 @@ export default function EditorPage() {
 
                                             {/* Add Image Input */}
                                             <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={newImageUrl}
-                                                    placeholder="URL de imagen"
-                                                    onChange={e => setNewImageUrl(e.target.value)}
-                                                    onKeyPress={e => {
-                                                        if (e.key === 'Enter' && newImageUrl.trim()) {
-                                                            e.preventDefault();
-                                                            setNewProduct({
-                                                                ...newProduct,
-                                                                images: [...newProduct.images, { url: newImageUrl.trim(), alt: newProduct.name || 'Producto', primary: newProduct.images.length === 0 }]
-                                                            });
-                                                            setNewImageUrl('');
-                                                        }
-                                                    }}
-                                                    className="flex-1 px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (newImageUrl.trim()) {
-                                                            setNewProduct({
-                                                                ...newProduct,
-                                                                images: [...newProduct.images, { url: newImageUrl.trim(), alt: newProduct.name || 'Producto', primary: newProduct.images.length === 0 }]
-                                                            });
-                                                            setNewImageUrl('');
-                                                        }
-                                                    }}
-                                                    className="px-3 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors"
-                                                >
-                                                    +
-                                                </button>
                                                 <label className="px-3 py-2 bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer flex items-center gap-1">
                                                     <input
                                                         type="file"
@@ -1086,11 +1072,11 @@ export default function EditorPage() {
                                                     {uploading ? (
                                                         <>
                                                             <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                            <span>...</span>
+                                                            <span>Subiendo...</span>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            📁 Subir
+                                                            Subir imagen
                                                         </>
                                                     )}
                                                 </label>
@@ -1323,18 +1309,6 @@ export default function EditorPage() {
                                             }}
                                             className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
                                         />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.image || ''}
-                                            placeholder="URL Imagen Fondo"
-                                            onChange={e => {
-                                                const newSections = [...sections];
-                                                newSections[editingSection.index].props = { ...newSections[editingSection.index].props, image: e.target.value };
-                                                setSections(newSections);
-                                            }}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                    
                                         <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
                                             <input
                                                 type="file"
@@ -1471,14 +1445,16 @@ export default function EditorPage() {
                                             }}
                                             className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
                                         />
-                                        <div className="space-y-3">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Parrafos</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
                                             {(Array.isArray(sections[editingSection.index].props?.items)
                                                 ? sections[editingSection.index].props.items
                                                 : []
                                             ).map((item, itemIndex) => (
-                                                <div key={itemIndex} className="p-3 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/70 dark:bg-[#1a130c] space-y-2">
+                                                <div key={itemIndex} className="p-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] space-y-1.5">
                                                     <div className="flex items-center justify-between">
-                                                        <p className="text-[10px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
+                                                        <p className="text-[9px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
                                                         <button
                                                             type="button"
                                                             onClick={() => {
@@ -1528,7 +1504,7 @@ export default function EditorPage() {
                                                         <input
                                                             type="text"
                                                             value={item.icon || ''}
-                                                            placeholder="Icono (support_agent, local_shipping o URL)"
+                                                            placeholder="Icono (support_agent, local_shipping)"
                                                             onChange={e => {
                                                                 const newSections = [...sections];
                                                                 const currentProps = newSections[editingSection.index].props || {};
@@ -1583,153 +1559,177 @@ export default function EditorPage() {
                                             </button>
                                         </div>
                                     </div>
+                                </div>
                                 )}
                                 {editingSection.type === 'AboutHero' && (
-                                    <div className="space-y-4">
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.tagline || ''}
-                                            placeholder="Tagline"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { tagline: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.title || ''}
-                                            placeholder="Titulo"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm font-bold"
-                                        />
-                                        <textarea
-                                            value={sections[editingSection.index].props?.description || ''}
-                                            placeholder="Descripcion"
-                                            rows={3}
-                                            onChange={(e) => updateSectionProps(editingSection.index, { description: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.backgroundImage || ''}
-                                            placeholder="URL de imagen"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { backgroundImage: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'backgroundImage')}
-                                                className="hidden"
-                                                disabled={heroUploading}
-                                            />
-                                            {heroUploading ? (
-                                                <>
-                                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                    <span>Subiendo...</span>
-                                                </>
-                                            ) : (
-                                                <span>Subir imagen</span>
-                                            )}
-                                        </label>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <input
-                                                type="text"
-                                                value={sections[editingSection.index].props?.primaryButton?.label || ''}
-                                                placeholder="Texto boton primario"
-                                                onChange={(e) => {
-                                                    const currentProps = sections[editingSection.index].props || {};
-                                                    const primaryButton = currentProps.primaryButton || {};
-                                                    updateSectionProps(editingSection.index, {
-                                                        primaryButton: { ...primaryButton, label: e.target.value }
-                                                    });
-                                                }}
-                                                className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={sections[editingSection.index].props?.primaryButton?.link || ''}
-                                                placeholder="Link boton primario"
-                                                onChange={(e) => {
-                                                    const currentProps = sections[editingSection.index].props || {};
-                                                    const primaryButton = currentProps.primaryButton || {};
-                                                    updateSectionProps(editingSection.index, {
-                                                        primaryButton: { ...primaryButton, link: e.target.value }
-                                                    });
-                                                }}
-                                                className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={sections[editingSection.index].props?.secondaryButton?.label || ''}
-                                                placeholder="Texto boton secundario"
-                                                onChange={(e) => {
-                                                    const currentProps = sections[editingSection.index].props || {};
-                                                    const secondaryButton = currentProps.secondaryButton || {};
-                                                    updateSectionProps(editingSection.index, {
-                                                        secondaryButton: { ...secondaryButton, label: e.target.value }
-                                                    });
-                                                }}
-                                                className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={sections[editingSection.index].props?.secondaryButton?.link || ''}
-                                                placeholder="Link boton secundario"
-                                                onChange={(e) => {
-                                                    const currentProps = sections[editingSection.index].props || {};
-                                                    const secondaryButton = currentProps.secondaryButton || {};
-                                                    updateSectionProps(editingSection.index, {
-                                                        secondaryButton: { ...secondaryButton, link: e.target.value }
-                                                    });
-                                                }}
-                                                className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                            />
+                                    <div className="space-y-2">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Contenido</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.tagline || ''}
+                                                    placeholder="Tagline"
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { tagline: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.title || ''}
+                                                    placeholder="Titulo"
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[11px] font-bold"
+                                                />
+                                                <textarea
+                                                    value={sections[editingSection.index].props?.description || ''}
+                                                    placeholder="Descripcion"
+                                                    rows={2}
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { description: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color acento</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color overlay</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.overlayColor || '#221910'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { overlayColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <input
-                                                type="number"
-                                                step="0.05"
-                                                min="0"
-                                                max="1"
-                                                value={sections[editingSection.index].props?.styles?.overlayOpacity ?? 0.85}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { overlayOpacity: Number(e.target.value) })}
-                                                className="w-20 px-2 py-1 rounded border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs"
-                                                placeholder="Opacidad"
-                                            />
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Imagen</p>
+                                            <div className="flex flex-wrap gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[9px] font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'backgroundImage')}
+                                                        className="hidden"
+                                                        disabled={heroUploading}
+                                                    />
+                                                    {heroUploading ? (
+                                                        <>
+                                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                            <span>Subiendo...</span>
+                                                        </>
+                                                    ) : (
+                                                        <span>Subir imagen</span>
+                                                    )}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Botones</p>
+                                            <div className="grid grid-cols-2 gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.primaryButton?.label || ''}
+                                                    placeholder="Texto primario"
+                                                    onChange={(e) => {
+                                                        const currentProps = sections[editingSection.index].props || {};
+                                                        const primaryButton = currentProps.primaryButton || {};
+                                                        updateSectionProps(editingSection.index, {
+                                                            primaryButton: { ...primaryButton, label: e.target.value }
+                                                        });
+                                                    }}
+                                                    className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.primaryButton?.link || ''}
+                                                    placeholder="Link primario"
+                                                    onChange={(e) => {
+                                                        const currentProps = sections[editingSection.index].props || {};
+                                                        const primaryButton = currentProps.primaryButton || {};
+                                                        updateSectionProps(editingSection.index, {
+                                                            primaryButton: { ...primaryButton, link: e.target.value }
+                                                        });
+                                                    }}
+                                                    className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.secondaryButton?.label || ''}
+                                                    placeholder="Texto secundario"
+                                                    onChange={(e) => {
+                                                        const currentProps = sections[editingSection.index].props || {};
+                                                        const secondaryButton = currentProps.secondaryButton || {};
+                                                        updateSectionProps(editingSection.index, {
+                                                            secondaryButton: { ...secondaryButton, label: e.target.value }
+                                                        });
+                                                    }}
+                                                    className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.secondaryButton?.link || ''}
+                                                    placeholder="Link secundario"
+                                                    onChange={(e) => {
+                                                        const currentProps = sections[editingSection.index].props || {};
+                                                        const secondaryButton = currentProps.secondaryButton || {};
+                                                        updateSectionProps(editingSection.index, {
+                                                            secondaryButton: { ...secondaryButton, link: e.target.value }
+                                                        });
+                                                    }}
+                                                    className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Colores</p>
+                                            <div className="grid grid-cols-2 gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Acento</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Overlay</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.overlayColor || '#221910'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { overlayColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Opac.</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.05"
+                                                        min="0"
+                                                        max="1"
+                                                        value={sections[editingSection.index].props?.styles?.overlayOpacity ?? 0.85}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { overlayOpacity: Number(e.target.value) })}
+                                                        className="w-20 px-2 py-0.5 rounded border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[11px]"
+                                                        placeholder="Opacidad"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
                                 {editingSection.type === 'AboutMission' && (
-                                    <div className="space-y-4">
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.eyebrow || ''}
-                                            placeholder="Eyebrow"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { eyebrow: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.title || ''}
-                                            placeholder="Titulo"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm font-bold"
-                                        />
-                                        <div className="space-y-3">
+                                    <div className="space-y-2">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Contenido</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.eyebrow || ''}
+                                                    placeholder="Eyebrow"
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { eyebrow: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.title || ''}
+                                                    placeholder="Titulo"
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[11px] font-bold"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Parrafos</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
                                             {(Array.isArray(sections[editingSection.index].props?.paragraphs)
                                                 ? sections[editingSection.index].props.paragraphs
                                                 : []
@@ -1738,7 +1738,7 @@ export default function EditorPage() {
                                                     <textarea
                                                         value={paragraph}
                                                         placeholder={`Parrafo ${idx + 1}`}
-                                                        rows={3}
+                                                        rows={2}
                                                         onChange={(e) => {
                                                             const currentParagraphs = Array.isArray(sections[editingSection.index].props?.paragraphs)
                                                                 ? [...sections[editingSection.index].props.paragraphs]
@@ -1746,7 +1746,7 @@ export default function EditorPage() {
                                                             currentParagraphs[idx] = e.target.value;
                                                             updateSectionProps(editingSection.index, { paragraphs: currentParagraphs });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     />
                                                     <button
                                                         type="button"
@@ -1757,7 +1757,7 @@ export default function EditorPage() {
                                                             currentParagraphs.splice(idx, 1);
                                                             updateSectionProps(editingSection.index, { paragraphs: currentParagraphs });
                                                         }}
-                                                        className="text-[10px] font-bold text-red-500 hover:text-red-600"
+                                                        className="text-[9px] font-bold text-red-500 hover:text-red-600"
                                                     >
                                                         Eliminar
                                                     </button>
@@ -1772,20 +1772,22 @@ export default function EditorPage() {
                                                     currentParagraphs.push('Nuevo parrafo');
                                                     updateSectionProps(editingSection.index, { paragraphs: currentParagraphs });
                                                 }}
-                                                className="w-full py-2 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[10px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
+                                                className="w-full py-1.5 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[9px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
                                             >
                                                 + Agregar parrafo
                                             </button>
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <p className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Highlights</p>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Highlights</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
                                             {(Array.isArray(sections[editingSection.index].props?.highlights)
                                                 ? sections[editingSection.index].props.highlights
                                                 : []
                                             ).map((item, itemIndex) => (
-                                                <div key={itemIndex} className="p-3 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/70 dark:bg-[#1a130c] space-y-2">
+                                                <div key={itemIndex} className="p-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] space-y-1.5">
                                                     <div className="flex items-center justify-between">
-                                                        <p className="text-[10px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
+                                                        <p className="text-[9px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
                                                         <button
                                                             type="button"
                                                             onClick={() => {
@@ -1795,7 +1797,7 @@ export default function EditorPage() {
                                                                 currentItems.splice(itemIndex, 1);
                                                                 updateSectionProps(editingSection.index, { highlights: currentItems });
                                                             }}
-                                                            className="text-[10px] font-bold text-red-500 hover:text-red-600"
+                                                            className="text-[9px] font-bold text-red-500 hover:text-red-600"
                                                         >
                                                             Eliminar
                                                         </button>
@@ -1810,7 +1812,7 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, icon: e.target.value };
                                                             updateSectionProps(editingSection.index, { highlights: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     >
                                                         <option value="verified">Verificado</option>
                                                         <option value="eco">Eco</option>
@@ -1827,7 +1829,7 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, title: e.target.value };
                                                             updateSectionProps(editingSection.index, { highlights: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     />
                                                     <textarea
                                                         value={item.text || ''}
@@ -1841,7 +1843,7 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, text: e.target.value };
                                                             updateSectionProps(editingSection.index, { highlights: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     />
                                                 </div>
                                             ))}
@@ -1854,63 +1856,71 @@ export default function EditorPage() {
                                                     currentItems.push({ icon: 'verified', title: 'Nuevo item', text: 'Descripcion' });
                                                     updateSectionProps(editingSection.index, { highlights: currentItems });
                                                 }}
-                                                className="w-full py-2 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[10px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
+                                                className="w-full py-1.5 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[9px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
                                             >
                                                 + Agregar item
                                             </button>
+                                            </div>
                                         </div>
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.image || ''}
-                                            placeholder="URL imagen principal"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { image: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'image')}
-                                                className="hidden"
-                                                disabled={heroUploading}
-                                            />
-                                            {heroUploading ? (
-                                                <>
-                                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                    <span>Subiendo...</span>
-                                                </>
-                                            ) : (
-                                                <span>Subir imagen</span>
-                                            )}
-                                        </label>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color fondo</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.backgroundColor || '#ffffff'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color acento</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Imagen</p>
+                                            <div className="flex flex-wrap gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[9px] font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'image')}
+                                                        className="hidden"
+                                                        disabled={heroUploading}
+                                                    />
+                                                    {heroUploading ? (
+                                                        <>
+                                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                            <span>Subiendo...</span>
+                                                        </>
+                                                    ) : (
+                                                        <span>Subir imagen</span>
+                                                    )}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Colores</p>
+                                            <div className="grid grid-cols-2 gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Fondo</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.backgroundColor || '#ffffff'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Acento</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
                                 {editingSection.type === 'AboutStats' && (
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
+                                    <div className="space-y-2">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Items</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
                                             {(Array.isArray(sections[editingSection.index].props?.items)
                                                 ? sections[editingSection.index].props.items
                                                 : []
                                             ).map((item, itemIndex) => (
-                                                <div key={itemIndex} className="p-3 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/70 dark:bg-[#1a130c] space-y-2">
+                                                <div key={itemIndex} className="p-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] space-y-1.5">
                                                     <div className="flex items-center justify-between">
-                                                        <p className="text-[10px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
+                                                        <p className="text-[9px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
                                                         <button
                                                             type="button"
                                                             onClick={() => {
@@ -1920,7 +1930,7 @@ export default function EditorPage() {
                                                                 currentItems.splice(itemIndex, 1);
                                                                 updateSectionProps(editingSection.index, { items: currentItems });
                                                             }}
-                                                            className="text-[10px] font-bold text-red-500 hover:text-red-600"
+                                                            className="text-[9px] font-bold text-red-500 hover:text-red-600"
                                                         >
                                                             Eliminar
                                                         </button>
@@ -1937,7 +1947,7 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, value: e.target.value };
                                                             updateSectionProps(editingSection.index, { items: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm font-bold"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px] font-bold"
                                                     />
                                                     <input
                                                         type="text"
@@ -1951,9 +1961,9 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, label: e.target.value };
                                                             updateSectionProps(editingSection.index, { items: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     />
-                                                    <label className="flex items-center gap-2 text-xs text-[#8a7560]">
+                                                    <label className="flex items-center gap-2 text-[9px] text-[#8a7560]">
                                                         <input
                                                             type="checkbox"
                                                             checked={!!item.accent}
@@ -1980,46 +1990,61 @@ export default function EditorPage() {
                                                     currentItems.push({ value: '0', label: 'Nuevo dato' });
                                                     updateSectionProps(editingSection.index, { items: currentItems });
                                                 }}
-                                                className="w-full py-2 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[10px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
+                                                className="w-full py-1.5 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[9px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
                                             >
                                                 + Agregar item
                                             </button>
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color fondo</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.backgroundColor || '#181411'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color acento</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Colores</p>
+                                            <div className="grid grid-cols-2 gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Fondo</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.backgroundColor || '#181411'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Acento</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
                                 {editingSection.type === 'AboutValues' && (
-                                    <div className="space-y-4">
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.title || ''}
-                                            placeholder="Titulo"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm font-bold"
-                                        />
-                                        <div className="space-y-2">
+                                    <div className="space-y-2">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Contenido</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.title || ''}
+                                                    placeholder="Titulo"
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[11px] font-bold"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Items</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
                                             {(Array.isArray(sections[editingSection.index].props?.items)
                                                 ? sections[editingSection.index].props.items
                                                 : []
                                             ).map((item, itemIndex) => (
-                                                <div key={itemIndex} className="p-3 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/70 dark:bg-[#1a130c] space-y-2">
+                                                <div key={itemIndex} className="p-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] space-y-1.5">
                                                     <div className="flex items-center justify-between">
-                                                        <p className="text-[10px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
+                                                        <p className="text-[9px] font-bold uppercase text-[#8a7560] tracking-widest">Item {itemIndex + 1}</p>
                                                         <button
                                                             type="button"
                                                             onClick={() => {
@@ -2029,7 +2054,7 @@ export default function EditorPage() {
                                                                 currentItems.splice(itemIndex, 1);
                                                                 updateSectionProps(editingSection.index, { items: currentItems });
                                                             }}
-                                                            className="text-[10px] font-bold text-red-500 hover:text-red-600"
+                                                            className="text-[9px] font-bold text-red-500 hover:text-red-600"
                                                         >
                                                             Eliminar
                                                         </button>
@@ -2044,7 +2069,7 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, icon: e.target.value };
                                                             updateSectionProps(editingSection.index, { items: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     >
                                                         <option value="quality">Calidad</option>
                                                         <option value="commitment">Compromiso</option>
@@ -2062,7 +2087,7 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, title: e.target.value };
                                                             updateSectionProps(editingSection.index, { items: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     />
                                                     <textarea
                                                         value={item.description || ''}
@@ -2076,7 +2101,7 @@ export default function EditorPage() {
                                                             currentItems[itemIndex] = { ...currentItem, description: e.target.value };
                                                             updateSectionProps(editingSection.index, { items: currentItems });
                                                         }}
-                                                        className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
+                                                        className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
                                                     />
                                                 </div>
                                             ))}
@@ -2089,217 +2114,251 @@ export default function EditorPage() {
                                                     currentItems.push({ icon: 'quality', title: 'Nuevo valor', description: 'Descripcion' });
                                                     updateSectionProps(editingSection.index, { items: currentItems });
                                                 }}
-                                                className="w-full py-2 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[10px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
+                                                className="w-full py-1.5 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[9px] font-bold text-[#8a7560] hover:border-primary hover:text-primary transition-colors"
                                             >
                                                 + Agregar item
                                             </button>
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color fondo</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.backgroundColor || '#f8f7f5'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color acento</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color tarjeta</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.cardBackground || '#ffffff'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { cardBackground: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Colores</p>
+                                            <div className="grid grid-cols-2 gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Fondo</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.backgroundColor || '#f8f7f5'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Acento</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Tarjeta</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.cardBackground || '#ffffff'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { cardBackground: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
                                 {editingSection.type === 'AboutTeam' && (
-                                    <div className="space-y-4">
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.anchor || ''}
-                                            placeholder="Anchor (ej: equipo)"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { anchor: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.title || ''}
-                                            placeholder="Titulo"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm font-bold"
-                                        />
-                                        <textarea
-                                            value={sections[editingSection.index].props?.quote || ''}
-                                            placeholder="Cita"
-                                            rows={3}
-                                            onChange={(e) => updateSectionProps(editingSection.index, { quote: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.author || ''}
-                                            placeholder="Autor"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { author: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.role || ''}
-                                            placeholder="Rol"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { role: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.avatarImage || ''}
-                                            placeholder="URL avatar"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { avatarImage: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'avatarImage')}
-                                                className="hidden"
-                                                disabled={heroUploading}
-                                            />
-                                            {heroUploading ? (
-                                                <>
-                                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                    <span>Subiendo...</span>
-                                                </>
-                                            ) : (
-                                                <span>Subir avatar</span>
-                                            )}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.backgroundImage || ''}
-                                            placeholder="URL fondo"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { backgroundImage: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'backgroundImage')}
-                                                className="hidden"
-                                                disabled={heroUploading}
-                                            />
-                                            {heroUploading ? (
-                                                <>
-                                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                    <span>Subiendo...</span>
-                                                </>
-                                            ) : (
-                                                <span>Subir fondo</span>
-                                            )}
-                                        </label>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color fondo</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.backgroundColor || '#f27f0d'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color overlay</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.overlayColor || '#000000'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { overlayColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <input
-                                                type="number"
-                                                step="0.05"
-                                                min="0"
-                                                max="1"
-                                                value={sections[editingSection.index].props?.styles?.overlayOpacity ?? 0.25}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { overlayOpacity: Number(e.target.value) })}
-                                                className="w-20 px-2 py-1 rounded border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs"
-                                                placeholder="Opacidad"
-                                            />
+                                    <div className="space-y-2">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Contenido</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.anchor || ''}
+                                                        placeholder="Anchor"
+                                                        onChange={(e) => updateSectionProps(editingSection.index, { anchor: e.target.value })}
+                                                        className="col-span-1 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.title || ''}
+                                                        placeholder="Titulo"
+                                                        onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
+                                                        className="col-span-2 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[11px] font-bold"
+                                                    />
+                                                </div>
+                                                <textarea
+                                                    value={sections[editingSection.index].props?.quote || ''}
+                                                    placeholder="Cita"
+                                                    rows={1}
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { quote: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.author || ''}
+                                                        placeholder="Autor"
+                                                        onChange={(e) => updateSectionProps(editingSection.index, { author: e.target.value })}
+                                                        className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.role || ''}
+                                                        placeholder="Rol"
+                                                        onChange={(e) => updateSectionProps(editingSection.index, { role: e.target.value })}
+                                                        className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Imagenes</p>
+                                            <div className="flex flex-wrap gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[9px] font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'avatarImage')}
+                                                        className="hidden"
+                                                        disabled={heroUploading}
+                                                    />
+                                                    {heroUploading ? (
+                                                        <>
+                                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                            <span>Subiendo...</span>
+                                                        </>
+                                                    ) : (
+                                                        <span>Avatar</span>
+                                                    )}
+                                                </label>
+                                                <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[9px] font-bold hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors cursor-pointer w-fit">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(event) => handleSectionImageUpload(event, editingSection.index, 'backgroundImage')}
+                                                        className="hidden"
+                                                        disabled={heroUploading}
+                                                    />
+                                                    {heroUploading ? (
+                                                        <>
+                                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                            <span>Subiendo...</span>
+                                                        </>
+                                                    ) : (
+                                                        <span>Fondo</span>
+                                                    )}
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Colores</p>
+                                            <div className="grid grid-cols-2 gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Fondo</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.backgroundColor || '#f27f0d'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Overlay</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.overlayColor || '#000000'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { overlayColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="col-span-2 flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Opac.</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.05"
+                                                        min="0"
+                                                        max="1"
+                                                        value={sections[editingSection.index].props?.styles?.overlayOpacity ?? 0.25}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { overlayOpacity: Number(e.target.value) })}
+                                                        className="w-20 px-2 py-0.5 rounded border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[11px]"
+                                                        placeholder="Opacidad"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
                                 {editingSection.type === 'AboutCTA' && (
-                                    <div className="space-y-4">
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.title || ''}
-                                            placeholder="Titulo"
-                                            onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm font-bold"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.primaryLink?.label || ''}
-                                            placeholder="Texto link primario"
-                                            onChange={(e) => {
-                                                const currentProps = sections[editingSection.index].props || {};
-                                                const primaryLink = currentProps.primaryLink || {};
-                                                updateSectionProps(editingSection.index, { primaryLink: { ...primaryLink, label: e.target.value } });
-                                            }}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.primaryLink?.link || ''}
-                                            placeholder="Link primario"
-                                            onChange={(e) => {
-                                                const currentProps = sections[editingSection.index].props || {};
-                                                const primaryLink = currentProps.primaryLink || {};
-                                                updateSectionProps(editingSection.index, { primaryLink: { ...primaryLink, link: e.target.value } });
-                                            }}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.secondaryLink?.label || ''}
-                                            placeholder="Texto link secundario"
-                                            onChange={(e) => {
-                                                const currentProps = sections[editingSection.index].props || {};
-                                                const secondaryLink = currentProps.secondaryLink || {};
-                                                updateSectionProps(editingSection.index, { secondaryLink: { ...secondaryLink, label: e.target.value } });
-                                            }}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-sm"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={sections[editingSection.index].props?.secondaryLink?.link || ''}
-                                            placeholder="Link secundario"
-                                            onChange={(e) => {
-                                                const currentProps = sections[editingSection.index].props || {};
-                                                const secondaryLink = currentProps.secondaryLink || {};
-                                                updateSectionProps(editingSection.index, { secondaryLink: { ...secondaryLink, link: e.target.value } });
-                                            }}
-                                            className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent text-xs"
-                                        />
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color fondo</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.backgroundColor || '#ffffff'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
-                                            <label className="text-[10px] font-bold uppercase text-[#8a7560] tracking-wider">Color acento</label>
-                                            <input
-                                                type="color"
-                                                value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
-                                                onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
-                                                className="w-12 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                                            />
+                                    <div className="space-y-2">
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Contenido</p>
+                                            <div className="space-y-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <input
+                                                    type="text"
+                                                    value={sections[editingSection.index].props?.title || ''}
+                                                    placeholder="Titulo"
+                                                    onChange={(e) => updateSectionProps(editingSection.index, { title: e.target.value })}
+                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[11px] font-bold"
+                                                />
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.primaryLink?.label || ''}
+                                                        placeholder="Texto primario"
+                                                        onChange={(e) => {
+                                                            const currentProps = sections[editingSection.index].props || {};
+                                                            const primaryLink = currentProps.primaryLink || {};
+                                                            updateSectionProps(editingSection.index, { primaryLink: { ...primaryLink, label: e.target.value } });
+                                                        }}
+                                                        className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.primaryLink?.link || ''}
+                                                        placeholder="Link primario"
+                                                        onChange={(e) => {
+                                                            const currentProps = sections[editingSection.index].props || {};
+                                                            const primaryLink = currentProps.primaryLink || {};
+                                                            updateSectionProps(editingSection.index, { primaryLink: { ...primaryLink, link: e.target.value } });
+                                                        }}
+                                                        className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.secondaryLink?.label || ''}
+                                                        placeholder="Texto secundario"
+                                                        onChange={(e) => {
+                                                            const currentProps = sections[editingSection.index].props || {};
+                                                            const secondaryLink = currentProps.secondaryLink || {};
+                                                            updateSectionProps(editingSection.index, { secondaryLink: { ...secondaryLink, label: e.target.value } });
+                                                        }}
+                                                        className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={sections[editingSection.index].props?.secondaryLink?.link || ''}
+                                                        placeholder="Link secundario"
+                                                        onChange={(e) => {
+                                                            const currentProps = sections[editingSection.index].props || {};
+                                                            const secondaryLink = currentProps.secondaryLink || {};
+                                                            updateSectionProps(editingSection.index, { secondaryLink: { ...secondaryLink, link: e.target.value } });
+                                                        }}
+                                                        className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c] text-[10px]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black uppercase text-[#8a7560] tracking-widest mb-2">Colores</p>
+                                            <div className="grid grid-cols-2 gap-2 bg-zinc-50 dark:bg-white/5 p-2.5 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Fondo</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.backgroundColor || '#ffffff'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { backgroundColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <label className="text-[8px] font-bold uppercase text-[#8a7560] tracking-wider">Acento</label>
+                                                    <input
+                                                        type="color"
+                                                        value={sections[editingSection.index].props?.styles?.accentColor || '#f27f0d'}
+                                                        onChange={(e) => updateSectionStyles(editingSection.index, { accentColor: e.target.value })}
+                                                        className="w-8 h-6 rounded-md cursor-pointer border-none bg-transparent"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -2338,38 +2397,49 @@ export default function EditorPage() {
                                     </div>
                                 )}
                                 <div className="space-y-2">
-                                    {sections.map((section, idx) => (
-                                        <div
-                                            key={section.id}
-                                            onClick={() => setEditingSection({ ...section, index: idx })}
-                                            className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${editingSection?.index === idx ? 'border-primary bg-primary/5' : 'bg-[#f5f2f0] dark:bg-[#2c2116] border-[#e5e1de] dark:border-[#3d2f21] hover:border-primary/50'}`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex flex-col gap-0.5 pr-3 border-r border-[#e5e1de] dark:border-[#3d2f21]">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleMoveSection(idx, -1); }} className="p-1 text-[#8a7560] hover:text-primary transition-colors">↑</button>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleMoveSection(idx, 1); }} className="p-1 text-[#8a7560] hover:text-primary transition-colors">↓</button>
-                                                </div>
-                                                <div>
-                                                    <p className="text-[11px] font-black uppercase tracking-wider text-[#181411] dark:text-white leading-tight">{section.type.replace(/([A-Z])/g, ' $1').trim()}</p>
-                                                    <p className="text-[9px] font-bold text-[#8a7560]">{section.enabled ? 'Visible' : 'Oculto'}</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const newSections = [...sections];
-                                                    newSections[idx].enabled = !newSections[idx].enabled;
-                                                    setSections(newSections);
-                                                }}
-                                                className={`p-1.5 rounded-lg transition-colors ${section.enabled ? 'text-green-500 bg-green-500/10' : 'text-zinc-400 bg-zinc-400/10'}`}
+                                    {sections.map((section, idx) => {
+                                        const moveDirection = moveAnimations[section.id];
+                                        const moveClass = moveDirection
+                                            ? `animate-in ${moveDirection < 0 ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'} fade-in duration-300`
+                                            : '';
+                                        return (
+                                            <div
+                                                key={section.id}
+                                                onClick={() => setEditingSection({ ...section, index: idx })}
+                                                className={`p-2.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group hover:-translate-y-0.5 ${moveClass} ${editingSection?.index === idx ? 'border-primary bg-primary/5 shadow-sm' : 'bg-[#f5f2f0] dark:bg-[#2c2116] border-[#e5e1de] dark:border-[#3d2f21] hover:border-primary/50 hover:shadow-md'}`}
                                             >
-                                                {section.enabled ? '✔' : '✖'}
-                                            </button>
-                                        </div>
-                                    ))}
+                                                <div className="flex items-center gap-2 flex-1">
+                                                    <div className="flex flex-col items-center gap-1 px-1.5 py-1 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white/80 dark:bg-[#1a130c]">
+                                                        <button onClick={(e) => { e.stopPropagation(); handleMoveSection(idx, -1); }} className="text-[10px] text-[#8a7560] hover:text-primary transition-colors">↑</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleMoveSection(idx, 1); }} className="text-[10px] text-[#8a7560] hover:text-primary transition-colors">↓</button>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-black uppercase tracking-wider text-[#181411] dark:text-white leading-tight truncate">{section.type.replace(/([A-Z])/g, ' $1').trim()}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-[9px] font-bold ${section.enabled ? 'text-emerald-600' : 'text-[#8a7560]'}`}>{section.enabled ? 'Visible' : 'Oculto'}</span>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${section.enabled ? 'bg-emerald-500' : 'bg-zinc-400'}`}></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newSections = [...sections];
+                                                        newSections[idx].enabled = !newSections[idx].enabled;
+                                                        setSections(newSections);
+                                                    }}
+                                                    className={`p-1.5 rounded-lg transition-colors ${section.enabled ? 'text-green-500 bg-green-500/10' : 'text-zinc-400 bg-zinc-400/10'}`}
+                                                >
+                                                    {section.enabled ? '✔' : '✖'}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        ) : null}                    </div>
+                        ) : null}
+                        </div>
+                    </div>
 
                     <div className="p-4 bg-zinc-50 dark:bg-[#2c2116] border-t border-[#e5e1de] dark:border-[#3d2f21]">
                         <button
@@ -2397,3 +2467,4 @@ export default function EditorPage() {
         </AdminLayout>
     );
 }
+

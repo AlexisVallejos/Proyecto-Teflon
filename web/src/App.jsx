@@ -66,7 +66,9 @@ function AppContent() {
 
     return (
         <div className={`w-full min-h-screen bg-gray-50 transition-colors duration-200 ${isDarkMode ? 'dark' : ''}`}>
-            <Component />
+            <div key={route} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <Component />
+            </div>
         </div>
     );
 }

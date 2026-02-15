@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTenant } from "../../context/TenantContext";
 import { useStore } from "../../context/StoreContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -42,14 +42,66 @@ export default function Header({
   const { search, setSearch, cartCount } = useStore();
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, isAdmin } = useAuth();
+  const [activeRoute, setActiveRoute] = useState(() => `${window.location.pathname}${window.location.hash || ""}`);
+  const navRef = useRef(null);
+  const linkRefs = useRef({});
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, opacity: 0 });
 
   const resolvedBrand =
     brandName || settings?.branding?.name || tenant?.name || "El Teflon";
   const logoUrl = settings?.branding?.logo_url;
 
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setActiveRoute(`${window.location.pathname}${window.location.hash || ""}`);
+    };
+
+    window.addEventListener("popstate", handleLocationChange);
+    window.addEventListener("navigate", handleLocationChange);
+    window.addEventListener("hashchange", handleLocationChange);
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+      window.removeEventListener("navigate", handleLocationChange);
+      window.removeEventListener("hashchange", handleLocationChange);
+    };
+  }, []);
+
   const links = navLinks.map((link) =>
     typeof link === "string" ? { label: link, href: "/catalog" } : link
   );
+
+  const normalizeRoute = (value) => {
+    if (!value) return "/";
+    const [rawPath, rawHash] = value.split("#");
+    let normalizedPath = rawPath || "/";
+    if (normalizedPath === "/sobre-nosotros") normalizedPath = "/about";
+    const hash = rawHash ? `#${rawHash}` : "";
+    return `${normalizedPath}${hash}`;
+  };
+
+  const updateIndicator = (target) => {
+    const key = normalizeRoute(target);
+    const node = linkRefs.current[key];
+    const container = navRef.current;
+    if (!node || !container) {
+      setIndicator((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const nodeRect = node.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    setIndicator({
+      left: nodeRect.left - containerRect.left,
+      width: nodeRect.width,
+      opacity: 1,
+    });
+  };
+
+  useEffect(() => {
+    updateIndicator(activeRoute);
+    const handleResize = () => updateIndicator(activeRoute);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [activeRoute, links.length]);
 
   const handleSearchKey = (event) => {
     if (event.key === "Enter") {
@@ -87,20 +139,52 @@ export default function Header({
           </button>
 
           {links.length ? (
-            <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold">
-              {links.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href || "/"}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate(link.href || "/");
-                  }}
-                  className="hover:text-primary transition-colors dark:text-white"
-                >
-                  {link.label}
-                </a>
-              ))}
+            <nav ref={navRef} className="relative hidden lg:flex items-center gap-5 text-sm font-semibold">
+              <span
+                className="pointer-events-none absolute -bottom-1 h-0.5 rounded-full bg-primary transition-all duration-300"
+                style={{
+                  width: indicator.width ? `${indicator.width}px` : 0,
+                  transform: `translateX(${indicator.left}px)`,
+                  opacity: indicator.opacity,
+                }}
+              />
+              <span
+                className="pointer-events-none absolute -inset-x-2 -bottom-3 h-6 rounded-full bg-primary/10 blur-xl transition-all duration-300"
+                style={{
+                  width: indicator.width ? `${indicator.width + 20}px` : 0,
+                  transform: `translateX(${indicator.left - 10}px)`,
+                  opacity: indicator.opacity ? 0.6 : 0,
+                }}
+              />
+              {links.map((link) => {
+                const target = link.href || "/";
+                const normalizedTarget = normalizeRoute(target);
+                const isActive = normalizeRoute(activeRoute) === normalizedTarget;
+                return (
+                  <a
+                    key={link.label}
+                    href={target}
+                    ref={(node) => {
+                      if (node) linkRefs.current[normalizedTarget] = node;
+                    }}
+                    onMouseEnter={() => updateIndicator(target)}
+                    onFocus={() => updateIndicator(target)}
+                    onMouseLeave={() => updateIndicator(activeRoute)}
+                    onBlur={() => updateIndicator(activeRoute)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(target);
+                    }}
+                    className={`group relative px-1.5 py-1 transition-all duration-300 dark:text-white ${
+                      isActive ? "text-primary" : "hover:text-primary"
+                    }`}
+                  >
+                    <span className={`inline-flex items-center gap-1 transition-transform duration-300 ${isActive ? "translate-y-0" : "group-hover:-translate-y-0.5"}`}>
+                      {link.label}
+                    </span>
+                  </a>
+                );
+              })}
             </nav>
           ) : null}
         </div>

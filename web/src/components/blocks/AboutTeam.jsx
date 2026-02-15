@@ -15,30 +15,30 @@ export default function AboutTeam({
     const textColor = styles.textColor || '#181411';
 
     return (
-        <section className="py-24">
+        <section className="py-16 md:py-20">
             <div className="max-w-7xl mx-auto px-4">
-                <div className="rounded-2xl overflow-hidden shadow-2xl" style={{ backgroundColor }}>
+                <div className="rounded-2xl overflow-hidden shadow-xl" style={{ backgroundColor }}>
                     <div className="grid md:grid-cols-2 items-stretch">
-                        <div className="p-12 md:p-20 flex flex-col justify-center" style={{ color: textColor }}>
-                            <h2 className="text-4xl font-black mb-6 leading-tight">{title}</h2>
-                            <p className="text-lg mb-8 italic" style={{ opacity: 0.9 }}>
+                        <div className="p-8 md:p-12 flex flex-col justify-center" style={{ color: textColor }}>
+                            <h2 className="text-3xl md:text-4xl font-black mb-4 leading-tight">{title}</h2>
+                            <p className="text-base md:text-lg mb-6 italic" style={{ opacity: 0.9 }}>
                                 "{quote}"
                             </p>
                             <div className="flex items-center gap-4">
                                 <div
-                                    className="size-12 rounded-full border-2 border-white/30 bg-cover bg-center"
+                                    className="size-12 md:size-14 rounded-full border-2 border-white/30 bg-cover bg-center"
                                     style={{ backgroundImage: `url('${avatarImage}')` }}
                                     aria-hidden="true"
                                 />
                                 <div>
-                                    <p className="font-bold">{author}</p>
-                                    <p className="text-sm uppercase tracking-tighter" style={{ opacity: 0.7 }}>
+                                    <p className="font-bold text-sm md:text-base">{author}</p>
+                                    <p className="text-xs md:text-sm uppercase tracking-tighter" style={{ opacity: 0.7 }}>
                                         {role}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                        <div className="relative min-h-[400px]">
+                        <div className="relative min-h-[220px] md:min-h-[360px]">
                             <img
                                 src={backgroundImage}
                                 alt="Equipo profesional trabajando"
