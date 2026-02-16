@@ -5,7 +5,9 @@ import { publicRouter } from './routes/public.js';
 import { tenantRouter } from './routes/tenant.js';
 import { adminRouter } from './routes/admin.js';
 import { checkoutRouter } from './routes/checkout.js';
-import { authRouter } from './routes/auth.js';
+import { authRouter, getMeHandler } from './routes/auth.js';
+import { settingsRouter, settingsAdminRouter } from './routes/settings.js';
+import { ordersRouter, adminOrdersRouter } from './routes/orders.js';
 import { webhooksRouter } from './routes/webhooks.js';
 import { authenticate, optionalAuthenticate, requireRole } from './middleware/auth.js';
 
@@ -16,17 +18,23 @@ const corsOrigin = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN : true;
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
+const ADMIN_ROLES = ['tenant_admin', 'master_admin'];
+
 // Serve uploaded images
 app.use('/uploads', express.static('uploads'));
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/auth', authRouter);
-app.use('/public', publicRouter);
+app.use('/api/auth', authRouter);
+app.get('/api/me', authenticate, getMeHandler);
+app.use('/api/settings', optionalAuthenticate, settingsRouter);
+app.use('/api/admin/settings', authenticate, requireRole(ADMIN_ROLES), settingsAdminRouter);
+app.use('/api/orders', optionalAuthenticate, ordersRouter);
+app.use('/api/admin/orders', authenticate, requireRole(ADMIN_ROLES), adminOrdersRouter);
+app.use('/public', optionalAuthenticate, publicRouter);
 app.use('/checkout', optionalAuthenticate, checkoutRouter);
 app.use('/webhooks', webhooksRouter);
-
-const ADMIN_ROLES = ['tenant_admin', 'master_admin'];
 const disableAuth = process.env.DISABLE_AUTH === 'true';
 
 if (disableAuth) {

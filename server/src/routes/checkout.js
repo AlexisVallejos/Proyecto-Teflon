@@ -2,6 +2,7 @@ import express from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
 import { pool } from '../db.js';
 import { createPreference } from '../services/mercadopago.js';
+import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
 
 export const checkoutRouter = express.Router();
 
@@ -17,7 +18,7 @@ function normalizeItems(items) {
     }));
 }
 
-async function validateItems(tenantId, items, isWholesale = false) {
+async function validateItems(tenantId, items, adjustments, isWholesale = false) {
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
 
@@ -47,7 +48,13 @@ async function validateItems(tenantId, items, isWholesale = false) {
     }
 
     currency = currency || product.currency;
-    const unitPrice = (isWholesale && product.price_wholesale) ? Number(product.price_wholesale) : Number(product.price);
+    const { effective } = resolveAdjustedPrices({
+      priceRetail: product.price,
+      priceWholesale: product.price_wholesale,
+      allowWholesale: isWholesale,
+      adjustments,
+    });
+    const unitPrice = Number(effective || 0);
     subtotal += unitPrice * item.qty;
 
     return {
@@ -72,8 +79,13 @@ async function validateItems(tenantId, items, isWholesale = false) {
 
 checkoutRouter.post('/validate', async (req, res, next) => {
   try {
-    const isWholesale = req.user?.role === 'wholesale';
-    const result = await validateItems(req.tenant.id, req.body.items, isWholesale);
+    const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
+    const settingsRes = await pool.query(
+      'select commerce from tenant_settings where tenant_id = $1',
+      [req.tenant.id]
+    );
+    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+    const result = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale);
     if (!result.valid) {
       return res.status(400).json(result);
     }
@@ -86,18 +98,18 @@ checkoutRouter.post('/validate', async (req, res, next) => {
 checkoutRouter.post('/create', async (req, res, next) => {
   const client = await pool.connect();
   try {
-    const isWholesale = req.user?.role === 'wholesale';
-    const validation = await validateItems(req.tenant.id, req.body.items, isWholesale);
-    if (!validation.valid) {
-      return res.status(400).json(validation);
-    }
-    const requestedPayment = req.body?.customer?.payment_method || req.body?.payment_method || null;
-
+    const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
     const commerce = (settingsRes.rows[0] && settingsRes.rows[0].commerce) || {};
+    const adjustments = normalizePriceAdjustments(commerce);
+    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale);
+    if (!validation.valid) {
+      return res.status(400).json(validation);
+    }
+    const requestedPayment = req.body?.customer?.payment_method || req.body?.payment_method || null;
     const mode = commerce.mode || 'online';
     const taxRate = Number(commerce.tax_rate || 0);
     const shipping = Number(commerce.shipping_flat || 0);
@@ -119,14 +131,19 @@ checkoutRouter.post('/create', async (req, res, next) => {
         throw new Error(`insufficient_stock:${item.product_id}`);
       }
     }
+    const checkoutMode = requestedPayment === 'whatsapp' || mode === 'whatsapp' ? 'whatsapp' : 'online';
+    const orderStatus = checkoutMode === 'whatsapp' ? 'submitted' : 'pending_payment';
+
     const orderRes = await client.query(
       [
-        'insert into orders (tenant_id, status, currency, subtotal, tax, shipping, total, customer)',
-        'values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb) returning id',
+        'insert into orders (tenant_id, user_id, status, checkout_mode, currency, subtotal, tax, shipping, total, customer)',
+        'values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb) returning id',
       ].join(' '),
       [
         req.tenant.id,
-        'pending_payment',
+        req.user?.id || null,
+        orderStatus,
+        checkoutMode,
         validation.currency,
         validation.subtotal,
         tax,
@@ -151,7 +168,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
     let payment = null;
     let whatsapp_url = null;
 
-    if (mode !== 'whatsapp' && requestedPayment !== 'whatsapp') {
+    if (checkoutMode !== 'whatsapp') {
       const preference = await createPreference({
         items: validation.items.map((item) => ({
           title: item.name,
@@ -194,7 +211,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
       );
     }
 
-    if (requestedPayment === 'whatsapp' || mode !== 'online') {
+    if (checkoutMode === 'whatsapp' || mode !== 'online') {
       const whatsappNumber = String(commerce.whatsapp_number || '').replace(/\D/g, '');
       if (whatsappNumber) {
         const message = `Order ${orderId} total ${total}`;

@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('teflon_user');
     };
 
-    const isWholesale = user?.role === 'wholesale';
+    const isWholesale = user?.role === 'wholesale' && user?.status === 'active';
     const isAdmin = user?.role === 'tenant_admin' || user?.role === 'master_admin';
 
     return (

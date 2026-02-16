@@ -53,7 +53,19 @@ export default function EditorPage() {
             }
         },
         theme: { primary: '#f97316', secondary: '#181411', font_family: 'Inter', mode: 'light' },
-        commerce: { whatsapp_number: '', email: '', address: '' }
+        commerce: {
+            whatsapp_number: '',
+            email: '',
+            address: '',
+            price_adjustments: {
+                retail_percent: 0,
+                wholesale_percent: 0,
+                promo_enabled: false,
+                promo_percent: 0,
+                promo_scope: 'both',
+                promo_label: 'Oferta',
+            },
+        }
     });
     const [pageSections, setPageSections] = useState({
         home: DEFAULT_HOME_SECTIONS,
@@ -68,12 +80,32 @@ export default function EditorPage() {
     const [toast, setToast] = useState({ show: false, message: '' });
     const sectionPageKey = activeTab === 'about' ? 'about' : 'home';
     const sections = pageSections[sectionPageKey] || [];
+    const priceAdjustments = settings.commerce?.price_adjustments || {
+        retail_percent: 0,
+        wholesale_percent: 0,
+        promo_enabled: false,
+        promo_percent: 0,
+        promo_scope: 'both',
+        promo_label: 'Oferta',
+    };
     const setSections = (nextValue) => {
         setPageSections((prev) => {
             const current = prev[sectionPageKey] || [];
             const resolved = typeof nextValue === 'function' ? nextValue(current) : nextValue;
             return { ...prev, [sectionPageKey]: resolved };
         });
+    };
+    const updatePriceAdjustments = (patch) => {
+        setSettings((prev) => ({
+            ...prev,
+            commerce: {
+                ...prev.commerce,
+                price_adjustments: {
+                    ...(prev.commerce?.price_adjustments || {}),
+                    ...patch,
+                },
+            },
+        }));
     };
 
     const showSuccess = (message) => {
@@ -137,7 +169,11 @@ export default function EditorPage() {
                                 ...settings.branding.footer,
                                 ...(data.settings?.branding?.footer || {})
                             }
-                        }
+                        },
+                        commerce: {
+                            ...settings.commerce,
+                            ...(data.settings?.commerce || {})
+                        },
                     };
                     setSettings(mergedSettings);
                 }
@@ -726,6 +762,8 @@ export default function EditorPage() {
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7560]">
                             {activeTab === 'appearance'
                                 ? 'Apariencia'
+                                : activeTab === 'pricing'
+                                    ? 'Precios'
                                 : activeTab === 'catalog'
                                     ? 'Catalogo'
                                     : activeTab === 'about'
@@ -902,6 +940,107 @@ export default function EditorPage() {
                                                     setSettings({ ...settings, branding: { ...settings.branding, footer: { ...settings.branding.footer, quickLinks: newLinks } } });
                                                 }} className="w-full py-1.5 border border-dashed border-[#e5e1de] dark:border-[#3d2f21] rounded-xl text-[9px] font-bold text-[#8a7560]">+ Añadir enlace</button>
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : activeTab === 'pricing' ? (
+                            <div className="space-y-6 animate-in fade-in duration-300 pb-10">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mb-4">Ajustes por porcentaje</p>
+                                    <div className="space-y-4 bg-zinc-50 dark:bg-white/5 p-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Minorista</p>
+                                                <p className="text-[10px] text-[#8a7560]">Ajuste sobre el precio base</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={priceAdjustments.retail_percent}
+                                                    onChange={(e) => updatePriceAdjustments({ retail_percent: Number(e.target.value || 0) })}
+                                                    className="w-20 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono text-right"
+                                                />
+                                                <span className="text-xs font-bold text-[#8a7560]">%</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Mayorista</p>
+                                                <p className="text-[10px] text-[#8a7560]">Ajuste sobre el precio base</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={priceAdjustments.wholesale_percent}
+                                                    onChange={(e) => updatePriceAdjustments({ wholesale_percent: Number(e.target.value || 0) })}
+                                                    className="w-20 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono text-right"
+                                                />
+                                                <span className="text-xs font-bold text-[#8a7560]">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mb-4">Ofertas</p>
+                                    <div className="space-y-4 bg-zinc-50 dark:bg-white/5 p-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Activar oferta</p>
+                                                <p className="text-[10px] text-[#8a7560]">Descuento global por porcentaje</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => updatePriceAdjustments({ promo_enabled: !priceAdjustments.promo_enabled })}
+                                                className="text-primary"
+                                            >
+                                                {priceAdjustments.promo_enabled ? (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7"></rect><circle cx="16" cy="12" r="3" fill="currentColor"></circle></svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7"></rect><circle cx="8" cy="12" r="3"></circle></svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Descuento</p>
+                                                <p className="text-[10px] text-[#8a7560]">Porcentaje de oferta</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={priceAdjustments.promo_percent}
+                                                    onChange={(e) => updatePriceAdjustments({ promo_percent: Number(e.target.value || 0) })}
+                                                    className="w-20 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono text-right"
+                                                />
+                                                <span className="text-xs font-bold text-[#8a7560]">%</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Aplica a</label>
+                                            <select
+                                                value={priceAdjustments.promo_scope}
+                                                onChange={(e) => updatePriceAdjustments({ promo_scope: e.target.value })}
+                                                className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-bold"
+                                            >
+                                                <option value="both">Minorista y mayorista</option>
+                                                <option value="retail">Solo minorista</option>
+                                                <option value="wholesale">Solo mayorista</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Etiqueta</label>
+                                            <input
+                                                type="text"
+                                                value={priceAdjustments.promo_label}
+                                                onChange={(e) => updatePriceAdjustments({ promo_label: e.target.value })}
+                                                placeholder="Oferta"
+                                                className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px]"
+                                            />
                                         </div>
                                     </div>
                                 </div>

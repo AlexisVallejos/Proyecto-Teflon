@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import PageBuilder from "../../components/PageBuilder";
 import { HOME_PAGE_DATA } from "../../data/mock";
 import StoreLayout from "../../components/layout/StoreLayout";
-import { getApiBase, getTenantHeaders } from "../../utils/api";
+import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
 import HeroSlider from "../../components/blocks/HeroSlider";
@@ -12,20 +12,20 @@ import Services from "../../components/blocks/Services";
 const FALLBACK_FEATURED = [
     {
         id: "demo-1",
-        name: "Chrome Luxury Faucet",
+        name: "Grifería de lujo cromada",
         price: 120,
-        badge: { text: "In Stock", className: "bg-green-500" },
+        badge: { text: "En stock", className: "bg-green-500" },
         image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCZI-CyV0a_MHtU0aC5uA0xV1K3o4Mx6s0hXSD-jAfFvKUvsnFez9VbpuhA2fqg6-nJIqEj0a5h-tTDm8ZsBhkns2TbUvo5ZTL8rlUrciw_DA9rIxZAaY1DjARxNdURIjk3PuU2Ary_6uW8b4hP0BLxU3Sxbe3uvYOBIrnhz13Go72OtqaMTN82gq5UvCnNK6t45bfoxvL7_BAqk77LiNIjLWf8pHzDPdgsLxC0jfGfhmNE4h91nii9vqbKVwelru79KaFIyEAkGGw",
-        alt: "Polished chrome modern bathroom faucet",
+        alt: "Grifería moderna cromada para baño",
         stock: 10,
     },
     {
         id: "demo-2",
-        name: "Oak Bathroom Cabinet",
+        name: "Mueble de baño en roble",
         price: 350,
-        badge: { text: "Low Stock", className: "bg-orange-500" },
+        badge: { text: "Poco stock", className: "bg-orange-500" },
         image: "https://lh3.googleusercontent.com/aida-public/AB6AXuA-emIIyjxSLD1gTruwFOpPoZq5IFjF6Su7lEW2RuOeHjkmVFxMqCnldNcHYcVJzbmYw0rqpSChrjsPdHF_UpNwpqcwuG0QJuRpq5hcDNCXcopdU3Zj2s9jAEfn3WQzRJl9WTdS2QfZ8s9m5aFMD16ze5brLhUIKSYaNX2N9Z3zY8N-xMXRIibKXSlG30itHlK06AlrXw5SgpVGbaVZ1XQbmJ36hgzlPJPBXqSBDBNPu3g0BRvwbrHk6ZM_czkwlvjQiDi3BlQ2NAk",
-        alt: "Wooden minimalist bathroom cabinet",
+        alt: "Mueble minimalista de baño en madera",
         stock: 2,
     },
 ];
@@ -41,14 +41,14 @@ const buildFeaturedCard = (product, index, isWholesale = false) => {
         "https://via.placeholder.com/400";
 
     const inStock = typeof product.stock === "number" ? product.stock > 0 : true;
-    const badge = !inStock ? { text: "Out of Stock", className: "bg-zinc-400" } : null;
+    const badge = !inStock ? { text: "Sin stock", className: "bg-zinc-400" } : null;
 
     return {
         id: product.id,
         sku: product.sku || product.erp_id,
         name: product.name,
         price: isWholesale ? Number(product.price_wholesale || product.price) : Number(product.price || 0),
-        badge: isWholesale && !!product.price_wholesale ? { text: "Wholesale", className: "bg-primary" } : badge,
+        badge: isWholesale && !!product.price_wholesale ? { text: "Mayorista", className: "bg-primary" } : badge,
         image,
         alt: data.image_alt || product.name || "Producto",
         stock: product.stock,
@@ -75,7 +75,7 @@ export default function HomePage() {
 
                 // Load featured products independently to ensure we have fresh data
                 const productsRes = await fetch(`${getApiBase()}/public/products?limit=4&featured=true`, {
-                    headers: getTenantHeaders(),
+                    headers: { ...getTenantHeaders(), ...getAuthHeaders() },
                 });
                 if (productsRes.ok) {
                     const pData = await productsRes.json();
@@ -84,7 +84,7 @@ export default function HomePage() {
                     }
                 }
             } catch (err) {
-                console.error('Home dynamic load failed', err);
+                console.error('No se pudo cargar la página de inicio', err);
             }
         }
         loadHome();

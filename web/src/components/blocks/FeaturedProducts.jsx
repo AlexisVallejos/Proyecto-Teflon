@@ -5,8 +5,8 @@ import { navigate } from "../../utils/navigation";
 
 export default function FeaturedProducts({
   products,
-  title = "Featured Products",
-  subtitle = "Our most popular hardware and sanitary selections.",
+  title = "Productos destacados",
+  subtitle = "Lo más elegido en sanitarios y ferretería.",
   ctaLabel = "Todos los Productos",
   ctaLink = "/catalog",
   styles = {}
@@ -60,7 +60,7 @@ export default function FeaturedProducts({
           </div>
         ) : (
           <div className="p-10 text-center border-2 border-dashed border-[#e5e1de] dark:border-[#32261a] rounded-xl m-4 text-[#8a7560]">
-            No products found matching your search.
+            No encontramos productos para tu búsqueda.
           </div>
         )}
       </div>

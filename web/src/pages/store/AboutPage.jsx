@@ -21,7 +21,7 @@ export default function AboutPage() {
                     }
                 }
             } catch (err) {
-                console.error('About page load failed', err);
+                console.error('No se pudo cargar la página Sobre Nosotros', err);
             }
         };
 

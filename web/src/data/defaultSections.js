@@ -5,10 +5,10 @@ export const DEFAULT_HOME_SECTIONS = [
         enabled: true,
         props: {
             title: 'Nuevo Hero',
-            subtitle: 'Descripcion aqui',
+            subtitle: 'Descripción aquí',
             tag: 'Novedad',
-            primaryButton: { label: 'Ver mas', link: '/catalog' },
-            secondaryButton: { label: 'Ver catalogo', link: '/catalog' },
+            primaryButton: { label: 'Ver más', link: '/catalog' },
+            secondaryButton: { label: 'Ver catálogo', link: '/catalog' },
             styles: { alignment: 'center', overlayOpacity: '0.6' },
         },
     },
@@ -19,7 +19,7 @@ export const DEFAULT_HOME_SECTIONS = [
         props: {
             title: 'Destacados',
             subtitle: 'Lo mejor de nuestra tienda',
-            ctaLabel: 'Ver catalogo',
+            ctaLabel: 'Ver catálogo',
             styles: { alignment: 'items-end justify-between' },
         },
     },
@@ -29,10 +29,10 @@ export const DEFAULT_HOME_SECTIONS = [
         enabled: true,
         props: {
             title: 'Nuestros Servicios',
-            subtitle: 'Descripcion de servicios',
+            subtitle: 'Descripción de servicios',
             items: [
-                { icon: 'package', title: 'Envio Gratis', text: 'En compras mayores a $50.000' },
-                { icon: 'shield', title: 'Garantia', text: '6 meses de garantia oficial' },
+                { icon: 'package', title: 'Envío gratis', text: 'En compras mayores a $50.000' },
+                { icon: 'shield', title: 'Garantía', text: '6 meses de garantía oficial' },
             ],
         },
     },
@@ -47,7 +47,7 @@ export const DEFAULT_ABOUT_SECTIONS = [
             tagline: 'Desde 2014',
             title: 'Nuestra historia',
             description:
-                'Definimos excelencia en soluciones sanitarias premium. Descubri la trayectoria y el detalle que nos distingue.',
+                'Definimos excelencia en soluciones sanitarias premium. Descubrí la trayectoria y el detalle que nos distingue.',
             primaryButton: { label: 'Ver colecciones', link: '/catalog' },
             secondaryButton: { label: 'Conocer al equipo', link: '#equipo' },
             backgroundImage:
@@ -66,15 +66,15 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutMission',
         enabled: true,
         props: {
-            eyebrow: 'Nuestro proposito',
-            title: 'La mision',
+            eyebrow: 'Nuestro propósito',
+            title: 'La misión',
             paragraphs: [
-                'Creemos que la base de cada proyecto esta en los detalles que no se ven. Combinamos ingenieria avanzada y materiales premium para soluciones que duran.',
-                'Desde reformas residenciales hasta desarrollos comerciales, ofrecemos sanitarios que equilibran diseno y resistencia.',
+                'Creemos que la base de cada proyecto está en los detalles que no se ven. Combinamos ingeniería avanzada y materiales premium para soluciones que duran.',
+                'Desde reformas residenciales hasta desarrollos comerciales, ofrecemos sanitarios que equilibran diseño y resistencia.',
             ],
             highlights: [
-                { icon: 'verified', title: 'Calidad certificada', text: 'Procesos con estandares ISO 9001.' },
-                { icon: 'eco', title: 'Eco innovacion', text: 'Tecnologia para ahorro de agua.' },
+                { icon: 'verified', title: 'Calidad certificada', text: 'Procesos con estándares ISO 9001.' },
+                { icon: 'eco', title: 'Eco innovación', text: 'Tecnología para ahorro de agua.' },
             ],
             image:
                 'https://lh3.googleusercontent.com/aida-public/AB6AXuDaDIcmwXvGopChH4z2NtypzPKEOIJB5DIz-cix6aLVUAg6015AqowjMQbKKJ273hv-K-Mdeeq78GFd-8Wt2hah0kOFgDkEGW24otJ-Yqrdn019S_zxUM4qMhyJ0sXG12Fr-Nk9EA4ZnVoQXzs0ZTjGJtuHBj_cdqJ4Z-i7TOx-wRo3JuBOyDsruX5utjj00tVbmE0sUIiRoPxHOH4_ohJ25dVPm0jFLFwKMx0fn7DC6IGRbByTaUUBATc5XDKzCDFZBcDdlv3kpB4',
@@ -93,7 +93,7 @@ export const DEFAULT_ABOUT_SECTIONS = [
         enabled: true,
         props: {
             items: [
-                { value: '10+', label: 'Anos de experiencia', accent: true },
+                { value: '10+', label: 'Años de experiencia', accent: true },
                 { value: '5k+', label: 'Clientes satisfechos' },
                 { value: '2', label: 'Sucursales' },
                 { value: '24/7', label: 'Soporte al cliente' },
@@ -121,12 +121,12 @@ export const DEFAULT_ABOUT_SECTIONS = [
                 {
                     icon: 'commitment',
                     title: 'Compromiso',
-                    description: 'Acompaniamos cada proyecto con soporte real y cercano.',
+                    description: 'Acompañamos cada proyecto con soporte real y cercano.',
                 },
                 {
                     icon: 'innovation',
-                    title: 'Innovacion',
-                    description: 'Buscamos nuevas soluciones para disenos modernos y eficientes.',
+                    title: 'Innovación',
+                    description: 'Buscamos nuevas soluciones para diseños modernos y eficientes.',
                 },
             ],
             styles: {
@@ -144,11 +144,11 @@ export const DEFAULT_ABOUT_SECTIONS = [
         enabled: true,
         props: {
             anchor: 'equipo',
-            title: 'Precision e inspiracion en cada detalle.',
+            title: 'Precisión e inspiración en cada detalle.',
             quote:
-                'Nuestro trabajo no es solo sobre sanitarios, es sobre la seguridad y el confort de cada hogar. Cada union cuenta.',
+                'Nuestro trabajo no es solo sobre sanitarios, es sobre la seguridad y el confort de cada hogar. Cada unión cuenta.',
             author: 'Julian Sterling',
-            role: 'Founder & Head Engineer',
+            role: 'Fundador y jefe de ingeniería',
             avatarImage:
                 'https://lh3.googleusercontent.com/aida-public/AB6AXuAea9Hk8KW-uNz2oCLHAOeVLaF4OEuHrLoMYAQ5icf0UpW2MbWEoppeOoK7-_ef46vSPLm9bOZn19yxGPkKgbqwzNxdl8pCXwjX84M0rsOM-14FdHnwu8rzaIZR1UJSvo2LVbbFvgWP_nntPKbU-nmwnPjWuzy9XiXqlmi62Yw8p6R5XWHQoEjxiw4mfhRuljOaKyPWkvPFELxYq8TKyXzDzeOlvj5ntTgVpCWOshfxNK3WLIQvRk7FstFclk10_lOYekLKXyXKEYA',
             backgroundImage:
@@ -166,7 +166,7 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutCTA',
         enabled: true,
         props: {
-            title: 'Listo para tu proximo proyecto?',
+            title: 'Listo para tu próximo proyecto?',
             primaryLink: { label: 'Ver productos', link: '/catalog' },
             secondaryLink: { label: 'Contactar ventas', link: '/#contacto' },
             styles: {

@@ -72,6 +72,14 @@ export default function AdminLayout({ children, activeSection = 'home', onSectio
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.644-.438-1.125 0-.927.758-1.688 1.688-1.688h1.952c2.312 0 4.587-2.236 4.587-4.75C22 6.5 17.5 2 12 2z"></path></svg>
                         Apariencia
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => handleSectionChange('pricing')}
+                        className={navButtonClasses(activeSection === 'pricing')}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19.5 6.5L4.5 21.5"></path><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
+                        Precios
+                    </button>
                 </nav>
 
                 <div className="p-4 border-t border-gray-200 dark:border-[#3d2f21]">

@@ -2,7 +2,7 @@ import React from 'react';
 import { navigate } from '../../utils/navigation';
 
 export default function AboutCTA({
-    title = 'Listo para tu proximo proyecto?',
+    title = 'Listo para tu próximo proyecto?',
     primaryLink = { label: 'Ver productos', link: '/catalog' },
     secondaryLink = { label: 'Contactar ventas', link: '/#contacto' },
     styles = {},

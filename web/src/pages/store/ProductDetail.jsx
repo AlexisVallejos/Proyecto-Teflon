@@ -4,7 +4,7 @@ import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils/format";
-import { getApiBase, getTenantHeaders } from "../../utils/api";
+import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 
@@ -17,7 +17,7 @@ const getProductId = () => {
 };
 
 export default function ProductDetail() {
-    const { addToCart, toggleFavorite, isFavorite } = useStore();
+    const { addToCart, toggleFavorite, isFavorite, showToast } = useStore();
     const { settings } = useTenant();
     const { isWholesale } = useAuth();
 
@@ -55,7 +55,7 @@ export default function ProductDetail() {
 
         const loadProduct = async () => {
             if (!productId) {
-                setError("Missing product id.");
+                setError("Falta el id del producto.");
                 setLoading(false);
                 return;
             }
@@ -65,11 +65,11 @@ export default function ProductDetail() {
 
             try {
                 const response = await fetch(`${getApiBase()}/public/products/${productId}`, {
-                    headers: getTenantHeaders(),
+                    headers: { ...getTenantHeaders(), ...getAuthHeaders() },
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Product request failed: ${response.status}`);
+                    throw new Error(`Error al cargar el producto: ${response.status}`);
                 }
 
                 const data = await response.json();
@@ -78,9 +78,9 @@ export default function ProductDetail() {
                 setProduct(data);
             } catch (err) {
                 if (!active) return;
-                console.error("Failed to load product", err);
+                console.error("No se pudo cargar el producto", err);
                 setProduct(null);
-                setError("We could not load this product.");
+                setError("No pudimos cargar este producto.");
             } finally {
                 if (active) {
                     setLoading(false);
@@ -103,17 +103,17 @@ export default function ProductDetail() {
             setRelatedLoading(true);
             try {
                 const res = await fetch(`${getApiBase()}/public/products/${productId}/related?limit=4`, {
-                    headers: getTenantHeaders(),
+                    headers: { ...getTenantHeaders(), ...getAuthHeaders() },
                 });
                 if (!res.ok) {
-                    throw new Error(`Related request failed: ${res.status}`);
+                    throw new Error(`Error al cargar relacionados: ${res.status}`);
                 }
                 const data = await res.json();
                 if (!active) return;
                 setRelatedProducts(Array.isArray(data.items) ? data.items : []);
             } catch (err) {
                 if (!active) return;
-                console.error("Failed to load related products", err);
+                console.error("No se pudieron cargar los productos relacionados", err);
                 setRelatedProducts([]);
             } finally {
                 if (active) {
@@ -147,13 +147,13 @@ export default function ProductDetail() {
         return {
             id: product.id,
             sku: product.sku || product.erp_id,
-            name: product.name || "Product",
+            name: product.name || "Producto",
             description: product.description || data.description || "",
             brand: product.brand || data.brand,
             stock: product.stock,
             image,
             images: [],
-            alt: data.image_alt || product.name || "Product",
+            alt: data.image_alt || product.name || "Producto",
             price,
             oldPrice: !isWholesale && data.old_price ? Number(data.old_price) : null,
             isWholesaleItem: isWholesale && product.price_wholesale != null,
@@ -206,9 +206,9 @@ export default function ProductDetail() {
         const labels = {
             material: "Material",
             medidas: "Medidas",
-            terminacion: "Terminacion",
+            terminacion: "Terminación",
             descarga: "Descarga",
-            warranty: "Garantia",
+            warranty: "Garantía",
         };
         return Object.entries(specMap)
             .map(([key, value]) => ({
@@ -271,21 +271,21 @@ export default function ProductDetail() {
             <main className="max-w-[1400px] mx-auto w-full px-4 md:px-10 py-10">
                 <div className="flex items-center gap-2 text-sm text-[#8a7560] mb-6">
                     <button type="button" onClick={() => navigate("/")} className="hover:text-primary">
-                        Home
+                        Inicio
                     </button>
                     <span>/</span>
                     <button type="button" onClick={() => navigate("/catalog")} className="hover:text-primary">
-                        Catalog
+                        Catálogo
                     </button>
                     <span>/</span>
                     <span className="text-[#181411] dark:text-white">
-                        {view?.name || "Product"}
+                        {view?.name || "Producto"}
                     </span>
                 </div>
 
                 {loading ? (
                     <div className="rounded-xl border border-dashed border-[#e5e1de] dark:border-[#3d2f21] p-10 text-center text-[#8a7560]">
-                        Loading product...
+                        Cargando producto...
                     </div>
                 ) : error ? (
                     <div className="rounded-xl border border-dashed border-red-200 bg-red-50 p-10 text-center text-red-600">
@@ -293,7 +293,7 @@ export default function ProductDetail() {
                     </div>
                 ) : !view ? (
                     <div className="rounded-xl border border-dashed border-[#e5e1de] dark:border-[#3d2f21] p-10 text-center text-[#8a7560]">
-                        Product not found.
+                        Producto no encontrado.
                     </div>
                 ) : (
                     <div className="space-y-10">
@@ -371,7 +371,7 @@ export default function ProductDetail() {
                                             ) : null}
                                             {view.isWholesaleItem ? (
                                                 <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded font-bold uppercase">
-                                                    Wholesale
+                                                    Mayorista
                                                 </span>
                                             ) : null}
                                         </div>
@@ -414,7 +414,10 @@ export default function ProductDetail() {
                                     type="button"
                                     onClick={() => {
                                         if (view) {
-                                            toggleFavorite(view);
+                                            const added = toggleFavorite(view);
+                                            if (added) {
+                                                showToast("Producto añadido a favoritos");
+                                            }
                                         }
                                     }}
                                     className="h-11 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] font-bold text-[#181411] dark:text-white hover:border-primary/50"
@@ -428,8 +431,8 @@ export default function ProductDetail() {
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-bold text-[#181411] dark:text-white">Envio rapido</p>
-                                            <p className="text-[11px] text-[#8a7560]">Consulte tiempos y cobertura.</p>
+                                            <p className="text-xs font-bold text-[#181411] dark:text-white">Envío rápido</p>
+                                            <p className="text-[11px] text-[#8a7560]">Consultá tiempos y cobertura.</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-3 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-3 bg-white/70 dark:bg-[#1a130c]">
@@ -437,9 +440,9 @@ export default function ProductDetail() {
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"></path></svg>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-bold text-[#181411] dark:text-white">Garantia</p>
+                                            <p className="text-xs font-bold text-[#181411] dark:text-white">Garantía</p>
                                             <p className="text-[11px] text-[#8a7560]">
-                                                {view.extra?.warranty ? view.extra.warranty : "Consulta condiciones."}
+                                                {view.extra?.warranty ? view.extra.warranty : "Consultá condiciones."}
                                             </p>
                                         </div>
                                     </div>
@@ -450,9 +453,9 @@ export default function ProductDetail() {
                         <div className="rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c]">
                             <div className="flex flex-wrap gap-2 border-b border-[#e5e1de] dark:border-[#3d2f21] px-6 pt-4">
                                 {[
-                                    { id: "description", label: "Descripcion" },
+                                    { id: "description", label: "Descripción" },
                                     { id: "specs", label: "Especificaciones" },
-                                    { id: "shipping", label: "Envio" },
+                                    { id: "shipping", label: "Envío" },
                                     { id: "reviews", label: "Reseñas" },
                                 ].map((tab) => (
                                     <button
@@ -474,7 +477,7 @@ export default function ProductDetail() {
                                                 {view.name}
                                             </h3>
                                             <p className="text-sm text-[#8a7560] leading-relaxed">
-                                                {view.description || "Sin descripcion disponible."}
+                                                {view.description || "Sin descripción disponible."}
                                             </p>
                                         </div>
                                         {features.length > 0 ? (
@@ -488,7 +491,7 @@ export default function ProductDetail() {
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-bold text-[#181411] dark:text-white">
-                                                                {feature.title || "Caracteristica"}
+                                                                {feature.title || "Característica"}
                                                             </p>
                                                             <p className="text-[12px] text-[#8a7560]">
                                                                 {feature.description || feature.text || ""}
@@ -525,17 +528,17 @@ export default function ProductDetail() {
                                         <p className="text-sm text-[#8a7560]">
                                             {view.extra?.delivery_time
                                                 ? `Entrega estimada: ${view.extra.delivery_time}.`
-                                                : "Consulta tiempos de envio y disponibilidad."}
+                                                : "Consulta tiempos de envío y disponibilidad."}
                                         </p>
                                         <p className="text-sm text-[#8a7560]">
-                                            Coordinamos envios y retiros con la logistica que mejor se adapte a tu obra.
+                                            Coordinamos envíos y retiros con la logística que mejor se adapte a tu obra.
                                         </p>
                                     </div>
                                 ) : null}
 
                                 {activeTab === "reviews" ? (
                                     <div className="text-sm text-[#8a7560]">
-                                        Todavia no hay reseñas para este producto.
+                                        Todavía no hay reseñas para este producto.
                                     </div>
                                 ) : null}
                             </div>
@@ -551,7 +554,7 @@ export default function ProductDetail() {
                                     onClick={() => navigate("/catalog")}
                                     className="text-[11px] font-bold uppercase tracking-widest text-[#8a7560] hover:text-primary"
                                 >
-                                    Ver catalogo
+                                    Ver catálogo
                                 </button>
                             </div>
 
@@ -593,7 +596,7 @@ export default function ProductDetail() {
                                                         </span>
                                                         {item.isWholesaleItem ? (
                                                             <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase">
-                                                                Wholesale
+                                                                Mayorista
                                                             </span>
                                                         ) : null}
                                                     </div>

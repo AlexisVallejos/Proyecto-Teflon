@@ -1,39 +1,146 @@
 # Proyecto Teflon - MVP Full-Stack E-commerce
 
-Este proyecto es una plataforma de e-commerce multi-tenant con un gestor de contenidos controlado y sistema de precios mayoristas.
+Guía rápida y detallada para que Dario pueda levantar **frontend + backend + DB**.
 
 ## Estructura
-- `/server`: API desarrollada en Node.js + Express + PostgreSQL.
-- `/web`: Frontend desarrollado en React + Vite + Tailwind CSS.
-- `/db`: Esquema y semillas de base de datos.
+- `server/`: API Node.js + Express + PostgreSQL.
+- `web/`: Frontend React + Vite + Tailwind CSS.
+- `db/`: Esquema y seeds de la base de datos.
 
 ## Requisitos
-- Docker y Docker Compose
-- Node.js 18+ (para ejecución local)
+- Node.js 18+ (recomendado 20+)
+- PostgreSQL 15+ (o Docker)
+- npm
 
-## Instalación con Docker
-1. Clonar el repositorio.
-2. Ejecutar `docker-compose up --build`.
-3. El frontend estará disponible en `http://localhost:5173`.
-4. La API estará disponible en `http://localhost:4000`.
+## Opción A: Docker (recomendado)
+1. Clonar el repo.
+2. Ejecutar:
+   - `docker-compose up --build`
+3. URLs:
+   - Frontend: `http://localhost:5173`
+   - API: `http://localhost:4000`
+4. Importante:
+   - El `docker-compose.yml` actual usa `VITE_API_BASE_URL`, pero el frontend espera `VITE_API_URL`.
+   - Si usás Docker, asegurate de setear `VITE_API_URL` (ver sección de variables).
 
-## Configuración Local
-### Servidor
-1. `cd server`
-2. `npm install`
-3. Copiar `.env.example` a `.env` y configurar.
-4. `npm start`
+## Opción B: Local (sin Docker)
 
-### Web
-1. `cd web`
-2. `npm install`
-3. Copiar `.env.example` a `.env` y configurar.
-4. `npm run dev`
+### 1) Base de datos
+Crear una DB y ejecutar schema + seed:
 
-## Roles
-- `retail`: Usuario final, ve precios minoristas.
-- `wholesale`: Usuario mayorista, ve precios especiales tras loguearse.
-- `admin`: Acceso al `/admin` para usar el editor controlado.
+```bash
+psql -U user -d teflon -f db/schema.sql
+psql -U user -d teflon -f db/seed.sql
+```
 
-## Editor Controlado
-Accede a `http://localhost:5173/#admin` para editar la marca, colores y secciones del home. Soporta sistema de **Draft vs Published**.
+### 2) Backend
+```bash
+cd server
+npm install
+copy .env.example .env
+npm run dev
+```
+
+### 3) Frontend
+```bash
+cd web
+npm install
+copy .env.example .env
+npm run dev
+```
+
+## Variables de entorno
+
+### `server/.env`
+```env
+PORT=4000
+DATABASE_URL=postgresql://user:password@localhost:5432/teflon
+JWT_SECRET=tu-secret
+BOOTSTRAP_TOKEN=tu-bootstrap
+DISABLE_AUTH=false
+
+# Mercado Pago (opcional)
+MP_ACCESS_TOKEN=
+MP_WEBHOOK_URL=
+MP_SUCCESS_URL=http://localhost:5173/order-success?status=success
+MP_FAILURE_URL=http://localhost:5173/order-success?status=failure
+MP_PENDING_URL=http://localhost:5173/order-success?status=pending
+```
+
+### `web/.env`
+```env
+VITE_API_URL=http://localhost:4000
+VITE_TENANT_ID=REEMPLAZAR_POR_ID_DE_TENANT
+```
+
+Para obtener `VITE_TENANT_ID`:
+```sql
+select id from tenants;
+```
+
+## Usuario admin seed
+Se crea automáticamente:
+- Email: `admin@teflon.local`
+- Password: `admin123`
+
+## Cómo entrar al admin
+1. Abrir `http://localhost:5173`
+2. Loguearse con el usuario admin.
+3. Ir a `http://localhost:5173/admin`
+
+## Funciones principales
+- Login/registro con roles (retail / wholesale / admin).
+- Catálogo con precio dinámico según rol.
+- Checkout con WhatsApp o Transferencia.
+- Panel admin para editar:
+  - Secciones (home/about)
+  - Productos y categorías
+  - Ajustes de precios (porcentaje minorista/mayorista + ofertas)
+
+## Ajustes de precios (admin)
+En el panel admin existe la sección **Precios**:
+- % para minorista
+- % para mayorista
+- Ofertas globales (porcentaje + scope)
+
+## Endpoints clave
+- `POST /auth/login`
+- `POST /auth/signup`
+- `GET /api/me`
+- `GET /public/products`
+- `POST /checkout/validate`
+- `POST /checkout/create`
+- `POST /api/orders/submit`
+- `GET /api/admin/orders`
+- `GET /api/settings/checkout`
+- `PUT /api/admin/settings/checkout`
+
+## Scripts útiles (root)
+```bash
+npm run install-all
+npm run dev
+```
+
+## Migraciones rápidas (si falla login)
+Si la DB ya existía, necesitás agregar columnas nuevas:
+
+```sql
+ALTER TABLE user_tenants
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS checkout_mode text NOT NULL DEFAULT 'online';
+```
+
+## Problemas comunes
+- **Pantalla en blanco / Unexpected token '<'**  
+  Casi siempre es por deps faltantes en `web/`. Ejecutar `npm install` en `web`.
+
+- **Login 500**  
+  La DB no tiene las columnas nuevas (ver migraciones arriba).
+
+## Notas
+- Este proyecto es multi-tenant. Siempre setear `VITE_TENANT_ID` para que el frontend encuentre los datos.
+- Si `DISABLE_AUTH=true`, las rutas `/tenant` y `/admin` quedan sin token.

@@ -13,6 +13,7 @@ export function authenticate(req, res, next) {
     req.user = {
       id: payload.sub,
       role: payload.role,
+      status: payload.status || 'active',
       tenantId: payload.tenant_id || null,
     };
     return next();
@@ -30,6 +31,7 @@ export function optionalAuthenticate(req, res, next) {
     req.user = {
       id: payload.sub,
       role: payload.role,
+      status: payload.status || 'active',
       tenantId: payload.tenant_id || null,
     };
     return next();

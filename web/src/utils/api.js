@@ -8,3 +8,8 @@ export function getTenantHeaders() {
     const tenantId = import.meta.env.VITE_TENANT_ID;
     return tenantId ? { 'X-Tenant-Id': tenantId } : {};
 }
+
+export function getAuthHeaders() {
+    const token = localStorage.getItem('teflon_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}

@@ -2,9 +2,9 @@ import React from "react";
 import { navigate } from "../../utils/navigation";
 
 export default function HeroSlider({
-  title = "Hardware & Sanitary Professional Solutions",
-  subtitle = "Quality equipment for your home and professional architectural projects. Trusted expertise in Mar del Plata with same-day delivery.",
-  tag = "Premium Quality",
+  title = "Soluciones profesionales en sanitarios y grifería",
+  subtitle = "Equipamiento de calidad para tu hogar y proyectos arquitectónicos. Experiencia en Mar del Plata con entrega en el día.",
+  tag = "Calidad premium",
   image = "https://lh3.googleusercontent.com/aida-public/AB6AXuAsE3UyUs8hwy2ulbda_AkoJgM8Dt4ADPYbA-N4JuZyG7V0vY4q6cc-Tt89t4P27xMxKmcjbMRSj4N02izzDB8sxKnPwkQT6oyUKxlUSIDxrIG34D9wU86tDWjBT-0y3V2Z_OLjdxCgq5XnSZfNN_gaFHdyDgF3Yqu1LH2AdPc8uRelPjbm_EzN2gggEAeP5ZoaAymWqHgYvaOW7zs6nmpnzlMDbxoDHw2MGpOOxIcYt6nSxjDnngClgvhP9eojjcdPz_JpCIAFFZA",
   primaryButton = { label: "Comprar ahora", link: "/catalog" },
   secondaryButton = { label: "Nosotros", link: "/about" },

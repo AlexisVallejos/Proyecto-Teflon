@@ -6,16 +6,14 @@ import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/format';
 import { navigate } from '../../utils/navigation';
 
-const ORDERS = [
-    { id: 'ORD-88219', date: 'Oct 24, 2023', status: 'Shipped', total: '$12,450.00' },
-    { id: 'ORD-88104', date: 'Oct 18, 2023', status: 'Delivered', total: '$5,230.50' },
-    { id: 'ORD-87955', date: 'Oct 12, 2023', status: 'Pending', total: '$1,200.00' },
-];
-
 const STATUS_STYLES = {
-    Shipped: 'bg-primary/20 text-primary',
-    Delivered: 'bg-green-100 text-green-700',
-    Pending: 'bg-zinc-100 text-zinc-600',
+    Enviado: 'bg-primary/20 text-primary',
+    Entregado: 'bg-green-100 text-green-700',
+    Pendiente: 'bg-zinc-100 text-zinc-600',
+    'Pendiente de pago': 'bg-amber-100 text-amber-700',
+    'En gestión': 'bg-blue-100 text-blue-700',
+    Confirmado: 'bg-emerald-100 text-emerald-700',
+    Pagado: 'bg-emerald-100 text-emerald-700',
 };
 
 const PHONE_COUNTRIES = [
@@ -26,12 +24,12 @@ const PHONE_COUNTRIES = [
     { code: 'UY', name: 'Uruguay', dial: '+598', flag: '🇺🇾' },
     { code: 'PY', name: 'Paraguay', dial: '+595', flag: '🇵🇾' },
     { code: 'BO', name: 'Bolivia', dial: '+591', flag: '🇧🇴' },
-    { code: 'PE', name: 'Peru', dial: '+51', flag: '🇵🇪' },
+    { code: 'PE', name: 'Perú', dial: '+51', flag: '🇵🇪' },
     { code: 'CO', name: 'Colombia', dial: '+57', flag: '🇨🇴' },
     { code: 'VE', name: 'Venezuela', dial: '+58', flag: '🇻🇪' },
     { code: 'EC', name: 'Ecuador', dial: '+593', flag: '🇪🇨' },
-    { code: 'MX', name: 'Mexico', dial: '+52', flag: '🇲🇽' },
-    { code: 'ES', name: 'Espana', dial: '+34', flag: '🇪🇸' },
+    { code: 'MX', name: 'México', dial: '+52', flag: '🇲🇽' },
+    { code: 'ES', name: 'España', dial: '+34', flag: '🇪🇸' },
     { code: 'IT', name: 'Italia', dial: '+39', flag: '🇮🇹' },
     { code: 'FR', name: 'Francia', dial: '+33', flag: '🇫🇷' },
 ];
@@ -145,6 +143,7 @@ export default function ProfilePage() {
     const [addressDraft, setAddressDraft] = useState(defaultAddress);
     const [profilePhoto, setProfilePhoto] = useState('');
     const [activeSection, setActiveSection] = useState('account');
+    const [orders, setOrders] = useState([]);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -207,7 +206,7 @@ export default function ProfilePage() {
                 return;
             }
         } catch (err) {
-            console.warn('No se pudo cargar la direccion guardada', err);
+            console.warn('No se pudo cargar la dirección guardada', err);
         }
         const fallback = {
             ...defaultAddress,
@@ -233,6 +232,22 @@ export default function ProfilePage() {
         setProfilePhoto('');
     }, [user]);
 
+    useEffect(() => {
+        if (!user) {
+            setOrders([]);
+            return;
+        }
+        const key = `teflon_orders_${user.id || user.email || "guest"}`;
+        try {
+            const raw = localStorage.getItem(key);
+            const parsed = raw ? JSON.parse(raw) : [];
+            setOrders(Array.isArray(parsed) ? parsed : []);
+        } catch (err) {
+            console.warn('No se pudieron cargar los pedidos', err);
+            setOrders([]);
+        }
+    }, [user]);
+
     const roleLabel = useMemo(() => {
         if (isAdmin) return 'Administrador';
         if (user?.role === 'wholesale') return 'Mayorista';
@@ -252,6 +267,58 @@ export default function ProfilePage() {
     const ordersSpanClass = isAccountSection ? 'lg:col-span-2' : 'lg:col-span-3';
     const addressesSpanClass = isAccountSection ? 'lg:col-span-1' : 'lg:col-span-3';
 
+    const visibleOrders = useMemo(() => {
+        if (!orders.length) return [];
+        return activeSection === 'orders' ? orders : orders.slice(0, 4);
+    }, [orders, activeSection]);
+
+    const formatOrderDate = (value) => {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleDateString(locale || 'es-AR', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        });
+    };
+
+    const handleViewOrder = (order) => {
+        try {
+            localStorage.setItem("teflon_last_order", JSON.stringify(order));
+        } catch (err) {
+            console.warn('No se pudo guardar el pedido seleccionado', err);
+        }
+        navigate('/order-success');
+    };
+
+    const updateOrderStatus = (orderId, nextStatus) => {
+        if (!orderId) return;
+        const historyKey = `teflon_orders_${user?.id || user?.email || "guest"}`;
+        setOrders((prev) => {
+            const next = prev.map((order) =>
+                order.id === orderId ? { ...order, status: nextStatus } : order
+            );
+            try {
+                localStorage.setItem(historyKey, JSON.stringify(next));
+            } catch (err) {
+                console.warn('No se pudo actualizar el pedido', err);
+            }
+            try {
+                const raw = localStorage.getItem("teflon_last_order");
+                if (raw) {
+                    const last = JSON.parse(raw);
+                    if (last?.id === orderId) {
+                        localStorage.setItem("teflon_last_order", JSON.stringify({ ...last, status: nextStatus }));
+                    }
+                }
+            } catch (err) {
+                console.warn('No se pudo actualizar el pedido reciente', err);
+            }
+            return next;
+        });
+    };
+
     const handleLogout = () => {
         logout();
         navigate('/');
@@ -266,7 +333,7 @@ export default function ProfilePage() {
         try {
             localStorage.setItem(key, JSON.stringify(next));
         } catch (err) {
-            console.warn('No se pudo guardar la direccion', err);
+            console.warn('No se pudo guardar la dirección', err);
         }
         setIsEditingAddress(false);
     };
@@ -284,7 +351,7 @@ export default function ProfilePage() {
         try {
             localStorage.removeItem(key);
         } catch (err) {
-            console.warn('No se pudo limpiar la direccion', err);
+            console.warn('No se pudo limpiar la dirección', err);
         }
         setIsEditingAddress(false);
     };
@@ -368,6 +435,9 @@ export default function ProfilePage() {
                                 >
                                     <ProfileIcon name="favorite" className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Favoritos</span>
+                                    {favorites?.length ? (
+                                        <span className="ml-auto size-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#2c2116]" />
+                                    ) : null}
                                 </button>
                                 <button
                                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'security' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
@@ -385,7 +455,7 @@ export default function ProfilePage() {
                                 className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all font-medium"
                             >
                                 <span className="material-symbols-outlined">logout</span>
-                                <span className="text-sm">Cerrar sesion</span>
+                                <span className="text-sm">Cerrar sesión</span>
                             </button>
                         </div>
                     </aside>
@@ -393,7 +463,7 @@ export default function ProfilePage() {
                     <main className="flex-1 bg-[#f8f7f5] dark:bg-[#1a140d] rounded-2xl p-6 md:p-8">
                         <div className="flex items-center gap-2 text-xs text-[#8a7560] mb-6 uppercase tracking-wider font-semibold">
                             <button className="hover:text-primary transition-colors" onClick={() => navigate('/')}>
-                                Home
+                                Inicio
                             </button>
                             <ProfileIcon name="chevron_right" className="h-3.5 w-3.5 shrink-0" />
                             <span className="text-primary">{sectionLabels[activeSection]}</span>
@@ -414,7 +484,7 @@ export default function ProfilePage() {
                                         Hola, {displayName}!
                                     </h1>
                                     <p className="text-[#8a7560] mt-1 text-sm">
-                                        Gestiona tu cuenta, revisa tus pedidos y actualiza tu perfil.
+                                        Gestioná tu cuenta, revisá tus pedidos y actualizá tu perfil.
                                     </p>
                                     <div className="flex flex-wrap gap-3 mt-3">
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
@@ -457,7 +527,13 @@ export default function ProfilePage() {
                                 <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
                                     <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
                                         <h3 className="font-bold text-lg">Pedidos recientes</h3>
-                                        <button className="text-sm text-primary font-semibold hover:underline">Ver todo</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveSection('orders')}
+                                            className="text-sm text-primary font-semibold hover:underline"
+                                        >
+                                            Ver todo
+                                        </button>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left">
@@ -471,23 +547,54 @@ export default function ProfilePage() {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-[#e5e1de] dark:divide-[#3d2e21] text-sm">
-                                                {ORDERS.map((order) => (
-                                                    <tr key={order.id} className="hover:bg-[#f5f2f0]/40 transition-colors">
-                                                        <td className="px-6 py-4 font-mono font-medium">#{order.id}</td>
-                                                        <td className="px-6 py-4">{order.date}</td>
-                                                        <td className="px-6 py-4">
-                                                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_STYLES[order.status] || STATUS_STYLES.Pending}`}>
-                                                                {order.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 font-bold">{order.total}</td>
-                                                        <td className="px-6 py-4">
-                                                            <button className="text-primary hover:text-primary/70 font-semibold underline decoration-2">
-                                                                Detalles
-                                                            </button>
+                                                {visibleOrders.length ? (
+                                                    visibleOrders.map((order) => {
+                                                        const statusLabel = order.status || 'Pendiente';
+                                                        const isPending = statusLabel === 'Pendiente' || statusLabel === 'Pendiente de pago';
+                                                        return (
+                                                        <tr key={order.id} className="hover:bg-[#f5f2f0]/40 transition-colors">
+                                                            <td className="px-6 py-4 font-mono font-medium">#{order.id}</td>
+                                                            <td className="px-6 py-4">{formatOrderDate(order.createdAt)}</td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_STYLES[statusLabel] || STATUS_STYLES.Pendiente}`}>
+                                                                    {statusLabel}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 font-bold">
+                                                                {order.total != null
+                                                                    ? formatCurrency(order.total, order.currency || currency, order.locale || locale)
+                                                                    : '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex flex-col items-start gap-1">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleViewOrder(order)}
+                                                                        className="text-primary hover:text-primary/70 font-semibold underline decoration-2"
+                                                                    >
+                                                                        Detalles
+                                                                    </button>
+                                                                    {isPending ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateOrderStatus(order.id, 'Pagado')}
+                                                                            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-600"
+                                                                        >
+                                                                            Marcar como pagado
+                                                                        </button>
+                                                                    ) : null}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                    })
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={5} className="px-6 py-6 text-center text-[#8a7560]">
+                                                            Todavía no hay pedidos recientes.
                                                         </td>
                                                     </tr>
-                                                ))}
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -499,7 +606,7 @@ export default function ProfilePage() {
                             <div className={`${addressesSpanClass} space-y-6`}>
                                 <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
                                     <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
-                                        <h3 className="font-bold text-lg">Direccion principal</h3>
+                                        <h3 className="font-bold text-lg">Dirección principal</h3>
                                         <ProfileIcon name="location_on" className="h-5 w-5 shrink-0 text-[#8a7560]" />
                                     </div>
                                     <div className="p-6">
@@ -539,7 +646,7 @@ export default function ProfilePage() {
                                                     />
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Direccion</label>
+                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Dirección</label>
                                                     <input
                                                         type="text"
                                                         value={addressDraft.line1}
@@ -557,7 +664,7 @@ export default function ProfilePage() {
                                                     />
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Codigo postal</label>
+                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Código postal</label>
                                                     <input
                                                         type="text"
                                                         value={addressDraft.postal}
@@ -575,7 +682,7 @@ export default function ProfilePage() {
                                                     />
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Pais</label>
+                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">País</label>
                                                     <input
                                                         type="text"
                                                         value={addressDraft.country}
@@ -584,7 +691,7 @@ export default function ProfilePage() {
                                                     />
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Telefono</label>
+                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Teléfono</label>
                                                     <div className="flex flex-col md:flex-row gap-2">
                                                         <select
                                                             value={addressDraft.phoneCountry}
@@ -611,7 +718,7 @@ export default function ProfilePage() {
                                                                     phoneNumber: e.target.value,
                                                                 })
                                                             }
-                                                            placeholder="Numero de telefono"
+                                                            placeholder="Número de teléfono"
                                                             className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
                                                         />
                                                     </div>
@@ -659,9 +766,9 @@ export default function ProfilePage() {
 
                                 <div className="bg-primary rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
                                     <div className="relative z-10">
-                                        <h4 className="font-bold text-lg mb-2">Necesitas cotizacion mayorista?</h4>
+                                        <h4 className="font-bold text-lg mb-2">¿Necesitás cotización mayorista?</h4>
                                         <p className="text-white/80 text-sm mb-4">
-                                            Contacta a nuestro equipo para precios profesionales.
+                                            Contactá a nuestro equipo para precios profesionales.
                                         </p>
                                         <button className="w-full bg-white text-primary font-bold py-2 rounded-lg text-sm hover:bg-[#f8f7f5] transition-all">
                                             Contactar asesor
@@ -743,7 +850,7 @@ export default function ProfilePage() {
                                                 <ProfileIcon name="favorite" className="h-6 w-6 text-primary" />
                                                 Favoritos
                                             </div>
-                                            Todavia no agregaste favoritos.
+                                            Todavía no agregaste favoritos.
                                         </div>
                                     )}
                                 </>

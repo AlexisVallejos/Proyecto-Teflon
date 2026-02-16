@@ -15,6 +15,28 @@ WITH new_tenant AS (
     '{"mode":"hybrid","currency":"ARS","whatsapp_number":""}'::jsonb
   FROM new_tenant
   RETURNING tenant_id
+), new_price_lists AS (
+  INSERT INTO price_lists (tenant_id, name, type, rules_json)
+  SELECT id, 'Retail', 'retail', '{}'::jsonb FROM new_tenant
+  UNION ALL
+  SELECT id, 'Mayorista', 'wholesale', '{}'::jsonb FROM new_tenant
+  UNION ALL
+  SELECT id, 'Especial', 'special', '{}'::jsonb FROM new_tenant
+  RETURNING id, tenant_id
+), new_admin_user AS (
+  INSERT INTO users (email, password_hash, role, status)
+  VALUES (
+    'admin@teflon.local',
+    '$2a$10$hE0tkmdmSK4yBrODZ6VsNeC.twjKZHiH6jcG4z79ysV17hwKo636a',
+    'tenant_admin',
+    'active'
+  )
+  RETURNING id
+), new_admin_membership AS (
+  INSERT INTO user_tenants (user_id, tenant_id, role, status)
+  SELECT new_admin_user.id, new_tenant.id, 'tenant_admin', 'active'
+  FROM new_admin_user, new_tenant
+  RETURNING user_id
 ), new_page AS (
   INSERT INTO pages (tenant_id, slug)
   SELECT id, 'home' FROM new_tenant

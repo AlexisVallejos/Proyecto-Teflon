@@ -4,7 +4,7 @@ import { formatCurrency } from "../../utils/format";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
 import { navigate } from "../../utils/navigation";
-import { getApiBase, getTenantHeaders } from "../../utils/api";
+import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 
 export default function CartPage() {
     const { cartItems, updateQty, removeItem, addToCart } = useStore();
@@ -22,10 +22,10 @@ export default function CartPage() {
             setLoadingSuggested(true);
             try {
                 const res = await fetch(`${getApiBase()}/public/products?limit=24`, {
-                    headers: getTenantHeaders(),
+                    headers: { ...getTenantHeaders(), ...getAuthHeaders() },
                 });
                 if (!res.ok) {
-                    throw new Error(`Suggested products request failed: ${res.status}`);
+                    throw new Error(`Error al cargar sugeridos: ${res.status}`);
                 }
                 const data = await res.json();
                 if (!active) return;
@@ -33,7 +33,7 @@ export default function CartPage() {
                 const shuffled = [...items].sort(() => Math.random() - 0.5);
                 setSuggestedProducts(shuffled.slice(0, 4));
             } catch (err) {
-                console.error("Failed to load suggested products", err);
+                console.error("No se pudieron cargar los productos sugeridos", err);
                 if (!active) return;
                 setSuggestedProducts([]);
             } finally {
@@ -204,7 +204,7 @@ export default function CartPage() {
                                 onClick={() => navigate("/checkout")}
                                 className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg transition-colors flex items-center justify-center gap-2 mb-4"
                             >
-                                Continuar al checkout
+                                Continuar al pago
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                             </button>
 

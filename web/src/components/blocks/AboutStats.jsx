@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function AboutStats({
     items = [
-        { value: '10+', label: 'Anos de experiencia', accent: true },
+        { value: '10+', label: 'Años de experiencia', accent: true },
         { value: '5k+', label: 'Clientes satisfechos' },
         { value: '2', label: 'Sucursales' },
         { value: '24/7', label: 'Soporte al cliente' },

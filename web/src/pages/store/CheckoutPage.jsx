@@ -59,7 +59,7 @@ export default function CheckoutPage() {
         () => [
             {
                 key: "mp",
-                label: "Mercado Pago (pago online)",
+                label: "Mercado Pago (pago en línea)",
                 highlight: true,
                 icon: (
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
@@ -112,7 +112,7 @@ export default function CheckoutPage() {
             }));
             shippingAutofillRef.current = true;
         } catch (err) {
-            console.warn("No se pudo cargar la direccion de perfil", err);
+            console.warn("No se pudo cargar la dirección de perfil", err);
         }
     }, [user]);
 
@@ -197,7 +197,7 @@ export default function CheckoutPage() {
 
     const paymentSummary = useMemo(() => {
         if (paymentMethod === "mp") {
-            return "Mercado Pago (pago online). Luego de confirmar, te redirigimos al pago.";
+            return "Mercado Pago (pago en línea). Luego de confirmar, te redirigimos al pago.";
         }
         if (paymentMethod === "whatsapp") {
             return "WhatsApp (efectivo o transferencia). Luego de confirmar, abrimos WhatsApp con el detalle.";
@@ -225,7 +225,7 @@ export default function CheckoutPage() {
                 postal: parsed.postal || "",
             };
         } catch (err) {
-            console.warn("No se pudo leer la direccion de perfil", err);
+            console.warn("No se pudo leer la dirección de perfil", err);
             return {};
         }
     };
@@ -235,11 +235,11 @@ export default function CheckoutPage() {
         const name =
             profile.fullName ||
             (user?.email ? user.email.split("@")[0] : "Cliente");
-        const phone = profile.phone || "Sin telefono";
+        const phone = profile.phone || "Sin teléfono";
         const deliveryLabel = DELIVERY[deliveryMethod]?.title || deliveryMethod;
         const paymentLine =
             paymentMethod === "mp"
-                ? "Pago: Mercado Pago (online)"
+                ? "Pago: Mercado Pago (en línea)"
                 : "Pago: WhatsApp (efectivo o transferencia)";
         const addressParts = [
             shippingInfo.fullAddress || profile.line1,
@@ -251,8 +251,8 @@ export default function CheckoutPage() {
         const lines = [
             "Pedido nuevo",
             `Cliente: ${name}`,
-            `Telefono: ${phone}`,
-            `Direccion: ${addressParts || "Sin direccion"}`,
+            `Teléfono: ${phone}`,
+            `Dirección: ${addressParts || "Sin dirección"}`,
             `Entrega: ${deliveryLabel}`,
             paymentLine,
             "",
@@ -319,12 +319,17 @@ export default function CheckoutPage() {
 
             const data = await response.json();
 
+            const resolvedStatus = paymentMethod === "mp" ? "Pendiente de pago" : "En gestión";
             const orderInfo = {
-                id: data.order?.id || data.order_id || data.id || "",
+                id: data.order?.id || data.order_id || data.id || `TMP-${Date.now()}`,
                 method: paymentMethod,
                 paymentLabel,
                 deliveryMethod,
                 deliveryLabel: DELIVERY[deliveryMethod]?.title || deliveryMethod,
+                status: resolvedStatus,
+                total,
+                currency: displayCurrency,
+                locale,
                 items: items.map((item) => ({
                     id: item.id,
                     sku: item.sku || item.id,
@@ -340,6 +345,12 @@ export default function CheckoutPage() {
 
             try {
                 localStorage.setItem("teflon_last_order", JSON.stringify(orderInfo));
+                const historyKey = `teflon_orders_${user?.id || user?.email || "guest"}`;
+                const existing = localStorage.getItem(historyKey);
+                const parsed = existing ? JSON.parse(existing) : [];
+                const list = Array.isArray(parsed) ? parsed : [];
+                const next = [orderInfo, ...list].slice(0, 20);
+                localStorage.setItem(historyKey, JSON.stringify(next));
             } catch (err) {
                 console.warn("No se pudo guardar el pedido", err);
             }
@@ -592,7 +603,7 @@ export default function CheckoutPage() {
                                     {orderSuccess ? (
                                         <div className="rounded-lg border border-green-200 bg-green-50 text-green-700 px-4 py-3 text-sm space-y-2">
                                             <p className="font-bold">Pedido confirmado</p>
-                                            <p>Metodo: {orderSuccess.paymentLabel || paymentLabel}</p>
+                                            <p>Método: {orderSuccess.paymentLabel || paymentLabel}</p>
                                             {orderSuccess.id ? (
                                                 <p>ID: {orderSuccess.id}</p>
                                             ) : null}

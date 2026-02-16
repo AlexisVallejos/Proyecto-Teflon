@@ -36,8 +36,31 @@ CREATE TABLE user_tenants (
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   role text NOT NULL DEFAULT 'tenant_admin',
+  status text NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, tenant_id)
 );
+
+CREATE TABLE price_lists (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  type text NOT NULL CHECK (type IN ('retail', 'wholesale', 'special')),
+  rules_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX price_lists_tenant_name_idx ON price_lists(tenant_id, name);
+
+CREATE TABLE user_price_list (
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  price_list_id uuid NOT NULL REFERENCES price_lists(id) ON DELETE CASCADE,
+  assigned_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, user_id)
+);
+
+CREATE INDEX user_price_list_tenant_idx ON user_price_list(tenant_id, user_id);
 
 CREATE TABLE pages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -137,8 +160,10 @@ CREATE TABLE product_overrides (
 CREATE TABLE orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(id) ON DELETE SET NULL,
   number text,
   status text NOT NULL DEFAULT 'draft',
+  checkout_mode text NOT NULL DEFAULT 'online',
   currency text NOT NULL DEFAULT 'ARS',
   subtotal numeric(12,2) NOT NULL DEFAULT 0,
   tax numeric(12,2) NOT NULL DEFAULT 0,
@@ -210,4 +235,3 @@ CREATE TABLE api_tokens (
   scope text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-

@@ -32,12 +32,12 @@ export default function AboutValues({
         {
             icon: 'commitment',
             title: 'Compromiso',
-            description: 'Acompaniamos cada proyecto con soporte real y cercano.',
+            description: 'Acompañamos cada proyecto con soporte real y cercano.',
         },
         {
             icon: 'innovation',
-            title: 'Innovacion',
-            description: 'Buscamos nuevas soluciones para disenos modernos y eficientes.',
+            title: 'Innovación',
+            description: 'Buscamos nuevas soluciones para diseños modernos y eficientes.',
         },
     ],
     styles = {},

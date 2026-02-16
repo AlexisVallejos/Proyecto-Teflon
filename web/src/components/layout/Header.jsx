@@ -5,7 +5,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 
-const DEFAULT_PLACEHOLDER = "Search products...";
+const DEFAULT_PLACEHOLDER = "Buscar productos...";
 
 const BrandMark = ({ className = "size-8" }) => (
   <svg
@@ -39,7 +39,7 @@ export default function Header({
   containerClassName = "max-w-[1280px]",
 }) {
   const { tenant, settings } = useTenant();
-  const { search, setSearch, cartCount } = useStore();
+  const { search, setSearch, cartCount, favorites } = useStore();
   const { isDarkMode, toggleTheme } = useTheme();
   const { user, isAdmin } = useAuth();
   const [activeRoute, setActiveRoute] = useState(() => `${window.location.pathname}${window.location.hash || ""}`);
@@ -227,10 +227,13 @@ export default function Header({
               <button
                 type="button"
                 onClick={handleAccountClick}
-                className="flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
-                aria-label="Account"
+                className="relative flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
+                aria-label="Cuenta"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dark:text-white"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                {favorites?.length ? (
+                  <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#3d2e21]" />
+                ) : null}
               </button>
             ) : null}
 
@@ -238,8 +241,8 @@ export default function Header({
               type="button"
               onClick={toggleTheme}
               className="flex items-center justify-center rounded-lg h-10 px-3 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
-              aria-label="Toggle theme"
-              title="Toggle theme"
+              aria-label="Cambiar tema"
+              title="Cambiar tema"
             >
               {isDarkMode ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>

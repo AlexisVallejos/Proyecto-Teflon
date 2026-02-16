@@ -1,7 +1,7 @@
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
-import { getApiBase, getTenantHeaders } from "../../utils/api";
+import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
@@ -9,7 +9,7 @@ import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 
 export default function CatalogPage() {
-    const { search } = useStore();
+    const { search, showToast } = useStore();
     const { settings } = useTenant();
     const { isWholesale } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
@@ -31,8 +31,6 @@ export default function CatalogPage() {
     const [loading, setLoading] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
     const [limit] = useState(24);
-    const [toast, setToast] = useState({ show: false, message: "" });
-    const toastTimerRef = useRef(null);
 
     const fallbackImages = useMemo(
         () => [
@@ -48,13 +46,6 @@ export default function CatalogPage() {
         setPage(1);
     }, [search]);
 
-    useEffect(() => {
-        return () => {
-            if (toastTimerRef.current) {
-                clearTimeout(toastTimerRef.current);
-            }
-        };
-    }, []);
 
     useEffect(() => {
         const fetchMetadata = async () => {
@@ -66,7 +57,7 @@ export default function CatalogPage() {
                 if (catsRes.ok) setCategories(await catsRes.json());
                 if (brandsRes.ok) setBrands(await brandsRes.json());
             } catch (err) {
-                console.error("Failed to fetch metadata", err);
+                console.error("No se pudieron cargar los metadatos", err);
             }
         };
         fetchMetadata();
@@ -100,12 +91,12 @@ export default function CatalogPage() {
                 }
 
                 const response = await fetch(url.toString(), {
-                    headers: getTenantHeaders(),
+                    headers: { ...getTenantHeaders(), ...getAuthHeaders() },
                     signal: controller.signal,
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Catalog request failed: ${response.status}`);
+                    throw new Error(`Error al cargar el catálogo: ${response.status}`);
                 }
 
                 const data = await response.json();
@@ -199,16 +190,6 @@ export default function CatalogPage() {
         return cat?.name || selectedCategory;
     }, [selectedCategory, categories]);
 
-    const showToast = (message) => {
-        setToast({ show: true, message });
-        if (toastTimerRef.current) {
-            clearTimeout(toastTimerRef.current);
-        }
-        toastTimerRef.current = setTimeout(() => {
-            setToast({ show: false, message: "" });
-        }, 2600);
-    };
-
     const handleFavoriteChange = (_product, added) => {
         if (added) {
             showToast("Producto añadido a favoritos");
@@ -217,17 +198,6 @@ export default function CatalogPage() {
 
     return (
         <StoreLayout>
-            <div className={`fixed top-10 left-1/2 -translate-x-1/2 z-[9999] transition-all duration-500 ease-out ${toast.show ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0 pointer-events-none'}`}>
-                <div className="bg-green-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border-2 border-green-400">
-                    <div className="bg-white/20 p-2 rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                    <div>
-                        <p className="font-black text-lg tracking-tight leading-none">Excelente!</p>
-                        <p className="text-sm font-bold text-green-50 text-nowrap">{toast.message}</p>
-                    </div>
-                </div>
-            </div>
             <main className="max-w-[1440px] mx-auto flex flex-col min-h-screen">
                 {/* Breadcrumbs & Category Title */}
                 <div className="px-10 pt-6">

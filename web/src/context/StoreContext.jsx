@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "teflon_cart_v1";
 const FAVORITES_KEY = "teflon_favorites_v1";
@@ -48,6 +48,8 @@ export const StoreProvider = ({ children }) => {
             return [];
         }
     });
+    const [toast, setToast] = useState({ show: false, message: "" });
+    const toastTimerRef = useRef(null);
 
     useEffect(() => {
         try {
@@ -64,6 +66,14 @@ export const StoreProvider = ({ children }) => {
             console.warn("No se pudo guardar favoritos", err);
         }
     }, [favorites]);
+
+    useEffect(() => {
+        return () => {
+            if (toastTimerRef.current) {
+                clearTimeout(toastTimerRef.current);
+            }
+        };
+    }, []);
 
     const cartCount = useMemo(
         () => cartItems.reduce((acc, item) => acc + item.qty, 0),
@@ -170,6 +180,17 @@ export const StoreProvider = ({ children }) => {
         return added;
     }, []);
 
+    const showToast = useCallback((message) => {
+        if (!message) return;
+        setToast({ show: true, message });
+        if (toastTimerRef.current) {
+            clearTimeout(toastTimerRef.current);
+        }
+        toastTimerRef.current = setTimeout(() => {
+            setToast({ show: false, message: "" });
+        }, 2600);
+    }, []);
+
     return (
         <StoreContext.Provider
             value={{
@@ -187,6 +208,8 @@ export const StoreProvider = ({ children }) => {
                 addFavorite,
                 removeFavorite,
                 toggleFavorite,
+                toast,
+                showToast,
             }}
         >
             {children}

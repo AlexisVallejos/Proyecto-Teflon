@@ -26,7 +26,7 @@ export default function OrderSuccessPage() {
         if (order?.method === "whatsapp") {
             return "Proseguiremos por WhatsApp. Gracias por tu compra, estamos armando tu pedido.";
         }
-        return "Gracias por tu compra. Si corresponde, envia el comprobante por WhatsApp.";
+        return "Gracias por tu compra. Si corresponde, enviá el comprobante por WhatsApp.";
     }, [order]);
 
     const items = Array.isArray(order?.items) ? order.items : [];
