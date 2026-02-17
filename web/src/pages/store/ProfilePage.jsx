@@ -1,6 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { useAuth } from '../../context/AuthContext';
+const User = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+const Package = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></svg>;
+const MapPin = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20 10c0 6-9 13-9 13s-9-7-9-13a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" /></svg>;
+const Heart = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>;
+const Shield = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-.5 6-3 1.5 2.5 4 3 6 3 1.07 0 2.14-.1 3-.29V13Z" /></svg>;
+const LogOut = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>;
+const ChevronRight = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m9 18 6-6-6-6" /></svg>;
+const Edit2 = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>;
+const Trash2 = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>;
+const Camera = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>;
+const Home = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>;
+const Phone = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>;
+const CreditCard = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></svg>;
+const ExternalLink = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>;
+const CheckCircle = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="m9 11 3 3L22 4" /></svg>;
+const Clock = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
+const Headset = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z" /><path d="M21 16v2a4 4 0 0 1-4 4h-5" /></svg>;
 import { useStore } from '../../context/StoreContext';
 import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/format';
@@ -46,78 +63,18 @@ const buildPhone = (countryCode, number) => {
     return trimmed ? `${country.dial} ${trimmed}` : country.dial;
 };
 
-const ProfileIcon = ({ name, className = "h-5 w-5" }) => {
-    const iconProps = {
-        className,
-        "aria-hidden": true,
-        viewBox: "0 0 24 24",
-        fill: "none",
-        stroke: "currentColor",
-        strokeWidth: "2",
-        strokeLinecap: "round",
-        strokeLinejoin: "round",
-    };
-    const filledProps = {
-        className,
-        "aria-hidden": true,
-        fill: "currentColor",
-        stroke: "none",
-    };
+const STATUS_ICONS = {
+    Enviado: Package,
+    Entregado: CheckCircle,
+    Pendiente: Clock,
+    'Pendiente de pago': CreditCard,
+    'En gestión': Clock,
+    Confirmado: CheckCircle,
+    Pagado: CheckCircle,
+};
 
-    switch (name) {
-        case "account_circle":
-            return (
-                <svg {...iconProps}>
-                    <circle cx="12" cy="7" r="4" />
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                </svg>
-            );
-        case "package_2":
-            return (
-                <svg {...iconProps}>
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                </svg>
-            );
-        case "location_on":
-            return (
-                <svg {...iconProps}>
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-                    <circle cx="12" cy="10" r="3" />
-                </svg>
-            );
-        case "chevron_right":
-            return (
-                <svg {...iconProps}>
-                    <polyline points="9 18 15 12 9 6" />
-                </svg>
-            );
-        case "support_agent":
-            return (
-                <svg {...iconProps}>
-                    <path d="M4 14c0 2 1.5 3 3.5 3 2 0 3.5-1 3.5-3s-1.5-3-3.5-3c-2 0-3.5 1-3.5 3z" />
-                    <path d="M12 14c0 2 1.5 3 3.5 3 2 0 3.5-1 3.5-3s-1.5-3-3.5-3c-2 0-3.5 1-3.5 3z" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    <path d="M12 17v4" />
-                    <path d="M8 21h8" />
-                </svg>
-            );
-        case "favorite":
-            return (
-                <svg {...filledProps} viewBox="0 0 1280 1133">
-                    <path d="M3139 11319 c-408 -27 -834 -123 -1165 -260 -251 -104 -542 -274 -744 -435 -119 -95 -371 -349 -470 -474 -503 -634 -784 -1509 -757 -2360 10 -290 39 -472 113 -703 202 -627 670 -1387 1430 -2323 1102 -1358 2896 -3120 4835 -4751 17 -14 -8 -34 379 296 1471 1256 2963 2699 3971 3841 1131 1281 1811 2338 2000 3105 114 466 84 1111 -81 1694 -109 385 -294 773 -520 1088 -470 656 -1180 1085 -2040 1232 -257 44 -402 55 -730 55 -337 0 -452 -10 -695 -59 -722 -146 -1301 -530 -1717 -1140 -199 -291 -327 -559 -467 -973 -42 -123 -80 -224 -86 -224 -5 0 -40 78 -76 173 -159 420 -305 705 -516 1006 -267 382 -631 711 -1003 907 -478 252 -1010 349 -1661 305z" />
-                </svg>
-            );
-        case "security":
-            return (
-                <svg {...filledProps} viewBox="0 0 1046 1280">
-                    <path d="M4885 12645 c-1070 -549 -1968 -902 -2830 -1110 -336 -81 -723 -154 -1570 -294 -395 -65 -453 -77 -472 -93 -25 -21 -16 -459 32 -1523 56 -1213 109 -1961 160 -2250 42 -235 142 -710 189 -900 171 -690 295 -1086 520 -1652 166 -420 227 -549 418 -893 283 -507 500 -852 793 -1262 261 -363 362 -485 727 -875 213 -228 278 -289 673 -634 583 -510 683 -589 920 -734 88 -54 207 -129 264 -168 121 -81 381 -217 462 -243 l57 -17 173 79 c186 84 199 92 559 319 274 173 294 187 494 353 391 325 880 767 1071 968 453 476 554 598 891 1079 277 395 400 592 679 1085 250 442 447 893 665 1521 221 635 460 1665 529 2279 63 558 135 1934 167 3211 6 245 5 257 -12 263 -53 16 -516 103 -785 146 -1094 176 -1651 315 -2439 608 -436 162 -1083 454 -1668 753 -240 122 -279 139 -320 138 -40 0 -90 -23 -347 -154z" />
-                </svg>
-            );
-        default:
-            return null;
-    }
+const ProfileIcon = ({ name, className = "h-5 w-5" }) => {
+    return null; // Deprecated
 };
 
 export default function ProfilePage() {
@@ -398,7 +355,7 @@ export default function ProfilePage() {
                                     {profilePhoto ? (
                                         <img src={profilePhoto} alt="Foto de perfil" className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="material-symbols-outlined">person</span>
+                                        <User className="h-6 w-6" />
                                     )}
                                 </div>
                                 <div className="flex flex-col">
@@ -412,28 +369,28 @@ export default function ProfilePage() {
                                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'account' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('account')}
                                 >
-                                    <ProfileIcon name="account_circle" className="h-5 w-5 shrink-0" />
+                                    <User className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Mi cuenta</span>
                                 </button>
                                 <button
                                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'orders' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('orders')}
                                 >
-                                    <ProfileIcon name="package_2" className="h-5 w-5 shrink-0" />
+                                    <Package className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Historial de pedidos</span>
                                 </button>
                                 <button
                                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'addresses' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('addresses')}
                                 >
-                                    <ProfileIcon name="location_on" className="h-5 w-5 shrink-0" />
+                                    <MapPin className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Direcciones</span>
                                 </button>
                                 <button
                                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'favorites' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('favorites')}
                                 >
-                                    <ProfileIcon name="favorite" className="h-5 w-5 shrink-0" />
+                                    <Heart className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Favoritos</span>
                                     {favorites?.length ? (
                                         <span className="ml-auto size-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#2c2116]" />
@@ -443,7 +400,7 @@ export default function ProfilePage() {
                                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'security' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('security')}
                                 >
-                                    <ProfileIcon name="security" className="h-5 w-5 shrink-0" />
+                                    <Shield className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Seguridad</span>
                                 </button>
                             </nav>
@@ -454,7 +411,7 @@ export default function ProfilePage() {
                                 onClick={handleLogout}
                                 className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all font-medium"
                             >
-                                <span className="material-symbols-outlined">logout</span>
+                                <LogOut className="w-5 h-5" />
                                 <span className="text-sm">Cerrar sesión</span>
                             </button>
                         </div>
@@ -465,321 +422,325 @@ export default function ProfilePage() {
                             <button className="hover:text-primary transition-colors" onClick={() => navigate('/')}>
                                 Inicio
                             </button>
-                            <ProfileIcon name="chevron_right" className="h-3.5 w-3.5 shrink-0" />
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                             <span className="text-primary">{sectionLabels[activeSection]}</span>
                         </div>
 
                         {activeSection === 'account' ? (
-                        <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-6 md:p-8 mb-8 flex flex-col lg:flex-row justify-between gap-6 shadow-sm">
-                            <div className="flex items-center gap-5">
-                                <div className="size-16 rounded-full border-4 border-primary/10 overflow-hidden flex items-center justify-center bg-primary/5 text-primary">
-                                    {profilePhoto ? (
-                                        <img src={profilePhoto} alt="Foto de perfil" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span className="material-symbols-outlined">person</span>
-                                    )}
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-black text-[#181411] dark:text-white leading-tight">
-                                        Hola, {displayName}!
-                                    </h1>
-                                    <p className="text-[#8a7560] mt-1 text-sm">
-                                        Gestioná tu cuenta, revisá tus pedidos y actualizá tu perfil.
-                                    </p>
-                                    <div className="flex flex-wrap gap-3 mt-3">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                                            Cuenta activa
-                                        </span>
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                                            {roleLabel}
-                                        </span>
+                            <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-6 md:p-8 mb-8 flex flex-col lg:flex-row justify-between gap-6 shadow-sm">
+                                <div className="flex items-center gap-5">
+                                    <div className="size-16 rounded-full border-4 border-primary/10 overflow-hidden flex items-center justify-center bg-primary/5 text-primary">
+                                        {profilePhoto ? (
+                                            <img src={profilePhoto} alt="Foto de perfil" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <User className="h-8 w-8" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h1 className="text-2xl font-black text-[#181411] dark:text-white leading-tight">
+                                            Hola, {displayName}!
+                                        </h1>
+                                        <p className="text-[#8a7560] mt-1 text-sm">
+                                            Gestioná tu cuenta, revisá tus pedidos y actualizá tu perfil.
+                                        </p>
+                                        <div className="flex flex-wrap gap-3 mt-3">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                                Cuenta activa
+                                            </span>
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                {roleLabel}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
+                                <div className="flex flex-col gap-2">
+                                    <label className="px-5 py-2.5 bg-white border border-[#e5e1de] text-[#181411] font-bold text-sm rounded-lg hover:bg-[#f5f2f0] transition-all shadow-sm flex items-center gap-2 cursor-pointer">
+                                        <Camera className="w-4 h-4" />
+                                        Subir foto
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleProfilePhotoChange}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                    {profilePhoto ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleRemovePhoto}
+                                            className="px-5 py-2.5 bg-white border border-[#e5e1de] text-red-600 font-bold text-sm rounded-lg hover:bg-red-50 transition-all shadow-sm flex items-center gap-2"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Quitar foto
+                                        </button>
+                                    ) : null}
+                                </div>
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="px-5 py-2.5 bg-white border border-[#e5e1de] text-[#181411] font-bold text-sm rounded-lg hover:bg-[#f5f2f0] transition-all shadow-sm flex items-center gap-2 cursor-pointer">
-                                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                                    Subir foto
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleProfilePhotoChange}
-                                        className="hidden"
-                                    />
-                                </label>
-                                {profilePhoto ? (
-                                    <button
-                                        type="button"
-                                        onClick={handleRemovePhoto}
-                                        className="px-5 py-2.5 bg-white border border-[#e5e1de] text-red-600 font-bold text-sm rounded-lg hover:bg-red-50 transition-all shadow-sm flex items-center gap-2"
-                                    >
-                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                        Quitar foto
-                                    </button>
-                                ) : null}
-                            </div>
-                        </div>
                         ) : null}
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             {showOrders ? (
-                            <div className={`${ordersSpanClass} space-y-6`}>
-                                <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
-                                        <h3 className="font-bold text-lg">Pedidos recientes</h3>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveSection('orders')}
-                                            className="text-sm text-primary font-semibold hover:underline"
-                                        >
-                                            Ver todo
-                                        </button>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left">
-                                            <thead>
-                                                <tr className="bg-[#f5f2f0]/60 dark:bg-[#2d241c] text-xs font-bold text-[#8a7560] uppercase tracking-wider">
-                                                    <th className="px-6 py-3">Pedido</th>
-                                                    <th className="px-6 py-3">Fecha</th>
-                                                    <th className="px-6 py-3">Estado</th>
-                                                    <th className="px-6 py-3">Total</th>
-                                                    <th className="px-6 py-3">Accion</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-[#e5e1de] dark:divide-[#3d2e21] text-sm">
-                                                {visibleOrders.length ? (
-                                                    visibleOrders.map((order) => {
-                                                        const statusLabel = order.status || 'Pendiente';
-                                                        const isPending = statusLabel === 'Pendiente' || statusLabel === 'Pendiente de pago';
-                                                        return (
-                                                        <tr key={order.id} className="hover:bg-[#f5f2f0]/40 transition-colors">
-                                                            <td className="px-6 py-4 font-mono font-medium">#{order.id}</td>
-                                                            <td className="px-6 py-4">{formatOrderDate(order.createdAt)}</td>
-                                                            <td className="px-6 py-4">
-                                                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_STYLES[statusLabel] || STATUS_STYLES.Pendiente}`}>
-                                                                    {statusLabel}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-4 font-bold">
-                                                                {order.total != null
-                                                                    ? formatCurrency(order.total, order.currency || currency, order.locale || locale)
-                                                                    : '-'}
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="flex flex-col items-start gap-1">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleViewOrder(order)}
-                                                                        className="text-primary hover:text-primary/70 font-semibold underline decoration-2"
-                                                                    >
-                                                                        Detalles
-                                                                    </button>
-                                                                    {isPending ? (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updateOrderStatus(order.id, 'Pagado')}
-                                                                            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-600"
-                                                                        >
-                                                                            Marcar como pagado
-                                                                        </button>
-                                                                    ) : null}
-                                                                </div>
+                                <div className={`${ordersSpanClass} space-y-6`}>
+                                    <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
+                                            <h3 className="font-bold text-lg">Pedidos recientes</h3>
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveSection('orders')}
+                                                className="text-sm text-primary font-semibold hover:underline"
+                                            >
+                                                Ver todo
+                                            </button>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left">
+                                                <thead>
+                                                    <tr className="bg-[#f5f2f0]/60 dark:bg-[#2d241c] text-xs font-bold text-[#8a7560] uppercase tracking-wider">
+                                                        <th className="px-6 py-3">Pedido</th>
+                                                        <th className="px-6 py-3">Fecha</th>
+                                                        <th className="px-6 py-3">Estado</th>
+                                                        <th className="px-6 py-3">Total</th>
+                                                        <th className="px-6 py-3">Accion</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-[#e5e1de] dark:divide-[#3d2e21] text-sm">
+                                                    {visibleOrders.length ? (
+                                                        visibleOrders.map((order) => {
+                                                            const statusLabel = order.status || 'Pendiente';
+                                                            const isPending = statusLabel === 'Pendiente' || statusLabel === 'Pendiente de pago';
+                                                            return (
+                                                                <tr key={order.id} className="hover:bg-[#f5f2f0]/40 transition-colors">
+                                                                    <td className="px-6 py-4 font-mono font-medium">#{order.id}</td>
+                                                                    <td className="px-6 py-4">{formatOrderDate(order.createdAt)}</td>
+                                                                    <td className="px-6 py-4">
+                                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_STYLES[statusLabel] || STATUS_STYLES.Pendiente} flex items-center gap-1 w-fit`}>
+                                                                            {(() => {
+                                                                                const Icon = STATUS_ICONS[statusLabel] || STATUS_ICONS.Pendiente;
+                                                                                return <Icon className="w-3 h-3" />;
+                                                                            })()}
+                                                                            {statusLabel}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 font-bold">
+                                                                        {order.total != null
+                                                                            ? formatCurrency(order.total, order.currency || currency, order.locale || locale)
+                                                                            : '-'}
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="flex flex-col items-start gap-1">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleViewOrder(order)}
+                                                                                className="text-primary hover:text-primary/70 font-semibold underline decoration-2 flex items-center gap-1"
+                                                                            >
+                                                                                Detalles
+                                                                                <ExternalLink className="w-3 h-3" />
+                                                                            </button>
+                                                                            {isPending ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => updateOrderStatus(order.id, 'Pagado')}
+                                                                                    className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-600"
+                                                                                >
+                                                                                    Marcar como pagado
+                                                                                </button>
+                                                                            ) : null}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan={5} className="px-6 py-6 text-center text-[#8a7560]">
+                                                                Todavía no hay pedidos recientes.
                                                             </td>
                                                         </tr>
-                                                    );
-                                                    })
-                                                ) : (
-                                                    <tr>
-                                                        <td colSpan={5} className="px-6 py-6 text-center text-[#8a7560]">
-                                                            Todavía no hay pedidos recientes.
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                            ) : null}
-
-                            {showAddresses ? (
-                            <div className={`${addressesSpanClass} space-y-6`}>
-                                <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
-                                        <h3 className="font-bold text-lg">Dirección principal</h3>
-                                        <ProfileIcon name="location_on" className="h-5 w-5 shrink-0 text-[#8a7560]" />
-                                    </div>
-                                    <div className="p-6">
-                                        {!isEditingAddress ? (
-                                            <div className="space-y-3">
-                                                <div className="flex items-start gap-3">
-                                                    <span className="material-symbols-outlined text-primary text-[20px] mt-1">person</span>
-                                                    <div>
-                                                        <p className="font-bold text-sm">{address.fullName || displayName}</p>
-                                                        <p className="text-xs text-[#8a7560]">Cuenta {roleLabel}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-start gap-3">
-                                                    <span className="material-symbols-outlined text-primary text-[20px] mt-1">home</span>
-                                                    <div>
-                                                        <p className="text-sm">{address.line1}</p>
-                                                        <p className="text-sm">{address.city}{address.postal ? `, ${address.postal}` : ''}</p>
-                                                        <p className="text-sm font-semibold">{address.region}, {address.country}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-start gap-3">
-                                                    <span className="material-symbols-outlined text-primary text-[20px] mt-1">call</span>
-                                                    <p className="text-sm">
-                                                        {buildPhone(address.phoneCountry, address.phoneNumber)}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Nombre</label>
-                                                    <input
-                                                        type="text"
-                                                        value={addressDraft.fullName}
-                                                        onChange={(e) => setAddressDraft({ ...addressDraft, fullName: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Dirección</label>
-                                                    <input
-                                                        type="text"
-                                                        value={addressDraft.line1}
-                                                        onChange={(e) => setAddressDraft({ ...addressDraft, line1: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Ciudad</label>
-                                                    <input
-                                                        type="text"
-                                                        value={addressDraft.city}
-                                                        onChange={(e) => setAddressDraft({ ...addressDraft, city: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Código postal</label>
-                                                    <input
-                                                        type="text"
-                                                        value={addressDraft.postal}
-                                                        onChange={(e) => setAddressDraft({ ...addressDraft, postal: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Provincia</label>
-                                                    <input
-                                                        type="text"
-                                                        value={addressDraft.region}
-                                                        onChange={(e) => setAddressDraft({ ...addressDraft, region: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">País</label>
-                                                    <input
-                                                        type="text"
-                                                        value={addressDraft.country}
-                                                        onChange={(e) => setAddressDraft({ ...addressDraft, country: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Teléfono</label>
-                                                    <div className="flex flex-col md:flex-row gap-2">
-                                                        <select
-                                                            value={addressDraft.phoneCountry}
-                                                            onChange={(e) =>
-                                                                setAddressDraft({
-                                                                    ...addressDraft,
-                                                                    phoneCountry: e.target.value,
-                                                                })
-                                                            }
-                                                            className="w-full md:w-48 px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                        >
-                                                            {PHONE_COUNTRIES.map((country) => (
-                                                                <option key={country.code} value={country.code}>
-                                                                    {country.flag} {country.dial} {country.name}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        <input
-                                                            type="text"
-                                                            value={addressDraft.phoneNumber}
-                                                            onChange={(e) =>
-                                                                setAddressDraft({
-                                                                    ...addressDraft,
-                                                                    phoneNumber: e.target.value,
-                                                                })
-                                                            }
-                                                            placeholder="Número de teléfono"
-                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div className="mt-6 flex gap-3">
-                                            {isEditingAddress ? (
-                                                <>
-                                                    <button
-                                                        className="flex-1 px-3 py-2 bg-primary text-white text-xs font-bold rounded hover:bg-primary/90 transition-all"
-                                                        onClick={saveAddress}
-                                                    >
-                                                        Guardar
-                                                    </button>
-                                                    <button
-                                                        className="flex-1 px-3 py-2 bg-[#f5f2f0] border border-[#e5e1de] text-xs font-bold rounded hover:bg-white transition-all"
-                                                        onClick={() => {
-                                                            setAddressDraft(address);
-                                                            setIsEditingAddress(false);
-                                                        }}
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button
-                                                        className="flex-1 px-3 py-2 bg-[#f5f2f0] border border-[#e5e1de] text-xs font-bold rounded hover:bg-white transition-all"
-                                                        onClick={() => setIsEditingAddress(true)}
-                                                    >
-                                                        Editar
-                                                    </button>
-                                                    <button
-                                                        className="flex-1 px-3 py-2 bg-[#f5f2f0] border border-[#e5e1de] text-xs font-bold rounded hover:bg-white transition-all text-red-600"
-                                                        onClick={resetAddress}
-                                                    >
-                                                        Eliminar
-                                                    </button>
-                                                </>
-                                            )}
+                                                    )}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
+                            ) : null}
 
-                                <div className="bg-primary rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
-                                    <div className="relative z-10">
-                                        <h4 className="font-bold text-lg mb-2">¿Necesitás cotización mayorista?</h4>
-                                        <p className="text-white/80 text-sm mb-4">
-                                            Contactá a nuestro equipo para precios profesionales.
-                                        </p>
-                                        <button className="w-full bg-white text-primary font-bold py-2 rounded-lg text-sm hover:bg-[#f8f7f5] transition-all">
-                                            Contactar asesor
-                                        </button>
+                            {showAddresses ? (
+                                <div className={`${addressesSpanClass} space-y-6`}>
+                                    <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
+                                            <h3 className="font-bold text-lg">Dirección principal</h3>
+                                            <MapPin className="h-5 w-5 shrink-0 text-[#8a7560]" />
+                                        </div>
+                                        <div className="p-6">
+                                            {!isEditingAddress ? (
+                                                <div className="space-y-3">
+                                                    <div className="flex items-start gap-3">
+                                                        <User className="text-primary w-5 h-5 mt-1" />
+                                                        <div>
+                                                            <p className="font-bold text-sm">{address.fullName || displayName}</p>
+                                                            <p className="text-xs text-[#8a7560]">Cuenta {roleLabel}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-start gap-3">
+                                                        <Home className="text-primary w-5 h-5 mt-1" />
+                                                        <div>
+                                                            <p className="text-sm">{address.line1}</p>
+                                                            <p className="text-sm">{address.city}{address.postal ? `, ${address.postal}` : ''}</p>
+                                                            <p className="text-sm font-semibold">{address.region}, {address.country}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-start gap-3">
+                                                        <Phone className="text-primary w-5 h-5 mt-1" />
+                                                        <p className="text-sm">
+                                                            {buildPhone(address.phoneCountry, address.phoneNumber)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Nombre</label>
+                                                        <input
+                                                            type="text"
+                                                            value={addressDraft.fullName}
+                                                            onChange={(e) => setAddressDraft({ ...addressDraft, fullName: e.target.value })}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Dirección</label>
+                                                        <input
+                                                            type="text"
+                                                            value={addressDraft.line1}
+                                                            onChange={(e) => setAddressDraft({ ...addressDraft, line1: e.target.value })}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Ciudad</label>
+                                                        <input
+                                                            type="text"
+                                                            value={addressDraft.city}
+                                                            onChange={(e) => setAddressDraft({ ...addressDraft, city: e.target.value })}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Código postal</label>
+                                                        <input
+                                                            type="text"
+                                                            value={addressDraft.postal}
+                                                            onChange={(e) => setAddressDraft({ ...addressDraft, postal: e.target.value })}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Provincia</label>
+                                                        <input
+                                                            type="text"
+                                                            value={addressDraft.region}
+                                                            onChange={(e) => setAddressDraft({ ...addressDraft, region: e.target.value })}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">País</label>
+                                                        <input
+                                                            type="text"
+                                                            value={addressDraft.country}
+                                                            onChange={(e) => setAddressDraft({ ...addressDraft, country: e.target.value })}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Teléfono</label>
+                                                        <div className="flex flex-col md:flex-row gap-2">
+                                                            <select
+                                                                value={addressDraft.phoneCountry}
+                                                                onChange={(e) =>
+                                                                    setAddressDraft({
+                                                                        ...addressDraft,
+                                                                        phoneCountry: e.target.value,
+                                                                    })
+                                                                }
+                                                                className="w-full md:w-48 px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                            >
+                                                                {PHONE_COUNTRIES.map((country) => (
+                                                                    <option key={country.code} value={country.code}>
+                                                                        {country.flag} {country.dial} {country.name}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <input
+                                                                type="text"
+                                                                value={addressDraft.phoneNumber}
+                                                                onChange={(e) =>
+                                                                    setAddressDraft({
+                                                                        ...addressDraft,
+                                                                        phoneNumber: e.target.value,
+                                                                    })
+                                                                }
+                                                                placeholder="Número de teléfono"
+                                                                className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div className="mt-6 flex gap-3">
+                                                {isEditingAddress ? (
+                                                    <>
+                                                        <button
+                                                            className="flex-1 px-3 py-2 bg-primary text-white text-xs font-bold rounded hover:bg-primary/90 transition-all"
+                                                            onClick={saveAddress}
+                                                        >
+                                                            Guardar
+                                                        </button>
+                                                        <button
+                                                            className="flex-1 px-3 py-2 bg-[#f5f2f0] border border-[#e5e1de] text-xs font-bold rounded hover:bg-white transition-all"
+                                                            onClick={() => {
+                                                                setAddressDraft(address);
+                                                                setIsEditingAddress(false);
+                                                            }}
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            className="flex-1 px-3 py-2 bg-[#f5f2f0] border border-[#e5e1de] text-xs font-bold rounded hover:bg-white transition-all"
+                                                            onClick={() => setIsEditingAddress(true)}
+                                                        >
+                                                            Editar
+                                                        </button>
+                                                        <button
+                                                            className="flex-1 px-3 py-2 bg-[#f5f2f0] border border-[#e5e1de] text-xs font-bold rounded hover:bg-white transition-all text-red-600"
+                                                            onClick={resetAddress}
+                                                        >
+                                                            Eliminar
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <ProfileIcon
-                                        name="support_agent"
-                                        className="h-[100px] w-[100px] text-white/10 absolute -bottom-4 -right-4 group-hover:scale-110 transition-transform"
-                                    />
+
+                                    <div className="bg-primary rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
+                                        <div className="relative z-10">
+                                            <h4 className="font-bold text-lg mb-2">¿Necesitás cotización mayorista?</h4>
+                                            <p className="text-white/80 text-sm mb-4">
+                                                Contactá a nuestro equipo para precios profesionales.
+                                            </p>
+                                            <button className="w-full bg-white text-primary font-bold py-2 rounded-lg text-sm hover:bg-[#f8f7f5] transition-all">
+                                                Contactar asesor
+                                            </button>
+                                        </div>
+                                        <Headset
+                                            className="h-[100px] w-[100px] text-white/10 absolute -bottom-4 -right-4 group-hover:scale-110 transition-transform"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
                             ) : null}
 
                             {activeSection === 'favorites' ? (
@@ -814,7 +775,7 @@ export default function ProfilePage() {
                                                                 className="text-[#8a7560] hover:text-red-500 transition-colors"
                                                                 aria-label="Quitar de favoritos"
                                                             >
-                                                                <ProfileIcon name="favorite" className="h-4 w-4" />
+                                                                <Heart className="h-4 w-4 fill-current" />
                                                             </button>
                                                         </div>
                                                         {showPrices ? (
@@ -847,7 +808,7 @@ export default function ProfilePage() {
                                     ) : (
                                         <div className="lg:col-span-3 bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-8 text-center text-[#8a7560]">
                                             <div className="flex items-center justify-center gap-2 text-[#181411] dark:text-white font-bold mb-3">
-                                                <ProfileIcon name="favorite" className="h-6 w-6 text-primary" />
+                                                <Heart className="h-6 w-6 text-primary fill-current" />
                                                 Favoritos
                                             </div>
                                             Todavía no agregaste favoritos.
@@ -859,7 +820,7 @@ export default function ProfilePage() {
                             {activeSection === 'security' ? (
                                 <div className="lg:col-span-3 bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-8 space-y-4">
                                     <div className="flex items-center gap-2 text-[#181411] dark:text-white font-bold">
-                                        <ProfileIcon name="security" className="h-6 w-6 text-primary" />
+                                        <Shield className="h-6 w-6 text-primary fill-current" />
                                         Seguridad
                                     </div>
                                     <div>
