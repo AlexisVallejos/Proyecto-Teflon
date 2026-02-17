@@ -121,7 +121,7 @@ publicRouter.get('/products', async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const params = [tenantId];
-    let where = 'p.tenant_id = $1 and (o.hidden is null or o.hidden = false)';
+    let where = "p.tenant_id = $1 and p.status = 'active' and (o.hidden is null or o.hidden = false)";
 
     if (q) {
       params.push(`%${q}%`);
@@ -190,7 +190,7 @@ publicRouter.get('/products/:id', async (req, res, next) => {
     }
 
     const result = await pool.query(
-      'select id, erp_id, sku, name, description, price, price_wholesale, currency, stock, brand, data from product_cache where tenant_id = $1 and id = $2',
+      "select id, erp_id, sku, name, description, price, price_wholesale, currency, stock, brand, data from product_cache where tenant_id = $1 and status = 'active' and id = $2",
       [req.tenant.id, id]
     );
     if (!result.rowCount) {
@@ -241,7 +241,7 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
         'from product_cache p',
         'join product_categories pc on pc.product_id = p.id',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
-        'where p.tenant_id = $1',
+        "where p.tenant_id = $1 and p.status = 'active'",
         'and p.id <> $2',
         'and pc.category_id = any($3::uuid[])',
         'and (o.hidden is null or o.hidden = false)',
@@ -282,7 +282,7 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
         'from collection_items ci',
         'join product_cache p on p.id = ci.product_id',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
-        'where ci.collection_id = $1 and (o.hidden is null or o.hidden = false)',
+        "where ci.collection_id = $1 and p.status = 'active' and (o.hidden is null or o.hidden = false)",
         'order by ci.sort_order asc',
       ].join(' '),
       [collection.id]

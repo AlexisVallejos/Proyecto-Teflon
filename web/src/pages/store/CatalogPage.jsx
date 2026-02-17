@@ -505,9 +505,13 @@ function CatalogProductCard({ product, showPrices, currency, locale, showStock, 
                                 <span className="text-primary font-black text-xl">
                                     {formatCurrency(price, currency, locale)}
                                 </span>
-                                {product.isWholesaleItem && (
+                                {product.isWholesaleItem ? (
                                     <span className="ml-2 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase">
                                         Precio Mayorista
+                                    </span>
+                                ) : (
+                                    <span className="ml-2 text-[10px] bg-[#181411]/10 text-[#181411] dark:bg-white/10 dark:text-white px-1.5 py-0.5 rounded font-bold uppercase">
+                                        Precio Minorista
                                     </span>
                                 )}
                                 {oldPrice ? (

@@ -22,7 +22,12 @@ export default function ProductCard({ product }) {
     addToCart({ id, sku, name, price, image, alt, stock });
   };
 
+  const isUuid =
+    typeof id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   const navigateToProduct = () => {
+    if (!isUuid) return;
     window.history.pushState({}, '', `/product/${id}`);
     window.dispatchEvent(new Event('navigate'));
   };
@@ -32,7 +37,7 @@ export default function ProductCard({ product }) {
       <div className="relative aspect-square w-full overflow-hidden rounded-lg">
         <div
           onClick={navigateToProduct}
-          className="absolute inset-0 bg-center bg-cover transition-transform duration-500 group-hover:scale-110 cursor-pointer"
+          className={`absolute inset-0 bg-center bg-cover transition-transform duration-500 group-hover:scale-110 ${isUuid ? "cursor-pointer" : ""}`}
           style={{ backgroundImage: `url("${image}")` }}
           role="img"
           aria-label={alt}

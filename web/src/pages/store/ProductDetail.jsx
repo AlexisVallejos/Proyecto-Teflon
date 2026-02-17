@@ -373,7 +373,11 @@ export default function ProductDetail() {
                                                 <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded font-bold uppercase">
                                                     Mayorista
                                                 </span>
-                                            ) : null}
+                                            ) : (
+                                                <span className="text-[10px] bg-[#181411]/10 text-[#181411] dark:bg-white/10 dark:text-white px-2 py-1 rounded font-bold uppercase">
+                                                    Minorista
+                                                </span>
+                                            )}
                                         </div>
                                     ) : (
                                         <p className="text-[#8a7560]">Contactar para precio</p>

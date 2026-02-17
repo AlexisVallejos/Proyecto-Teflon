@@ -399,17 +399,34 @@ tenantRouter.delete('/products/:id', async (req, res, next) => {
     return res.status(400).json({ error: 'invalid_product_id' });
   }
 
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      'delete from product_cache where tenant_id = $1 and id = $2 returning id',
-      [tenantId, productId]
+    await client.query('BEGIN');
+    const result = await client.query(
+      'update product_cache set status = $3, updated_at = now() where tenant_id = $1 and id = $2 returning id',
+      [tenantId, productId, 'archived']
     );
     if (!result.rowCount) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'product_not_found' });
     }
-    return res.json({ ok: true });
+
+    await client.query(
+      [
+        'insert into product_overrides (tenant_id, product_id, hidden)',
+        'values ($1, $2, true)',
+        'on conflict (tenant_id, product_id) do update set hidden = true',
+      ].join(' '),
+      [tenantId, productId]
+    );
+
+    await client.query('COMMIT');
+    return res.json({ ok: true, archived: true });
   } catch (err) {
+    await client.query('ROLLBACK');
     return next(err);
+  } finally {
+    client.release();
   }
 });
 
