@@ -15,6 +15,7 @@ import LoginPage from './pages/store/LoginPage';
 import SignupPage from './pages/store/SignupPage';
 import ProfilePage from './pages/store/ProfilePage';
 import OrderSuccessPage from './pages/store/OrderSuccessPage';
+import OrderDetailPage from './pages/store/OrderDetailPage';
 import EditorPage from './pages/admin/EditorPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -60,6 +61,7 @@ function AppContent() {
     else if (route === '/cart') Component = CartPage;
     else if (route === '/checkout') Component = CheckoutPage;
     else if (route === '/order-success') Component = OrderSuccessPage;
+    else if (route === '/order-details') Component = OrderDetailPage;
     else if (route.startsWith('/product')) Component = ProductDetail;
     else if (route === '/login') Component = LoginPage;
     else if (route === '/signup') Component = SignupPage;

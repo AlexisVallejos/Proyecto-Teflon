@@ -327,12 +327,46 @@ tenantRouter.get('/products', async (req, res, next) => {
         'select p.id, p.erp_id, p.sku, p.name, p.price, p.price_wholesale, p.stock, p.brand, p.data, (o.featured = true) as is_featured',
         'from product_cache p',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
-        'where p.tenant_id = $1',
+        "where p.tenant_id = $1 and p.status = 'active' and (o.hidden is null or o.hidden = false)",
         'order by p.name asc'
       ].join(' '),
       [tenantId]
     );
     return res.json({ items: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.get('/users', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const limit = Math.min(parseInt(req.query.limit || '10', 10), 50);
+  const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+  const offset = (page - 1) * limit;
+
+  try {
+    const countRes = await pool.query(
+      'select count(*) from user_tenants where tenant_id = $1',
+      [tenantId]
+    );
+    const total = Number(countRes.rows[0]?.count || 0);
+
+    const usersRes = await pool.query(
+      [
+        'select u.id, u.email, u.role as global_role, u.status as user_status,',
+        'ut.role as role, ut.status as status, u.created_at',
+        'from user_tenants ut',
+        'join users u on u.id = ut.user_id',
+        'where ut.tenant_id = $1',
+        'order by u.created_at desc',
+        'limit $2 offset $3',
+      ].join(' '),
+      [tenantId, limit, offset]
+    );
+
+    return res.json({ page, limit, total, items: usersRes.rows });
   } catch (err) {
     return next(err);
   }

@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "./AuthContext";
 
 const STORAGE_KEY = "teflon_cart_v1";
-const FAVORITES_KEY = "teflon_favorites_v1";
+const buildFavoritesKey = (userKey) => `teflon_favorites_${userKey || "guest"}`;
 
 const StoreContext = createContext(null);
 
@@ -29,6 +30,11 @@ const normalizeFavorite = (product) => {
 };
 
 export const StoreProvider = ({ children }) => {
+    const { user } = useAuth();
+    const favoritesKey = useMemo(
+        () => buildFavoritesKey(user?.id || user?.email || "guest"),
+        [user]
+    );
     const [search, setSearch] = useState("");
     const [cartItems, setCartItems] = useState(() => {
         try {
@@ -41,7 +47,7 @@ export const StoreProvider = ({ children }) => {
     });
     const [favorites, setFavorites] = useState(() => {
         try {
-            const raw = localStorage.getItem(FAVORITES_KEY);
+            const raw = localStorage.getItem(favoritesKey);
             return raw ? JSON.parse(raw) : [];
         } catch (err) {
             console.warn("No se pudo leer favoritos guardados", err);
@@ -61,11 +67,21 @@ export const StoreProvider = ({ children }) => {
 
     useEffect(() => {
         try {
-            localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+            const raw = localStorage.getItem(favoritesKey);
+            setFavorites(raw ? JSON.parse(raw) : []);
+        } catch (err) {
+            console.warn("No se pudo cargar favoritos del usuario", err);
+            setFavorites([]);
+        }
+    }, [favoritesKey]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(favoritesKey, JSON.stringify(favorites));
         } catch (err) {
             console.warn("No se pudo guardar favoritos", err);
         }
-    }, [favorites]);
+    }, [favorites, favoritesKey]);
 
     useEffect(() => {
         return () => {
@@ -85,10 +101,22 @@ export const StoreProvider = ({ children }) => {
         [cartItems]
     );
 
+    const showToast = useCallback((message) => {
+        if (!message) return;
+        setToast({ show: true, message });
+        if (toastTimerRef.current) {
+            clearTimeout(toastTimerRef.current);
+        }
+        toastTimerRef.current = setTimeout(() => {
+            setToast({ show: false, message: "" });
+        }, 2600);
+    }, []);
+
     const addToCart = (product, qty = 1) => {
         if (!product || !product.id) return;
         const nextQty = Math.max(1, safeNumber(qty, 1));
         const stockValue = normalizeStock(product.stock);
+        let didAdd = false;
 
         setCartItems((prev) => {
             const existing = prev.find((item) => item.id === product.id);
@@ -102,6 +130,7 @@ export const StoreProvider = ({ children }) => {
                 if (cappedQty === existing.qty) {
                     return prev;
                 }
+                didAdd = true;
                 return prev.map((item) =>
                     item.id === product.id
                         ? { ...item, qty: cappedQty, stock: stockValue ?? item.stock }
@@ -109,6 +138,7 @@ export const StoreProvider = ({ children }) => {
                 );
             }
 
+            didAdd = true;
             return [
                 ...prev,
                 {
@@ -124,6 +154,9 @@ export const StoreProvider = ({ children }) => {
                 },
             ];
         });
+        if (didAdd) {
+            showToast("Producto añadido al carrito");
+        }
     };
 
     const updateQty = (id, qty) => {
@@ -178,17 +211,6 @@ export const StoreProvider = ({ children }) => {
             return [...prev, normalized];
         });
         return added;
-    }, []);
-
-    const showToast = useCallback((message) => {
-        if (!message) return;
-        setToast({ show: true, message });
-        if (toastTimerRef.current) {
-            clearTimeout(toastTimerRef.current);
-        }
-        toastTimerRef.current = setTimeout(() => {
-            setToast({ show: false, message: "" });
-        }, 2600);
     }, []);
 
     return (

@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { navigate } from "../../utils/navigation";
+import { getApiBase, getTenantHeaders } from "../../utils/api";
 
 export default function OrderSuccessPage() {
     const [order, setOrder] = useState(null);
+    const [proofFile, setProofFile] = useState(null);
+    const [proofUploading, setProofUploading] = useState(false);
+    const [proofError, setProofError] = useState("");
+    const [proofUrl, setProofUrl] = useState("");
+    const [copiedField, setCopiedField] = useState("");
 
     useEffect(() => {
         try {
@@ -31,6 +37,82 @@ export default function OrderSuccessPage() {
 
     const items = Array.isArray(order?.items) ? order.items : [];
 
+    const shouldShowProof = order?.method && order.method !== "mp";
+    const showTransferData = order?.method && order.method !== "mp";
+
+    const alias = "av.techrepair";
+    const cbu = "0000000000000000000000";
+
+    const formatOrderTotal = () => {
+        const amount = Number(order?.total || 0);
+        const currency = order?.currency || "ARS";
+        const locale = order?.locale || "es-AR";
+        try {
+            return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
+        } catch (err) {
+            return `$${amount.toFixed(2)}`;
+        }
+    };
+
+    const copyText = async (value, field) => {
+        if (!value) return;
+        try {
+            if (navigator?.clipboard?.writeText) {
+                await navigator.clipboard.writeText(value);
+            } else {
+                const input = document.createElement("input");
+                input.value = value;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand("copy");
+                document.body.removeChild(input);
+            }
+            setCopiedField(field);
+            setTimeout(() => setCopiedField(""), 2000);
+        } catch (err) {
+            console.error("No se pudo copiar", err);
+        }
+    };
+
+    const handleUploadProof = async () => {
+        if (!order?.id) return;
+        if (!proofFile) {
+            setProofError("Seleccioná un comprobante.");
+            return;
+        }
+        setProofUploading(true);
+        setProofError("");
+        try {
+            const formData = new FormData();
+            formData.append("proof", proofFile);
+            const token = localStorage.getItem('teflon_token');
+            const res = await fetch(`${getApiBase()}/api/orders/${order.id}/proof`, {
+                method: "POST",
+                headers: {
+                    ...getTenantHeaders(),
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+                body: formData,
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || "No se pudo subir el comprobante");
+            }
+            const data = await res.json();
+            const nextUrl = data.proof_url || "";
+            setProofUrl(nextUrl);
+            const nextOrder = { ...order, payment_proof_url: nextUrl };
+            setOrder(nextOrder);
+            localStorage.setItem("teflon_last_order", JSON.stringify(nextOrder));
+            setProofFile(null);
+        } catch (err) {
+            console.error("Error al subir comprobante", err);
+            setProofError("No se pudo subir el comprobante.");
+        } finally {
+            setProofUploading(false);
+        }
+    };
+
     return (
         <StoreLayout>
             <main className="max-w-[960px] mx-auto w-full px-4 md:px-10 py-16">
@@ -57,6 +139,52 @@ export default function OrderSuccessPage() {
                         </div>
                     ) : null}
 
+                    {showTransferData ? (
+                        <div className="mt-4 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-4 text-left space-y-3">
+                            <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                Datos para transferencia
+                            </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[11px] uppercase font-black text-[#8a7560]">Alias</p>
+                                    <p className="text-sm font-bold text-[#181411] dark:text-white">{alias}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => copyText(alias, "alias")}
+                                    className="px-3 h-9 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-widest"
+                                >
+                                    Copiar
+                                </button>
+                            </div>
+                            {copiedField === "alias" ? (
+                                <div className="text-xs text-green-600 font-bold">Texto copiado</div>
+                            ) : null}
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[11px] uppercase font-black text-[#8a7560]">CBU (demo)</p>
+                                    <p className="text-sm font-bold text-[#181411] dark:text-white">{cbu}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => copyText(cbu, "cbu")}
+                                    className="px-3 h-9 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-widest"
+                                >
+                                    Copiar
+                                </button>
+                            </div>
+                            {copiedField === "cbu" ? (
+                                <div className="text-xs text-green-600 font-bold">Texto copiado</div>
+                            ) : null}
+                            <div className="pt-2 border-t border-[#e5e1de] dark:border-[#3d2f21]">
+                                <p className="text-[11px] uppercase font-black text-[#8a7560]">Total de la compra</p>
+                                <p className="text-lg font-black text-[#181411] dark:text-white">
+                                    {formatOrderTotal()}
+                                </p>
+                            </div>
+                        </div>
+                    ) : null}
+
                     {items.length ? (
                         <div className="text-left mt-6">
                             <p className="text-sm font-bold text-[#181411] dark:text-white mb-2">
@@ -76,6 +204,43 @@ export default function OrderSuccessPage() {
                                         </span>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {shouldShowProof ? (
+                        <div className="mt-6 text-left space-y-3">
+                            <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                Subir comprobante
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                                    className="text-sm"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleUploadProof}
+                                    disabled={proofUploading || !proofFile}
+                                    className="px-4 h-10 rounded-lg bg-primary text-white font-bold disabled:opacity-60"
+                                >
+                                    {proofUploading ? "Subiendo..." : "Subir comprobante"}
+                                </button>
+                                {proofError ? (
+                                    <div className="text-sm text-red-600">{proofError}</div>
+                                ) : null}
+                                {proofUrl ? (
+                                    <a
+                                        href={proofUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-sm text-primary font-bold"
+                                    >
+                                        Ver comprobante cargado
+                                    </a>
+                                ) : null}
                             </div>
                         </div>
                     ) : null}

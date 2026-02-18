@@ -22,6 +22,7 @@ import { useStore } from '../../context/StoreContext';
 import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/format';
 import { navigate } from '../../utils/navigation';
+import { getApiBase, getTenantHeaders } from '../../utils/api';
 
 const STATUS_STYLES = {
     Enviado: 'bg-primary/20 text-primary',
@@ -31,6 +32,10 @@ const STATUS_STYLES = {
     'En gestión': 'bg-blue-100 text-blue-700',
     Confirmado: 'bg-emerald-100 text-emerald-700',
     Pagado: 'bg-emerald-100 text-emerald-700',
+    'En proceso': 'bg-amber-100 text-amber-700',
+    Impaga: 'bg-rose-100 text-rose-700',
+    Cancelado: 'bg-zinc-200 text-zinc-600',
+    Borrador: 'bg-zinc-100 text-zinc-600',
 };
 
 const PHONE_COUNTRIES = [
@@ -71,6 +76,20 @@ const STATUS_ICONS = {
     'En gestión': Clock,
     Confirmado: CheckCircle,
     Pagado: CheckCircle,
+    'En proceso': Clock,
+    Impaga: Clock,
+    Cancelado: Clock,
+    Borrador: Clock,
+};
+
+const STATUS_LABELS = {
+    submitted: 'En gestión',
+    pending_payment: 'Pendiente de pago',
+    paid: 'Pagado',
+    processing: 'En proceso',
+    unpaid: 'Impaga',
+    cancelled: 'Cancelado',
+    draft: 'Borrador',
 };
 
 const ProfileIcon = ({ name, className = "h-5 w-5" }) => {
@@ -194,16 +213,57 @@ export default function ProfilePage() {
             setOrders([]);
             return;
         }
-        const key = `teflon_orders_${user.id || user.email || "guest"}`;
-        try {
-            const raw = localStorage.getItem(key);
-            const parsed = raw ? JSON.parse(raw) : [];
-            setOrders(Array.isArray(parsed) ? parsed : []);
-        } catch (err) {
-            console.warn('No se pudieron cargar los pedidos', err);
-            setOrders([]);
-        }
-    }, [user]);
+
+        const token = localStorage.getItem('teflon_token');
+        const headers = {
+            ...getTenantHeaders(),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+
+        const loadOrders = async () => {
+            try {
+                const res = await fetch(`${getApiBase()}/api/orders/mine`, { headers });
+                if (!res.ok) {
+                    throw new Error('no_orders');
+                }
+                const data = await res.json();
+                const items = Array.isArray(data.items) ? data.items : [];
+                const mapped = items.map((order) => ({
+                    id: order.id,
+                    status: STATUS_LABELS[order.status] || order.status || 'Pendiente',
+                    total: order.total,
+                    currency: order.currency || currency,
+                    locale,
+                    createdAt: order.created_at,
+                    items: Array.isArray(order.items)
+                        ? order.items.map((item) => ({
+                            id: item.product_id || item.id,
+                            sku: item.sku || item.product_id,
+                            name: item.name,
+                            qty: item.qty,
+                        }))
+                        : [],
+                    method: order.checkout_mode === 'whatsapp' ? 'whatsapp' : 'transfer',
+                }));
+                setOrders(mapped);
+                return;
+            } catch (err) {
+                console.warn('No se pudieron cargar los pedidos desde la API', err);
+            }
+
+            const key = `teflon_orders_${user.id || user.email || "guest"}`;
+            try {
+                const raw = localStorage.getItem(key);
+                const parsed = raw ? JSON.parse(raw) : [];
+                setOrders(Array.isArray(parsed) ? parsed : []);
+            } catch (err) {
+                console.warn('No se pudieron cargar los pedidos locales', err);
+                setOrders([]);
+            }
+        };
+
+        loadOrders();
+    }, [user, currency, locale]);
 
     const roleLabel = useMemo(() => {
         if (isAdmin) return 'Administrador';
@@ -243,10 +303,11 @@ export default function ProfilePage() {
     const handleViewOrder = (order) => {
         try {
             localStorage.setItem("teflon_last_order", JSON.stringify(order));
+            localStorage.setItem("teflon_selected_order", JSON.stringify(order));
         } catch (err) {
             console.warn('No se pudo guardar el pedido seleccionado', err);
         }
-        navigate('/order-success');
+        navigate(`/order-details?id=${order.id}`);
     };
 
     const updateOrderStatus = (orderId, nextStatus) => {
@@ -478,11 +539,11 @@ export default function ProfilePage() {
                             </div>
                         ) : null}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                             {showOrders ? (
-                                <div className={`${ordersSpanClass} space-y-6`}>
+                                <div className={`${ordersSpanClass} space-y-8`}>
                                     <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
-                                        <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
+                                        <div className="px-6 py-5 border-b border-[#e5e1de] dark:border-[#3d2f21] flex flex-wrap gap-3 justify-between items-center">
                                             <h3 className="font-bold text-lg">Pedidos recientes</h3>
                                             <button
                                                 type="button"
@@ -493,14 +554,14 @@ export default function ProfilePage() {
                                             </button>
                                         </div>
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-left">
+                                            <table className="w-full text-left min-w-[760px]">
                                                 <thead>
                                                     <tr className="bg-[#f5f2f0]/60 dark:bg-[#2d241c] text-xs font-bold text-[#8a7560] uppercase tracking-wider">
-                                                        <th className="px-6 py-3">Pedido</th>
-                                                        <th className="px-6 py-3">Fecha</th>
-                                                        <th className="px-6 py-3">Estado</th>
-                                                        <th className="px-6 py-3">Total</th>
-                                                        <th className="px-6 py-3">Accion</th>
+                                                        <th className="px-6 py-4">Pedido</th>
+                                                        <th className="px-6 py-4">Fecha</th>
+                                                        <th className="px-6 py-4">Estado</th>
+                                                        <th className="px-6 py-4">Total</th>
+                                                        <th className="px-6 py-4">Accion</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-[#e5e1de] dark:divide-[#3d2e21] text-sm">
@@ -510,9 +571,9 @@ export default function ProfilePage() {
                                                             const isPending = statusLabel === 'Pendiente' || statusLabel === 'Pendiente de pago';
                                                             return (
                                                                 <tr key={order.id} className="hover:bg-[#f5f2f0]/40 transition-colors">
-                                                                    <td className="px-6 py-4 font-mono font-medium">#{order.id}</td>
-                                                                    <td className="px-6 py-4">{formatOrderDate(order.createdAt)}</td>
-                                                                    <td className="px-6 py-4">
+                                                                    <td className="px-6 py-5 font-mono font-medium break-all">#{order.id}</td>
+                                                                    <td className="px-6 py-5">{formatOrderDate(order.createdAt)}</td>
+                                                                    <td className="px-6 py-5">
                                                                         <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_STYLES[statusLabel] || STATUS_STYLES.Pendiente} flex items-center gap-1 w-fit`}>
                                                                             {(() => {
                                                                                 const Icon = STATUS_ICONS[statusLabel] || STATUS_ICONS.Pendiente;
@@ -521,13 +582,13 @@ export default function ProfilePage() {
                                                                             {statusLabel}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-4 font-bold">
+                                                                    <td className="px-6 py-5 font-bold">
                                                                         {order.total != null
                                                                             ? formatCurrency(order.total, order.currency || currency, order.locale || locale)
                                                                             : '-'}
                                                                     </td>
-                                                                    <td className="px-6 py-4">
-                                                                        <div className="flex flex-col items-start gap-1">
+                                                                    <td className="px-6 py-5">
+                                                                        <div className="flex flex-col items-start gap-2">
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => handleViewOrder(order)}
@@ -552,7 +613,7 @@ export default function ProfilePage() {
                                                         })
                                                     ) : (
                                                         <tr>
-                                                            <td colSpan={5} className="px-6 py-6 text-center text-[#8a7560]">
+                                                            <td colSpan={5} className="px-6 py-8 text-center text-[#8a7560]">
                                                                 Todavía no hay pedidos recientes.
                                                             </td>
                                                         </tr>

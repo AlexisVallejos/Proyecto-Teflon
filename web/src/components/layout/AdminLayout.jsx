@@ -5,7 +5,7 @@ import { navigate } from '../../utils/navigation';
 
 export default function AdminLayout({ children, activeSection = 'home', onSectionChange }) {
     const { isDarkMode, toggleTheme } = useTheme();
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const handleSectionChange = (section) => {
         if (typeof onSectionChange === 'function') {
             onSectionChange(section);
@@ -54,6 +54,14 @@ export default function AdminLayout({ children, activeSection = 'home', onSectio
                     </button>
                     <button
                         type="button"
+                        onClick={() => handleSectionChange('users')}
+                        className={navButtonClasses(activeSection === 'users')}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6"></path><path d="M23 11h-6"></path></svg>
+                        Usuarios
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => handleSectionChange('about')}
                         className={navButtonClasses(activeSection === 'about')}
                     >
@@ -80,6 +88,16 @@ export default function AdminLayout({ children, activeSection = 'home', onSectio
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19.5 6.5L4.5 21.5"></path><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
                         Precios
                     </button>
+                    {user?.role === 'master_admin' ? (
+                        <button
+                            type="button"
+                            onClick={() => handleSectionChange('tenants')}
+                            className={navButtonClasses(activeSection === 'tenants')}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                            Empresas
+                        </button>
+                    ) : null}
                 </nav>
 
                 <div className="p-4 border-t border-gray-200 dark:border-[#3d2f21]">
@@ -134,3 +152,4 @@ export default function AdminLayout({ children, activeSection = 'home', onSectio
         </div>
     );
 }
+

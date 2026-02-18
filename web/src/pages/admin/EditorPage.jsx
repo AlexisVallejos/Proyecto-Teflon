@@ -3,6 +3,7 @@ import AdminLayout from '../../components/layout/AdminLayout';
 import PageBuilder from '../../components/PageBuilder';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { DEFAULT_ABOUT_SECTIONS, DEFAULT_HOME_SECTIONS } from '../../data/defaultSections';
+import { useAuth } from '../../context/AuthContext';
 
 export default function EditorPage() {
     const [activeTab, setActiveTab] = useState('home');
@@ -78,6 +79,23 @@ export default function EditorPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState({ show: false, message: '' });
+    const [tenants, setTenants] = useState([]);
+    const [tenantsLoading, setTenantsLoading] = useState(false);
+    const [tenantsError, setTenantsError] = useState('');
+    const [usersList, setUsersList] = useState([]);
+    const [usersPage, setUsersPage] = useState(1);
+    const [usersTotal, setUsersTotal] = useState(0);
+    const [usersLoading, setUsersLoading] = useState(false);
+    const [usersError, setUsersError] = useState('');
+    const USERS_LIMIT = 10;
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [userOrders, setUserOrders] = useState([]);
+    const [userOrdersLoading, setUserOrdersLoading] = useState(false);
+    const [userOrdersError, setUserOrdersError] = useState('');
+    const [orderUpdatingId, setOrderUpdatingId] = useState(null);
+    const [expandedOrders, setExpandedOrders] = useState({});
+    const [userOrdersFilter, setUserOrdersFilter] = useState('all');
+    const { user } = useAuth();
     const sectionPageKey = activeTab === 'about' ? 'about' : 'home';
     const sections = pageSections[sectionPageKey] || [];
     const priceAdjustments = settings.commerce?.price_adjustments || {
@@ -87,6 +105,101 @@ export default function EditorPage() {
         promo_percent: 0,
         promo_scope: 'both',
         promo_label: 'Oferta',
+    };
+    const usersTotalPages = Math.max(1, Math.ceil(usersTotal / USERS_LIMIT));
+    const canPrevUsers = usersPage > 1;
+    const canNextUsers = usersPage < usersTotalPages;
+    const ORDER_STATUS_OPTIONS = [
+        { value: 'draft', label: 'Borrador' },
+        { value: 'pending_payment', label: 'Pendiente' },
+        { value: 'processing', label: 'En proceso' },
+        { value: 'paid', label: 'Pagado' },
+        { value: 'unpaid', label: 'Impaga' },
+        { value: 'submitted', label: 'Recibido' },
+        { value: 'cancelled', label: 'Cancelado' },
+    ];
+    const formatOrderTotal = (value, currency = 'ARS') => {
+        const amount = Number(value || 0);
+        try {
+            return new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(amount);
+        } catch (err) {
+            return `$${amount.toFixed(2)}`;
+        }
+    };
+    const formatCustomerName = (customer = {}) => {
+        return (
+            customer.full_name ||
+            customer.fullName ||
+            customer.name ||
+            customer.customer_name ||
+            ''
+        );
+    };
+    const formatCustomerPhone = (customer = {}) => {
+        return customer.phone || customer.phone_number || customer.whatsapp || '';
+    };
+    const formatCustomerEmail = (customer = {}) => {
+        return customer.email || '';
+    };
+    const formatCustomerAddress = (customer = {}) => {
+        if (customer.fullAddress) return customer.fullAddress;
+        if (customer.address) return customer.address;
+        const shipping = customer.shipping || customer.shipping_address || {};
+        const parts = [
+            customer.line1 || shipping.line1 || customer.address_line1,
+            customer.line2 || shipping.line2 || customer.address_line2,
+            customer.city || shipping.city,
+            customer.state || shipping.state,
+            customer.zip || shipping.zip || customer.postal_code,
+            customer.country || shipping.country,
+        ].filter(Boolean);
+        return parts.join(', ');
+    };
+    const formatDeliveryMethod = (customer = {}) => {
+        const method = customer.delivery_method || customer.deliveryMethod || '';
+        if (method === 'home') return 'Entrega a domicilio';
+        if (method === 'mdp') return 'Retiro: Mar del Plata';
+        if (method === 'necochea') return 'Retiro: Necochea';
+        return method || '-';
+    };
+    const formatPaymentDetail = (order) => {
+        const customer = order?.customer || {};
+        const method = (customer.payment_method || customer.payment || '').toString().toLowerCase();
+        if (method === 'mp' || method === 'mercadopago') {
+            return 'Mercado Pago (online)';
+        }
+        if (order.checkout_mode === 'online') {
+            return 'Mercado Pago (online)';
+        }
+        if (order.checkout_mode === 'transfer') {
+            return method.includes('efectivo') ? 'Transferencia / Efectivo' : 'Transferencia';
+        }
+        if (order.checkout_mode === 'whatsapp') {
+            return method || 'WhatsApp (efectivo o transferencia)';
+        }
+        return method || order.checkout_mode || '-';
+    };
+    const getPaymentProof = (customer = {}) => {
+        return (
+            customer.payment_proof_url ||
+            customer.paymentProofUrl ||
+            customer.receipt_url ||
+            customer.receiptUrl ||
+            customer.proof_url ||
+            customer.proofUrl ||
+            customer.payment_proof ||
+            ''
+        );
+    };
+    const isImageUrl = (value) => {
+        if (!value) return false;
+        const clean = value.split('?')[0];
+        return /\.(png|jpe?g|gif|webp)$/i.test(clean);
+    };
+    const isPdfUrl = (value) => {
+        if (!value) return false;
+        const clean = value.split('?')[0];
+        return /\.pdf$/i.test(clean);
     };
     const setSections = (nextValue) => {
         setPageSections((prev) => {
@@ -113,11 +226,156 @@ export default function EditorPage() {
         setTimeout(() => setToast({ show: false, message: '' }), 3000);
     };
 
+    const loadTenants = useCallback(async () => {
+        if (user?.role !== 'master_admin') {
+            setTenants([]);
+            setTenantsError('Solo el usuario master admin puede ver empresas.');
+            return;
+        }
+        setTenantsLoading(true);
+        setTenantsError('');
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+            };
+            const res = await fetch(`${getApiBase()}/admin/tenants`, { headers });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo cargar empresas');
+            }
+            const data = await res.json();
+            setTenants(Array.isArray(data.items) ? data.items : []);
+        } catch (err) {
+            console.error('Failed to load tenants', err);
+            setTenantsError('No se pudieron cargar las empresas.');
+        } finally {
+            setTenantsLoading(false);
+        }
+    }, [user]);
+
+    const loadUsers = useCallback(async (pageOverride) => {
+        setUsersLoading(true);
+        setUsersError('');
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Authorization': `Bearer ${token}`,
+            };
+            const pageToLoad = pageOverride ?? usersPage;
+            const url = new URL(`${getApiBase()}/tenant/users`);
+            url.searchParams.set('page', String(pageToLoad));
+            url.searchParams.set('limit', String(USERS_LIMIT));
+            const res = await fetch(url.toString(), { headers });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo cargar usuarios');
+            }
+            const data = await res.json();
+            setUsersList(Array.isArray(data.items) ? data.items : []);
+            setUsersTotal(data.total || 0);
+        } catch (err) {
+            console.error('Failed to load users', err);
+            setUsersError('No se pudieron cargar los usuarios.');
+            setUsersList([]);
+            setUsersTotal(0);
+        } finally {
+            setUsersLoading(false);
+        }
+    }, [USERS_LIMIT, usersPage]);
+
+    const loadUserOrders = useCallback(async (userId) => {
+        if (!userId) return;
+        setUserOrdersLoading(true);
+        setUserOrdersError('');
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Authorization': `Bearer ${token}`,
+            };
+            const url = new URL(`${getApiBase()}/api/admin/orders`);
+            url.searchParams.set('user_id', userId);
+            const res = await fetch(url.toString(), { headers });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo cargar pedidos');
+            }
+            const data = await res.json();
+            setUserOrders(Array.isArray(data.items) ? data.items : []);
+        } catch (err) {
+            console.error('Failed to load user orders', err);
+            setUserOrdersError('No se pudieron cargar las compras del usuario.');
+            setUserOrders([]);
+        } finally {
+            setUserOrdersLoading(false);
+        }
+    }, []);
+
+    const updateOrderStatus = useCallback(async (orderId, nextStatus) => {
+        if (!orderId || !nextStatus) return;
+        setOrderUpdatingId(orderId);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            };
+            const res = await fetch(`${getApiBase()}/api/admin/orders/${orderId}/status`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ status: nextStatus }),
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo actualizar el estado');
+            }
+            const data = await res.json();
+            if (data?.order?.status) {
+                setUserOrders((prev) => prev.map((order) =>
+                    order.id === orderId ? { ...order, status: data.order.status } : order
+                ));
+                showSuccess('Estado actualizado');
+            }
+        } catch (err) {
+            console.error('Failed to update order status', err);
+            alert('No se pudo actualizar el estado');
+        } finally {
+            setOrderUpdatingId(null);
+        }
+    }, []);
+
     useEffect(() => () => {
         if (moveAnimationTimeout.current) {
             clearTimeout(moveAnimationTimeout.current);
         }
     }, []);
+
+    useEffect(() => {
+        if (activeTab === 'tenants') {
+            loadTenants();
+        }
+    }, [activeTab, loadTenants]);
+
+    useEffect(() => {
+        if (activeTab === 'users') {
+            loadUsers();
+        }
+    }, [activeTab, usersPage, loadUsers]);
+
+    useEffect(() => {
+        if (activeTab === 'users' && selectedUser?.id) {
+            loadUserOrders(selectedUser.id);
+        }
+    }, [activeTab, selectedUser, loadUserOrders]);
+
+    useEffect(() => {
+        if (activeTab === 'users') {
+            setUserOrdersFilter('all');
+        }
+    }, [activeTab, selectedUser]);
 
     const isImageIcon = (value) =>
         typeof value === 'string' &&
@@ -762,13 +1020,17 @@ export default function EditorPage() {
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7560]">
                             {activeTab === 'appearance'
                                 ? 'Apariencia'
-                                : activeTab === 'pricing'
-                                    ? 'Precios'
-                                : activeTab === 'catalog'
-                                    ? 'Catalogo'
-                                    : activeTab === 'about'
-                                        ? 'Sobre nosotros'
-                                        : 'Inicio'}
+                                : activeTab === 'tenants'
+                                    ? 'Empresas'
+                                    : activeTab === 'users'
+                                        ? 'Usuarios'
+                                    : activeTab === 'pricing'
+                                        ? 'Precios'
+                                        : activeTab === 'catalog'
+                                            ? 'Catalogo'
+                                            : activeTab === 'about'
+                                                ? 'Sobre nosotros'
+                                                : 'Inicio'}
                         </p>
                     </div>
 
@@ -1042,6 +1304,310 @@ export default function EditorPage() {
                                                 className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px]"
                                             />
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : activeTab === 'users' ? (
+                            <div className="space-y-6 animate-in fade-in duration-300 pb-10">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mb-4">Usuarios registrados</p>
+                                    <div className="space-y-3 bg-zinc-50 dark:bg-white/5 p-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                        {usersLoading ? (
+                                            <div className="text-[11px] text-[#8a7560]">Cargando usuarios...</div>
+                                        ) : usersError ? (
+                                            <div className="text-[11px] text-red-600">{usersError}</div>
+                                        ) : usersList.length === 0 ? (
+                                            <div className="text-[11px] text-[#8a7560]">No hay usuarios registrados.</div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {usersList.map((item) => {
+                                                    const roleLabel = item.role === 'wholesale'
+                                                        ? 'Mayorista'
+                                                        : item.role === 'retail'
+                                                            ? 'Minorista'
+                                                            : item.role === 'tenant_admin'
+                                                                ? 'Admin'
+                                                                : item.role || 'Usuario';
+                                                    const statusLabel = item.status === 'pending'
+                                                        ? 'Pendiente'
+                                                        : item.status === 'active'
+                                                            ? 'Activo'
+                                                            : item.status || 'Estado';
+                                                    return (
+                                                        <div key={item.id} className={`flex flex-col gap-2 rounded-xl border p-3 transition-all ${selectedUser?.id === item.id ? 'border-primary bg-primary/5' : 'border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c]'}`}>
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-bold text-[#181411] dark:text-white truncate">{item.email}</p>
+                                                                    <p className="text-[10px] text-[#8a7560]">ID: {item.id}</p>
+                                                                </div>
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-zinc-100 text-zinc-700">
+                                                                        {roleLabel}
+                                                                    </span>
+                                                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${item.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                        {statusLabel}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center justify-between">
+                                                                <p className="text-[10px] text-[#8a7560]">
+                                                                    Alta: {item.created_at ? new Date(item.created_at).toLocaleDateString('es-AR') : '-'}
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setSelectedUser(item);
+                                                                        setExpandedOrders({});
+                                                                    }}
+                                                                    className="text-[10px] font-black uppercase tracking-widest text-primary"
+                                                                >
+                                                                    Ver compras
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center justify-between pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setUsersPage((prev) => Math.max(1, prev - 1))}
+                                                disabled={!canPrevUsers}
+                                                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${canPrevUsers ? 'bg-white dark:bg-[#1a130c] border border-[#e5e1de] dark:border-[#3d2f21] hover:scale-105' : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'}`}
+                                            >
+                                                Anterior
+                                            </button>
+                                            <span className="text-[10px] font-bold text-[#8a7560]">
+                                                Pagina {usersPage} de {usersTotalPages}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setUsersPage((prev) => Math.min(usersTotalPages, prev + 1))}
+                                                disabled={!canNextUsers}
+                                                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${canNextUsers ? 'bg-white dark:bg-[#1a130c] border border-[#e5e1de] dark:border-[#3d2f21] hover:scale-105' : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'}`}
+                                            >
+                                                Siguiente
+                                            </button>
+                                        </div>
+                                        {selectedUser ? (
+                                            <div className="mt-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] p-4">
+                                                <div className="flex items-center justify-between gap-3 mb-3">
+                                                    <div>
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Compras del usuario</p>
+                                                        <p className="text-sm font-bold text-[#181411] dark:text-white">{selectedUser.email}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={userOrdersFilter}
+                                                            onChange={(e) => setUserOrdersFilter(e.target.value)}
+                                                            className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-bold"
+                                                        >
+                                                            <option value="all">Todos</option>
+                                                            {ORDER_STATUS_OPTIONS.map((option) => (
+                                                                <option key={option.value} value={option.value}>{option.label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedUser(null);
+                                                            setUserOrders([]);
+                                                            setUserOrdersError('');
+                                                            setExpandedOrders({});
+                                                        }}
+                                                        className="text-[10px] font-black uppercase tracking-widest text-[#8a7560]"
+                                                    >
+                                                        Cerrar
+                                                    </button>
+                                                </div>
+
+                                                {userOrdersLoading ? (
+                                                    <div className="text-[11px] text-[#8a7560]">Cargando compras...</div>
+                                                ) : userOrdersError ? (
+                                                    <div className="text-[11px] text-red-600">{userOrdersError}</div>
+                                                ) : userOrders.length === 0 ? (
+                                                    <div className="text-[11px] text-[#8a7560]">Este usuario no tiene compras.</div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        {userOrders
+                                                            .filter((order) => userOrdersFilter === 'all' ? true : order.status === userOrdersFilter)
+                                                            .map((order) => {
+                                                            const statusLabel = ORDER_STATUS_OPTIONS.find((opt) => opt.value === order.status)?.label || order.status;
+                                                            return (
+                                                                <div key={order.id} className="rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-3">
+                                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                        <div>
+                                                                            <p className="text-[10px] font-black uppercase tracking-widest text-[#8a7560]">Pedido</p>
+                                                                            <p className="text-xs font-bold text-[#181411] dark:text-white">{order.id}</p>
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            <p className="text-[10px] text-[#8a7560]">Total</p>
+                                                                            <p className="text-sm font-bold text-[#181411] dark:text-white">{formatOrderTotal(order.total, order.currency || 'ARS')}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                                                                        <div className="text-[10px] text-[#8a7560]">
+                                                                            {order.checkout_mode === 'whatsapp' ? 'WhatsApp' : 'Transferencia'} · {order.created_at ? new Date(order.created_at).toLocaleDateString('es-AR') : '-'}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <select
+                                                                                value={order.status}
+                                                                                onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                                                                                disabled={orderUpdatingId === order.id}
+                                                                                className="px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-bold"
+                                                                            >
+                                                                                {ORDER_STATUS_OPTIONS.map((option) => (
+                                                                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-zinc-100 text-zinc-700">
+                                                                                {statusLabel}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateOrderStatus(order.id, 'paid')}
+                                                                            disabled={orderUpdatingId === order.id || order.status === 'paid'}
+                                                                            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${order.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-green-600 text-white hover:scale-105'}`}
+                                                                        >
+                                                                            Marcar pagado
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setExpandedOrders((prev) => ({ ...prev, [order.id]: !prev[order.id] }))}
+                                                                            className="text-[10px] font-black uppercase tracking-widest text-primary"
+                                                                        >
+                                                                            {expandedOrders[order.id] ? 'Ocultar detalles' : 'Ver detalles'}
+                                                                        </button>
+                                                                    </div>
+                                                                    {order.items?.length ? (
+                                                                        <div className="mt-2 text-[10px] text-[#8a7560]">
+                                                                            {order.items.map((item) => `${item.name} x${item.qty}`).join(' · ')}
+                                                                        </div>
+                                                                    ) : null}
+                                                                    {expandedOrders[order.id] ? (
+                                                                        <div className="mt-3 space-y-2 text-[10px] text-[#8a7560]">
+                                                                            <div>
+                                                                                <span className="font-black uppercase text-[#8a7560]">Cliente:</span>{' '}
+                                                                                {formatCustomerName(order.customer) || '-'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="font-black uppercase text-[#8a7560]">TelÃ©fono:</span>{' '}
+                                                                                {formatCustomerPhone(order.customer) || '-'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="font-black uppercase text-[#8a7560]">Email:</span>{' '}
+                                                                                {formatCustomerEmail(order.customer) || '-'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="font-black uppercase text-[#8a7560]">DirecciÃ³n:</span>{' '}
+                                                                                {formatCustomerAddress(order.customer) || '-'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="font-black uppercase text-[#8a7560]">Entrega:</span>{' '}
+                                                                                {formatDeliveryMethod(order.customer) || '-'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <span className="font-black uppercase text-[#8a7560]">Pago:</span>{' '}
+                                                                                {formatPaymentDetail(order)}
+                                                                            </div>
+                                                                            {getPaymentProof(order.customer) ? (
+                                                                                <div>
+                                                                                    <span className="font-black uppercase text-[#8a7560]">Comprobante:</span>{' '}
+                                                                                    <a
+                                                                                        href={getPaymentProof(order.customer)}
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        className="text-primary font-bold"
+                                                                                    >
+                                                                                        Ver comprobante
+                                                                                    </a>
+                                                                                </div>
+                                                                            ) : null}
+                                                                            {getPaymentProof(order.customer) && isImageUrl(getPaymentProof(order.customer)) ? (
+                                                                                <div className="mt-2">
+                                                                                    <img
+                                                                                        src={getPaymentProof(order.customer)}
+                                                                                        alt="Comprobante"
+                                                                                        className="max-w-full h-auto rounded-lg border border-[#e5e1de] dark:border-[#3d2f21]"
+                                                                                    />
+                                                                                </div>
+                                                                            ) : null}
+                                                                            {getPaymentProof(order.customer) && isPdfUrl(getPaymentProof(order.customer)) ? (
+                                                                                <div className="mt-2">
+                                                                                    <a
+                                                                                        href={getPaymentProof(order.customer)}
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        className="inline-flex items-center gap-2 text-primary font-bold"
+                                                                                    >
+                                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                                                                                        Ver PDF
+                                                                                    </a>
+                                                                                </div>
+                                                                            ) : null}
+                                                                            {order.customer?.notes ? (
+                                                                                <div>
+                                                                                    <span className="font-black uppercase text-[#8a7560]">Notas:</span>{' '}
+                                                                                    {order.customer.notes}
+                                                                                </div>
+                                                                            ) : null}
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : activeTab === 'tenants' ? (
+                            <div className="space-y-6 animate-in fade-in duration-300 pb-10">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mb-4">Empresas registradas</p>
+                                    <div className="space-y-3 bg-zinc-50 dark:bg-white/5 p-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                        {tenantsLoading ? (
+                                            <div className="text-[11px] text-[#8a7560]">Cargando empresas...</div>
+                                        ) : tenantsError ? (
+                                            <div className="text-[11px] text-red-600">{tenantsError}</div>
+                                        ) : tenants.length === 0 ? (
+                                            <div className="text-[11px] text-[#8a7560]">No hay empresas registradas.</div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {tenants.map((tenant) => (
+                                                    <div key={tenant.id} className="flex flex-col gap-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] p-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-sm font-bold text-[#181411] dark:text-white">{tenant.name}</p>
+                                                                <p className="text-[10px] text-[#8a7560]">ID: {tenant.id}</p>
+                                                            </div>
+                                                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${tenant.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-zinc-200 text-zinc-600'}`}>
+                                                                {tenant.status}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[10px] text-[#8a7560]">
+                                                            Creado: {tenant.created_at ? new Date(tenant.created_at).toLocaleDateString('es-AR') : '-'}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {user?.role === 'master_admin' ? (
+                                            <button
+                                                type="button"
+                                                onClick={loadTenants}
+                                                className="mt-2 px-3 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+                                            >
+                                                Recargar
+                                            </button>
+                                        ) : null}
                                     </div>
                                 </div>
                             </div>
