@@ -87,6 +87,23 @@ export default function EditorPage() {
     const [usersTotal, setUsersTotal] = useState(0);
     const [usersLoading, setUsersLoading] = useState(false);
     const [usersError, setUsersError] = useState('');
+    const [usersAdjustmentDrafts, setUsersAdjustmentDrafts] = useState({});
+    const [usersSavingAdjustmentId, setUsersSavingAdjustmentId] = useState(null);
+    const [offers, setOffers] = useState([]);
+    const [offersLoading, setOffersLoading] = useState(false);
+    const [offersError, setOffersError] = useState('');
+    const [offerUsers, setOfferUsers] = useState([]);
+    const [offerFormSaving, setOfferFormSaving] = useState(false);
+    const [offerDeleteId, setOfferDeleteId] = useState(null);
+    const [editingOfferId, setEditingOfferId] = useState(null);
+    const [offerForm, setOfferForm] = useState({
+        name: '',
+        label: 'Oferta',
+        percent: 0,
+        enabled: true,
+        user_ids: [],
+        category_ids: [],
+    });
     const USERS_LIMIT = 10;
     const [selectedUser, setSelectedUser] = useState(null);
     const [userOrders, setUserOrders] = useState([]);
@@ -273,8 +290,18 @@ export default function EditorPage() {
                 throw new Error(msg || 'No se pudo cargar usuarios');
             }
             const data = await res.json();
-            setUsersList(Array.isArray(data.items) ? data.items : []);
+            const items = Array.isArray(data.items) ? data.items : [];
+            setUsersList(items);
             setUsersTotal(data.total || 0);
+            setUsersAdjustmentDrafts((prev) => {
+                const next = { ...prev };
+                for (const item of items) {
+                    if (next[item.id] === undefined) {
+                        next[item.id] = Number(item.price_adjustment_percent || 0);
+                    }
+                }
+                return next;
+            });
         } catch (err) {
             console.error('Failed to load users', err);
             setUsersError('No se pudieron cargar los usuarios.');
@@ -284,6 +311,228 @@ export default function EditorPage() {
             setUsersLoading(false);
         }
     }, [USERS_LIMIT, usersPage]);
+
+    const resetOfferForm = useCallback(() => {
+        setEditingOfferId(null);
+        setOfferForm({
+            name: '',
+            label: 'Oferta',
+            percent: 0,
+            enabled: true,
+            user_ids: [],
+            category_ids: [],
+        });
+    }, []);
+
+    const loadOffers = useCallback(async () => {
+        setOffersLoading(true);
+        setOffersError('');
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Authorization': `Bearer ${token}`,
+            };
+            const res = await fetch(`${getApiBase()}/tenant/offers`, { headers });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudieron cargar ofertas');
+            }
+            const data = await res.json();
+            setOffers(Array.isArray(data.items) ? data.items : []);
+        } catch (err) {
+            console.error('Failed to load offers', err);
+            setOffersError('No se pudieron cargar las ofertas.');
+            setOffers([]);
+        } finally {
+            setOffersLoading(false);
+        }
+    }, []);
+
+    const loadOfferUsers = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Authorization': `Bearer ${token}`,
+            };
+            const url = new URL(`${getApiBase()}/tenant/users`);
+            url.searchParams.set('page', '1');
+            url.searchParams.set('limit', '200');
+            const res = await fetch(url.toString(), { headers });
+            if (!res.ok) return;
+            const data = await res.json();
+            setOfferUsers(Array.isArray(data.items) ? data.items : []);
+        } catch (err) {
+            console.error('Failed to load users for offers', err);
+        }
+    }, []);
+
+    const submitOffer = useCallback(async () => {
+        const payload = {
+            name: String(offerForm.name || '').trim(),
+            label: String(offerForm.label || 'Oferta').trim() || 'Oferta',
+            percent: Number(offerForm.percent || 0),
+            enabled: !!offerForm.enabled,
+            user_ids: Array.isArray(offerForm.user_ids) ? offerForm.user_ids : [],
+            category_ids: Array.isArray(offerForm.category_ids) ? offerForm.category_ids : [],
+        };
+
+        if (!payload.name) {
+            alert('Completa el nombre de la oferta');
+            return;
+        }
+
+        if (!Number.isFinite(payload.percent) || payload.percent < 0 || payload.percent > 100) {
+            alert('El porcentaje debe estar entre 0 y 100');
+            return;
+        }
+
+        setOfferFormSaving(true);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            };
+            const endpoint = editingOfferId
+                ? `${getApiBase()}/tenant/offers/${editingOfferId}`
+                : `${getApiBase()}/tenant/offers`;
+            const method = editingOfferId ? 'PUT' : 'POST';
+
+            const res = await fetch(endpoint, {
+                method,
+                headers,
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo guardar la oferta');
+            }
+
+            await loadOffers();
+            resetOfferForm();
+            showSuccess(editingOfferId ? 'Oferta actualizada' : 'Oferta creada');
+        } catch (err) {
+            console.error('Failed to save offer', err);
+            alert('No se pudo guardar la oferta');
+        } finally {
+            setOfferFormSaving(false);
+        }
+    }, [editingOfferId, loadOffers, offerForm, resetOfferForm]);
+
+    const removeOffer = useCallback(async (offerId) => {
+        if (!offerId) return;
+        if (!window.confirm('¿Eliminar esta oferta?')) return;
+
+        setOfferDeleteId(offerId);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Authorization': `Bearer ${token}`,
+            };
+            const res = await fetch(`${getApiBase()}/tenant/offers/${offerId}`, {
+                method: 'DELETE',
+                headers,
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo eliminar la oferta');
+            }
+            await loadOffers();
+            if (editingOfferId === offerId) {
+                resetOfferForm();
+            }
+            showSuccess('Oferta eliminada');
+        } catch (err) {
+            console.error('Failed to delete offer', err);
+            alert('No se pudo eliminar la oferta');
+        } finally {
+            setOfferDeleteId(null);
+        }
+    }, [editingOfferId, loadOffers, resetOfferForm]);
+
+    const editOffer = useCallback((offer) => {
+        setEditingOfferId(offer.id);
+        setOfferForm({
+            name: offer.name || '',
+            label: offer.label || 'Oferta',
+            percent: Number(offer.percent || 0),
+            enabled: offer.enabled !== false,
+            user_ids: Array.isArray(offer.user_ids) ? offer.user_ids : [],
+            category_ids: Array.isArray(offer.category_ids) ? offer.category_ids : [],
+        });
+    }, []);
+
+    const toggleOfferUser = (userId) => {
+        setOfferForm((prev) => {
+            const current = Array.isArray(prev.user_ids) ? prev.user_ids : [];
+            const exists = current.includes(userId);
+            return {
+                ...prev,
+                user_ids: exists ? current.filter((id) => id !== userId) : [...current, userId],
+            };
+        });
+    };
+
+    const toggleOfferCategory = (categoryId) => {
+        setOfferForm((prev) => {
+            const current = Array.isArray(prev.category_ids) ? prev.category_ids : [];
+            const exists = current.includes(categoryId);
+            return {
+                ...prev,
+                category_ids: exists ? current.filter((id) => id !== categoryId) : [...current, categoryId],
+            };
+        });
+    };
+
+    const updateUserPriceAdjustment = useCallback(async (userId) => {
+        const draftValue = Number(usersAdjustmentDrafts[userId] ?? 0);
+        if (!Number.isFinite(draftValue)) {
+            alert('El porcentaje no es valido');
+            return;
+        }
+
+        setUsersSavingAdjustmentId(userId);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            };
+            const res = await fetch(`${getApiBase()}/tenant/users/${userId}/price-adjustment`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ price_adjustment_percent: draftValue }),
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo guardar el ajuste');
+            }
+
+            const data = await res.json();
+            const savedValue = Number(data?.item?.price_adjustment_percent ?? draftValue);
+
+            setUsersList((prev) => prev.map((item) => (
+                item.id === userId ? { ...item, price_adjustment_percent: savedValue } : item
+            )));
+            setUsersAdjustmentDrafts((prev) => ({ ...prev, [userId]: savedValue }));
+
+            if (selectedUser?.id === userId) {
+                setSelectedUser((prev) => prev ? { ...prev, price_adjustment_percent: savedValue } : prev);
+            }
+
+            showSuccess('Ajuste por usuario guardado');
+        } catch (err) {
+            console.error('Failed to update user price adjustment', err);
+            alert('No se pudo guardar el ajuste por usuario');
+        } finally {
+            setUsersSavingAdjustmentId(null);
+        }
+    }, [selectedUser, usersAdjustmentDrafts]);
 
     const loadUserOrders = useCallback(async (userId) => {
         if (!userId) return;
@@ -364,6 +613,13 @@ export default function EditorPage() {
             loadUsers();
         }
     }, [activeTab, usersPage, loadUsers]);
+
+    useEffect(() => {
+        if (activeTab === 'pricing') {
+            loadOffers();
+            loadOfferUsers();
+        }
+    }, [activeTab, loadOffers, loadOfferUsers]);
 
     useEffect(() => {
         if (activeTab === 'users' && selectedUser?.id) {
@@ -1306,6 +1562,160 @@ export default function EditorPage() {
                                         </div>
                                     </div>
                                 </div>
+
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-[#8a7560] tracking-widest mb-4">Ofertas por clientes y categorias</p>
+                                    <div className="space-y-4 bg-zinc-50 dark:bg-white/5 p-4 rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div className="space-y-2">
+                                                <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Nombre</label>
+                                                <input
+                                                    type="text"
+                                                    value={offerForm.name}
+                                                    onChange={(e) => setOfferForm((prev) => ({ ...prev, name: e.target.value }))}
+                                                    placeholder="Ej: Oferta Clientes VIP"
+                                                    className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Etiqueta</label>
+                                                <input
+                                                    type="text"
+                                                    value={offerForm.label}
+                                                    onChange={(e) => setOfferForm((prev) => ({ ...prev, label: e.target.value }))}
+                                                    placeholder="Oferta"
+                                                    className="w-full px-3 py-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px]"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Descuento (%)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.1"
+                                                    value={offerForm.percent}
+                                                    onChange={(e) => setOfferForm((prev) => ({ ...prev, percent: Number(e.target.value || 0) }))}
+                                                    className="w-24 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-xs font-mono text-right"
+                                                />
+                                            </div>
+                                            <label className="inline-flex items-center gap-2 text-[10px] font-bold text-[#8a7560]">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={offerForm.enabled}
+                                                    onChange={(e) => setOfferForm((prev) => ({ ...prev, enabled: e.target.checked }))}
+                                                />
+                                                Activa
+                                            </label>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Usuarios objetivo (vacio = todos)</p>
+                                                <div className="max-h-36 overflow-auto rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] p-2 space-y-1">
+                                                    {offerUsers.length === 0 ? (
+                                                        <p className="text-[10px] text-[#8a7560]">Sin usuarios para seleccionar.</p>
+                                                    ) : offerUsers.map((userItem) => (
+                                                        <label key={userItem.id} className="flex items-center gap-2 text-[10px] text-[#181411] dark:text-white">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={(offerForm.user_ids || []).includes(userItem.id)}
+                                                                onChange={() => toggleOfferUser(userItem.id)}
+                                                            />
+                                                            <span className="truncate">{userItem.email}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Categorias objetivo (vacio = todas)</p>
+                                                <div className="max-h-36 overflow-auto rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] p-2 space-y-1">
+                                                    {categories.length === 0 ? (
+                                                        <p className="text-[10px] text-[#8a7560]">Sin categorias para seleccionar.</p>
+                                                    ) : categories.map((categoryItem) => (
+                                                        <label key={categoryItem.id} className="flex items-center gap-2 text-[10px] text-[#181411] dark:text-white">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={(offerForm.category_ids || []).includes(categoryItem.id)}
+                                                                onChange={() => toggleOfferCategory(categoryItem.id)}
+                                                            />
+                                                            <span className="truncate">{categoryItem.name}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={submitOffer}
+                                                disabled={offerFormSaving}
+                                                className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${offerFormSaving ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed' : 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:scale-105'}`}
+                                            >
+                                                {editingOfferId ? 'Actualizar oferta' : 'Crear oferta'}
+                                            </button>
+                                            {editingOfferId ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={resetOfferForm}
+                                                    className="px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[#e5e1de] dark:border-[#3d2f21]"
+                                                >
+                                                    Cancelar edicion
+                                                </button>
+                                            ) : null}
+                                        </div>
+
+                                        <div className="pt-3 border-t border-[#e5e1de] dark:border-[#3d2f21]">
+                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8a7560] mb-2">Ofertas creadas</p>
+                                            {offersLoading ? (
+                                                <p className="text-[10px] text-[#8a7560]">Cargando ofertas...</p>
+                                            ) : offersError ? (
+                                                <p className="text-[10px] text-red-600">{offersError}</p>
+                                            ) : offers.length === 0 ? (
+                                                <p className="text-[10px] text-[#8a7560]">Todavia no hay ofertas avanzadas.</p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {offers.map((offerItem) => (
+                                                        <div key={offerItem.id} className="rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] p-3">
+                                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                <div>
+                                                                    <p className="text-[11px] font-black text-[#181411] dark:text-white">{offerItem.name}</p>
+                                                                    <p className="text-[10px] text-[#8a7560]">
+                                                                        {offerItem.percent}% · {offerItem.enabled ? 'Activa' : 'Inactiva'} · etiqueta: {offerItem.label || 'Oferta'}
+                                                                    </p>
+                                                                    <p className="text-[10px] text-[#8a7560]">
+                                                                        Usuarios: {(offerItem.user_ids || []).length || 'Todos'} · Categorias: {(offerItem.category_ids || []).length || 'Todas'}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => editOffer(offerItem)}
+                                                                        className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border border-[#e5e1de] dark:border-[#3d2f21]"
+                                                                    >
+                                                                        Editar
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeOffer(offerItem.id)}
+                                                                        disabled={offerDeleteId === offerItem.id}
+                                                                        className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${offerDeleteId === offerItem.id ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed' : 'bg-red-600 text-white'}`}
+                                                                    >
+                                                                        Eliminar
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ) : activeTab === 'users' ? (
                             <div className="space-y-6 animate-in fade-in duration-300 pb-10">
@@ -1363,6 +1773,33 @@ export default function EditorPage() {
                                                                 >
                                                                     Ver compras
                                                                 </button>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#8a7560]">
+                                                                    Ajuste cliente (%)
+                                                                </label>
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        min="-90"
+                                                                        max="500"
+                                                                        value={usersAdjustmentDrafts[item.id] ?? Number(item.price_adjustment_percent || 0)}
+                                                                        onChange={(e) => setUsersAdjustmentDrafts((prev) => ({
+                                                                            ...prev,
+                                                                            [item.id]: e.target.value,
+                                                                        }))}
+                                                                        className="w-24 px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-bold"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => updateUserPriceAdjustment(item.id)}
+                                                                        disabled={usersSavingAdjustmentId === item.id}
+                                                                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${usersSavingAdjustmentId === item.id ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed' : 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:scale-105'}`}
+                                                                    >
+                                                                        Guardar
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );

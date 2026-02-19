@@ -2,6 +2,7 @@ export function normalizePriceAdjustments(commerce = {}) {
   const raw = commerce.price_adjustments || {};
   const retailPercent = Number(raw.retail_percent || 0);
   const wholesalePercent = Number(raw.wholesale_percent || 0);
+  const userPercent = Number(raw.user_percent || 0);
   const promoEnabled = !!raw.promo_enabled;
   const promoPercent = Number(raw.promo_percent || 0);
   const promoScope = raw.promo_scope || 'both';
@@ -9,6 +10,7 @@ export function normalizePriceAdjustments(commerce = {}) {
   return {
     retailPercent: Number.isFinite(retailPercent) ? retailPercent : 0,
     wholesalePercent: Number.isFinite(wholesalePercent) ? wholesalePercent : 0,
+    userPercent: Number.isFinite(userPercent) ? userPercent : 0,
     promoEnabled,
     promoPercent: Number.isFinite(promoPercent) ? promoPercent : 0,
     promoScope,
@@ -26,6 +28,10 @@ export function applyPriceAdjustments(basePrice, segment, adjustments) {
 
   if (Number.isFinite(percent) && percent !== 0) {
     price = price * (1 + percent / 100);
+  }
+
+  if (Number.isFinite(adjustments.userPercent) && adjustments.userPercent !== 0) {
+    price = price * (1 + adjustments.userPercent / 100);
   }
 
   if (

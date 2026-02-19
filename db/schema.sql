@@ -37,6 +37,7 @@ CREATE TABLE user_tenants (
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   role text NOT NULL DEFAULT 'tenant_admin',
   status text NOT NULL DEFAULT 'active',
+  price_adjustment_percent numeric(6,2) NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, tenant_id)
 );
@@ -235,3 +236,18 @@ CREATE TABLE api_tokens (
   scope text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE tenant_offers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  label text NOT NULL DEFAULT 'Oferta',
+  percent numeric(6,2) NOT NULL CHECK (percent >= 0),
+  enabled boolean NOT NULL DEFAULT true,
+  user_ids uuid[] NOT NULL DEFAULT '{}',
+  category_ids uuid[] NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX tenant_offers_tenant_idx ON tenant_offers(tenant_id, enabled);
