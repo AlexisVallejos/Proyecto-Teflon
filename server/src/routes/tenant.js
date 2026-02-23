@@ -62,6 +62,21 @@ function slugify(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+function parseUuidArray(value) {
+  const list = Array.isArray(value) ? value : [];
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const unique = new Set();
+  for (const item of list) {
+    const raw = String(item || '').trim();
+    if (!raw) continue;
+    if (!uuidRegex.test(raw)) {
+      return { ok: false, items: [] };
+    }
+    unique.add(raw);
+  }
+  return { ok: true, items: [...unique] };
+}
+
 tenantRouter.get('/settings', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
@@ -356,7 +371,7 @@ tenantRouter.get('/users', async (req, res, next) => {
     const usersRes = await pool.query(
       [
         'select u.id, u.email, u.role as global_role, u.status as user_status,',
-        'ut.role as role, ut.status as status, u.created_at',
+        'ut.role as role, ut.status as status, ut.price_adjustment_percent, u.created_at',
         'from user_tenants ut',
         'join users u on u.id = ut.user_id',
         'where ut.tenant_id = $1',
@@ -367,6 +382,157 @@ tenantRouter.get('/users', async (req, res, next) => {
     );
 
     return res.json({ page, limit, total, items: usersRes.rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.get('/offers', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const result = await pool.query(
+      [
+        'select id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
+        'from tenant_offers',
+        'where tenant_id = $1',
+        'order by created_at desc',
+      ].join(' '),
+      [tenantId]
+    );
+    return res.json({ items: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/offers', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const name = String(req.body?.name || '').trim();
+  const label = String(req.body?.label || 'Oferta').trim() || 'Oferta';
+  const percent = Number(req.body?.percent || 0);
+  const enabled = req.body?.enabled !== false;
+  const parsedUsers = parseUuidArray(req.body?.user_ids);
+  const parsedCategories = parseUuidArray(req.body?.category_ids);
+
+  if (!name) return res.status(400).json({ error: 'name_required' });
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+    return res.status(400).json({ error: 'invalid_percent' });
+  }
+  if (!parsedUsers.ok) return res.status(400).json({ error: 'invalid_user_ids' });
+  if (!parsedCategories.ok) return res.status(400).json({ error: 'invalid_category_ids' });
+
+  try {
+    const result = await pool.query(
+      [
+        'insert into tenant_offers (tenant_id, name, label, percent, enabled, user_ids, category_ids)',
+        'values ($1, $2, $3, $4, $5, $6::uuid[], $7::uuid[])',
+        'returning id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
+      ].join(' '),
+      [tenantId, name, label, percent, enabled, parsedUsers.items, parsedCategories.items]
+    );
+    return res.status(201).json({ item: result.rows[0] });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.put('/offers/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const offerId = String(req.params.id || '').trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(offerId)) return res.status(400).json({ error: 'invalid_offer_id' });
+
+  const name = String(req.body?.name || '').trim();
+  const label = String(req.body?.label || 'Oferta').trim() || 'Oferta';
+  const percent = Number(req.body?.percent || 0);
+  const enabled = req.body?.enabled !== false;
+  const parsedUsers = parseUuidArray(req.body?.user_ids);
+  const parsedCategories = parseUuidArray(req.body?.category_ids);
+
+  if (!name) return res.status(400).json({ error: 'name_required' });
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+    return res.status(400).json({ error: 'invalid_percent' });
+  }
+  if (!parsedUsers.ok) return res.status(400).json({ error: 'invalid_user_ids' });
+  if (!parsedCategories.ok) return res.status(400).json({ error: 'invalid_category_ids' });
+
+  try {
+    const result = await pool.query(
+      [
+        'update tenant_offers',
+        'set name = $3, label = $4, percent = $5, enabled = $6, user_ids = $7::uuid[], category_ids = $8::uuid[], updated_at = now()',
+        'where tenant_id = $1 and id = $2',
+        'returning id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
+      ].join(' '),
+      [tenantId, offerId, name, label, percent, enabled, parsedUsers.items, parsedCategories.items]
+    );
+
+    if (!result.rowCount) return res.status(404).json({ error: 'offer_not_found' });
+    return res.json({ item: result.rows[0] });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.delete('/offers/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const offerId = String(req.params.id || '').trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(offerId)) return res.status(400).json({ error: 'invalid_offer_id' });
+
+  try {
+    const result = await pool.query(
+      'delete from tenant_offers where tenant_id = $1 and id = $2 returning id',
+      [tenantId, offerId]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'offer_not_found' });
+    return res.json({ ok: true });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.patch('/users/:id/price-adjustment', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const userId = req.params.id;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(userId)) {
+    return res.status(400).json({ error: 'invalid_user_id' });
+  }
+
+  const rawPercent = Number(req.body?.price_adjustment_percent);
+  if (!Number.isFinite(rawPercent)) {
+    return res.status(400).json({ error: 'invalid_price_adjustment_percent' });
+  }
+
+  const clampedPercent = Math.max(-90, Math.min(500, rawPercent));
+
+  try {
+    const result = await pool.query(
+      [
+        'update user_tenants',
+        'set price_adjustment_percent = $3',
+        'where tenant_id = $1 and user_id = $2',
+        'returning user_id, tenant_id, price_adjustment_percent',
+      ].join(' '),
+      [tenantId, userId, clampedPercent]
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({ error: 'user_not_found_for_tenant' });
+    }
+
+    return res.json({ ok: true, item: result.rows[0] });
   } catch (err) {
     return next(err);
   }

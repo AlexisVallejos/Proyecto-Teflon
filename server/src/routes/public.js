@@ -1,13 +1,15 @@
 import express from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
 import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
+import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
+import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
 import { pool } from '../db.js';
 
 export const publicRouter = express.Router();
 
 publicRouter.use(resolveTenant);
 
-function mapProductRow(row, allowWholesale, adjustments) {
+function mapProductRow(row, allowWholesale, adjustments, userId, offers) {
   const priceRetail = Number(row.price || 0);
   const priceWholesale = Number(row.price_wholesale || 0);
   const { retail, wholesale, effective } = resolveAdjustedPrices({
@@ -16,6 +18,11 @@ function mapProductRow(row, allowWholesale, adjustments) {
     allowWholesale,
     adjustments,
   });
+  const categoryIds = Array.isArray(row.category_ids) ? row.category_ids : [];
+  const bestOffer = resolveBestOfferForProduct({ offers, userId, categoryIds });
+  const discountedRetail = applyOfferDiscount(retail, bestOffer.percent);
+  const discountedWholesale = wholesale == null ? null : applyOfferDiscount(wholesale, bestOffer.percent);
+  const discountedEffective = applyOfferDiscount(effective, bestOffer.percent);
   const canUseWholesale = allowWholesale && wholesale != null;
   return {
     id: row.id,
@@ -23,13 +30,18 @@ function mapProductRow(row, allowWholesale, adjustments) {
     sku: row.sku,
     name: row.name,
     description: row.description,
-    price: effective,
-    price_retail: retail,
-    price_wholesale: canUseWholesale ? wholesale : null,
+    price: discountedEffective,
+    price_retail: discountedRetail,
+    price_wholesale: canUseWholesale ? discountedWholesale : null,
     currency: row.currency,
     stock: row.stock,
     brand: row.brand,
-    data: row.data || {},
+    data: {
+      ...(row.data || {}),
+      old_price: bestOffer.percent > 0 ? effective : undefined,
+      offer_label: bestOffer.label || undefined,
+      offer_percent: bestOffer.percent || 0,
+    },
   };
 }
 
@@ -104,11 +116,16 @@ publicRouter.get('/pages/:slug', async (req, res, next) => {
 publicRouter.get('/products', async (req, res, next) => {
   try {
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
+    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
-    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+    const adjustments = {
+      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
+      userPercent: userPricePercent,
+    };
+    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
     const tenantId = req.tenant.id;
     const q = String(req.query.q || '').trim();
     const category = req.query.category;
@@ -158,7 +175,8 @@ publicRouter.get('/products', async (req, res, next) => {
     const offsetIndex = params.length;
 
     const sql = [
-      'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data',
+      'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
+      "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
       'from product_cache p',
       'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
       `where ${where}`,
@@ -166,7 +184,7 @@ publicRouter.get('/products', async (req, res, next) => {
     ].join(' ');
 
     const productsRes = await pool.query(sql, params);
-    const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments));
+    const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
 
     return res.json({ page, limit, items: products });
   } catch (err) {
@@ -177,11 +195,16 @@ publicRouter.get('/products', async (req, res, next) => {
 publicRouter.get('/products/:id', async (req, res, next) => {
   try {
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
+    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
-    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+    const adjustments = {
+      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
+      userPercent: userPricePercent,
+    };
+    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
     const id = req.params.id;
     // Simple UUID validation to prevent DB crash
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -190,7 +213,12 @@ publicRouter.get('/products/:id', async (req, res, next) => {
     }
 
     const result = await pool.query(
-      "select id, erp_id, sku, name, description, price, price_wholesale, currency, stock, brand, data from product_cache where tenant_id = $1 and status = 'active' and id = $2",
+      [
+        'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
+        "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+        'from product_cache p',
+        "where p.tenant_id = $1 and p.status = 'active' and p.id = $2",
+      ].join(' '),
       [req.tenant.id, id]
     );
     if (!result.rowCount) {
@@ -198,7 +226,7 @@ publicRouter.get('/products/:id', async (req, res, next) => {
     }
 
     const row = result.rows[0];
-    return res.json(mapProductRow(row, allowWholesale, adjustments));
+    return res.json(mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
   } catch (err) {
     return next(err);
   }
@@ -207,11 +235,16 @@ publicRouter.get('/products/:id', async (req, res, next) => {
 publicRouter.get('/products/:id/related', async (req, res, next) => {
   try {
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
+    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
-    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+    const adjustments = {
+      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
+      userPercent: userPricePercent,
+    };
+    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
     const id = req.params.id;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
@@ -237,7 +270,8 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
 
     const relatedRes = await pool.query(
       [
-        'select distinct on (p.id) p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data',
+        'select distinct on (p.id) p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
+        "coalesce((select array_agg(pc2.category_id) from product_categories pc2 where pc2.product_id = p.id), '{}'::uuid[]) as category_ids",
         'from product_cache p',
         'join product_categories pc on pc.product_id = p.id',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
@@ -251,7 +285,7 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
       [req.tenant.id, id, categoryIds, limit]
     );
 
-    const items = relatedRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments));
+    const items = relatedRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
 
     return res.json({ items });
   } catch (err) {
@@ -262,11 +296,16 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
 publicRouter.get('/collections/:slug', async (req, res, next) => {
   try {
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
+    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
-    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+    const adjustments = {
+      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
+      userPercent: userPricePercent,
+    };
+    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
     const collectionRes = await pool.query(
       'select id, name, slug from product_collections where tenant_id = $1 and slug = $2',
       [req.tenant.id, req.params.slug]
@@ -278,7 +317,8 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
     const collection = collectionRes.rows[0];
     const productsRes = await pool.query(
       [
-        'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data',
+        'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
+        "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
         'from collection_items ci',
         'join product_cache p on p.id = ci.product_id',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
@@ -288,7 +328,7 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
       [collection.id]
     );
 
-    const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments));
+    const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
 
     return res.json({ collection, items: products });
   } catch (err) {

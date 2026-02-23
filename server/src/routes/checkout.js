@@ -3,6 +3,8 @@ import { resolveTenant } from '../middleware/tenant.js';
 import { pool } from '../db.js';
 import { createPreference } from '../services/mercadopago.js';
 import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
+import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
+import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
 
 export const checkoutRouter = express.Router();
 
@@ -18,7 +20,7 @@ function normalizeItems(items) {
     }));
 }
 
-async function validateItems(tenantId, items, adjustments, isWholesale = false) {
+async function validateItems(tenantId, items, adjustments, isWholesale = false, offers = [], userId = null) {
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
 
@@ -27,7 +29,12 @@ async function validateItems(tenantId, items, adjustments, isWholesale = false) 
   }
 
   const result = await pool.query(
-    'select id, sku, name, price, price_wholesale, currency, stock from product_cache where tenant_id = $1 and id = ANY($2::uuid[])',
+    [
+      'select p.id, p.sku, p.name, p.price, p.price_wholesale, p.currency, p.stock,',
+      "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+      'from product_cache p',
+      'where p.tenant_id = $1 and p.id = ANY($2::uuid[])',
+    ].join(' '),
     [tenantId, ids]
   );
 
@@ -54,7 +61,12 @@ async function validateItems(tenantId, items, adjustments, isWholesale = false) 
       allowWholesale: isWholesale,
       adjustments,
     });
-    const unitPrice = Number(effective || 0);
+    const bestOffer = resolveBestOfferForProduct({
+      offers,
+      userId,
+      categoryIds: product.category_ids || [],
+    });
+    const unitPrice = Number(applyOfferDiscount(effective, bestOffer.percent) || 0);
     subtotal += unitPrice * item.qty;
 
     return {
@@ -80,12 +92,17 @@ async function validateItems(tenantId, items, adjustments, isWholesale = false) 
 checkoutRouter.post('/validate', async (req, res, next) => {
   try {
     const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
+    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
-    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
-    const result = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale);
+    const adjustments = {
+      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
+      userPercent: userPricePercent,
+    };
+    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+    const result = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
     if (!result.valid) {
       return res.status(400).json(result);
     }
@@ -99,13 +116,18 @@ checkoutRouter.post('/create', async (req, res, next) => {
   const client = await pool.connect();
   try {
     const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
+    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
     const commerce = (settingsRes.rows[0] && settingsRes.rows[0].commerce) || {};
-    const adjustments = normalizePriceAdjustments(commerce);
-    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale);
+    const adjustments = {
+      ...normalizePriceAdjustments(commerce),
+      userPercent: userPricePercent,
+    };
+    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
     if (!validation.valid) {
       return res.status(400).json(validation);
     }
