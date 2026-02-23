@@ -109,11 +109,14 @@ En el panel admin existe la sección **Precios**:
 - `GET /api/me`
 - `GET /public/products`
 - `POST /checkout/validate`
-- `POST /checkout/create`
 - `POST /api/orders/submit`
 - `GET /api/admin/orders`
 - `GET /api/settings/checkout`
 - `PUT /api/admin/settings/checkout`
+- `GET /tenant/price-lists`
+- `GET /tenant/users`
+- `PATCH /tenant/users/:id`
+- `PUT /tenant/users/:id/price-list`
 
 ## Scripts útiles (root)
 ```bash
@@ -134,6 +137,13 @@ ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS checkout_mode text NOT NULL DEFAULT 'online';
 ```
 
+## Migración ETAPA 1 (listas de precios)
+Si aparece `no existe la relación "price_lists"` o `user_price_list`, ejecutá:
+
+```bash
+psql -U user -d teflon -f db/migrations/20260223_pricing_lists.sql
+```
+
 ## Problemas comunes
 - **Pantalla en blanco / Unexpected token '<'**  
   Casi siempre es por deps faltantes en `web/`. Ejecutar `npm install` en `web`.
@@ -144,3 +154,21 @@ ALTER TABLE orders
 ## Notas
 - Este proyecto es multi-tenant. Siempre setear `VITE_TENANT_ID` para que el frontend encuentre los datos.
 - Si `DISABLE_AUTH=true`, las rutas `/tenant` y `/admin` quedan sin token.
+- Frontend usa `VITE_API_URL` como base de API (ver `web/.env.example`).
+
+## Etapa 1 (MVP) completada
+- Checkout funcional con modos:
+  - WhatsApp (`submitted`, abre `wa.me` con detalle de items, SKU, qty, precio y total).
+  - Transferencia (`pending_payment`, muestra CBU/Alias/Banco/Titular).
+  - Placeholder de pago online (solo visual, sin implementar gateway).
+- Roles y visibilidad de precios:
+  - Visitante y retail: precio minorista.
+  - Mayorista pendiente: sigue viendo minorista + aviso de aprobacion pendiente.
+  - Mayorista activo: precio mayorista y/o lista de precios asignada.
+- Listas de precios por usuario:
+  - Asignacion automatica por segmento (`retail` / `wholesale`).
+  - Asignacion manual desde admin por usuario.
+- Admin de usuarios (tab `Usuarios`):
+  - Aprobar mayoristas.
+  - Cambiar rol y estado.
+  - Asignar lista de precios y guardar cambios.

@@ -87,6 +87,7 @@ export default function EditorPage() {
     const [usersTotal, setUsersTotal] = useState(0);
     const [usersLoading, setUsersLoading] = useState(false);
     const [usersError, setUsersError] = useState('');
+<<<<<<< Updated upstream
     const [usersAdjustmentDrafts, setUsersAdjustmentDrafts] = useState({});
     const [usersSavingAdjustmentId, setUsersSavingAdjustmentId] = useState(null);
     const [offers, setOffers] = useState([]);
@@ -104,6 +105,13 @@ export default function EditorPage() {
         user_ids: [],
         category_ids: [],
     });
+=======
+    const [priceLists, setPriceLists] = useState([]);
+    const [priceListsLoading, setPriceListsLoading] = useState(false);
+    const [priceListsError, setPriceListsError] = useState('');
+    const [userDrafts, setUserDrafts] = useState({});
+    const [userSavingId, setUserSavingId] = useState(null);
+>>>>>>> Stashed changes
     const USERS_LIMIT = 10;
     const [selectedUser, setSelectedUser] = useState(null);
     const [userOrders, setUserOrders] = useState([]);
@@ -134,6 +142,16 @@ export default function EditorPage() {
         { value: 'unpaid', label: 'Impaga' },
         { value: 'submitted', label: 'Recibido' },
         { value: 'cancelled', label: 'Cancelado' },
+    ];
+    const USER_ROLE_OPTIONS = [
+        { value: 'retail', label: 'Minorista' },
+        { value: 'wholesale', label: 'Mayorista' },
+        { value: 'tenant_admin', label: 'Admin' },
+    ];
+    const USER_STATUS_OPTIONS = [
+        { value: 'pending', label: 'Pendiente' },
+        { value: 'active', label: 'Activo' },
+        { value: 'inactive', label: 'Inactivo' },
     ];
     const formatOrderTotal = (value, currency = 'ARS') => {
         const amount = Number(value || 0);
@@ -243,6 +261,26 @@ export default function EditorPage() {
         setTimeout(() => setToast({ show: false, message: '' }), 3000);
     };
 
+    const getUserDraft = useCallback((item) => {
+        if (!item?.id) return null;
+        return userDrafts[item.id] || {
+            role: item.role || 'retail',
+            status: item.status || 'active',
+            price_list_id: item.price_list_id || 'auto',
+        };
+    }, [userDrafts]);
+
+    const hasUserDraftChanges = useCallback((item) => {
+        const draft = getUserDraft(item);
+        if (!draft || !item) return false;
+        const roleChanged = (draft.role || 'retail') !== (item.role || 'retail');
+        const statusChanged = (draft.status || 'active') !== (item.status || 'active');
+        const currentPriceList = item.price_list_id || 'auto';
+        const draftPriceList = draft.price_list_id || 'auto';
+        const priceListChanged = draftPriceList !== currentPriceList;
+        return roleChanged || statusChanged || priceListChanged;
+    }, [getUserDraft]);
+
     const loadTenants = useCallback(async () => {
         if (user?.role !== 'master_admin') {
             setTenants([]);
@@ -312,6 +350,7 @@ export default function EditorPage() {
         }
     }, [USERS_LIMIT, usersPage]);
 
+<<<<<<< Updated upstream
     const resetOfferForm = useCallback(() => {
         setEditingOfferId(null);
         setOfferForm({
@@ -327,12 +366,18 @@ export default function EditorPage() {
     const loadOffers = useCallback(async () => {
         setOffersLoading(true);
         setOffersError('');
+=======
+    const loadPriceLists = useCallback(async () => {
+        setPriceListsLoading(true);
+        setPriceListsError('');
+>>>>>>> Stashed changes
         try {
             const token = localStorage.getItem('teflon_token');
             const headers = {
                 ...getTenantHeaders(),
                 'Authorization': `Bearer ${token}`,
             };
+<<<<<<< Updated upstream
             const res = await fetch(`${getApiBase()}/tenant/offers`, { headers });
             if (!res.ok) {
                 const msg = await res.text();
@@ -533,6 +578,163 @@ export default function EditorPage() {
             setUsersSavingAdjustmentId(null);
         }
     }, [selectedUser, usersAdjustmentDrafts]);
+=======
+            const res = await fetch(`${getApiBase()}/tenant/price-lists`, { headers });
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'No se pudo cargar listas de precios');
+            }
+            const data = await res.json();
+            setPriceLists(Array.isArray(data.items) ? data.items : []);
+        } catch (err) {
+            console.error('Failed to load price lists', err);
+            setPriceLists([]);
+            setPriceListsError('No se pudieron cargar las listas de precios.');
+        } finally {
+            setPriceListsLoading(false);
+        }
+    }, []);
+
+    const patchUserMembership = useCallback(async (userId, payload) => {
+        const token = localStorage.getItem('teflon_token');
+        const headers = {
+            ...getTenantHeaders(),
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        };
+        const res = await fetch(`${getApiBase()}/tenant/users/${userId}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const msg = await res.text();
+            throw new Error(msg || 'No se pudo actualizar el usuario');
+        }
+        const data = await res.json();
+        return data?.user || null;
+    }, []);
+
+    const assignUserPriceList = useCallback(async (userId, priceListId) => {
+        const token = localStorage.getItem('teflon_token');
+        const headers = {
+            ...getTenantHeaders(),
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        };
+        const res = await fetch(`${getApiBase()}/tenant/users/${userId}/price-list`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({
+                price_list_id: !priceListId || priceListId === 'auto' ? null : priceListId,
+            }),
+        });
+        if (!res.ok) {
+            const msg = await res.text();
+            throw new Error(msg || 'No se pudo asignar la lista de precios');
+        }
+        const data = await res.json();
+        return data?.price_list || null;
+    }, []);
+
+    const saveUserSetup = useCallback(async (item) => {
+        if (!item?.id) return;
+        const draft = getUserDraft(item);
+        if (!draft) return;
+        const role = draft.role || 'retail';
+        const status = draft.status || 'active';
+        const selectedPriceList = draft.price_list_id || 'auto';
+        const hasRoleOrStatusChanges =
+            role !== (item.role || 'retail') ||
+            status !== (item.status || 'active');
+        const hasPriceListChanges =
+            selectedPriceList !== (item.price_list_id || 'auto');
+        if (!hasRoleOrStatusChanges && !hasPriceListChanges) {
+            return;
+        }
+
+        setUserSavingId(item.id);
+        try {
+            let nextUser = item;
+            if (hasRoleOrStatusChanges) {
+                const patched = await patchUserMembership(item.id, { role, status });
+                if (patched) {
+                    nextUser = {
+                        ...nextUser,
+                        ...patched,
+                    };
+                } else {
+                    nextUser = {
+                        ...nextUser,
+                        role,
+                        status,
+                    };
+                }
+            }
+
+            if (hasPriceListChanges) {
+                const assigned = await assignUserPriceList(item.id, selectedPriceList);
+                nextUser = {
+                    ...nextUser,
+                    price_list_id: assigned?.id || null,
+                    price_list_name: assigned?.name || null,
+                    price_list_type: assigned?.type || null,
+                };
+            }
+
+            setUsersList((prev) =>
+                prev.map((current) => (current.id === item.id ? nextUser : current))
+            );
+            setSelectedUser((prev) => (prev?.id === item.id ? nextUser : prev));
+            setUserDrafts((prev) => ({
+                ...prev,
+                [item.id]: {
+                    role: nextUser.role || role,
+                    status: nextUser.status || status,
+                    price_list_id: nextUser.price_list_id || 'auto',
+                },
+            }));
+            showSuccess('Usuario actualizado');
+        } catch (err) {
+            console.error('Failed to update user setup', err);
+            alert('No se pudo guardar la configuracion del usuario');
+        } finally {
+            setUserSavingId(null);
+        }
+    }, [assignUserPriceList, getUserDraft, patchUserMembership]);
+
+    const approveWholesaleUser = useCallback(async (item) => {
+        if (!item?.id) return;
+        setUserSavingId(item.id);
+        try {
+            const patched = await patchUserMembership(item.id, {
+                role: 'wholesale',
+                status: 'active',
+            });
+            const nextUser = patched
+                ? { ...item, ...patched }
+                : { ...item, role: 'wholesale', status: 'active' };
+            setUsersList((prev) =>
+                prev.map((current) => (current.id === item.id ? nextUser : current))
+            );
+            setSelectedUser((prev) => (prev?.id === item.id ? nextUser : prev));
+            setUserDrafts((prev) => ({
+                ...prev,
+                [item.id]: {
+                    role: nextUser.role || 'wholesale',
+                    status: nextUser.status || 'active',
+                    price_list_id: nextUser.price_list_id || 'auto',
+                },
+            }));
+            showSuccess('Mayorista aprobado');
+        } catch (err) {
+            console.error('Failed to approve wholesale user', err);
+            alert('No se pudo aprobar el mayorista');
+        } finally {
+            setUserSavingId(null);
+        }
+    }, [patchUserMembership]);
+>>>>>>> Stashed changes
 
     const loadUserOrders = useCallback(async (userId) => {
         if (!userId) return;
@@ -611,8 +813,9 @@ export default function EditorPage() {
     useEffect(() => {
         if (activeTab === 'users') {
             loadUsers();
+            loadPriceLists();
         }
-    }, [activeTab, usersPage, loadUsers]);
+    }, [activeTab, usersPage, loadUsers, loadPriceLists]);
 
     useEffect(() => {
         if (activeTab === 'pricing') {
@@ -632,6 +835,30 @@ export default function EditorPage() {
             setUserOrdersFilter('all');
         }
     }, [activeTab, selectedUser]);
+
+    useEffect(() => {
+        if (!usersList.length) {
+            setUserDrafts({});
+            return;
+        }
+        setUserDrafts((prev) => {
+            const next = {};
+            usersList.forEach((item) => {
+                const current = prev[item.id];
+                next[item.id] = {
+                    role: current?.role || item.role || 'retail',
+                    status: current?.status || item.status || 'active',
+                    price_list_id: current?.price_list_id || item.price_list_id || 'auto',
+                };
+            });
+            return next;
+        });
+        setSelectedUser((prev) => {
+            if (!prev?.id) return prev;
+            const updated = usersList.find((item) => item.id === prev.id);
+            return updated || prev;
+        });
+    }, [usersList]);
 
     const isImageIcon = (value) =>
         typeof value === 'string' &&
@@ -1759,10 +1986,15 @@ export default function EditorPage() {
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center justify-between">
-                                                                <p className="text-[10px] text-[#8a7560]">
-                                                                    Alta: {item.created_at ? new Date(item.created_at).toLocaleDateString('es-AR') : '-'}
-                                                                </p>
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <div className="space-y-1">
+                                                                    <p className="text-[10px] text-[#8a7560]">
+                                                                        Alta: {item.created_at ? new Date(item.created_at).toLocaleDateString('es-AR') : '-'}
+                                                                    </p>
+                                                                    <p className="text-[10px] text-[#8a7560]">
+                                                                        Lista: {item.price_list_name || 'Automatica'}
+                                                                    </p>
+                                                                </div>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => {
@@ -1774,6 +2006,7 @@ export default function EditorPage() {
                                                                     Ver compras
                                                                 </button>
                                                             </div>
+<<<<<<< Updated upstream
                                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                                 <label className="text-[10px] font-black uppercase tracking-widest text-[#8a7560]">
                                                                     Ajuste cliente (%)
@@ -1801,6 +2034,109 @@ export default function EditorPage() {
                                                                     </button>
                                                                 </div>
                                                             </div>
+=======
+                                                            {(() => {
+                                                                const draft = getUserDraft(item);
+                                                                const isPendingWholesale = item.role === 'wholesale' && item.status === 'pending';
+                                                                const hasChanges = hasUserDraftChanges(item);
+                                                                const isSaving = userSavingId === item.id;
+                                                                return (
+                                                                    <div className="mt-1 space-y-2 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-3 bg-zinc-50/80 dark:bg-[#120c08]">
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                                            <div className="space-y-1">
+                                                                                <p className="text-[9px] font-black uppercase tracking-widest text-[#8a7560]">Rol</p>
+                                                                                <select
+                                                                                    value={draft?.role || 'retail'}
+                                                                                    onChange={(e) => setUserDrafts((prev) => ({
+                                                                                        ...prev,
+                                                                                        [item.id]: {
+                                                                                            ...(prev[item.id] || {}),
+                                                                                            role: e.target.value,
+                                                                                            status: prev[item.id]?.status || item.status || 'active',
+                                                                                            price_list_id: prev[item.id]?.price_list_id || item.price_list_id || 'auto',
+                                                                                        },
+                                                                                    }))}
+                                                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-bold"
+                                                                                >
+                                                                                    {USER_ROLE_OPTIONS.map((option) => (
+                                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <p className="text-[9px] font-black uppercase tracking-widest text-[#8a7560]">Estado</p>
+                                                                                <select
+                                                                                    value={draft?.status || 'active'}
+                                                                                    onChange={(e) => setUserDrafts((prev) => ({
+                                                                                        ...prev,
+                                                                                        [item.id]: {
+                                                                                            ...(prev[item.id] || {}),
+                                                                                            role: prev[item.id]?.role || item.role || 'retail',
+                                                                                            status: e.target.value,
+                                                                                            price_list_id: prev[item.id]?.price_list_id || item.price_list_id || 'auto',
+                                                                                        },
+                                                                                    }))}
+                                                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-bold"
+                                                                                >
+                                                                                    {USER_STATUS_OPTIONS.map((option) => (
+                                                                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <p className="text-[9px] font-black uppercase tracking-widest text-[#8a7560]">Lista de precios</p>
+                                                                                <select
+                                                                                    value={draft?.price_list_id || 'auto'}
+                                                                                    onChange={(e) => setUserDrafts((prev) => ({
+                                                                                        ...prev,
+                                                                                        [item.id]: {
+                                                                                            ...(prev[item.id] || {}),
+                                                                                            role: prev[item.id]?.role || item.role || 'retail',
+                                                                                            status: prev[item.id]?.status || item.status || 'active',
+                                                                                            price_list_id: e.target.value,
+                                                                                        },
+                                                                                    }))}
+                                                                                    className="w-full px-2 py-1 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-[10px] font-bold"
+                                                                                    disabled={priceListsLoading}
+                                                                                >
+                                                                                    <option value="auto">Automatica</option>
+                                                                                    {priceLists.map((list) => (
+                                                                                        <option key={list.id} value={list.id}>
+                                                                                            {list.name} ({list.type || 'special'})
+                                                                                        </option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                            <div className="text-[10px] text-[#8a7560]">
+                                                                                {priceListsLoading ? 'Cargando listas de precios...' : priceListsError || ''}
+                                                                            </div>
+                                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                                {isPendingWholesale ? (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => approveWholesaleUser(item)}
+                                                                                        disabled={isSaving}
+                                                                                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isSaving ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed' : 'bg-amber-500 text-white hover:scale-105'}`}
+                                                                                    >
+                                                                                        Aprobar mayorista
+                                                                                    </button>
+                                                                                ) : null}
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => saveUserSetup(item)}
+                                                                                    disabled={isSaving || !hasChanges}
+                                                                                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isSaving || !hasChanges ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed' : 'bg-primary text-white hover:scale-105'}`}
+                                                                                >
+                                                                                    {isSaving ? 'Guardando...' : 'Guardar cambios'}
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
+>>>>>>> Stashed changes
                                                         </div>
                                                     );
                                                 })}
@@ -1833,6 +2169,9 @@ export default function EditorPage() {
                                                     <div>
                                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8a7560]">Compras del usuario</p>
                                                         <p className="text-sm font-bold text-[#181411] dark:text-white">{selectedUser.email}</p>
+                                                        <p className="text-[10px] text-[#8a7560]">
+                                                            Rol: {selectedUser.role || '-'} · Estado: {selectedUser.status || '-'} · Lista: {selectedUser.price_list_name || 'Automatica'}
+                                                        </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <select

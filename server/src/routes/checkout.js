@@ -2,9 +2,14 @@ import express from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
 import { pool } from '../db.js';
 import { createPreference } from '../services/mercadopago.js';
+<<<<<<< Updated upstream
 import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
 import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
 import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
+=======
+import { normalizePriceAdjustments } from '../services/pricing.js';
+import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
+>>>>>>> Stashed changes
 
 export const checkoutRouter = express.Router();
 
@@ -20,7 +25,11 @@ function normalizeItems(items) {
     }));
 }
 
+<<<<<<< Updated upstream
 async function validateItems(tenantId, items, adjustments, isWholesale = false, offers = [], userId = null) {
+=======
+async function validateItems(tenantId, items, adjustments, pricingProfile) {
+>>>>>>> Stashed changes
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
 
@@ -55,10 +64,10 @@ async function validateItems(tenantId, items, adjustments, isWholesale = false, 
     }
 
     currency = currency || product.currency;
-    const { effective } = resolveAdjustedPrices({
+    const { effective } = resolveEffectiveProductPrice({
       priceRetail: product.price,
       priceWholesale: product.price_wholesale,
-      allowWholesale: isWholesale,
+      profile: pricingProfile,
       adjustments,
     });
     const bestOffer = resolveBestOfferForProduct({
@@ -91,18 +100,30 @@ async function validateItems(tenantId, items, adjustments, isWholesale = false, 
 
 checkoutRouter.post('/validate', async (req, res, next) => {
   try {
+<<<<<<< Updated upstream
     const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
+=======
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user,
+    });
+>>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
+<<<<<<< Updated upstream
     const adjustments = {
       ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
       userPercent: userPricePercent,
     };
     const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
     const result = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
+=======
+    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+    const result = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
+>>>>>>> Stashed changes
     if (!result.valid) {
       return res.status(400).json(result);
     }
@@ -115,19 +136,31 @@ checkoutRouter.post('/validate', async (req, res, next) => {
 checkoutRouter.post('/create', async (req, res, next) => {
   const client = await pool.connect();
   try {
+<<<<<<< Updated upstream
     const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
+=======
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user,
+    });
+>>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
     const commerce = (settingsRes.rows[0] && settingsRes.rows[0].commerce) || {};
+<<<<<<< Updated upstream
     const adjustments = {
       ...normalizePriceAdjustments(commerce),
       userPercent: userPricePercent,
     };
     const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
     const validation = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
+=======
+    const adjustments = normalizePriceAdjustments(commerce);
+    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
+>>>>>>> Stashed changes
     if (!validation.valid) {
       return res.status(400).json(validation);
     }
@@ -236,7 +269,21 @@ checkoutRouter.post('/create', async (req, res, next) => {
     if (checkoutMode === 'whatsapp' || mode !== 'online') {
       const whatsappNumber = String(commerce.whatsapp_number || '').replace(/\D/g, '');
       if (whatsappNumber) {
-        const message = `Order ${orderId} total ${total}`;
+        const itemsLines = validation.items
+          .map((item) => {
+            const unitPrice = Number(item.unit_price || 0);
+            const lineTotal = Number(item.total != null ? item.total : unitPrice * Number(item.qty || 0));
+            return `- ${item.name} (SKU: ${item.sku || item.product_id}) x${item.qty} | ${unitPrice.toFixed(2)} ${validation.currency} | ${lineTotal.toFixed(2)} ${validation.currency}`;
+          })
+          .join('\n');
+        const message = [
+          `Pedido ${orderId}`,
+          '',
+          'Productos:',
+          itemsLines,
+          '',
+          `Total: ${Number(total || 0).toFixed(2)} ${validation.currency}`,
+        ].join('\n');
         whatsapp_url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
       }
     }

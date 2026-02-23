@@ -2,9 +2,11 @@ import React from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import { useStore } from '../../context/StoreContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function StoreLayout({ children }) {
     const { toast } = useStore();
+    const { isWholesalePending } = useAuth();
     const navLinks = [
         { label: 'Inicio', href: '/' },
         { label: 'Catálogo', href: '/catalog' },
@@ -26,6 +28,11 @@ export default function StoreLayout({ children }) {
                 </div>
             </div>
             <Header navLinks={navLinks} />
+            {isWholesalePending ? (
+                <div className="w-full border-b border-amber-200 bg-amber-50 text-amber-800 text-xs font-semibold px-4 md:px-10 py-2">
+                    Tu cuenta mayorista está pendiente de aprobación. Mientras tanto ves precios minoristas.
+                </div>
+            ) : null}
             <main className="flex-grow">
                 {children}
             </main>

@@ -5,6 +5,11 @@ import { getApiBase, getTenantHeaders } from "../../utils/api";
 
 export default function OrderSuccessPage() {
     const [order, setOrder] = useState(null);
+    const [checkoutConfig, setCheckoutConfig] = useState({
+        mode: "both",
+        whatsapp_number: "",
+        bank_transfer: {},
+    });
     const [proofFile, setProofFile] = useState(null);
     const [proofUploading, setProofUploading] = useState(false);
     const [proofError, setProofError] = useState("");
@@ -22,26 +27,61 @@ export default function OrderSuccessPage() {
         }
     }, []);
 
+    useEffect(() => {
+        let active = true;
+        const loadCheckoutConfig = async () => {
+            try {
+                const response = await fetch(`${getApiBase()}/api/settings/checkout`, {
+                    headers: getTenantHeaders(),
+                });
+                if (!response.ok) {
+                    throw new Error(`checkout_settings_${response.status}`);
+                }
+                const data = await response.json();
+                if (!active) return;
+                setCheckoutConfig({
+                    mode: data.mode || "both",
+                    whatsapp_number: data.whatsapp_number || "",
+                    bank_transfer: data.bank_transfer || {},
+                });
+            } catch (err) {
+                if (!active) return;
+                setCheckoutConfig((prev) => ({
+                    ...prev,
+                    bank_transfer: prev.bank_transfer || {},
+                }));
+            }
+        };
+        loadCheckoutConfig();
+        return () => {
+            active = false;
+        };
+    }, []);
     const title = useMemo(() => {
         if (order?.method === "whatsapp") return "Pedido exitoso";
-        if (order?.method === "mp") return "Pedido confirmado";
+        if (order?.method === "transfer") return "Pedido pendiente de pago";
         return "Pedido confirmado";
     }, [order]);
-
     const subtitle = useMemo(() => {
         if (order?.method === "whatsapp") {
             return "Proseguiremos por WhatsApp. Gracias por tu compra, estamos armando tu pedido.";
         }
-        return "Gracias por tu compra. Si corresponde, enviá el comprobante por WhatsApp.";
+        if (order?.method === "transfer") {
+            return "Realiza la transferencia y sube tu comprobante para acelerar la validacion.";
+        }
+        return "Gracias por tu compra.";
     }, [order]);
 
     const items = Array.isArray(order?.items) ? order.items : [];
 
-    const shouldShowProof = order?.method && order.method !== "mp";
-    const showTransferData = order?.method && order.method !== "mp";
+    const shouldShowProof = order?.method === "transfer";
+    const showTransferData = order?.method === "transfer";
 
-    const alias = "av.techrepair";
-    const cbu = "0000000000000000000000";
+    const transferData = order?.bankTransfer || checkoutConfig.bank_transfer || {};
+    const alias = transferData.alias || "";
+    const cbu = transferData.cbu || "";
+    const bank = transferData.bank || "";
+    const holder = transferData.holder || "";
 
     const formatOrderTotal = () => {
         const amount = Number(order?.total || 0);
@@ -147,11 +187,12 @@ export default function OrderSuccessPage() {
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-[11px] uppercase font-black text-[#8a7560]">Alias</p>
-                                    <p className="text-sm font-bold text-[#181411] dark:text-white">{alias}</p>
+                                    <p className="text-sm font-bold text-[#181411] dark:text-white">{alias || "-"}</p>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => copyText(alias, "alias")}
+                                    disabled={!alias}
                                     className="px-3 h-9 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-widest"
                                 >
                                     Copiar
@@ -162,12 +203,13 @@ export default function OrderSuccessPage() {
                             ) : null}
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <p className="text-[11px] uppercase font-black text-[#8a7560]">CBU (demo)</p>
-                                    <p className="text-sm font-bold text-[#181411] dark:text-white">{cbu}</p>
+                                    <p className="text-[11px] uppercase font-black text-[#8a7560]">CBU</p>
+                                    <p className="text-sm font-bold text-[#181411] dark:text-white">{cbu || "-"}</p>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => copyText(cbu, "cbu")}
+                                    disabled={!cbu}
                                     className="px-3 h-9 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-widest"
                                 >
                                     Copiar
@@ -176,6 +218,14 @@ export default function OrderSuccessPage() {
                             {copiedField === "cbu" ? (
                                 <div className="text-xs text-green-600 font-bold">Texto copiado</div>
                             ) : null}
+                            <div className="space-y-1">
+                                <p className="text-[11px] uppercase font-black text-[#8a7560]">Banco</p>
+                                <p className="text-sm font-bold text-[#181411] dark:text-white">{bank || "-"}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-[11px] uppercase font-black text-[#8a7560]">Titular</p>
+                                <p className="text-sm font-bold text-[#181411] dark:text-white">{holder || "-"}</p>
+                            </div>
                             <div className="pt-2 border-t border-[#e5e1de] dark:border-[#3d2f21]">
                                 <p className="text-[11px] uppercase font-black text-[#8a7560]">Total de la compra</p>
                                 <p className="text-lg font-black text-[#181411] dark:text-white">
@@ -273,3 +323,4 @@ export default function OrderSuccessPage() {
         </StoreLayout>
     );
 }
+

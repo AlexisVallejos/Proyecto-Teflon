@@ -4,6 +4,7 @@ import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,7 @@ const upload = multer({
 });
 
 export const tenantRouter = Router();
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function getTenantId(req, res) {
   const headerTenant = req.get('x-tenant-id');
@@ -43,12 +45,15 @@ function getTenantId(req, res) {
     res.status(400).json({ error: 'tenant_required' });
     return null;
   }
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(tenantId)) {
+  if (!UUID_REGEX.test(tenantId)) {
     res.status(400).json({ error: 'invalid_tenant_id' });
     return null;
   }
   return tenantId;
+}
+
+function isUuid(value) {
+  return UUID_REGEX.test(String(value || ''));
 }
 
 function slugify(value) {
@@ -353,6 +358,30 @@ tenantRouter.get('/products', async (req, res, next) => {
   }
 });
 
+tenantRouter.get('/price-lists', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    await ensurePricingSchema();
+    await ensureDefaultPriceLists(tenantId);
+    const result = await pool.query(
+      [
+        'select id, name, type, rules_json, created_at',
+        'from price_lists',
+        'where tenant_id = $1',
+        'order by',
+        "case type when 'retail' then 1 when 'wholesale' then 2 else 3 end,",
+        'created_at asc',
+      ].join(' '),
+      [tenantId]
+    );
+    return res.json({ items: result.rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 tenantRouter.get('/users', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
@@ -362,6 +391,7 @@ tenantRouter.get('/users', async (req, res, next) => {
   const offset = (page - 1) * limit;
 
   try {
+    await ensurePricingSchema();
     const countRes = await pool.query(
       'select count(*) from user_tenants where tenant_id = $1',
       [tenantId]
@@ -371,9 +401,16 @@ tenantRouter.get('/users', async (req, res, next) => {
     const usersRes = await pool.query(
       [
         'select u.id, u.email, u.role as global_role, u.status as user_status,',
+<<<<<<< Updated upstream
         'ut.role as role, ut.status as status, ut.price_adjustment_percent, u.created_at',
+=======
+        'ut.role as role, ut.status as status, u.created_at,',
+        'upl.price_list_id, pl.name as price_list_name, pl.type as price_list_type',
+>>>>>>> Stashed changes
         'from user_tenants ut',
         'join users u on u.id = ut.user_id',
+        'left join user_price_list upl on upl.tenant_id = ut.tenant_id and upl.user_id = ut.user_id',
+        'left join price_lists pl on pl.id = upl.price_list_id',
         'where ut.tenant_id = $1',
         'order by u.created_at desc',
         'limit $2 offset $3',
@@ -387,6 +424,7 @@ tenantRouter.get('/users', async (req, res, next) => {
   }
 });
 
+<<<<<<< Updated upstream
 tenantRouter.get('/offers', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
@@ -501,10 +539,14 @@ tenantRouter.delete('/offers/:id', async (req, res, next) => {
 });
 
 tenantRouter.patch('/users/:id/price-adjustment', async (req, res, next) => {
+=======
+tenantRouter.patch('/users/:id', async (req, res, next) => {
+>>>>>>> Stashed changes
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
 
   const userId = req.params.id;
+<<<<<<< Updated upstream
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(userId)) {
     return res.status(400).json({ error: 'invalid_user_id' });
@@ -533,6 +575,140 @@ tenantRouter.patch('/users/:id/price-adjustment', async (req, res, next) => {
     }
 
     return res.json({ ok: true, item: result.rows[0] });
+=======
+  if (!isUuid(userId)) {
+    return res.status(400).json({ error: 'invalid_user_id' });
+  }
+
+  const role = req.body?.role != null ? String(req.body.role).trim().toLowerCase() : null;
+  const status = req.body?.status != null ? String(req.body.status).trim().toLowerCase() : null;
+  const validRoles = new Set(['retail', 'wholesale', 'tenant_admin']);
+  const validStatuses = new Set(['active', 'pending', 'inactive']);
+
+  if (role && !validRoles.has(role)) {
+    return res.status(400).json({ error: 'invalid_role' });
+  }
+  if (status && !validStatuses.has(status)) {
+    return res.status(400).json({ error: 'invalid_status' });
+  }
+  if (!role && !status) {
+    return res.status(400).json({ error: 'role_or_status_required' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await ensurePricingSchema();
+    await client.query('BEGIN');
+    const currentRes = await client.query(
+      'select role, status from user_tenants where tenant_id = $1 and user_id = $2',
+      [tenantId, userId]
+    );
+    if (!currentRes.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    const current = currentRes.rows[0];
+    const nextRole = role || current.role;
+    let nextStatus = status || current.status || 'active';
+    if (nextRole !== 'wholesale' && nextStatus === 'pending') {
+      nextStatus = 'active';
+    }
+
+    await client.query(
+      'update user_tenants set role = $3, status = $4 where tenant_id = $1 and user_id = $2',
+      [tenantId, userId, nextRole, nextStatus]
+    );
+
+    if (nextRole !== 'master_admin') {
+      await client.query(
+        "update users set role = $2 where id = $1 and role <> 'master_admin'",
+        [userId, nextRole]
+      );
+    }
+
+    const userRes = await client.query(
+      [
+        'select u.id, u.email, u.role as global_role, u.status as user_status,',
+        'ut.role as role, ut.status as status, u.created_at,',
+        'upl.price_list_id, pl.name as price_list_name, pl.type as price_list_type',
+        'from user_tenants ut',
+        'join users u on u.id = ut.user_id',
+        'left join user_price_list upl on upl.tenant_id = ut.tenant_id and upl.user_id = ut.user_id',
+        'left join price_lists pl on pl.id = upl.price_list_id',
+        'where ut.tenant_id = $1 and ut.user_id = $2',
+      ].join(' '),
+      [tenantId, userId]
+    );
+
+    await client.query('COMMIT');
+    return res.json({ ok: true, user: userRes.rows[0] || null });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+});
+
+tenantRouter.put('/users/:id/price-list', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const userId = req.params.id;
+  if (!isUuid(userId)) {
+    return res.status(400).json({ error: 'invalid_user_id' });
+  }
+
+  const rawPriceListId = req.body?.price_list_id;
+  const clearAssignment =
+    rawPriceListId == null ||
+    String(rawPriceListId).trim() === '' ||
+    String(rawPriceListId).trim().toLowerCase() === 'auto';
+
+  try {
+    await ensurePricingSchema();
+    const membershipRes = await pool.query(
+      'select user_id from user_tenants where tenant_id = $1 and user_id = $2',
+      [tenantId, userId]
+    );
+    if (!membershipRes.rowCount) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    if (clearAssignment) {
+      await pool.query(
+        'delete from user_price_list where tenant_id = $1 and user_id = $2',
+        [tenantId, userId]
+      );
+      return res.json({ ok: true, price_list: null });
+    }
+
+    const priceListId = String(rawPriceListId).trim();
+    if (!isUuid(priceListId)) {
+      return res.status(400).json({ error: 'invalid_price_list_id' });
+    }
+
+    const priceListRes = await pool.query(
+      'select id, name, type, rules_json from price_lists where tenant_id = $1 and id = $2',
+      [tenantId, priceListId]
+    );
+    if (!priceListRes.rowCount) {
+      return res.status(404).json({ error: 'price_list_not_found' });
+    }
+
+    await pool.query(
+      [
+        'insert into user_price_list (tenant_id, user_id, price_list_id, assigned_at)',
+        'values ($1, $2, $3, now())',
+        'on conflict (tenant_id, user_id)',
+        'do update set price_list_id = excluded.price_list_id, assigned_at = now()',
+      ].join(' '),
+      [tenantId, userId, priceListId]
+    );
+
+    return res.json({ ok: true, price_list: priceListRes.rows[0] });
+>>>>>>> Stashed changes
   } catch (err) {
     return next(err);
   }

@@ -3,6 +3,7 @@ dotenv.config();
 
 import { pool } from './db.js';
 import app from './app.js';
+import { ensurePricingSchema } from './services/userPricing.js';
 
 async function runStartupMigrations() {
   await pool.query(
@@ -37,6 +38,7 @@ async function runStartupMigrations() {
 // Verify DB connection on startup
 const dbHost = process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1] : 'NOT SET';
 console.log(`Checking DB connection to: ${dbHost}`);
+<<<<<<< Updated upstream
 pool
   .query('SELECT 1')
   .then(async () => {
@@ -44,6 +46,21 @@ pool
     console.log('DB Connection OK');
   })
   .catch((e) => console.error('DB Connection FAILED:', e.message));
+=======
+
+async function bootstrapDb() {
+  try {
+    await pool.query('SELECT 1');
+    console.log('DB Connection OK');
+    await ensurePricingSchema();
+    console.log('Pricing schema ready');
+  } catch (err) {
+    console.error('DB bootstrap warning:', err?.message || err);
+  }
+}
+
+bootstrapDb();
+>>>>>>> Stashed changes
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {

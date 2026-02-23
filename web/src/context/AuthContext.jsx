@@ -66,10 +66,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const isWholesale = user?.role === 'wholesale' && user?.status === 'active';
+    const isWholesalePending = user?.role === 'wholesale' && user?.status === 'pending';
     const isAdmin = user?.role === 'tenant_admin' || user?.role === 'master_admin';
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, logout, isWholesale, isAdmin, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, logout, isWholesale, isWholesalePending, isAdmin, loading }}>
             {children}
         </AuthContext.Provider>
     );

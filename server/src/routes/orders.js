@@ -1,9 +1,14 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { resolveTenant } from '../middleware/tenant.js';
+<<<<<<< Updated upstream
 import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
 import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
 import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
+=======
+import { normalizePriceAdjustments } from '../services/pricing.js';
+import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
+>>>>>>> Stashed changes
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
@@ -70,7 +75,11 @@ function normalizeItems(items) {
     }));
 }
 
+<<<<<<< Updated upstream
 async function validateItems(tenantId, items, adjustments, allowWholesale = false, offers = [], userId = null) {
+=======
+async function validateItems(tenantId, items, adjustments, pricingProfile) {
+>>>>>>> Stashed changes
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
 
@@ -106,10 +115,10 @@ async function validateItems(tenantId, items, adjustments, allowWholesale = fals
       }
 
       currency = currency || product.currency;
-      const { effective } = resolveAdjustedPrices({
+      const { effective } = resolveEffectiveProductPrice({
         priceRetail: product.price,
         priceWholesale: product.price_wholesale,
-        allowWholesale,
+        profile: pricingProfile,
         adjustments,
       });
       const bestOffer = resolveBestOfferForProduct({
@@ -158,7 +167,11 @@ function resolveCheckoutMode(settings = {}, requested = '') {
 
 function buildWhatsAppMessage(order, template, currency) {
   const itemsLines = order.items
-    .map((item) => `- ${item.name} (SKU: ${item.sku || item.product_id}) x${item.qty}`)
+    .map((item) => {
+      const unitPrice = Number(item.unit_price || 0);
+      const lineTotal = Number(item.total != null ? item.total : unitPrice * Number(item.qty || 0));
+      return `- ${item.name} (SKU: ${item.sku || item.product_id}) x${item.qty} | ${unitPrice.toFixed(2)} ${currency} | ${lineTotal.toFixed(2)} ${currency}`;
+    })
     .join('\n');
 
   const payload = {
@@ -198,19 +211,31 @@ function buildWhatsAppMessage(order, template, currency) {
 ordersRouter.post('/submit', async (req, res, next) => {
   const client = await pool.connect();
   try {
+<<<<<<< Updated upstream
     const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
+=======
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user,
+    });
+>>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
     const commerce = (settingsRes.rows[0] && settingsRes.rows[0].commerce) || {};
+<<<<<<< Updated upstream
     const adjustments = {
       ...normalizePriceAdjustments(commerce),
       userPercent: userPricePercent,
     };
     const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
     const validation = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
+=======
+    const adjustments = normalizePriceAdjustments(commerce);
+    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
+>>>>>>> Stashed changes
     if (!validation.valid) {
       return res.status(400).json(validation);
     }

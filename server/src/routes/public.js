@@ -1,14 +1,20 @@
 import express from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
+<<<<<<< Updated upstream
 import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
 import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
 import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
+=======
+import { normalizePriceAdjustments } from '../services/pricing.js';
+>>>>>>> Stashed changes
 import { pool } from '../db.js';
+import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
 
 export const publicRouter = express.Router();
 
 publicRouter.use(resolveTenant);
 
+<<<<<<< Updated upstream
 function mapProductRow(row, allowWholesale, adjustments, userId, offers) {
   const priceRetail = Number(row.price || 0);
   const priceWholesale = Number(row.price_wholesale || 0);
@@ -24,12 +30,25 @@ function mapProductRow(row, allowWholesale, adjustments, userId, offers) {
   const discountedWholesale = wholesale == null ? null : applyOfferDiscount(wholesale, bestOffer.percent);
   const discountedEffective = applyOfferDiscount(effective, bestOffer.percent);
   const canUseWholesale = allowWholesale && wholesale != null;
+=======
+function mapProductRow(row, pricingProfile, adjustments) {
+  const priceRetail = Number(row.price || 0);
+  const priceWholesale = Number(row.price_wholesale || 0);
+  const { retail, wholesale, effective, segment, priceList, pendingWholesale } =
+    resolveEffectiveProductPrice({
+      priceRetail,
+      priceWholesale,
+      profile: pricingProfile,
+      adjustments,
+    });
+>>>>>>> Stashed changes
   return {
     id: row.id,
     erp_id: row.erp_id,
     sku: row.sku,
     name: row.name,
     description: row.description,
+<<<<<<< Updated upstream
     price: discountedEffective,
     price_retail: discountedRetail,
     price_wholesale: canUseWholesale ? discountedWholesale : null,
@@ -41,6 +60,19 @@ function mapProductRow(row, allowWholesale, adjustments, userId, offers) {
       old_price: bestOffer.percent > 0 ? effective : undefined,
       offer_label: bestOffer.label || undefined,
       offer_percent: bestOffer.percent || 0,
+=======
+    price: effective,
+    price_retail: retail,
+    price_wholesale: wholesale,
+    currency: row.currency,
+    stock: row.stock,
+    brand: row.brand,
+    data: row.data || {},
+    pricing: {
+      segment,
+      pending_wholesale: pendingWholesale,
+      price_list: priceList,
+>>>>>>> Stashed changes
     },
   };
 }
@@ -115,8 +147,15 @@ publicRouter.get('/pages/:slug', async (req, res, next) => {
 
 publicRouter.get('/products', async (req, res, next) => {
   try {
+<<<<<<< Updated upstream
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
+=======
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user,
+    });
+>>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
@@ -184,7 +223,13 @@ publicRouter.get('/products', async (req, res, next) => {
     ].join(' ');
 
     const productsRes = await pool.query(sql, params);
+<<<<<<< Updated upstream
     const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
+=======
+    const products = productsRes.rows.map((row) =>
+      mapProductRow(row, pricingProfile, adjustments)
+    );
+>>>>>>> Stashed changes
 
     return res.json({ page, limit, items: products });
   } catch (err) {
@@ -194,8 +239,15 @@ publicRouter.get('/products', async (req, res, next) => {
 
 publicRouter.get('/products/:id', async (req, res, next) => {
   try {
+<<<<<<< Updated upstream
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
+=======
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user,
+    });
+>>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
@@ -226,7 +278,11 @@ publicRouter.get('/products/:id', async (req, res, next) => {
     }
 
     const row = result.rows[0];
+<<<<<<< Updated upstream
     return res.json(mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
+=======
+    return res.json(mapProductRow(row, pricingProfile, adjustments));
+>>>>>>> Stashed changes
   } catch (err) {
     return next(err);
   }
@@ -234,8 +290,15 @@ publicRouter.get('/products/:id', async (req, res, next) => {
 
 publicRouter.get('/products/:id/related', async (req, res, next) => {
   try {
+<<<<<<< Updated upstream
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
+=======
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user,
+    });
+>>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
@@ -285,7 +348,13 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
       [req.tenant.id, id, categoryIds, limit]
     );
 
+<<<<<<< Updated upstream
     const items = relatedRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
+=======
+    const items = relatedRes.rows.map((row) =>
+      mapProductRow(row, pricingProfile, adjustments)
+    );
+>>>>>>> Stashed changes
 
     return res.json({ items });
   } catch (err) {
@@ -295,8 +364,15 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
 
 publicRouter.get('/collections/:slug', async (req, res, next) => {
   try {
+<<<<<<< Updated upstream
     const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
+=======
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user,
+    });
+>>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
@@ -328,7 +404,13 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
       [collection.id]
     );
 
+<<<<<<< Updated upstream
     const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
+=======
+    const products = productsRes.rows.map((row) =>
+      mapProductRow(row, pricingProfile, adjustments)
+    );
+>>>>>>> Stashed changes
 
     return res.json({ collection, items: products });
   } catch (err) {
