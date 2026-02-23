@@ -402,7 +402,12 @@ tenantRouter.get('/users', async (req, res, next) => {
       [
         'select u.id, u.email, u.role as global_role, u.status as user_status,',
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         'ut.role as role, ut.status as status, ut.price_adjustment_percent, u.created_at',
+=======
+        'ut.role as role, ut.status as status, u.created_at,',
+        'upl.price_list_id, pl.name as price_list_name, pl.type as price_list_type',
+>>>>>>> Stashed changes
 =======
         'ut.role as role, ut.status as status, u.created_at,',
         'upl.price_list_id, pl.name as price_list_name, pl.type as price_list_type',
@@ -424,6 +429,7 @@ tenantRouter.get('/users', async (req, res, next) => {
   }
 });
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 tenantRouter.get('/offers', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
@@ -542,10 +548,14 @@ tenantRouter.patch('/users/:id/price-adjustment', async (req, res, next) => {
 =======
 tenantRouter.patch('/users/:id', async (req, res, next) => {
 >>>>>>> Stashed changes
+=======
+tenantRouter.patch('/users/:id', async (req, res, next) => {
+>>>>>>> Stashed changes
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
 
   const userId = req.params.id;
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(userId)) {
@@ -576,6 +586,8 @@ tenantRouter.patch('/users/:id', async (req, res, next) => {
 
     return res.json({ ok: true, item: result.rows[0] });
 =======
+=======
+>>>>>>> Stashed changes
   if (!isUuid(userId)) {
     return res.status(400).json({ error: 'invalid_user_id' });
   }
@@ -708,6 +720,9 @@ tenantRouter.put('/users/:id/price-list', async (req, res, next) => {
     );
 
     return res.json({ ok: true, price_list: priceListRes.rows[0] });
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   } catch (err) {
     return next(err);

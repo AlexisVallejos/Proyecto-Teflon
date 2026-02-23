@@ -88,6 +88,7 @@ export default function EditorPage() {
     const [usersLoading, setUsersLoading] = useState(false);
     const [usersError, setUsersError] = useState('');
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     const [usersAdjustmentDrafts, setUsersAdjustmentDrafts] = useState({});
     const [usersSavingAdjustmentId, setUsersSavingAdjustmentId] = useState(null);
     const [offers, setOffers] = useState([]);
@@ -106,11 +107,16 @@ export default function EditorPage() {
         category_ids: [],
     });
 =======
+=======
+>>>>>>> Stashed changes
     const [priceLists, setPriceLists] = useState([]);
     const [priceListsLoading, setPriceListsLoading] = useState(false);
     const [priceListsError, setPriceListsError] = useState('');
     const [userDrafts, setUserDrafts] = useState({});
     const [userSavingId, setUserSavingId] = useState(null);
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     const USERS_LIMIT = 10;
     const [selectedUser, setSelectedUser] = useState(null);
@@ -351,6 +357,7 @@ export default function EditorPage() {
     }, [USERS_LIMIT, usersPage]);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     const resetOfferForm = useCallback(() => {
         setEditingOfferId(null);
         setOfferForm({
@@ -371,12 +378,18 @@ export default function EditorPage() {
         setPriceListsLoading(true);
         setPriceListsError('');
 >>>>>>> Stashed changes
+=======
+    const loadPriceLists = useCallback(async () => {
+        setPriceListsLoading(true);
+        setPriceListsError('');
+>>>>>>> Stashed changes
         try {
             const token = localStorage.getItem('teflon_token');
             const headers = {
                 ...getTenantHeaders(),
                 'Authorization': `Bearer ${token}`,
             };
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
             const res = await fetch(`${getApiBase()}/tenant/offers`, { headers });
             if (!res.ok) {
@@ -579,6 +592,8 @@ export default function EditorPage() {
         }
     }, [selectedUser, usersAdjustmentDrafts]);
 =======
+=======
+>>>>>>> Stashed changes
             const res = await fetch(`${getApiBase()}/tenant/price-lists`, { headers });
             if (!res.ok) {
                 const msg = await res.text();
@@ -734,6 +749,9 @@ export default function EditorPage() {
             setUserSavingId(null);
         }
     }, [patchUserMembership]);
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
     const loadUserOrders = useCallback(async (userId) => {
@@ -816,6 +834,7 @@ export default function EditorPage() {
             loadPriceLists();
         }
     }, [activeTab, usersPage, loadUsers, loadPriceLists]);
+<<<<<<< Updated upstream
 
     useEffect(() => {
         if (activeTab === 'pricing') {
@@ -823,6 +842,8 @@ export default function EditorPage() {
             loadOfferUsers();
         }
     }, [activeTab, loadOffers, loadOfferUsers]);
+=======
+>>>>>>> Stashed changes
 
     useEffect(() => {
         if (activeTab === 'users' && selectedUser?.id) {
@@ -2007,6 +2028,7 @@ export default function EditorPage() {
                                                                 </button>
                                                             </div>
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                                 <label className="text-[10px] font-black uppercase tracking-widest text-[#8a7560]">
                                                                     Ajuste cliente (%)
@@ -2035,6 +2057,8 @@ export default function EditorPage() {
                                                                 </div>
                                                             </div>
 =======
+=======
+>>>>>>> Stashed changes
                                                             {(() => {
                                                                 const draft = getUserDraft(item);
                                                                 const isPendingWholesale = item.role === 'wholesale' && item.status === 'pending';
@@ -2136,6 +2160,9 @@ export default function EditorPage() {
                                                                     </div>
                                                                 );
                                                             })()}
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
                                                         </div>
                                                     );

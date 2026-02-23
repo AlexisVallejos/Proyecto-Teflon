@@ -3,9 +3,14 @@ import { resolveTenant } from '../middleware/tenant.js';
 import { pool } from '../db.js';
 import { createPreference } from '../services/mercadopago.js';
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
 import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
 import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
+=======
+import { normalizePriceAdjustments } from '../services/pricing.js';
+import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
+>>>>>>> Stashed changes
 =======
 import { normalizePriceAdjustments } from '../services/pricing.js';
 import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
@@ -26,7 +31,11 @@ function normalizeItems(items) {
 }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 async function validateItems(tenantId, items, adjustments, isWholesale = false, offers = [], userId = null) {
+=======
+async function validateItems(tenantId, items, adjustments, pricingProfile) {
+>>>>>>> Stashed changes
 =======
 async function validateItems(tenantId, items, adjustments, pricingProfile) {
 >>>>>>> Stashed changes
@@ -101,13 +110,19 @@ async function validateItems(tenantId, items, adjustments, pricingProfile) {
 checkoutRouter.post('/validate', async (req, res, next) => {
   try {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
 =======
+=======
+>>>>>>> Stashed changes
     const pricingProfile = await resolvePricingProfile({
       tenantId: req.tenant.id,
       user: req.user,
     });
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
@@ -123,6 +138,9 @@ checkoutRouter.post('/validate', async (req, res, next) => {
 =======
     const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
     const result = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     if (!result.valid) {
       return res.status(400).json(result);
@@ -137,13 +155,19 @@ checkoutRouter.post('/create', async (req, res, next) => {
   const client = await pool.connect();
   try {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
     const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
 =======
+=======
+>>>>>>> Stashed changes
     const pricingProfile = await resolvePricingProfile({
       tenantId: req.tenant.id,
       user: req.user,
     });
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
@@ -160,6 +184,9 @@ checkoutRouter.post('/create', async (req, res, next) => {
 =======
     const adjustments = normalizePriceAdjustments(commerce);
     const validation = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     if (!validation.valid) {
       return res.status(400).json(validation);
