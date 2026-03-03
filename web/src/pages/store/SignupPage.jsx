@@ -1,25 +1,274 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate } from '../../utils/navigation';
 
+const CheckIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <polyline points="20 6 9 17 4 12" />
+    </svg>
+);
+
+const PersonIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+    </svg>
+);
+
+const StorefrontIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+);
+
+const EyeIcon = ({ open }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        {open ? (
+            <>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+            </>
+        ) : (
+            <>
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+            </>
+        )}
+    </svg>
+);
+
+const inputClass = 'w-full px-3.5 py-2.5 rounded-lg border border-[#e5e1de] bg-white text-[#181411] focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all placeholder:text-[#8a7560]';
+const labelClass = 'block text-[13px] font-bold text-[#181411] mb-1.5';
+
+function Step1({ data, onChange, onNext }) {
+    return (
+        <div className="space-y-4">
+            <div>
+                <label className={labelClass}>Nombre completo</label>
+                <input className={inputClass} type="text" placeholder="Tu nombre" value={data.name} onChange={(e) => onChange('name', e.target.value)} />
+            </div>
+            <div>
+                <label className={labelClass}>Email</label>
+                <input className={inputClass} type="email" placeholder="tu@email.com" value={data.email} onChange={(e) => onChange('email', e.target.value)} />
+            </div>
+            <div>
+                <label className={labelClass}>Telefono</label>
+                <input className={inputClass} type="tel" placeholder="+54 11 ...." value={data.phone} onChange={(e) => onChange('phone', e.target.value)} />
+            </div>
+            <button onClick={onNext} className="w-full mt-2 bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+                Continuar
+            </button>
+        </div>
+    );
+}
+
+function Step2({ data, onChange, onNext, onBack }) {
+    const [showPass, setShowPass] = useState(false);
+
+    return (
+        <div className="space-y-5">
+            <div>
+                <label className={labelClass}>Contrasena</label>
+                <div className="relative">
+                    <input className={inputClass} type={showPass ? 'text' : 'password'} placeholder="********" value={data.password} onChange={(e) => onChange('password', e.target.value)} />
+                    <button type="button" onClick={() => setShowPass((v) => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8a7560] hover:text-[#181411]">
+                        <EyeIcon open={showPass} />
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label className={labelClass}>Confirmar contrasena</label>
+                <input className={inputClass} type="password" placeholder="********" value={data.confirmPassword} onChange={(e) => onChange('confirmPassword', e.target.value)} />
+            </div>
+            <div>
+                <label className={labelClass}>Tipo de cuenta</label>
+                <div className="grid grid-cols-2 gap-4">
+                    {[
+                        { value: 'minorista', label: 'Minorista', Icon: PersonIcon },
+                        { value: 'mayorista', label: 'Mayorista', Icon: StorefrontIcon },
+                    ].map(({ value, label, Icon }) => (
+                        <label key={value} className="cursor-pointer">
+                            <input type="radio" name="accountType" value={value} checked={data.accountType === value} onChange={() => onChange('accountType', value)} className="sr-only" />
+                            <div className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-200 ${data.accountType === value ? 'border-primary bg-primary/10 text-primary' : 'border-[#e5e1de] bg-white text-[#8a7560]'}`}>
+                                <Icon />
+                                <span className="font-bold text-sm mt-2">{label}</span>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+            </div>
+            <div className="pt-1 space-y-3">
+                <button onClick={onNext} className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+                    Continuar
+                </button>
+                <div className="text-center">
+                    <button onClick={onBack} className="text-[#8a7560] font-semibold text-sm hover:text-[#181411] transition-colors">
+                        Volver al paso anterior
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Step3({ data, onChange, onBack, onSubmit, loading }) {
+    return (
+        <div className="space-y-4">
+            <div>
+                <label className={labelClass}>Nombre de la empresa</label>
+                <input className={inputClass} type="text" placeholder="Nombre comercial o razon social" value={data.company} onChange={(e) => onChange('company', e.target.value)} />
+            </div>
+            <div>
+                <label className={labelClass}>CUIT / CUIL</label>
+                <input className={inputClass} type="text" placeholder="00-00000000-0" value={data.cuit} onChange={(e) => onChange('cuit', e.target.value)} />
+            </div>
+            <div>
+                <label className={labelClass}>Direccion comercial</label>
+                <input className={inputClass} type="text" placeholder="Calle, numero, localidad" value={data.address} onChange={(e) => onChange('address', e.target.value)} />
+            </div>
+            <div className="pt-1 space-y-3">
+                <button onClick={onSubmit} disabled={loading} className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70">
+                    {loading ? 'Creando cuenta...' : 'Finalizar registro'}
+                </button>
+                <div className="text-center">
+                    <button onClick={onBack} className="text-[#8a7560] font-semibold text-sm hover:text-[#181411] transition-colors">
+                        Volver al paso anterior
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Stepper({ current }) {
+    const steps = ['Personal', 'Cuenta', 'Negocio'];
+    const progressWidth = ['0%', '50%', '100%'];
+
+    return (
+        <div className="flex items-start justify-between mb-8 relative px-2">
+            <div className="absolute top-3.5 left-0 w-full h-0.5 bg-[#f0ece8] z-0" />
+            <div className="absolute top-3.5 left-0 h-0.5 bg-primary z-0 transition-all duration-500" style={{ width: progressWidth[current - 1] }} />
+            {steps.map((label, i) => {
+                const stepNum = i + 1;
+                const done = stepNum < current;
+                const active = stepNum === current;
+                return (
+                    <div key={label} className="relative z-10 flex flex-col items-center">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${done || active ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-[#f0ece8] text-[#8a7560]'}`}>
+                            {done ? <CheckIcon /> : stepNum}
+                        </div>
+                        <span className={`text-[9px] mt-1.5 font-bold uppercase tracking-wider transition-colors ${active ? 'text-primary' : 'text-[#8a7560]'}`}>{label}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function mapSignupError(code) {
+    const dictionary = {
+        missing_fields: 'Completa los campos obligatorios.',
+        user_exists: 'Ya existe una cuenta con ese email.',
+        invalid_tenant_id: 'Tenant invalido.',
+        tenant_required: 'Falta configurar tenant para el registro.',
+    };
+    return dictionary[code] || 'No se pudo crear la cuenta.';
+}
+
 export default function SignupPage() {
     const { signup } = useAuth();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [role, setRole] = useState('retail');
+    const [step, setStep] = useState(1);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirmPassword: '',
+        accountType: 'minorista',
+        company: '',
+        cuit: '',
+        address: '',
+    });
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const roleForApi = useMemo(
+        () => (formData.accountType === 'mayorista' ? 'wholesale' : 'retail'),
+        [formData.accountType]
+    );
+
+    const update = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
+
+    const validateStep1 = () => {
+        if (!formData.name.trim()) return 'Completa tu nombre.';
+        if (!formData.email.trim()) return 'Completa tu email.';
+        if (!/\S+@\S+\.\S+/.test(formData.email)) return 'Email invalido.';
+        if (!formData.phone.trim()) return 'Completa tu telefono.';
+        return '';
+    };
+
+    const validateStep2 = () => {
+        if (!formData.password) return 'Completa la contrasena.';
+        if (formData.password.length < 6) return 'La contrasena debe tener al menos 6 caracteres.';
+        if (formData.password !== formData.confirmPassword) return 'Las contrasenas no coinciden.';
+        return '';
+    };
+
+    const goStep2 = () => {
+        const msg = validateStep1();
+        if (msg) {
+            setError(msg);
+            return;
+        }
+        setError('');
+        setStep(2);
+    };
+
+    const goStep3 = () => {
+        const msg = validateStep2();
+        if (msg) {
+            setError(msg);
+            return;
+        }
+        setError('');
+        setStep(3);
+    };
+
+    const submit = async () => {
+        const step1Error = validateStep1();
+        if (step1Error) {
+            setError(step1Error);
+            setStep(1);
+            return;
+        }
+        const step2Error = validateStep2();
+        if (step2Error) {
+            setError(step2Error);
+            setStep(2);
+            return;
+        }
+        if (formData.accountType === 'mayorista') {
+            if (!formData.company.trim() || !formData.cuit.trim() || !formData.address.trim()) {
+                setError('Para mayorista completa empresa, cuit y direccion.');
+                setStep(3);
+                return;
+            }
+        }
+
         setError('');
         setLoading(true);
         try {
-            await signup(email, password, role);
-            navigate('/profile');
+            const data = await signup(formData.email.trim(), formData.password, roleForApi);
+            const isPendingApproval = data?.requires_approval || data?.user?.status === 'pending';
+            const loginNotice = isPendingApproval
+                ? 'Cuenta creada. Tu usuario quedo pendiente de aprobacion del administrador.'
+                : 'Cuenta creada correctamente. Ya podes iniciar sesion.';
+            sessionStorage.setItem('teflon_auth_notice', loginNotice);
+            navigate('/login');
         } catch (err) {
-            setError(err.message);
+            setError(mapSignupError(String(err?.message || '')));
         } finally {
             setLoading(false);
         }
@@ -27,86 +276,30 @@ export default function SignupPage() {
 
     return (
         <StoreLayout>
-            <div className="min-h-[80vh] flex items-center justify-center px-4 py-10">
-                <div className="max-w-md w-full bg-white dark:bg-[#1a130c] p-10 rounded-2xl shadow-xl border border-[#e5e1de] dark:border-[#3d2f21]">
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-black text-[#181411] dark:text-white">Crear cuenta</h2>
-                        <p className="text-[#8a7560] mt-2">Unite a Sanitarios El Teflon</p>
+            <div className="min-h-[80vh] flex items-center justify-center p-4">
+                <div className="w-full max-w-[360px] bg-white rounded-2xl shadow-xl border border-[#e5e1de] p-5 md:p-6">
+                    <div className="text-center mb-6">
+                        <h1 className="text-2xl font-extrabold text-[#181411] mb-1">Crear cuenta</h1>
+                        <p className="text-[#8a7560] text-sm font-medium">Unite a Sanitarios El Teflon</p>
                     </div>
 
-                    {error && (
-                        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 text-sm font-medium border border-red-100">
+                    <Stepper current={step} />
+
+                    {error ? (
+                        <div className="bg-red-50 text-red-700 p-3 rounded-xl border border-red-200 text-sm font-semibold mb-5">
                             {error}
                         </div>
-                    )}
+                    ) : null}
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-bold text-[#181411] dark:text-white mb-2">Email</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white"
-                                placeholder="tu@email.com"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-[#181411] dark:text-white mb-2">Contraseña</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white"
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
+                    {step === 1 && <Step1 data={formData} onChange={update} onNext={goStep2} />}
+                    {step === 2 && <Step2 data={formData} onChange={update} onNext={goStep3} onBack={() => setStep(1)} />}
+                    {step === 3 && <Step3 data={formData} onChange={update} onBack={() => setStep(2)} onSubmit={submit} loading={loading} />}
 
-                        <div>
-                            <label className="block text-sm font-bold text-[#181411] dark:text-white mb-2">Tipo de cuenta</label>
-                            <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setRole('retail')}
-                                    className={`py-3 rounded-lg border font-bold text-sm transition-all ${role === 'retail'
-                                            ? 'bg-primary/10 border-primary text-primary'
-                                            : 'bg-transparent border-[#e5e1de] dark:border-[#3d2f21] text-[#8a7560]'
-                                        }`}
-                                >
-                                    Minorista
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setRole('wholesale')}
-                                    className={`py-3 rounded-lg border font-bold text-sm transition-all ${role === 'wholesale'
-                                            ? 'bg-primary/10 border-primary text-primary'
-                                            : 'bg-transparent border-[#e5e1de] dark:border-[#3d2f21] text-[#8a7560]'
-                                        }`}
-                                >
-                                    Mayorista
-                                </button>
-                            </div>
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70"
-                        >
-                            {loading ? 'Creando cuenta...' : 'Registrarse'}
-                        </button>
-                    </form>
-
-                    <div className="mt-8 text-center">
+                    <div className="mt-6 pt-4 border-t border-[#f0ece8] text-center">
                         <p className="text-[#8a7560] text-sm">
-                            ¿Ya tenés cuenta?{' '}
-                            <button
-                                onClick={() => navigate('/login')}
-                                className="text-primary font-bold hover:underline"
-                            >
-                                Iniciar sesión
+                            Ya tenes cuenta?{' '}
+                            <button onClick={() => navigate('/login')} className="text-primary font-bold hover:underline">
+                                Iniciar sesion
                             </button>
                         </p>
                     </div>

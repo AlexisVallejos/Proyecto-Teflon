@@ -1,49 +1,50 @@
 import express from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
-import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
-import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
-=======
 import { normalizePriceAdjustments } from '../services/pricing.js';
->>>>>>> Stashed changes
-=======
-import { normalizePriceAdjustments } from '../services/pricing.js';
->>>>>>> Stashed changes
 import { pool } from '../db.js';
 import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
+import {
+  applyOfferDiscount,
+  getTenantOffers,
+  resolveBestOfferForProduct,
+} from '../services/offers.js';
 
 export const publicRouter = express.Router();
 
 publicRouter.use(resolveTenant);
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-function mapProductRow(row, allowWholesale, adjustments, userId, offers) {
-  const priceRetail = Number(row.price || 0);
-  const priceWholesale = Number(row.price_wholesale || 0);
-  const { retail, wholesale, effective } = resolveAdjustedPrices({
-    priceRetail,
-    priceWholesale,
-    allowWholesale,
-    adjustments,
+async function buildPricingContext(req) {
+  const settingsRes = await pool.query(
+    'select commerce from tenant_settings where tenant_id = $1',
+    [req.tenant.id]
+  );
+
+  const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+  const pricingProfile = await resolvePricingProfile({
+    tenantId: req.tenant.id,
+    user: req.user || null,
   });
-  const categoryIds = Array.isArray(row.category_ids) ? row.category_ids : [];
-  const bestOffer = resolveBestOfferForProduct({ offers, userId, categoryIds });
-  const discountedRetail = applyOfferDiscount(retail, bestOffer.percent);
-  const discountedWholesale = wholesale == null ? null : applyOfferDiscount(wholesale, bestOffer.percent);
-  const discountedEffective = applyOfferDiscount(effective, bestOffer.percent);
-  const canUseWholesale = allowWholesale && wholesale != null;
-=======
-function mapProductRow(row, pricingProfile, adjustments) {
+
+  let offers = [];
+  try {
+    offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+  } catch (err) {
+    console.warn('Failed to load tenant offers for public pricing:', err?.message || err);
+  }
+
+  return {
+    adjustments,
+    pricingProfile,
+    offers,
+    userId: req.user?.id || null,
+  };
+}
+
+function mapProductRow(row, pricingContext) {
+  const { adjustments, pricingProfile, offers, userId } = pricingContext;
   const priceRetail = Number(row.price || 0);
   const priceWholesale = Number(row.price_wholesale || 0);
-=======
-function mapProductRow(row, pricingProfile, adjustments) {
-  const priceRetail = Number(row.price || 0);
-  const priceWholesale = Number(row.price_wholesale || 0);
->>>>>>> Stashed changes
   const { retail, wholesale, effective, segment, priceList, pendingWholesale } =
     resolveEffectiveProductPrice({
       priceRetail,
@@ -51,30 +52,21 @@ function mapProductRow(row, pricingProfile, adjustments) {
       profile: pricingProfile,
       adjustments,
     });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+
+  const bestOffer = resolveBestOfferForProduct({
+    offers,
+    userId,
+    categoryIds: row.category_ids || [],
+  });
+  const finalPrice = applyOfferDiscount(effective, bestOffer.percent);
+
   return {
     id: row.id,
     erp_id: row.erp_id,
     sku: row.sku,
     name: row.name,
     description: row.description,
-<<<<<<< Updated upstream
-    price: discountedEffective,
-    price_retail: discountedRetail,
-    price_wholesale: canUseWholesale ? discountedWholesale : null,
-    currency: row.currency,
-    stock: row.stock,
-    brand: row.brand,
-    data: {
-      ...(row.data || {}),
-      old_price: bestOffer.percent > 0 ? effective : undefined,
-      offer_label: bestOffer.label || undefined,
-      offer_percent: bestOffer.percent || 0,
-=======
-    price: effective,
+    price: finalPrice,
     price_retail: retail,
     price_wholesale: wholesale,
     currency: row.currency,
@@ -85,12 +77,41 @@ function mapProductRow(row, pricingProfile, adjustments) {
       segment,
       pending_wholesale: pendingWholesale,
       price_list: priceList,
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+      offer: bestOffer.percent > 0
+        ? {
+            id: bestOffer.id,
+            label: bestOffer.label,
+            percent: bestOffer.percent,
+          }
+        : null,
     },
   };
+}
+
+function mapReviewRow(row) {
+  if (!row) return null;
+  const email = String(row.email || '').trim();
+  const fallbackName = row.user_id ? 'Cliente' : 'Invitado';
+  const authorName = email ? email.split('@')[0] : fallbackName;
+
+  return {
+    id: row.id,
+    product_id: row.product_id,
+    user_id: row.user_id,
+    author_name: authorName,
+    rating: Number(row.rating || 5),
+    comment: row.comment || '',
+    created_at: row.created_at,
+  };
+}
+
+async function isReviewsEnabled(tenantId) {
+  const settingsRes = await pool.query(
+    'select commerce from tenant_settings where tenant_id = $1',
+    [tenantId]
+  );
+  const commerce = settingsRes.rows[0]?.commerce || {};
+  return commerce.reviews_enabled !== false;
 }
 
 publicRouter.get('/tenant', async (req, res, next) => {
@@ -109,7 +130,19 @@ publicRouter.get('/tenant', async (req, res, next) => {
 publicRouter.get('/categories', async (req, res, next) => {
   try {
     const result = await pool.query(
-      'select id, name, slug from categories where tenant_id = $1 order by name asc',
+      [
+        'select c.id, c.name, c.slug,',
+        "nullif(c.data->>'parent_id', '') as parent_id,",
+        'parent.name as parent_name',
+        'from categories c',
+        "left join categories parent on parent.tenant_id = c.tenant_id and parent.id::text = nullif(c.data->>'parent_id', '')",
+        'where c.tenant_id = $1',
+        [
+          "order by coalesce(parent.name, c.name) asc,",
+          "case when nullif(c.data->>'parent_id', '') is null then 0 else 1 end asc,",
+          'c.name asc',
+        ].join(' '),
+      ].join(' '),
       [req.tenant.id]
     );
     return res.json(result.rows);
@@ -120,11 +153,33 @@ publicRouter.get('/categories', async (req, res, next) => {
 
 publicRouter.get('/brands', async (req, res, next) => {
   try {
-    const result = await pool.query(
-      'select distinct brand from product_cache where tenant_id = $1 and brand is not null order by brand asc',
-      [req.tenant.id]
-    );
-    return res.json(result.rows.map(r => r.brand));
+    const [settingsRes, result] = await Promise.all([
+      pool.query(
+        'select commerce from tenant_settings where tenant_id = $1',
+        [req.tenant.id]
+      ),
+      pool.query(
+        'select distinct brand from product_cache where tenant_id = $1 and brand is not null and trim(brand) <> \'\'',
+        [req.tenant.id]
+      ),
+    ]);
+
+    const commerce = settingsRes.rows[0]?.commerce || {};
+    const settingsBrands = Array.isArray(commerce.brands)
+      ? commerce.brands.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+    const productBrands = result.rows.map((r) => String(r.brand || '').trim()).filter(Boolean);
+
+    const merged = new Map();
+    [...settingsBrands, ...productBrands].forEach((item) => {
+      const key = item.toLowerCase();
+      if (!merged.has(key)) {
+        merged.set(key, item);
+      }
+    });
+
+    const brands = [...merged.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    return res.json(brands);
   } catch (err) {
     return next(err);
   }
@@ -163,30 +218,7 @@ publicRouter.get('/pages/:slug', async (req, res, next) => {
 
 publicRouter.get('/products', async (req, res, next) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
-    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
-=======
-=======
->>>>>>> Stashed changes
-    const pricingProfile = await resolvePricingProfile({
-      tenantId: req.tenant.id,
-      user: req.user,
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    const settingsRes = await pool.query(
-      'select commerce from tenant_settings where tenant_id = $1',
-      [req.tenant.id]
-    );
-    const adjustments = {
-      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
-      userPercent: userPricePercent,
-    };
-    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+    const pricingContext = await buildPricingContext(req);
     const tenantId = req.tenant.id;
     const q = String(req.query.q || '').trim();
     const category = req.query.category;
@@ -208,11 +240,27 @@ publicRouter.get('/products', async (req, res, next) => {
 
     if (category) {
       params.push(category);
-      where += ` and p.id in (select product_id from product_categories pc join categories c on c.id = pc.category_id where c.slug = $${params.length} or c.id::text = $${params.length})`;
+      where += [
+        ' and p.id in (',
+        'select pc.product_id',
+        'from product_categories pc',
+        'join categories c on c.id = pc.category_id',
+        `where c.slug = $${params.length}`,
+        `or c.id::text = $${params.length}`,
+        `or nullif(c.data->>'parent_id', '') = $${params.length}`,
+        [
+          "or nullif(c.data->>'parent_id', '') in (",
+          'select parent.id::text',
+          'from categories parent',
+          `where parent.tenant_id = c.tenant_id and parent.slug = $${params.length}`,
+          ')',
+        ].join(' '),
+        ')',
+      ].join(' ');
     }
 
     if (req.query.featured === 'true') {
-      where += ` and o.featured = true`;
+      where += ' and o.featured = true';
     }
 
     if (brand) {
@@ -245,19 +293,7 @@ publicRouter.get('/products', async (req, res, next) => {
     ].join(' ');
 
     const productsRes = await pool.query(sql, params);
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
-=======
-    const products = productsRes.rows.map((row) =>
-      mapProductRow(row, pricingProfile, adjustments)
-    );
->>>>>>> Stashed changes
-=======
-    const products = productsRes.rows.map((row) =>
-      mapProductRow(row, pricingProfile, adjustments)
-    );
->>>>>>> Stashed changes
+    const products = productsRes.rows.map((row) => mapProductRow(row, pricingContext));
 
     return res.json({ page, limit, items: products });
   } catch (err) {
@@ -267,34 +303,10 @@ publicRouter.get('/products', async (req, res, next) => {
 
 publicRouter.get('/products/:id', async (req, res, next) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
-    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
-=======
-=======
->>>>>>> Stashed changes
-    const pricingProfile = await resolvePricingProfile({
-      tenantId: req.tenant.id,
-      user: req.user,
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    const settingsRes = await pool.query(
-      'select commerce from tenant_settings where tenant_id = $1',
-      [req.tenant.id]
-    );
-    const adjustments = {
-      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
-      userPercent: userPricePercent,
-    };
-    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+    const pricingContext = await buildPricingContext(req);
     const id = req.params.id;
-    // Simple UUID validation to prevent DB crash
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+
+    if (!UUID_REGEX.test(id)) {
       return res.status(404).json({ error: 'product_not_found' });
     }
 
@@ -312,15 +324,129 @@ publicRouter.get('/products/:id', async (req, res, next) => {
     }
 
     const row = result.rows[0];
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    return res.json(mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
-=======
-    return res.json(mapProductRow(row, pricingProfile, adjustments));
->>>>>>> Stashed changes
-=======
-    return res.json(mapProductRow(row, pricingProfile, adjustments));
->>>>>>> Stashed changes
+    return res.json(mapProductRow(row, pricingContext));
+  } catch (err) {
+    return next(err);
+  }
+});
+
+publicRouter.get('/products/:id/reviews', async (req, res, next) => {
+  try {
+    const productId = req.params.id;
+    if (!UUID_REGEX.test(productId)) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+
+    const productRes = await pool.query(
+      "select id from product_cache where tenant_id = $1 and id = $2 and status = 'active'",
+      [req.tenant.id, productId]
+    );
+    if (!productRes.rowCount) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+
+    const enabled = await isReviewsEnabled(req.tenant.id);
+    if (!enabled) {
+      return res.json({ enabled: false, items: [] });
+    }
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 200);
+    const reviewsRes = await pool.query(
+      [
+        'select r.id, r.product_id, r.user_id, r.rating, r.comment, r.created_at, u.email',
+        'from product_reviews r',
+        'left join users u on u.id = r.user_id',
+        'where r.tenant_id = $1 and r.product_id = $2 and r.status = $3',
+        'order by r.created_at desc',
+        'limit $4',
+      ].join(' '),
+      [req.tenant.id, productId, 'published', limit]
+    );
+
+    return res.json({
+      enabled: true,
+      items: reviewsRes.rows.map(mapReviewRow).filter(Boolean),
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+publicRouter.post('/products/:id/reviews', async (req, res, next) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    const productId = req.params.id;
+    if (!UUID_REGEX.test(productId)) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+
+    if (req.user.tenantId && req.user.tenantId !== req.tenant.id) {
+      return res.status(403).json({ error: 'tenant_mismatch' });
+    }
+
+    const membershipRes = await pool.query(
+      'select status from user_tenants where tenant_id = $1 and user_id = $2',
+      [req.tenant.id, req.user.id]
+    );
+    if (!membershipRes.rowCount) {
+      return res.status(403).json({ error: 'not_tenant_member' });
+    }
+    if (membershipRes.rows[0].status === 'inactive') {
+      return res.status(403).json({ error: 'user_inactive' });
+    }
+
+    const enabled = await isReviewsEnabled(req.tenant.id);
+    if (!enabled) {
+      return res.status(403).json({ error: 'reviews_disabled' });
+    }
+
+    const productRes = await pool.query(
+      "select id from product_cache where tenant_id = $1 and id = $2 and status = 'active'",
+      [req.tenant.id, productId]
+    );
+    if (!productRes.rowCount) {
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+
+    const comment = String(req.body?.comment || '').trim();
+    if (!comment) {
+      return res.status(400).json({ error: 'comment_required' });
+    }
+    if (comment.length > 1000) {
+      return res.status(400).json({ error: 'comment_too_long' });
+    }
+
+    const rating = Number(req.body?.rating || 5);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'invalid_rating' });
+    }
+
+    const insertRes = await pool.query(
+      [
+        'insert into product_reviews (tenant_id, product_id, user_id, rating, comment, status)',
+        'values ($1, $2, $3, $4, $5, $6)',
+        'returning id',
+      ].join(' '),
+      [req.tenant.id, productId, req.user.id, rating, comment, 'published']
+    );
+
+    const reviewRes = await pool.query(
+      [
+        'select r.id, r.product_id, r.user_id, r.rating, r.comment, r.created_at, u.email',
+        'from product_reviews r',
+        'left join users u on u.id = r.user_id',
+        'where r.id = $1',
+      ].join(' '),
+      [insertRes.rows[0].id]
+    );
+
+    return res.status(201).json({
+      ok: true,
+      review: mapReviewRow(reviewRes.rows[0]),
+    });
   } catch (err) {
     return next(err);
   }
@@ -328,33 +454,9 @@ publicRouter.get('/products/:id', async (req, res, next) => {
 
 publicRouter.get('/products/:id/related', async (req, res, next) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
-    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
-=======
-=======
->>>>>>> Stashed changes
-    const pricingProfile = await resolvePricingProfile({
-      tenantId: req.tenant.id,
-      user: req.user,
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    const settingsRes = await pool.query(
-      'select commerce from tenant_settings where tenant_id = $1',
-      [req.tenant.id]
-    );
-    const adjustments = {
-      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
-      userPercent: userPricePercent,
-    };
-    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+    const pricingContext = await buildPricingContext(req);
     const id = req.params.id;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!UUID_REGEX.test(id)) {
       return res.status(404).json({ error: 'product_not_found' });
     }
 
@@ -392,19 +494,7 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
       [req.tenant.id, id, categoryIds, limit]
     );
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const items = relatedRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
-=======
-    const items = relatedRes.rows.map((row) =>
-      mapProductRow(row, pricingProfile, adjustments)
-    );
->>>>>>> Stashed changes
-=======
-    const items = relatedRes.rows.map((row) =>
-      mapProductRow(row, pricingProfile, adjustments)
-    );
->>>>>>> Stashed changes
+    const items = relatedRes.rows.map((row) => mapProductRow(row, pricingContext));
 
     return res.json({ items });
   } catch (err) {
@@ -414,30 +504,7 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
 
 publicRouter.get('/collections/:slug', async (req, res, next) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const allowWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
-    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
-=======
-=======
->>>>>>> Stashed changes
-    const pricingProfile = await resolvePricingProfile({
-      tenantId: req.tenant.id,
-      user: req.user,
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    const settingsRes = await pool.query(
-      'select commerce from tenant_settings where tenant_id = $1',
-      [req.tenant.id]
-    );
-    const adjustments = {
-      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
-      userPercent: userPricePercent,
-    };
-    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+    const pricingContext = await buildPricingContext(req);
     const collectionRes = await pool.query(
       'select id, name, slug from product_collections where tenant_id = $1 and slug = $2',
       [req.tenant.id, req.params.slug]
@@ -460,19 +527,7 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
       [collection.id]
     );
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const products = productsRes.rows.map((row) => mapProductRow(row, allowWholesale, adjustments, req.user?.id, offers));
-=======
-    const products = productsRes.rows.map((row) =>
-      mapProductRow(row, pricingProfile, adjustments)
-    );
->>>>>>> Stashed changes
-=======
-    const products = productsRes.rows.map((row) =>
-      mapProductRow(row, pricingProfile, adjustments)
-    );
->>>>>>> Stashed changes
+    const products = productsRes.rows.map((row) => mapProductRow(row, pricingContext));
 
     return res.json({ collection, items: products });
   } catch (err) {

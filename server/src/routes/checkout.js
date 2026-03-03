@@ -1,24 +1,125 @@
 import express from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
 import { pool } from '../db.js';
-import { createPreference } from '../services/mercadopago.js';
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
-import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
-import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
-=======
 import { normalizePriceAdjustments } from '../services/pricing.js';
 import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
->>>>>>> Stashed changes
-=======
-import { normalizePriceAdjustments } from '../services/pricing.js';
-import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
->>>>>>> Stashed changes
+import {
+  applyOfferDiscount,
+  getTenantOffers,
+  resolveBestOfferForProduct,
+} from '../services/offers.js';
 
 export const checkoutRouter = express.Router();
 
 checkoutRouter.use(resolveTenant);
+
+const ALLOWED_METHODS = new Set(['transfer', 'stripe', 'cash_on_pickup']);
+
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizePaymentMethod(value) {
+  const raw = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (!raw) return null;
+  if (raw === 'cash' || raw === 'pickup' || raw === 'local' || raw === 'store') {
+    return 'cash_on_pickup';
+  }
+  if (raw === 'whatsapp') {
+    return 'transfer';
+  }
+  if (raw === 'online' || raw === 'online_placeholder') {
+    return 'stripe';
+  }
+  return ALLOWED_METHODS.has(raw) ? raw : null;
+}
+
+function getEnabledMethods(commerce = {}) {
+  if (Array.isArray(commerce.payment_methods)) {
+    const methods = commerce.payment_methods
+      .map((entry) => normalizePaymentMethod(entry))
+      .filter(Boolean);
+    if (methods.length) {
+      return [...new Set(methods)];
+    }
+  }
+
+  const mode = String(commerce.checkout_mode || commerce.mode || 'both').toLowerCase();
+  if (mode === 'hybrid' || mode === 'both') {
+    return ['transfer', 'stripe'];
+  }
+  if (mode === 'transfer') {
+    return ['transfer'];
+  }
+  return ['stripe'];
+}
+
+function resolveCheckoutMethod(commerce = {}, requested = '') {
+  const methods = getEnabledMethods(commerce);
+  const normalizedRequested = normalizePaymentMethod(requested);
+  if (normalizedRequested && methods.includes(normalizedRequested)) {
+    return normalizedRequested;
+  }
+  return methods[0] || 'transfer';
+}
+
+function normalizeShippingZones(commerce = {}) {
+  const zones = Array.isArray(commerce.shipping_zones) ? commerce.shipping_zones : [];
+  const parsed = zones
+    .map((zone, index) => ({
+      id: String(zone?.id || '').trim() || `zone-${index + 1}`,
+      price: toNumber(zone?.price, 0),
+      enabled: zone?.enabled !== false,
+    }))
+    .filter((zone) => zone.enabled !== false);
+  if (parsed.length) return parsed;
+  return [{ id: 'arg-general', price: toNumber(commerce.shipping_flat, 0), enabled: true }];
+}
+
+function normalizeBranches(commerce = {}) {
+  const branches = Array.isArray(commerce.branches) ? commerce.branches : [];
+  return branches
+    .map((branch, index) => ({
+      id: String(branch?.id || '').trim() || `branch-${index + 1}`,
+      pickup_fee: toNumber(branch?.pickup_fee, 0),
+      enabled: branch?.enabled !== false,
+    }))
+    .filter((branch) => branch.enabled !== false);
+}
+
+function resolveShippingAmount(commerce = {}, customer = {}) {
+  const deliveryRaw = String(customer?.delivery_method || customer?.deliveryMethod || '').trim();
+  const shippingZones = normalizeShippingZones(commerce);
+  const branches = normalizeBranches(commerce);
+
+  if (deliveryRaw.startsWith('zone:')) {
+    const zoneId = deliveryRaw.slice(5);
+    const zone = shippingZones.find((entry) => entry.id === zoneId);
+    if (zone) {
+      return { amount: zone.price, shipping_zone_id: zone.id, branch_id: null };
+    }
+  }
+  if (deliveryRaw.startsWith('branch:')) {
+    const branchId = deliveryRaw.slice(7);
+    const branch = branches.find((entry) => entry.id === branchId);
+    if (branch) {
+      return { amount: branch.pickup_fee, shipping_zone_id: null, branch_id: branch.id };
+    }
+  }
+  if (deliveryRaw === 'mdp' || deliveryRaw === 'necochea') {
+    return { amount: 0, shipping_zone_id: null, branch_id: deliveryRaw };
+  }
+
+  const fallbackZone = shippingZones[0];
+  return {
+    amount: toNumber(fallbackZone?.price, toNumber(commerce.shipping_flat, 0)),
+    shipping_zone_id: fallbackZone?.id || null,
+    branch_id: null,
+  };
+}
 
 function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
@@ -30,15 +131,8 @@ function normalizeItems(items) {
     }));
 }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-async function validateItems(tenantId, items, adjustments, isWholesale = false, offers = [], userId = null) {
-=======
-async function validateItems(tenantId, items, adjustments, pricingProfile) {
->>>>>>> Stashed changes
-=======
-async function validateItems(tenantId, items, adjustments, pricingProfile) {
->>>>>>> Stashed changes
+async function validateItems(tenantId, items, adjustments, context = {}) {
+  const { pricingProfile, offers = [], userId = null } = context;
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
 
@@ -61,42 +155,44 @@ async function validateItems(tenantId, items, adjustments, pricingProfile) {
   let currency = null;
   let subtotal = 0;
 
-  const lineItems = normalized.map((item) => {
-    const product = products.find((row) => row.id === item.product_id);
-    if (!product) {
-      errors.push(`product_not_found:${item.product_id}`);
-      return null;
-    }
+  const lineItems = normalized
+    .map((item) => {
+      const product = products.find((row) => row.id === item.product_id);
+      if (!product) {
+        errors.push(`product_not_found:${item.product_id}`);
+        return null;
+      }
 
-    if (product.stock < item.qty) {
-      errors.push(`insufficient_stock:${product.id}`);
-    }
+      if (product.stock < item.qty) {
+        errors.push(`insufficient_stock:${product.id}`);
+      }
 
-    currency = currency || product.currency;
-    const { effective } = resolveEffectiveProductPrice({
-      priceRetail: product.price,
-      priceWholesale: product.price_wholesale,
-      profile: pricingProfile,
-      adjustments,
-    });
-    const bestOffer = resolveBestOfferForProduct({
-      offers,
-      userId,
-      categoryIds: product.category_ids || [],
-    });
-    const unitPrice = Number(applyOfferDiscount(effective, bestOffer.percent) || 0);
-    subtotal += unitPrice * item.qty;
+      currency = currency || product.currency;
+      const { effective } = resolveEffectiveProductPrice({
+        priceRetail: product.price,
+        priceWholesale: product.price_wholesale,
+        profile: pricingProfile,
+        adjustments,
+      });
+      const bestOffer = resolveBestOfferForProduct({
+        offers,
+        userId,
+        categoryIds: product.category_ids || [],
+      });
+      const unitPrice = Number(applyOfferDiscount(effective, bestOffer.percent) || 0);
+      subtotal += unitPrice * item.qty;
 
-    return {
-      product_id: product.id,
-      sku: product.sku,
-      name: product.name,
-      qty: item.qty,
-      unit_price: unitPrice,
-      total: unitPrice * item.qty,
-      currency: product.currency,
-    };
-  }).filter(Boolean);
+      return {
+        product_id: product.id,
+        sku: product.sku,
+        name: product.name,
+        qty: item.qty,
+        unit_price: unitPrice,
+        total: unitPrice * item.qty,
+        currency: product.currency,
+      };
+    })
+    .filter(Boolean);
 
   return {
     valid: errors.length === 0,
@@ -107,41 +203,38 @@ async function validateItems(tenantId, items, adjustments, pricingProfile) {
   };
 }
 
+async function buildCheckoutContext(req) {
+  const settingsRes = await pool.query(
+    'select commerce from tenant_settings where tenant_id = $1',
+    [req.tenant.id]
+  );
+  const commerce = (settingsRes.rows[0] && settingsRes.rows[0].commerce) || {};
+  const adjustments = normalizePriceAdjustments(commerce);
+  const pricingProfile = await resolvePricingProfile({
+    tenantId: req.tenant.id,
+    user: req.user || null,
+  });
+
+  let offers = [];
+  try {
+    offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+  } catch (err) {
+    console.warn('Failed to load tenant offers for checkout:', err?.message || err);
+  }
+
+  return {
+    commerce,
+    adjustments,
+    pricingProfile,
+    offers,
+    userId: req.user?.id || null,
+  };
+}
+
 checkoutRouter.post('/validate', async (req, res, next) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
-    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
-=======
-=======
->>>>>>> Stashed changes
-    const pricingProfile = await resolvePricingProfile({
-      tenantId: req.tenant.id,
-      user: req.user,
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    const settingsRes = await pool.query(
-      'select commerce from tenant_settings where tenant_id = $1',
-      [req.tenant.id]
-    );
-<<<<<<< Updated upstream
-    const adjustments = {
-      ...normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {}),
-      userPercent: userPricePercent,
-    };
-    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
-    const result = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
-=======
-    const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
-    const result = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+    const context = await buildCheckoutContext(req);
+    const result = await validateItems(req.tenant.id, req.body.items, context.adjustments, context);
     if (!result.valid) {
       return res.status(400).json(result);
     }
@@ -154,47 +247,19 @@ checkoutRouter.post('/validate', async (req, res, next) => {
 checkoutRouter.post('/create', async (req, res, next) => {
   const client = await pool.connect();
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
-    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
-=======
-=======
->>>>>>> Stashed changes
-    const pricingProfile = await resolvePricingProfile({
-      tenantId: req.tenant.id,
-      user: req.user,
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-    const settingsRes = await pool.query(
-      'select commerce from tenant_settings where tenant_id = $1',
-      [req.tenant.id]
-    );
-    const commerce = (settingsRes.rows[0] && settingsRes.rows[0].commerce) || {};
-<<<<<<< Updated upstream
-    const adjustments = {
-      ...normalizePriceAdjustments(commerce),
-      userPercent: userPricePercent,
-    };
-    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
-    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
-=======
-    const adjustments = normalizePriceAdjustments(commerce);
-    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+    const context = await buildCheckoutContext(req);
+    const { commerce, adjustments } = context;
+    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, context);
     if (!validation.valid) {
       return res.status(400).json(validation);
     }
+
     const requestedPayment = req.body?.customer?.payment_method || req.body?.payment_method || null;
-    const mode = commerce.mode || 'online';
+    const checkoutMode = resolveCheckoutMethod(commerce, requestedPayment);
+    const customer = req.body.customer || {};
+    const shippingInfo = resolveShippingAmount(commerce, customer);
     const taxRate = Number(commerce.tax_rate || 0);
-    const shipping = Number(commerce.shipping_flat || 0);
+    const shipping = toNumber(shippingInfo.amount, 0);
     const tax = (validation.subtotal + shipping) * taxRate;
     const total = validation.subtotal + shipping + tax;
 
@@ -213,8 +278,15 @@ checkoutRouter.post('/create', async (req, res, next) => {
         throw new Error(`insufficient_stock:${item.product_id}`);
       }
     }
-    const checkoutMode = requestedPayment === 'whatsapp' || mode === 'whatsapp' ? 'whatsapp' : 'online';
-    const orderStatus = checkoutMode === 'whatsapp' ? 'submitted' : 'pending_payment';
+
+    const orderStatus =
+      checkoutMode === 'transfer' || checkoutMode === 'stripe' ? 'pending_payment' : 'submitted';
+    const customerPayload = {
+      ...customer,
+      payment_method: checkoutMode,
+      shipping_zone_id: shippingInfo.shipping_zone_id,
+      branch_id: shippingInfo.branch_id,
+    };
 
     const orderRes = await client.query(
       [
@@ -231,7 +303,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
         tax,
         shipping,
         total,
-        req.body.customer || {},
+        customerPayload,
       ]
     );
 
@@ -248,75 +320,39 @@ checkoutRouter.post('/create', async (req, res, next) => {
     }
 
     let payment = null;
-    let whatsapp_url = null;
+    const whatsapp_url = null;
 
-    if (checkoutMode !== 'whatsapp') {
-      const preference = await createPreference({
-        items: validation.items.map((item) => ({
-          title: item.name,
-          quantity: item.qty,
-          unit_price: Number(item.unit_price),
-          currency_id: validation.currency,
-        })),
-        payer: req.body.customer || {},
-        externalReference: orderId,
-        notificationUrl: process.env.MP_WEBHOOK_URL || undefined,
-        backUrls: {
-          success: process.env.MP_SUCCESS_URL || '',
-          failure: process.env.MP_FAILURE_URL || '',
-          pending: process.env.MP_PENDING_URL || '',
-        },
-        statementDescriptor: req.tenant.name || 'Storefront',
-      });
+    const provider =
+      checkoutMode === 'transfer'
+        ? 'bank_transfer'
+        : checkoutMode === 'cash_on_pickup'
+          ? 'cash_on_pickup'
+          : checkoutMode === 'stripe'
+            ? 'stripe'
+            : 'manual';
+    payment = {
+      provider,
+      status: orderStatus === 'pending_payment' ? 'pending' : 'submitted',
+    };
 
-      payment = {
-        provider: 'mercadopago',
-        external_id: preference.id,
-        init_point: preference.init_point,
-      };
-
-      await client.query(
-        [
-          'insert into payments (tenant_id, order_id, provider, status, external_id, amount, currency, metadata)',
-          'values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)',
-        ].join(' '),
-        [
-          req.tenant.id,
-          orderId,
-          'mercadopago',
-          'pending',
-          preference.id,
-          total,
-          validation.currency,
-          { init_point: preference.init_point },
-        ]
-      );
-    }
-
-    if (checkoutMode === 'whatsapp' || mode !== 'online') {
-      const whatsappNumber = String(commerce.whatsapp_number || '').replace(/\D/g, '');
-      if (whatsappNumber) {
-        const itemsLines = validation.items
-          .map((item) => {
-            const unitPrice = Number(item.unit_price || 0);
-            const lineTotal = Number(item.total != null ? item.total : unitPrice * Number(item.qty || 0));
-            return `- ${item.name} (SKU: ${item.sku || item.product_id}) x${item.qty} | ${unitPrice.toFixed(2)} ${validation.currency} | ${lineTotal.toFixed(2)} ${validation.currency}`;
-          })
-          .join('\n');
-        const message = [
-          `Pedido ${orderId}`,
-          '',
-          'Productos:',
-          itemsLines,
-          '',
-          `Total: ${Number(total || 0).toFixed(2)} ${validation.currency}`,
-        ].join('\n');
-        whatsapp_url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-      }
-    }
+    await client.query(
+      [
+        'insert into payments (tenant_id, order_id, provider, status, amount, currency, metadata)',
+        'values ($1, $2, $3, $4, $5, $6, $7::jsonb)',
+      ].join(' '),
+      [
+        req.tenant.id,
+        orderId,
+        provider,
+        payment.status,
+        total,
+        validation.currency,
+        { checkout_mode: checkoutMode },
+      ]
+    );
 
     await client.query('COMMIT');
-    return res.json({ order_id: orderId, payment, whatsapp_url });
+    return res.json({ order_id: orderId, checkout_mode: checkoutMode, payment, whatsapp_url });
   } catch (err) {
     await client.query('ROLLBACK');
     if (String(err?.message || '').startsWith('insufficient_stock:')) {

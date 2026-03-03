@@ -1,17 +1,42 @@
 import React, { useMemo } from "react";
 import { useStore } from "../../context/StoreContext";
+import { useTenant } from "../../context/TenantContext";
 import ProductCard from "../ProductCard";
 import { navigate } from "../../utils/navigation";
+import { formatCurrency } from "../../utils/format";
+import FeaturedProductsModern from "./FeaturedProductsModern";
+import FeaturedProductsHighEnergy from "./FeaturedProductsHighEnergy";
+import FeaturedProductsLuxury from "./FeaturedProductsLuxury";
+import { normalizeFeaturedStyles, normalizeFeaturedVariant } from "../../data/featuredProductsTemplates";
 
-export default function FeaturedProducts({
+const resolveProductImage = (product = {}) => {
+  if (typeof product.image === "string" && product.image) return product.image;
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    const first = product.images[0];
+    if (typeof first === "string") return first;
+    if (first && typeof first === "object") return first.url || first.src || "";
+  }
+  if (product?.data?.image) return product.data.image;
+  if (Array.isArray(product?.data?.images) && product.data.images.length > 0) {
+    const first = product.data.images[0];
+    if (typeof first === "string") return first;
+    if (first && typeof first === "object") return first.url || first.src || "";
+  }
+  return "https://via.placeholder.com/640x640?text=Producto";
+};
+
+const isUuid = (value) =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+function ClassicFeaturedProducts({
   products,
-  title = "Productos destacados",
-  subtitle = "Lo más elegido en sanitarios y ferretería.",
-  ctaLabel = "Todos los Productos",
-  ctaLink = "/catalog",
-  styles = {}
+  title,
+  subtitle,
+  ctaLabel,
+  ctaLink,
+  styles = {},
 }) {
-  const { search } = useStore();
   const {
     alignment = "items-end justify-between",
     titleSize = "text-3xl",
@@ -21,17 +46,10 @@ export default function FeaturedProducts({
     sectionBg = "bg-transparent",
   } = styles;
 
-  const visibleProducts = useMemo(() => {
-    const items = Array.isArray(products) ? products : [];
-    const query = search.trim().toLowerCase();
-    if (!query) return items;
-    return items.filter((item) => item.name?.toLowerCase().includes(query));
-  }, [products, search]);
-
   return (
-    <section className={`px-10 py-12 ${sectionBg}`}>
-      <div className="mx-auto max-w-[1280px]">
-        <div className={`flex px-4 mb-8 ${alignment}`}>
+    <section className={`px-4 py-12 md:px-10 ${sectionBg}`}>
+      <div className="mx-auto max-w-[1408px]">
+        <div className={`mb-8 flex px-4 ${alignment}`}>
           <div>
             <h2 className={`${titleSize} font-bold tracking-tight ${titleColor}`}>
               {title}
@@ -44,7 +62,7 @@ export default function FeaturedProducts({
             <button
               type="button"
               onClick={() => navigate(ctaLink || "/catalog")}
-              className="text-primary font-bold hover:underline flex items-center gap-1"
+              className="flex items-center gap-1 font-bold text-primary hover:underline"
             >
               {ctaLabel}{" "}
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
@@ -52,18 +70,139 @@ export default function FeaturedProducts({
           ) : null}
         </div>
 
-        {visibleProducts.length ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-4">
-            {visibleProducts.map((product) => (
+        {products.length ? (
+          <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
         ) : (
-          <div className="p-10 text-center border-2 border-dashed border-[#e5e1de] dark:border-[#32261a] rounded-xl m-4 text-[#8a7560]">
-            No encontramos productos para tu búsqueda.
+          <div className="m-4 rounded-xl border-2 border-dashed border-[#e5e1de] p-10 text-center text-[#8a7560] dark:border-[#32261a]">
+            No encontramos productos para tu busqueda.
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+export default function FeaturedProducts({
+  products,
+  title = "Productos destacados",
+  subtitle = "Lo mas elegido en sanitarios y ferreteria.",
+  ctaLabel = "Todos los Productos",
+  ctaLink = "/catalog",
+  styles = {},
+  variant = "classic",
+}) {
+  const { search, addToCart } = useStore();
+  const { settings } = useTenant();
+  const currency = settings?.commerce?.currency || "ARS";
+  const locale = settings?.commerce?.locale || "es-AR";
+  const selectedVariant = normalizeFeaturedVariant(variant);
+
+  const visibleProducts = useMemo(() => {
+    const items = Array.isArray(products) ? products : [];
+    const query = search.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((item) => item.name?.toLowerCase().includes(query));
+  }, [products, search]);
+
+  const variantProducts = useMemo(() => {
+    return visibleProducts.map((item, index) => {
+      const rawPrice = Number(item?.price || 0);
+      const stockNumber = Number(item?.stock);
+      const inStock = Number.isFinite(stockNumber) ? stockNumber > 0 : true;
+      const id = item?.id || item?.sku || `featured-${index}`;
+      const displayPrice = Number.isFinite(rawPrice)
+        ? formatCurrency(rawPrice, currency, locale)
+        : item?.price || "$0";
+      const image = resolveProductImage(item);
+      return {
+        id,
+        name: item?.name || "Producto",
+        alt: item?.alt || item?.name || "Producto",
+        image,
+        inStock,
+        displayPrice,
+        badgeText: item?.badge?.text || (item?.is_featured ? "Destacado" : ""),
+        cartPayload: {
+          id: item?.id,
+          sku: item?.sku || item?.erp_id || "",
+          name: item?.name || "Producto",
+          price: Number.isFinite(rawPrice) ? rawPrice : 0,
+          image,
+          alt: item?.alt || item?.name || "Producto",
+          stock: Number.isFinite(stockNumber) ? stockNumber : 0,
+        },
+      };
+    });
+  }, [visibleProducts, currency, locale]);
+
+  const openProduct = (product) => {
+    if (!product?.id || !isUuid(product.id)) return;
+    navigate(`/product/${product.id}`);
+  };
+
+  const addProductToCart = (product) => {
+    if (!product?.inStock) return;
+    if (!product?.cartPayload?.id) return;
+    addToCart(product.cartPayload);
+  };
+
+  if (selectedVariant === "modern") {
+    return (
+      <FeaturedProductsModern
+        products={variantProducts}
+        title={title}
+        subtitle={subtitle}
+        ctaLabel={ctaLabel}
+        ctaLink={ctaLink}
+        styles={normalizeFeaturedStyles("modern", styles)}
+        onOpenProduct={openProduct}
+        onAddToCart={addProductToCart}
+      />
+    );
+  }
+
+  if (selectedVariant === "high_energy") {
+    return (
+      <FeaturedProductsHighEnergy
+        products={variantProducts}
+        title={title}
+        subtitle={subtitle}
+        ctaLabel={ctaLabel}
+        ctaLink={ctaLink}
+        styles={normalizeFeaturedStyles("high_energy", styles)}
+        onOpenProduct={openProduct}
+        onAddToCart={addProductToCart}
+      />
+    );
+  }
+
+  if (selectedVariant === "luxury") {
+    return (
+      <FeaturedProductsLuxury
+        products={variantProducts}
+        title={title}
+        subtitle={subtitle}
+        ctaLabel={ctaLabel}
+        ctaLink={ctaLink}
+        styles={normalizeFeaturedStyles("luxury", styles)}
+        onOpenProduct={openProduct}
+        onAddToCart={addProductToCart}
+      />
+    );
+  }
+
+  return (
+    <ClassicFeaturedProducts
+      products={visibleProducts}
+      title={title}
+      subtitle={subtitle}
+      ctaLabel={ctaLabel}
+      ctaLink={ctaLink}
+      styles={styles}
+    />
   );
 }

@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
+import { getTenantOffers } from '../services/offers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,6 +68,10 @@ function slugify(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+function normalizeBrandName(value) {
+  return String(value || '').trim();
+}
+
 function parseUuidArray(value) {
   const list = Array.isArray(value) ? value : [];
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -80,6 +85,31 @@ function parseUuidArray(value) {
     unique.add(raw);
   }
   return { ok: true, items: [...unique] };
+}
+
+async function upsertTenantCommerce(tenantId, commerce) {
+  const existing = await pool.query(
+    'select tenant_id from tenant_settings where tenant_id = $1',
+    [tenantId]
+  );
+
+  if (!existing.rowCount) {
+    await pool.query(
+      'insert into tenant_settings (tenant_id, branding, theme, commerce) values ($1, $2::jsonb, $3::jsonb, $4::jsonb)',
+      [tenantId, {}, {}, commerce || {}]
+    );
+    return;
+  }
+
+  await pool.query(
+    [
+      'update tenant_settings',
+      'set commerce = $2::jsonb,',
+      'updated_at = now()',
+      'where tenant_id = $1',
+    ].join(' '),
+    [tenantId, commerce || {}]
+  );
 }
 
 tenantRouter.get('/settings', async (req, res, next) => {
@@ -291,7 +321,19 @@ tenantRouter.get('/categories', async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      'select id, name, slug from categories where tenant_id = $1 order by name asc',
+      [
+        'select c.id, c.name, c.slug,',
+        "nullif(c.data->>'parent_id', '') as parent_id,",
+        'parent.name as parent_name',
+        'from categories c',
+        "left join categories parent on parent.tenant_id = c.tenant_id and parent.id::text = nullif(c.data->>'parent_id', '')",
+        'where c.tenant_id = $1',
+        [
+          "order by coalesce(parent.name, c.name) asc,",
+          "case when nullif(c.data->>'parent_id', '') is null then 0 else 1 end asc,",
+          'c.name asc',
+        ].join(' '),
+      ].join(' '),
       [tenantId]
     );
     return res.json(result.rows);
@@ -306,8 +348,12 @@ tenantRouter.post('/categories', async (req, res, next) => {
 
   const name = String(req.body?.name || '').trim();
   const customSlug = String(req.body?.slug || '').trim();
+  const parentId = String(req.body?.parent_id || '').trim();
   if (!name) {
     return res.status(400).json({ error: 'name_required' });
+  }
+  if (parentId && !isUuid(parentId)) {
+    return res.status(400).json({ error: 'invalid_parent_category_id' });
   }
 
   let baseSlug = slugify(customSlug || name);
@@ -317,15 +363,46 @@ tenantRouter.post('/categories', async (req, res, next) => {
 
   const client = await pool.connect();
   try {
+    let parentCategory = null;
+    if (parentId) {
+      const parentRes = await client.query(
+        'select id, name, slug from categories where tenant_id = $1 and id = $2',
+        [tenantId, parentId]
+      );
+      if (!parentRes.rowCount) {
+        return res.status(404).json({ error: 'parent_category_not_found' });
+      }
+      parentCategory = parentRes.rows[0];
+      if (!customSlug) {
+        const candidateFromParent = slugify(`${parentCategory.slug}-${name}`);
+        if (candidateFromParent) {
+          baseSlug = candidateFromParent;
+        }
+      }
+    }
+
+    const payloadData = parentCategory
+      ? { parent_id: parentCategory.id }
+      : {};
+
     let suffix = 1;
     while (true) {
       const candidate = suffix === 1 ? baseSlug : `${baseSlug}-${suffix}`;
       const insertRes = await client.query(
-        'insert into categories (tenant_id, name, slug) values ($1, $2, $3) on conflict (tenant_id, slug) do nothing returning id, name, slug',
-        [tenantId, name, candidate]
+        [
+          'insert into categories (tenant_id, name, slug, data)',
+          'values ($1, $2, $3, $4::jsonb)',
+          'on conflict (tenant_id, slug) do nothing',
+          'returning id, name, slug',
+        ].join(' '),
+        [tenantId, name, candidate, payloadData]
       );
       if (insertRes.rowCount) {
-        return res.status(201).json(insertRes.rows[0]);
+        return res.status(201).json({
+          ...insertRes.rows[0],
+          parent_id: parentCategory?.id || null,
+          parent_name: parentCategory?.name || null,
+        });
       }
       suffix += 1;
     }
@@ -333,6 +410,185 @@ tenantRouter.post('/categories', async (req, res, next) => {
     return next(err);
   } finally {
     client.release();
+  }
+});
+
+tenantRouter.delete('/categories/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const categoryId = req.params.id;
+  if (!isUuid(categoryId)) {
+    return res.status(400).json({ error: 'invalid_category_id' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const categoryRes = await client.query(
+      'select id, name from categories where tenant_id = $1 and id = $2',
+      [tenantId, categoryId]
+    );
+    if (!categoryRes.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'category_not_found' });
+    }
+
+    const childrenRes = await client.query(
+      [
+        'select id, name',
+        'from categories',
+        "where tenant_id = $1 and nullif(data->>'parent_id', '') = $2",
+        'order by name asc',
+      ].join(' '),
+      [tenantId, categoryId]
+    );
+    if (childrenRes.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'category_has_children',
+        message: 'Debes eliminar primero las subcategorias de esta categoria',
+        children: childrenRes.rows,
+      });
+    }
+
+    // Keep advanced offers consistent when a category is removed.
+    await client.query(
+      [
+        'update tenant_offers',
+        'set category_ids = array_remove(category_ids, $2::uuid),',
+        'updated_at = now()',
+        'where tenant_id = $1 and $2::uuid = any(category_ids)',
+      ].join(' '),
+      [tenantId, categoryId]
+    );
+
+    await client.query(
+      'delete from categories where tenant_id = $1 and id = $2',
+      [tenantId, categoryId]
+    );
+
+    await client.query('COMMIT');
+    return res.json({ ok: true, id: categoryId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+});
+
+// Brand Management
+tenantRouter.get('/brands', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const [settingsRes, productRes] = await Promise.all([
+      pool.query(
+        'select commerce from tenant_settings where tenant_id = $1',
+        [tenantId]
+      ),
+      pool.query(
+        'select distinct brand from product_cache where tenant_id = $1 and brand is not null and trim(brand) <> \'\'',
+        [tenantId]
+      ),
+    ]);
+
+    const commerce = settingsRes.rows[0]?.commerce || {};
+    const settingsBrands = Array.isArray(commerce.brands) ? commerce.brands : [];
+    const productBrands = productRes.rows.map((row) => normalizeBrandName(row.brand)).filter(Boolean);
+
+    const mergedMap = new Map();
+    [...settingsBrands, ...productBrands].forEach((item) => {
+      const clean = normalizeBrandName(item);
+      if (!clean) return;
+      const key = clean.toLowerCase();
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, clean);
+      }
+    });
+
+    const brands = [...mergedMap.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    return res.json(brands);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/brands', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const name = normalizeBrandName(req.body?.name);
+  if (!name) {
+    return res.status(400).json({ error: 'name_required' });
+  }
+
+  try {
+    const settingsRes = await pool.query(
+      'select commerce from tenant_settings where tenant_id = $1',
+      [tenantId]
+    );
+    const commerce = settingsRes.rows[0]?.commerce || {};
+    const currentBrands = Array.isArray(commerce.brands) ? commerce.brands : [];
+
+    const existingMap = new Map();
+    currentBrands.forEach((item) => {
+      const clean = normalizeBrandName(item);
+      if (!clean) return;
+      const key = clean.toLowerCase();
+      if (!existingMap.has(key)) {
+        existingMap.set(key, clean);
+      }
+    });
+    existingMap.set(name.toLowerCase(), name);
+
+    const nextBrands = [...existingMap.values()].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+    const nextCommerce = {
+      ...commerce,
+      brands: nextBrands,
+    };
+
+    await upsertTenantCommerce(tenantId, nextCommerce);
+    return res.status(201).json({ ok: true, items: nextBrands });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.delete('/brands/:name', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const target = normalizeBrandName(decodeURIComponent(req.params.name || ''));
+  if (!target) {
+    return res.status(400).json({ error: 'name_required' });
+  }
+
+  try {
+    const settingsRes = await pool.query(
+      'select commerce from tenant_settings where tenant_id = $1',
+      [tenantId]
+    );
+    const commerce = settingsRes.rows[0]?.commerce || {};
+    const currentBrands = Array.isArray(commerce.brands) ? commerce.brands : [];
+
+    const targetKey = target.toLowerCase();
+    const nextBrands = currentBrands
+      .map((item) => normalizeBrandName(item))
+      .filter((item) => item && item.toLowerCase() !== targetKey);
+
+    const nextCommerce = {
+      ...commerce,
+      brands: nextBrands,
+    };
+    await upsertTenantCommerce(tenantId, nextCommerce);
+
+    return res.json({ ok: true, items: nextBrands });
+  } catch (err) {
+    return next(err);
   }
 });
 
@@ -344,7 +600,11 @@ tenantRouter.get('/products', async (req, res, next) => {
   try {
     const result = await pool.query(
       [
-        'select p.id, p.erp_id, p.sku, p.name, p.price, p.price_wholesale, p.stock, p.brand, p.data, (o.featured = true) as is_featured',
+        [
+          'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.stock, p.brand, p.data,',
+          "(o.featured = true) as is_featured,",
+          "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+        ].join(' '),
         'from product_cache p',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
         "where p.tenant_id = $1 and p.status = 'active' and (o.hidden is null or o.hidden = false)",
@@ -382,6 +642,144 @@ tenantRouter.get('/price-lists', async (req, res, next) => {
   }
 });
 
+tenantRouter.get('/offers', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const onlyEnabled = String(req.query.enabled || '').toLowerCase() === 'true';
+    const items = await getTenantOffers(tenantId, { onlyEnabled });
+    return res.json({ items });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/offers', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const name = String(req.body?.name || '').trim();
+  const label = String(req.body?.label || 'Oferta').trim() || 'Oferta';
+  const percent = Number(req.body?.percent || 0);
+  const enabled = req.body?.enabled !== false;
+  const usersParsed = parseUuidArray(req.body?.user_ids);
+  const categoriesParsed = parseUuidArray(req.body?.category_ids);
+
+  if (!name) {
+    return res.status(400).json({ error: 'name_required' });
+  }
+  if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+    return res.status(400).json({ error: 'invalid_percent' });
+  }
+  if (!usersParsed.ok) {
+    return res.status(400).json({ error: 'invalid_user_ids' });
+  }
+  if (!categoriesParsed.ok) {
+    return res.status(400).json({ error: 'invalid_category_ids' });
+  }
+
+  try {
+    const result = await pool.query(
+      [
+        'insert into tenant_offers (tenant_id, name, label, percent, enabled, user_ids, category_ids)',
+        'values ($1, $2, $3, $4, $5, $6::uuid[], $7::uuid[])',
+        'returning id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
+      ].join(' '),
+      [tenantId, name, label, percent, enabled, usersParsed.items, categoriesParsed.items]
+    );
+    return res.status(201).json(result.rows[0]);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.put('/offers/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const offerId = req.params.id;
+  if (!isUuid(offerId)) {
+    return res.status(400).json({ error: 'invalid_offer_id' });
+  }
+
+  const name = String(req.body?.name || '').trim();
+  const label = String(req.body?.label || 'Oferta').trim() || 'Oferta';
+  const percent = Number(req.body?.percent || 0);
+  const enabled = req.body?.enabled !== false;
+  const usersParsed = parseUuidArray(req.body?.user_ids);
+  const categoriesParsed = parseUuidArray(req.body?.category_ids);
+
+  if (!name) {
+    return res.status(400).json({ error: 'name_required' });
+  }
+  if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+    return res.status(400).json({ error: 'invalid_percent' });
+  }
+  if (!usersParsed.ok) {
+    return res.status(400).json({ error: 'invalid_user_ids' });
+  }
+  if (!categoriesParsed.ok) {
+    return res.status(400).json({ error: 'invalid_category_ids' });
+  }
+
+  try {
+    const result = await pool.query(
+      [
+        'update tenant_offers',
+        'set name = $3,',
+        'label = $4,',
+        'percent = $5,',
+        'enabled = $6,',
+        'user_ids = $7::uuid[],',
+        'category_ids = $8::uuid[],',
+        'updated_at = now()',
+        'where tenant_id = $1 and id = $2',
+        'returning id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
+      ].join(' '),
+      [
+        tenantId,
+        offerId,
+        name,
+        label,
+        percent,
+        enabled,
+        usersParsed.items,
+        categoriesParsed.items,
+      ]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: 'offer_not_found' });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.delete('/offers/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const offerId = req.params.id;
+  if (!isUuid(offerId)) {
+    return res.status(400).json({ error: 'invalid_offer_id' });
+  }
+
+  try {
+    const result = await pool.query(
+      'delete from tenant_offers where tenant_id = $1 and id = $2 returning id',
+      [tenantId, offerId]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: 'offer_not_found' });
+    }
+    return res.json({ ok: true, id: result.rows[0].id });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 tenantRouter.get('/users', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
@@ -401,17 +799,8 @@ tenantRouter.get('/users', async (req, res, next) => {
     const usersRes = await pool.query(
       [
         'select u.id, u.email, u.role as global_role, u.status as user_status,',
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        'ut.role as role, ut.status as status, ut.price_adjustment_percent, u.created_at',
-=======
         'ut.role as role, ut.status as status, u.created_at,',
         'upl.price_list_id, pl.name as price_list_name, pl.type as price_list_type',
->>>>>>> Stashed changes
-=======
-        'ut.role as role, ut.status as status, u.created_at,',
-        'upl.price_list_id, pl.name as price_list_name, pl.type as price_list_type',
->>>>>>> Stashed changes
         'from user_tenants ut',
         'join users u on u.id = ut.user_id',
         'left join user_price_list upl on upl.tenant_id = ut.tenant_id and upl.user_id = ut.user_id',
@@ -429,165 +818,11 @@ tenantRouter.get('/users', async (req, res, next) => {
   }
 });
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-tenantRouter.get('/offers', async (req, res, next) => {
-  const tenantId = getTenantId(req, res);
-  if (!tenantId) return;
-
-  try {
-    const result = await pool.query(
-      [
-        'select id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
-        'from tenant_offers',
-        'where tenant_id = $1',
-        'order by created_at desc',
-      ].join(' '),
-      [tenantId]
-    );
-    return res.json({ items: result.rows });
-  } catch (err) {
-    return next(err);
-  }
-});
-
-tenantRouter.post('/offers', async (req, res, next) => {
-  const tenantId = getTenantId(req, res);
-  if (!tenantId) return;
-
-  const name = String(req.body?.name || '').trim();
-  const label = String(req.body?.label || 'Oferta').trim() || 'Oferta';
-  const percent = Number(req.body?.percent || 0);
-  const enabled = req.body?.enabled !== false;
-  const parsedUsers = parseUuidArray(req.body?.user_ids);
-  const parsedCategories = parseUuidArray(req.body?.category_ids);
-
-  if (!name) return res.status(400).json({ error: 'name_required' });
-  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
-    return res.status(400).json({ error: 'invalid_percent' });
-  }
-  if (!parsedUsers.ok) return res.status(400).json({ error: 'invalid_user_ids' });
-  if (!parsedCategories.ok) return res.status(400).json({ error: 'invalid_category_ids' });
-
-  try {
-    const result = await pool.query(
-      [
-        'insert into tenant_offers (tenant_id, name, label, percent, enabled, user_ids, category_ids)',
-        'values ($1, $2, $3, $4, $5, $6::uuid[], $7::uuid[])',
-        'returning id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
-      ].join(' '),
-      [tenantId, name, label, percent, enabled, parsedUsers.items, parsedCategories.items]
-    );
-    return res.status(201).json({ item: result.rows[0] });
-  } catch (err) {
-    return next(err);
-  }
-});
-
-tenantRouter.put('/offers/:id', async (req, res, next) => {
-  const tenantId = getTenantId(req, res);
-  if (!tenantId) return;
-
-  const offerId = String(req.params.id || '').trim();
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(offerId)) return res.status(400).json({ error: 'invalid_offer_id' });
-
-  const name = String(req.body?.name || '').trim();
-  const label = String(req.body?.label || 'Oferta').trim() || 'Oferta';
-  const percent = Number(req.body?.percent || 0);
-  const enabled = req.body?.enabled !== false;
-  const parsedUsers = parseUuidArray(req.body?.user_ids);
-  const parsedCategories = parseUuidArray(req.body?.category_ids);
-
-  if (!name) return res.status(400).json({ error: 'name_required' });
-  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
-    return res.status(400).json({ error: 'invalid_percent' });
-  }
-  if (!parsedUsers.ok) return res.status(400).json({ error: 'invalid_user_ids' });
-  if (!parsedCategories.ok) return res.status(400).json({ error: 'invalid_category_ids' });
-
-  try {
-    const result = await pool.query(
-      [
-        'update tenant_offers',
-        'set name = $3, label = $4, percent = $5, enabled = $6, user_ids = $7::uuid[], category_ids = $8::uuid[], updated_at = now()',
-        'where tenant_id = $1 and id = $2',
-        'returning id, tenant_id, name, label, percent, enabled, user_ids, category_ids, created_at, updated_at',
-      ].join(' '),
-      [tenantId, offerId, name, label, percent, enabled, parsedUsers.items, parsedCategories.items]
-    );
-
-    if (!result.rowCount) return res.status(404).json({ error: 'offer_not_found' });
-    return res.json({ item: result.rows[0] });
-  } catch (err) {
-    return next(err);
-  }
-});
-
-tenantRouter.delete('/offers/:id', async (req, res, next) => {
-  const tenantId = getTenantId(req, res);
-  if (!tenantId) return;
-
-  const offerId = String(req.params.id || '').trim();
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(offerId)) return res.status(400).json({ error: 'invalid_offer_id' });
-
-  try {
-    const result = await pool.query(
-      'delete from tenant_offers where tenant_id = $1 and id = $2 returning id',
-      [tenantId, offerId]
-    );
-    if (!result.rowCount) return res.status(404).json({ error: 'offer_not_found' });
-    return res.json({ ok: true });
-  } catch (err) {
-    return next(err);
-  }
-});
-
-tenantRouter.patch('/users/:id/price-adjustment', async (req, res, next) => {
-=======
 tenantRouter.patch('/users/:id', async (req, res, next) => {
->>>>>>> Stashed changes
-=======
-tenantRouter.patch('/users/:id', async (req, res, next) => {
->>>>>>> Stashed changes
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
 
   const userId = req.params.id;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    return res.status(400).json({ error: 'invalid_user_id' });
-  }
-
-  const rawPercent = Number(req.body?.price_adjustment_percent);
-  if (!Number.isFinite(rawPercent)) {
-    return res.status(400).json({ error: 'invalid_price_adjustment_percent' });
-  }
-
-  const clampedPercent = Math.max(-90, Math.min(500, rawPercent));
-
-  try {
-    const result = await pool.query(
-      [
-        'update user_tenants',
-        'set price_adjustment_percent = $3',
-        'where tenant_id = $1 and user_id = $2',
-        'returning user_id, tenant_id, price_adjustment_percent',
-      ].join(' '),
-      [tenantId, userId, clampedPercent]
-    );
-
-    if (!result.rowCount) {
-      return res.status(404).json({ error: 'user_not_found_for_tenant' });
-    }
-
-    return res.json({ ok: true, item: result.rows[0] });
-=======
-=======
->>>>>>> Stashed changes
   if (!isUuid(userId)) {
     return res.status(400).json({ error: 'invalid_user_id' });
   }
@@ -720,10 +955,6 @@ tenantRouter.put('/users/:id/price-list', async (req, res, next) => {
     );
 
     return res.json({ ok: true, price_list: priceListRes.rows[0] });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
   } catch (err) {
     return next(err);
   }
@@ -821,15 +1052,223 @@ tenantRouter.delete('/products/:id', async (req, res, next) => {
   }
 });
 
+tenantRouter.put('/products/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const productId = req.params.id;
+  if (!isUuid(productId)) {
+    return res.status(400).json({ error: 'invalid_product_id' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existingRes = await client.query(
+      [
+        'select id, sku, name, description, price, price_wholesale, stock, brand, data',
+        'from product_cache',
+        "where tenant_id = $1 and id = $2 and status = 'active'",
+      ].join(' '),
+      [tenantId, productId]
+    );
+    if (!existingRes.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'product_not_found' });
+    }
+
+    const existing = existingRes.rows[0];
+    const existingData = existing.data && typeof existing.data === 'object' ? existing.data : {};
+
+    const hasCategoryPayload =
+      Object.prototype.hasOwnProperty.call(req.body || {}, 'category_id') ||
+      Object.prototype.hasOwnProperty.call(req.body || {}, 'category_ids');
+    const hasFeaturedPayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'is_featured');
+
+    const rawName = req.body?.name ?? existing.name;
+    const name = String(rawName || '').trim();
+    if (!name) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'name_required' });
+    }
+
+    const sku = req.body?.sku !== undefined ? String(req.body.sku || '').trim() || null : existing.sku;
+    const description = req.body?.description !== undefined
+      ? String(req.body.description || '').trim() || null
+      : existing.description;
+    const brand = req.body?.brand !== undefined
+      ? normalizeBrandName(req.body.brand) || null
+      : existing.brand;
+
+    const price = req.body?.price !== undefined ? Number(req.body.price) : Number(existing.price || 0);
+    const priceWholesale = req.body?.price_wholesale !== undefined
+      ? Number(req.body.price_wholesale)
+      : Number(existing.price_wholesale || 0);
+    const stock = req.body?.stock !== undefined ? Number(req.body.stock) : Number(existing.stock || 0);
+
+    if (!Number.isFinite(price)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'invalid_price' });
+    }
+    if (!Number.isFinite(priceWholesale)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'invalid_price_wholesale' });
+    }
+    if (!Number.isFinite(stock)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'invalid_stock' });
+    }
+
+    const rawImages = Object.prototype.hasOwnProperty.call(req.body || {}, 'images')
+      ? req.body?.images
+      : existingData.images;
+    let imageData = [];
+    if (Array.isArray(rawImages) && rawImages.length > 0) {
+      imageData = rawImages
+        .map((img, index) => {
+          if (typeof img === 'string') {
+            return { url: img, alt: name, primary: index === 0 };
+          }
+          if (!img || typeof img !== 'object') return null;
+          const url = img.url || img.src || '';
+          if (!url) return null;
+          return {
+            url,
+            alt: img.alt || name,
+            primary: img.primary === true || index === 0,
+          };
+        })
+        .filter(Boolean);
+    } else if (typeof rawImages === 'string' && rawImages.trim()) {
+      imageData = [{ url: rawImages.trim(), alt: name, primary: true }];
+    }
+
+    const features = Object.prototype.hasOwnProperty.call(req.body || {}, 'features')
+      ? (Array.isArray(req.body?.features) ? req.body.features : [])
+      : (Array.isArray(existingData.features) ? existingData.features : []);
+    const specifications = Object.prototype.hasOwnProperty.call(req.body || {}, 'specifications')
+      ? (req.body?.specifications && typeof req.body.specifications === 'object' ? req.body.specifications : {})
+      : (existingData.specifications && typeof existingData.specifications === 'object' ? existingData.specifications : {});
+    const collection = Object.prototype.hasOwnProperty.call(req.body || {}, 'collection')
+      ? (req.body?.collection || null)
+      : (existingData.collection || null);
+    const deliveryTime = Object.prototype.hasOwnProperty.call(req.body || {}, 'delivery_time')
+      ? (req.body?.delivery_time || null)
+      : (existingData.delivery_time || null);
+    const warranty = Object.prototype.hasOwnProperty.call(req.body || {}, 'warranty')
+      ? (req.body?.warranty || null)
+      : (existingData.warranty || null);
+
+    const productData = {
+      ...existingData,
+      images: imageData,
+      features,
+      specifications,
+      collection,
+      delivery_time: deliveryTime,
+      warranty,
+    };
+
+    await client.query(
+      [
+        'update product_cache',
+        'set sku = $3, name = $4, description = $5, price = $6, price_wholesale = $7, stock = greatest($8, 0), brand = $9, data = $10::jsonb, updated_at = now()',
+        'where tenant_id = $1 and id = $2',
+      ].join(' '),
+      [tenantId, productId, sku, name, description, price, priceWholesale, stock, brand, JSON.stringify(productData)]
+    );
+
+    if (hasCategoryPayload) {
+      const mergedCategoryIds = [];
+      if (req.body?.category_id) mergedCategoryIds.push(req.body.category_id);
+      if (Array.isArray(req.body?.category_ids)) mergedCategoryIds.push(...req.body.category_ids);
+
+      const parsedCategories = parseUuidArray(mergedCategoryIds);
+      if (!parsedCategories.ok) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'invalid_category_ids' });
+      }
+      const selectedCategoryIds = parsedCategories.items;
+
+      if (selectedCategoryIds.length) {
+        const validCategoriesRes = await client.query(
+          'select id from categories where tenant_id = $1 and id = any($2::uuid[])',
+          [tenantId, selectedCategoryIds]
+        );
+        if (validCategoriesRes.rowCount !== selectedCategoryIds.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'invalid_category_ids' });
+        }
+      }
+
+      await client.query('delete from product_categories where product_id = $1', [productId]);
+      if (selectedCategoryIds.length) {
+        await client.query(
+          [
+            'insert into product_categories (product_id, category_id)',
+            'select $1, unnest($2::uuid[])',
+            'on conflict do nothing',
+          ].join(' '),
+          [productId, selectedCategoryIds]
+        );
+      }
+    }
+
+    if (hasFeaturedPayload) {
+      await client.query(
+        'insert into product_overrides (tenant_id, product_id, featured) values ($1, $2, $3) on conflict (tenant_id, product_id) do update set featured = $3',
+        [tenantId, productId, !!req.body?.is_featured]
+      );
+    }
+
+    await client.query('COMMIT');
+    return res.json({ ok: true, id: productId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+});
+
 tenantRouter.post('/products', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
 
-  const { sku, name, price, price_wholesale, stock, brand, description, images, is_featured, category_id, features, specifications, collection, delivery_time, warranty } = req.body;
+  const {
+    sku,
+    name,
+    price,
+    price_wholesale,
+    stock,
+    brand,
+    description,
+    images,
+    is_featured,
+    category_id,
+    category_ids,
+    features,
+    specifications,
+    collection,
+    delivery_time,
+    warranty,
+  } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: 'name_required' });
   }
+
+  const mergedCategoryIds = [];
+  if (category_id) mergedCategoryIds.push(category_id);
+  if (Array.isArray(category_ids)) {
+    mergedCategoryIds.push(...category_ids);
+  }
+  const parsedCategories = parseUuidArray(mergedCategoryIds);
+  if (!parsedCategories.ok) {
+    return res.status(400).json({ error: 'invalid_category_ids' });
+  }
+  const selectedCategoryIds = parsedCategories.items;
 
   // Process images array
   let imageData = [];
@@ -864,11 +1303,24 @@ tenantRouter.post('/products', async (req, res, next) => {
 
     const productId = result.rows[0].id;
 
-    // Associate with category if provided
-    if (category_id) {
+    // Associate product with all selected categories.
+    if (selectedCategoryIds.length) {
+      const categoryRes = await client.query(
+        'select id from categories where tenant_id = $1 and id = any($2::uuid[])',
+        [tenantId, selectedCategoryIds]
+      );
+      if (categoryRes.rowCount !== selectedCategoryIds.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'invalid_category_ids' });
+      }
+
       await client.query(
-        'insert into product_categories (product_id, category_id) values ($1, $2) on conflict do nothing',
-        [productId, category_id]
+        [
+          'insert into product_categories (product_id, category_id)',
+          'select $1, unnest($2::uuid[])',
+          'on conflict do nothing',
+        ].join(' '),
+        [productId, selectedCategoryIds]
       );
     }
 

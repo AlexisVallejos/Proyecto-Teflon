@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TenantProvider } from './context/TenantContext';
 import { StoreProvider } from './context/StoreContext';
 
-import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Import pages from new structure
 import HomePage from './pages/store/HomePage';
@@ -22,7 +22,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 function AppContent() {
     const [route, setRoute] = useState(window.location.pathname);
-    const { isDarkMode } = useTheme();
     const { isAdmin, loading: authLoading, user } = useAuth();
 
     useEffect(() => {
@@ -67,7 +66,7 @@ function AppContent() {
     else if (route === '/signup') Component = SignupPage;
 
     return (
-        <div className={`w-full min-h-screen bg-gray-50 transition-colors duration-200 ${isDarkMode ? 'dark' : ''}`}>
+        <div className="w-full min-h-screen bg-gray-50 transition-colors duration-200">
             <div key={route} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <Component />
             </div>

@@ -1,19 +1,13 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { resolveTenant } from '../middleware/tenant.js';
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-import { normalizePriceAdjustments, resolveAdjustedPrices } from '../services/pricing.js';
-import { getUserPriceAdjustmentPercent } from '../services/user-pricing.js';
-import { applyOfferDiscount, getTenantOffers, resolveBestOfferForProduct } from '../services/offers.js';
-=======
 import { normalizePriceAdjustments } from '../services/pricing.js';
 import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
->>>>>>> Stashed changes
-=======
-import { normalizePriceAdjustments } from '../services/pricing.js';
-import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
->>>>>>> Stashed changes
+import {
+  applyOfferDiscount,
+  getTenantOffers,
+  resolveBestOfferForProduct,
+} from '../services/offers.js';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
@@ -59,7 +53,7 @@ const proofUpload = multer({
   },
 });
 
-const ALLOWED_MODES = new Set(['whatsapp', 'transfer', 'both']);
+const ALLOWED_METHODS = new Set(['transfer', 'stripe', 'cash_on_pickup']);
 const ALLOWED_STATUSES = new Set([
   'submitted',
   'pending_payment',
@@ -69,6 +63,134 @@ const ALLOWED_STATUSES = new Set([
   'cancelled',
   'draft',
 ]);
+
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizePaymentMethod(value) {
+  const raw = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (!raw) return null;
+  if (raw === 'cash' || raw === 'pickup' || raw === 'local' || raw === 'store') {
+    return 'cash_on_pickup';
+  }
+  if (raw === 'whatsapp') {
+    return 'transfer';
+  }
+  if (raw === 'online' || raw === 'online_placeholder') {
+    return 'stripe';
+  }
+  return ALLOWED_METHODS.has(raw) ? raw : null;
+}
+
+function getEnabledMethods(settings = {}) {
+  if (Array.isArray(settings.payment_methods)) {
+    const methods = settings.payment_methods
+      .map((entry) => normalizePaymentMethod(entry))
+      .filter(Boolean);
+    if (methods.length) {
+      return [...new Set(methods)];
+    }
+  }
+
+  const rawMode = settings.checkout_mode || settings.mode || 'both';
+  const normalizedMode = String(rawMode).toLowerCase();
+  if (normalizedMode === 'hybrid' || normalizedMode === 'both') {
+    return ['transfer', 'stripe'];
+  }
+  if (normalizedMode === 'transfer') {
+    return ['transfer'];
+  }
+  return ['stripe'];
+}
+
+function resolveCheckoutMethod(settings = {}, requested = '') {
+  const enabledMethods = getEnabledMethods(settings);
+  const normalizedRequested = normalizePaymentMethod(requested);
+  if (normalizedRequested && enabledMethods.includes(normalizedRequested)) {
+    return normalizedRequested;
+  }
+  return enabledMethods[0] || 'transfer';
+}
+
+function normalizeShippingZones(settings = {}) {
+  const source = Array.isArray(settings.shipping_zones) ? settings.shipping_zones : [];
+  const parsed = source
+    .map((zone, index) => ({
+      id: String(zone?.id || '').trim() || `zone-${index + 1}`,
+      name: String(zone?.name || '').trim() || `Zona ${index + 1}`,
+      description: String(zone?.description || '').trim(),
+      price: toNumber(zone?.price, 0),
+      enabled: zone?.enabled !== false,
+    }))
+    .filter((zone) => zone.enabled !== false);
+
+  if (parsed.length) return parsed;
+
+  return [
+    {
+      id: 'arg-general',
+      name: 'Argentina',
+      description: 'Cobertura general',
+      price: toNumber(settings.shipping_flat, 0),
+      enabled: true,
+    },
+  ];
+}
+
+function normalizeBranches(settings = {}) {
+  const source = Array.isArray(settings.branches) ? settings.branches : [];
+  return source
+    .map((branch, index) => ({
+      id: String(branch?.id || '').trim() || `branch-${index + 1}`,
+      name: String(branch?.name || '').trim(),
+      address: String(branch?.address || '').trim(),
+      hours: String(branch?.hours || '').trim(),
+      phone: String(branch?.phone || '').trim(),
+      pickup_fee: toNumber(branch?.pickup_fee, 0),
+      enabled: branch?.enabled !== false,
+    }))
+    .filter((branch) => branch.enabled !== false && branch.id && branch.name);
+}
+
+function resolveShippingAmount(settings = {}, customer = {}) {
+  const deliveryRaw = String(customer?.delivery_method || customer?.deliveryMethod || '').trim();
+  const shippingZones = normalizeShippingZones(settings);
+  const branches = normalizeBranches(settings);
+
+  if (deliveryRaw.startsWith('zone:')) {
+    const zoneId = deliveryRaw.slice(5);
+    const zone = shippingZones.find((entry) => entry.id === zoneId);
+    if (zone) {
+      return { shipping: toNumber(zone.price, 0), shipping_zone_id: zone.id, branch_id: null };
+    }
+  }
+
+  if (deliveryRaw.startsWith('branch:')) {
+    const branchId = deliveryRaw.slice(7);
+    const branch = branches.find((entry) => entry.id === branchId);
+    if (branch) {
+      return { shipping: toNumber(branch.pickup_fee, 0), shipping_zone_id: null, branch_id: branch.id };
+    }
+  }
+
+  if (deliveryRaw === 'mdp' || deliveryRaw === 'necochea') {
+    return { shipping: 0, shipping_zone_id: null, branch_id: deliveryRaw };
+  }
+
+  if (deliveryRaw === 'home' && shippingZones.length) {
+    return { shipping: toNumber(shippingZones[0].price, 0), shipping_zone_id: shippingZones[0].id, branch_id: null };
+  }
+
+  return {
+    shipping: toNumber(shippingZones[0]?.price, toNumber(settings.shipping_flat, 0)),
+    shipping_zone_id: shippingZones[0]?.id || null,
+    branch_id: null,
+  };
+}
 
 function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
@@ -80,15 +202,8 @@ function normalizeItems(items) {
     }));
 }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-async function validateItems(tenantId, items, adjustments, allowWholesale = false, offers = [], userId = null) {
-=======
-async function validateItems(tenantId, items, adjustments, pricingProfile) {
->>>>>>> Stashed changes
-=======
-async function validateItems(tenantId, items, adjustments, pricingProfile) {
->>>>>>> Stashed changes
+async function validateItems(tenantId, items, adjustments, context = {}) {
+  const { pricingProfile, offers = [], userId = null } = context;
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
 
@@ -159,21 +274,6 @@ async function validateItems(tenantId, items, adjustments, pricingProfile) {
   };
 }
 
-function resolveCheckoutMode(settings = {}, requested = '') {
-  const rawMode = settings.checkout_mode || settings.mode || 'whatsapp';
-  const normalized =
-    rawMode === 'hybrid'
-      ? 'both'
-      : ALLOWED_MODES.has(rawMode)
-        ? rawMode
-        : 'whatsapp';
-
-  if (normalized === 'both') {
-    return requested === 'transfer' ? 'transfer' : 'whatsapp';
-  }
-  return normalized === 'transfer' ? 'transfer' : 'whatsapp';
-}
-
 function buildWhatsAppMessage(order, template, currency) {
   const itemsLines = order.items
     .map((item) => {
@@ -220,40 +320,29 @@ function buildWhatsAppMessage(order, template, currency) {
 ordersRouter.post('/submit', async (req, res, next) => {
   const client = await pool.connect();
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const isWholesale = req.user?.role === 'wholesale' && req.user?.status === 'active';
-    const userPricePercent = await getUserPriceAdjustmentPercent(req.tenant.id, req.user?.id);
-=======
-=======
->>>>>>> Stashed changes
-    const pricingProfile = await resolvePricingProfile({
-      tenantId: req.tenant.id,
-      user: req.user,
-    });
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     const settingsRes = await pool.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
     const commerce = (settingsRes.rows[0] && settingsRes.rows[0].commerce) || {};
-<<<<<<< Updated upstream
-    const adjustments = {
-      ...normalizePriceAdjustments(commerce),
-      userPercent: userPricePercent,
-    };
-    const offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
-    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, isWholesale, offers, req.user?.id);
-=======
     const adjustments = normalizePriceAdjustments(commerce);
-    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, pricingProfile);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+    const pricingProfile = await resolvePricingProfile({
+      tenantId: req.tenant.id,
+      user: req.user || null,
+    });
+
+    let offers = [];
+    try {
+      offers = await getTenantOffers(req.tenant.id, { onlyEnabled: true });
+    } catch (err) {
+      console.warn('Failed to load tenant offers for order submit:', err?.message || err);
+    }
+
+    const validation = await validateItems(req.tenant.id, req.body.items, adjustments, {
+      pricingProfile,
+      offers,
+      userId: req.user?.id || null,
+    });
     if (!validation.valid) {
       return res.status(400).json(validation);
     }
@@ -261,15 +350,23 @@ ordersRouter.post('/submit', async (req, res, next) => {
     const requestedMode = String(
       req.body.checkout_mode || req.body.payment_method || req.body?.customer?.payment_method || ''
     ).toLowerCase();
-    const checkoutMode = resolveCheckoutMode(commerce, requestedMode);
+    const checkoutMode = resolveCheckoutMethod(commerce, requestedMode);
 
     const taxRate = Number(commerce.tax_rate || 0);
-    const shipping = Number(commerce.shipping_flat || 0);
+    const customer = req.body.customer || {};
+    const shippingInfo = resolveShippingAmount(commerce, customer);
+    const shipping = toNumber(shippingInfo.shipping, 0);
     const tax = (validation.subtotal + shipping) * taxRate;
     const total = validation.subtotal + shipping + tax;
 
-    const customer = req.body.customer || {};
-    const status = checkoutMode === 'transfer' ? 'pending_payment' : 'submitted';
+    const status =
+      checkoutMode === 'transfer' || checkoutMode === 'stripe' ? 'pending_payment' : 'submitted';
+    const customerPayload = {
+      ...customer,
+      shipping_zone_id: shippingInfo.shipping_zone_id,
+      branch_id: shippingInfo.branch_id,
+      payment_method: checkoutMode,
+    };
 
     await client.query('BEGIN');
     const orderRes = await client.query(
@@ -287,7 +384,7 @@ ordersRouter.post('/submit', async (req, res, next) => {
         tax,
         shipping,
         total,
-        customer,
+        customerPayload,
       ]
     );
 
@@ -303,24 +400,35 @@ ordersRouter.post('/submit', async (req, res, next) => {
       );
     }
 
+    const provider =
+      checkoutMode === 'transfer'
+        ? 'bank_transfer'
+        : checkoutMode === 'cash_on_pickup'
+          ? 'cash_on_pickup'
+          : checkoutMode === 'stripe'
+            ? 'stripe'
+            : 'manual';
+    await client.query(
+      [
+        'insert into payments (tenant_id, order_id, provider, status, amount, currency, metadata)',
+        'values ($1, $2, $3, $4, $5, $6, $7::jsonb)',
+      ].join(' '),
+      [
+        req.tenant.id,
+        orderId,
+        provider,
+        status === 'pending_payment' ? 'pending' : 'submitted',
+        total,
+        validation.currency,
+        {
+          checkout_mode: checkoutMode,
+        },
+      ]
+    );
+
     await client.query('COMMIT');
 
-    let whatsappUrl = null;
-    if (checkoutMode === 'whatsapp') {
-      const number = String(commerce.whatsapp_number || '').replace(/\D/g, '');
-      if (number) {
-        const message = buildWhatsAppMessage(
-          {
-            items: validation.items,
-            total,
-            customer,
-          },
-          commerce.whatsapp_template || '',
-          validation.currency
-        );
-        whatsappUrl = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
-      }
-    }
+    const whatsappUrl = null;
 
     return res.json({
       order_id: orderId,
@@ -443,7 +551,7 @@ ordersRouter.post('/:id/proof', proofUpload.single('proof'), async (req, res, ne
     if (paymentRes.rowCount) {
       const payment = paymentRes.rows[0];
       const nextProvider = payment.provider || 'manual';
-      const nextStatus = payment.provider === 'mercadopago' ? payment.status : 'proof_submitted';
+      const nextStatus = payment.provider === 'stripe' ? payment.status : 'proof_submitted';
       await pool.query(
         [
           'update payments',

@@ -43,9 +43,8 @@ const getOrderIdFromUrl = () => {
 const normalizePaymentLabel = (order) => {
     const customer = order?.customer || {};
     const method = String(customer.payment_method || customer.payment || '').toLowerCase();
-    if (method === 'mp' || method === 'mercadopago' || order.checkout_mode === 'online') {
-        return 'Mercado Pago (online)';
-    }
+    if (method === 'stripe' || order.checkout_mode === 'stripe') return 'Stripe';
+    if (method === 'cash_on_pickup' || method === 'cash' || method === 'local' || order.checkout_mode === 'cash_on_pickup') return 'Pago en local';
     if (order.checkout_mode === 'transfer') {
         return method.includes('efectivo') ? 'Transferencia / Efectivo' : 'Transferencia';
     }
@@ -129,7 +128,13 @@ export default function OrderDetailPage() {
     const locale = order?.locale || 'es-AR';
     const currency = order?.currency || 'ARS';
     const statusLabel = STATUS_LABELS[order?.status] || order?.status || 'Pendiente';
-    const deliveryLabel = DELIVERY_LABELS[order?.customer?.delivery_method] || order?.deliveryLabel || '-';
+    const deliveryMethod = order?.customer?.delivery_method || '';
+    const deliveryLabelRaw = order?.customer?.delivery_label || '';
+    const deliveryLabel = deliveryLabelRaw || (deliveryMethod.startsWith('zone:')
+        ? `Envio (${deliveryMethod.replace('zone:', '')})`
+        : deliveryMethod.startsWith('branch:')
+            ? `Retiro (${deliveryMethod.replace('branch:', '')})`
+            : DELIVERY_LABELS[deliveryMethod] || order?.deliveryLabel || '-');
 
     if (loading) {
         return (

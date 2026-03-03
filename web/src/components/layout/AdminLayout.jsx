@@ -1,155 +1,185 @@
 import React from 'react';
-import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { navigate } from '../../utils/navigation';
 
-export default function AdminLayout({ children, activeSection = 'home', onSectionChange }) {
-    const { isDarkMode, toggleTheme } = useTheme();
-    const { logout, user } = useAuth();
+const PAGE_LABELS = {
+    home: 'Inicio',
+    about: 'Nosotros',
+    catalog: 'Catalogo',
+    users: 'Clientes',
+    checkout: 'Carrito',
+    appearance: 'Diseno',
+    pricing: 'Precios',
+};
+
+const RAIL_ITEMS = [
+    { key: 'home', title: 'Inicio', icon: 'home', color: 'text-blue-600 bg-blue-50' },
+    { key: 'about', title: 'Nosotros', icon: 'info', color: 'text-purple-600 bg-purple-50' },
+    { key: 'catalog', title: 'Catalogo', icon: 'box', color: 'text-indigo-600 bg-indigo-50' },
+    { key: 'users', title: 'Clientes', icon: 'users', color: 'text-pink-600 bg-pink-50' },
+    { key: 'checkout', title: 'Carrito', icon: 'cart', color: 'text-cyan-600 bg-cyan-50' },
+    { key: 'appearance', title: 'Diseno', icon: 'palette', color: 'text-amber-600 bg-amber-50' },
+    { key: 'pricing', title: 'Precios', icon: 'tag', color: 'text-emerald-600 bg-emerald-50' },
+];
+
+function RailIcon({ name, className = 'w-4 h-4' }) {
+    if (name === 'home') {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 10.5L12 3l9 7.5" />
+                <path d="M5 9.8V21h14V9.8" />
+            </svg>
+        );
+    }
+    if (name === 'info') {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 10v6" />
+                <circle cx="12" cy="7" r="1" fill="currentColor" stroke="none" />
+            </svg>
+        );
+    }
+    if (name === 'box') {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 7l9-4 9 4-9 4-9-4z" />
+                <path d="M3 7v10l9 4 9-4V7" />
+                <path d="M12 11v10" />
+            </svg>
+        );
+    }
+    if (name === 'users') {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="9" cy="8" r="3" />
+                <path d="M3 20a6 6 0 0 1 12 0" />
+                <circle cx="18" cy="9" r="2" />
+                <path d="M16 20a5 5 0 0 1 5-5" />
+            </svg>
+        );
+    }
+    if (name === 'cart') {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 4h2l2 11h11l2-8H7" />
+                <circle cx="10" cy="20" r="1.5" />
+                <circle cx="17" cy="20" r="1.5" />
+            </svg>
+        );
+    }
+    if (name === 'palette') {
+        return (
+            <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 3C7 3 3 7 3 12s4 9 9 9h1a2 2 0 0 0 0-4h-1a1 1 0 0 1 0-2h2c4.4 0 8-3.6 8-8 0-2.2-1-4.2-2.6-5.5" />
+                <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" />
+                <circle cx="10.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
+                <circle cx="14.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
+                <circle cx="17.5" cy="10" r="1" fill="currentColor" stroke="none" />
+            </svg>
+        );
+    }
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 12l8 8 8-8-8-8-8 8z" />
+            <path d="M8 12h8" />
+        </svg>
+    );
+}
+
+export default function AdminLayout({
+    children,
+    activeSection = 'home',
+    onSectionChange,
+    hideSidebar = false,
+    hideHeader = false,
+    contentClassName = '',
+}) {
+    const { logout } = useAuth();
+
     const handleSectionChange = (section) => {
-        if (typeof onSectionChange === 'function') {
-            onSectionChange(section);
-        }
+        if (typeof onSectionChange === 'function') onSectionChange(section);
     };
+
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
-    const navButtonClasses = (isActive) =>
-        `flex items-center gap-3 w-full p-2 rounded-lg transition-colors ${
-            isActive
-                ? 'bg-primary/10 text-primary font-medium'
-                : 'hover:bg-gray-100 dark:hover:bg-[#2c2116] text-gray-600 dark:text-gray-300'
-        }`;
+    const currentPageLabel = PAGE_LABELS[activeSection] || 'Inicio';
 
     return (
-        <div className={`flex h-screen bg-gray-100 ${isDarkMode ? 'dark' : ''}`}>
-            {/* Sidebar */}
-            <aside className="w-64 bg-white dark:bg-[#1a130c] border-r border-gray-200 dark:border-[#3d2f21] flex flex-col">
-                <div className="p-4 border-b border-gray-200 dark:border-[#3d2f21] flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    <h1 className="font-bold text-lg dark:text-white">Editor visual</h1>
-                </div>
-
-                <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                        Páginas
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => handleSectionChange('home')}
-                        className={navButtonClasses(activeSection === 'home')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                        Inicio
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleSectionChange('catalog')}
-                        className={navButtonClasses(activeSection === 'catalog')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
-                        Catálogo
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleSectionChange('users')}
-                        className={navButtonClasses(activeSection === 'users')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6"></path><path d="M23 11h-6"></path></svg>
-                        Usuarios
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleSectionChange('about')}
-                        className={navButtonClasses(activeSection === 'about')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        Sobre nosotros
-                    </button>
-
-                    <div className="mt-6 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                        Configuración
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => handleSectionChange('appearance')}
-                        className={navButtonClasses(activeSection === 'appearance')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"></circle><circle cx="17.5" cy="10.5" r=".5"></circle><circle cx="8.5" cy="7.5" r=".5"></circle><circle cx="6.5" cy="12.5" r=".5"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.644-.438-1.125 0-.927.758-1.688 1.688-1.688h1.952c2.312 0 4.587-2.236 4.587-4.75C22 6.5 17.5 2 12 2z"></path></svg>
-                        Apariencia
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => handleSectionChange('pricing')}
-                        className={navButtonClasses(activeSection === 'pricing')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19.5 6.5L4.5 21.5"></path><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
-                        Precios
-                    </button>
-                    {user?.role === 'master_admin' ? (
-                        <button
-                            type="button"
-                            onClick={() => handleSectionChange('tenants')}
-                            className={navButtonClasses(activeSection === 'tenants')}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                            Empresas
-                        </button>
-                    ) : null}
-                </nav>
-
-                <div className="p-4 border-t border-gray-200 dark:border-[#3d2f21]">
-                    <button
-                        onClick={() => navigate('/')}
-                        className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary mb-4"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                        Volver a la tienda
-                    </button>
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 text-sm text-red-500 hover:text-red-600 mb-4"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path><path d="M12 19H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h7"></path></svg>
-                        Salir del admin
-                    </button>
-
-                    <button
-                        onClick={toggleTheme}
-                        className="flex items-center justify-between w-full p-2 rounded-lg bg-gray-50 dark:bg-[#2c2116] text-sm text-gray-600 dark:text-gray-300"
-                    >
-                        <span>Modo oscuro</span>
-                        <div className="text-primary">
-                            {isDarkMode ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7"></rect><circle cx="16" cy="12" r="3" fill="currentColor"></circle></svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7"></rect><circle cx="8" cy="12" r="3"></circle></svg>
-                            )}
+        <div className="flex h-screen bg-[#d7d8db]">
+            {!hideHeader ? (
+                <header className="fixed inset-x-0 top-0 z-40 h-12 border-b border-gray-200 bg-white/95 backdrop-blur dark:border-[#3d2f21] dark:bg-[#1a130c]/95">
+                    <div className="h-full px-3 flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-[#667085]">Pagina</span>
+                            <button
+                                type="button"
+                                onClick={() => handleSectionChange(activeSection === 'home' ? 'about' : 'home')}
+                                className="px-3 py-1 rounded-md border border-gray-200 text-xs font-semibold text-[#1f2937] hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                            >
+                                {currentPageLabel}
+                            </button>
                         </div>
-                    </button>
-                </div>
-            </aside>
-
-            {/* Área de vista previa */}
-            <main className="flex-1 overflow-hidden flex flex-col relative">
-                <header className="h-14 bg-white dark:bg-[#1a130c] border-b border-gray-200 dark:border-[#3d2f21] flex items-center justify-between px-4">
-                    <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 rounded bg-gray-100 dark:bg-[#2c2116] text-xs font-mono text-gray-500">
-                            Modo edición
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {/* Status indicators can go here */}
+                        <div className="flex-1 min-w-0">
+                            <div className="h-8 rounded-full border border-gray-200 bg-[#f7f8fa] px-4 text-xs text-[#667085] flex items-center dark:border-[#3d2f21] dark:bg-[#241b13]">
+                                https://www.teflon.com/misite
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-[#667085]">
+                            <span className="px-2 py-1 rounded border border-gray-200 dark:border-[#3d2f21]">100%</span>
+                            <button type="button" className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[#2c2116]">Herramientas</button>
+                            <button type="button" className="px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-[#2c2116]">Buscar</button>
+                        </div>
                     </div>
                 </header>
+            ) : null}
 
-                <div className="flex-1 overflow-auto bg-gray-100 dark:bg-[#0f0f0f] p-8">
-                    {children}
-                </div>
-            </main>
+            <div className={`flex flex-1 w-full ${hideHeader ? '' : 'pt-12'}`}>
+                {!hideSidebar ? (
+                    <aside className="w-14 border-r border-gray-200 bg-white dark:border-[#3d2f21] dark:bg-[#1a130c] flex flex-col items-center py-3 gap-2">
+                        {RAIL_ITEMS.map((item) => {
+                            const isActive = activeSection === item.key;
+                            return (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    title={item.title}
+                                    onClick={() => handleSectionChange(item.key)}
+                                    className={`w-9 h-9 rounded-xl grid place-items-center transition-all ${
+                                        isActive
+                                            ? `${item.color} ring-2 ring-primary/40`
+                                            : 'text-[#667085] hover:bg-gray-100 dark:hover:bg-[#2c2116]'
+                                    }`}
+                                >
+                                    <RailIcon name={item.icon} />
+                                </button>
+                            );
+                        })}
+                        <div className="flex-1" />
+                        <button
+                            type="button"
+                            title="Salir"
+                            onClick={handleLogout}
+                            className="w-9 h-9 rounded-xl grid place-items-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M15 17l5-5-5-5" />
+                                <path d="M20 12H9" />
+                                <path d="M12 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
+                            </svg>
+                        </button>
+                    </aside>
+                ) : null}
+
+                <main className="flex-1 overflow-hidden flex flex-col relative">
+                    <div className={`flex-1 overflow-auto ${contentClassName || 'bg-[#909296] p-4'}`}>
+                        {children}
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }
-

@@ -3,9 +3,9 @@ import { pool } from '../db.js';
 
 export const webhooksRouter = express.Router();
 
-webhooksRouter.post('/mercadopago', async (req, res, next) => {
+webhooksRouter.post('/payments', async (req, res, next) => {
   try {
-    const eventType = String(req.query.type || req.body.type || 'mercadopago');
+    const eventType = String(req.query.type || req.body.type || 'payment');
     await pool.query(
       'insert into webhook_events (event_type, payload) values ($1, $2::jsonb)',
       [eventType, req.body || {}]

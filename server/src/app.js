@@ -19,6 +19,7 @@ app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
 const ADMIN_ROLES = ['tenant_admin', 'master_admin'];
+const disableAuth = process.env.DISABLE_AUTH === 'true';
 
 // Serve uploaded images
 app.use('/uploads', express.static('uploads'));
@@ -29,19 +30,20 @@ app.use('/auth', authRouter);
 app.use('/api/auth', authRouter);
 app.get('/api/me', authenticate, getMeHandler);
 app.use('/api/settings', optionalAuthenticate, settingsRouter);
-app.use('/api/admin/settings', authenticate, requireRole(ADMIN_ROLES), settingsAdminRouter);
 app.use('/api/orders', optionalAuthenticate, ordersRouter);
-app.use('/api/admin/orders', authenticate, requireRole(ADMIN_ROLES), adminOrdersRouter);
 app.use('/public', optionalAuthenticate, publicRouter);
 app.use('/checkout', optionalAuthenticate, checkoutRouter);
 app.use('/webhooks', webhooksRouter);
-const disableAuth = process.env.DISABLE_AUTH === 'true';
 
 if (disableAuth) {
   console.warn('AUTH DISABLED: /tenant and /admin routes are open without token.');
+  app.use('/api/admin/settings', settingsAdminRouter);
+  app.use('/api/admin/orders', adminOrdersRouter);
   app.use('/tenant', tenantRouter);
   app.use('/admin', adminRouter);
 } else {
+  app.use('/api/admin/settings', authenticate, requireRole(ADMIN_ROLES), settingsAdminRouter);
+  app.use('/api/admin/orders', authenticate, requireRole(ADMIN_ROLES), adminOrdersRouter);
   app.use('/tenant', authenticate, requireRole(ADMIN_ROLES), tenantRouter);
   app.use('/admin', authenticate, adminRouter);
 }

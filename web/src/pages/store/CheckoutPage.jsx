@@ -7,6 +7,28 @@ import { useAuth } from "../../context/AuthContext";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
 import { navigate } from "../../utils/navigation";
 
+const SUPPORTED_PAYMENT_METHODS = ["transfer", "stripe", "cash_on_pickup"];
+
+const normalizePaymentMethod = (value) => {
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return null;
+    if (["cash", "pickup", "local", "store"].includes(raw)) return "cash_on_pickup";
+    if (["online", "online_placeholder"].includes(raw)) return "stripe";
+    return SUPPORTED_PAYMENT_METHODS.includes(raw) ? raw : null;
+};
+
+const uniquePaymentMethods = (list = []) => {
+    const methods = [];
+    list.forEach((item) => {
+        const normalized = normalizePaymentMethod(item);
+        if (!normalized) return;
+        if (!methods.includes(normalized)) {
+            methods.push(normalized);
+        }
+    });
+    return methods;
+};
+
 export default function CheckoutPage() {
     const { cartItems, clearCart } = useStore();
     const { settings } = useTenant();
@@ -16,9 +38,14 @@ export default function CheckoutPage() {
     const locale = commerce.locale || "es-AR";
     const [checkoutSettings, setCheckoutSettings] = useState({
         mode: "both",
+        enabled_methods: uniquePaymentMethods(commerce.payment_methods || ["stripe", "transfer"]),
         whatsapp_number: commerce.whatsapp_number || "",
         whatsapp_template: "",
         bank_transfer: commerce.bank_transfer || {},
+        tax_rate: Number(commerce.tax_rate || 0),
+        shipping_zones: Array.isArray(commerce.shipping_zones) ? commerce.shipping_zones : [],
+        branches: Array.isArray(commerce.branches) ? commerce.branches : [],
+        default_delivery: commerce.default_delivery || "",
     });
 
     const [items, setItems] = useState(cartItems);
@@ -34,51 +61,119 @@ export default function CheckoutPage() {
         postalCode: "",
     });
     const shippingAutofillRef = useRef(false);
+    const shippingZones = useMemo(() => {
+        const fromSettings = Array.isArray(checkoutSettings?.shipping_zones) ? checkoutSettings.shipping_zones : [];
+        const fromCommerce = Array.isArray(commerce?.shipping_zones) ? commerce.shipping_zones : [];
+        const source = fromSettings.length ? fromSettings : fromCommerce;
+        const normalized = source
+            .map((zone, index) => ({
+                id: zone?.id || `zone-${index + 1}`,
+                name: zone?.name || `Zona ${index + 1}`,
+                description: zone?.description || "",
+                price: Number(zone?.price || 0),
+                enabled: zone?.enabled !== false,
+            }))
+            .filter((zone) => zone.enabled !== false);
 
-    const shippingFlat = Number(commerce.shipping_flat || 0);
+        if (normalized.length) return normalized;
 
-    const DELIVERY = {
-        home: {
-            key: "home",
-            title: "Entrega a domicilio",
-            desc: "Recibí tu pedido en 24/48 hs en Mar del Plata",
-            price: shippingFlat,
-        },
-        mdp: {
-            key: "mdp",
-            title: "Retiro: Sucursal Mar del Plata",
-            desc: "Listo en 2 horas. Av. Independencia 1234",
-            price: shippingFlat,
-        },
-        necochea: {
-            key: "necochea",
-            title: "Retiro: Sucursal Necochea",
-            desc: "Listo en 4 horas. Calle 64 Nro 3456",
-            price: shippingFlat,
-        },
-    };
-
-    const [deliveryMethod, setDeliveryMethod] = useState("home");
-    const checkoutMode = useMemo(() => {
-        const mode = checkoutSettings?.mode || commerce.checkout_mode || commerce.mode || "both";
-        if (mode === "hybrid") return "both";
-        return ["whatsapp", "transfer", "both"].includes(mode) ? mode : "both";
+        return [{
+            id: "arg-general",
+            name: "Argentina",
+            description: "Cobertura nacional",
+            price: Number(commerce.shipping_flat || 0),
+            enabled: true,
+        }];
     }, [checkoutSettings, commerce]);
+
+    const pickupBranches = useMemo(() => {
+        const fromSettings = Array.isArray(checkoutSettings?.branches) ? checkoutSettings.branches : [];
+        const fromCommerce = Array.isArray(commerce?.branches) ? commerce.branches : [];
+        const source = fromSettings.length ? fromSettings : fromCommerce;
+        return source
+            .map((branch, index) => ({
+                id: branch?.id || `branch-${index + 1}`,
+                name: branch?.name || `Sucursal ${index + 1}`,
+                address: branch?.address || "",
+                hours: branch?.hours || "",
+                phone: branch?.phone || "",
+                pickup_fee: Number(branch?.pickup_fee || 0),
+                enabled: branch?.enabled !== false,
+            }))
+            .filter((branch) => branch.enabled !== false);
+    }, [checkoutSettings, commerce]);
+
+    const deliveryOptions = useMemo(() => {
+        const options = [];
+        shippingZones.forEach((zone) => {
+            options.push({
+                key: `zone:${zone.id}`,
+                type: "shipping",
+                title: `Envio: ${zone.name}`,
+                desc: zone.description || "Entrega a domicilio",
+                price: Number(zone.price || 0),
+            });
+        });
+        pickupBranches.forEach((branch) => {
+            const detail = [branch.address, branch.hours].filter(Boolean).join(" - ");
+            options.push({
+                key: `branch:${branch.id}`,
+                type: "pickup",
+                title: `Retiro: ${branch.name}`,
+                desc: detail || "Retiro en sucursal",
+                price: Number(branch.pickup_fee || 0),
+            });
+        });
+        if (!options.length) {
+            options.push({
+                key: "zone:arg-general",
+                type: "shipping",
+                title: "Envio: Argentina",
+                desc: "Cobertura nacional",
+                price: Number(commerce.shipping_flat || 0),
+            });
+        }
+        return options;
+    }, [shippingZones, pickupBranches, commerce]);
+
+    const [deliveryMethod, setDeliveryMethod] = useState(() => {
+        const fallback = String(commerce.default_delivery || "zone:arg-general").trim();
+        return fallback || "zone:arg-general";
+    });
+
+    useEffect(() => {
+        const selected = deliveryOptions.find((option) => option.key === deliveryMethod);
+        if (selected) return;
+        const preferred = String(checkoutSettings?.default_delivery || "").trim();
+        const preferredOption = deliveryOptions.find((option) => option.key === preferred);
+        setDeliveryMethod(preferredOption?.key || deliveryOptions[0]?.key || "zone:arg-general");
+    }, [deliveryOptions, deliveryMethod, checkoutSettings]);
+
     const bankTransfer = checkoutSettings?.bank_transfer || commerce.bank_transfer || {};
     const whatsappNumber = (checkoutSettings?.whatsapp_number || commerce.whatsapp_number || "2236334301").replace(/\D/g, "");
+    const enabledMethods = useMemo(() => {
+        const settingsMethods = uniquePaymentMethods(checkoutSettings?.enabled_methods);
+        if (settingsMethods.length) return settingsMethods;
+        const commerceMethods = uniquePaymentMethods(commerce?.payment_methods);
+        if (commerceMethods.length) return commerceMethods;
+        const mode = checkoutSettings?.mode || commerce.checkout_mode || commerce.mode || "both";
+        if (mode === "transfer") return ["transfer"];
+        return ["stripe", "transfer"];
+    }, [checkoutSettings, commerce]);
 
     const paymentOptions = useMemo(() => {
         const options = [];
-        if (checkoutMode === "both" || checkoutMode === "whatsapp") {
+        if (enabledMethods.includes("stripe")) {
             options.push({
-                key: "whatsapp",
-                label: "WhatsApp (pedido asistido)",
+                key: "stripe",
+                label: "Stripe",
+                description: "Pago con tarjeta de debito o credito",
                 icon: (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-7.6 8.38 8.38 0 0 1 3.8.9L21 4.5z"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path></svg>
                 ),
             });
         }
-        if (checkoutMode === "both" || checkoutMode === "transfer") {
+        if (enabledMethods.includes("transfer")) {
             options.push({
                 key: "transfer",
                 label: "Transferencia bancaria",
@@ -87,24 +182,25 @@ export default function CheckoutPage() {
                 ),
             });
         }
-        options.push({
-            key: "online_placeholder",
-            label: "Pago online (proximamente)",
-            disabled: true,
-            icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="m4.93 4.93 2.83 2.83"></path><path d="m16.24 16.24 2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="m4.93 19.07 2.83-2.83"></path><path d="m16.24 7.76 2.83-2.83"></path></svg>
-            ),
-        });
+        if (enabledMethods.includes("cash_on_pickup")) {
+            options.push({
+                key: "cash_on_pickup",
+                label: "Pago en local",
+                icon: (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18v10H3z"></path><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"></path><path d="M12 11v2"></path></svg>
+                ),
+            });
+        }
         return options;
-    }, [checkoutMode]);
+    }, [enabledMethods]);
 
-    const [paymentMethod, setPaymentMethod] = useState("whatsapp");
+    const [paymentMethod, setPaymentMethod] = useState("stripe");
 
     useEffect(() => {
         const firstEnabled = paymentOptions.find((opt) => !opt.disabled);
         const selected = paymentOptions.find((opt) => opt.key === paymentMethod && !opt.disabled);
         if (!selected) {
-            setPaymentMethod(firstEnabled?.key || "whatsapp");
+            setPaymentMethod(firstEnabled?.key || "stripe");
         }
     }, [paymentOptions, paymentMethod]);
 
@@ -131,17 +227,27 @@ export default function CheckoutPage() {
                 if (!active) return;
                 setCheckoutSettings({
                     mode: data.mode || "both",
+                    enabled_methods: uniquePaymentMethods(data.enabled_methods || []),
                     whatsapp_number: data.whatsapp_number || "",
                     whatsapp_template: data.whatsapp_template || "",
                     bank_transfer: data.bank_transfer || {},
+                    tax_rate: Number(data.tax_rate ?? commerce.tax_rate ?? 0),
+                    shipping_zones: Array.isArray(data.shipping_zones) ? data.shipping_zones : [],
+                    branches: Array.isArray(data.branches) ? data.branches : [],
+                    default_delivery: data.default_delivery || commerce.default_delivery || "",
                 });
             } catch (err) {
                 if (!active) return;
                 setCheckoutSettings((prev) => ({
                     ...prev,
                     mode: commerce.checkout_mode || commerce.mode || prev.mode || "both",
+                    enabled_methods: uniquePaymentMethods(commerce.payment_methods || prev.enabled_methods || ["stripe", "transfer"]),
                     whatsapp_number: commerce.whatsapp_number || prev.whatsapp_number || "",
                     bank_transfer: commerce.bank_transfer || prev.bank_transfer || {},
+                    tax_rate: Number(commerce.tax_rate ?? prev.tax_rate ?? 0),
+                    shipping_zones: Array.isArray(commerce.shipping_zones) ? commerce.shipping_zones : (prev.shipping_zones || []),
+                    branches: Array.isArray(commerce.branches) ? commerce.branches : (prev.branches || []),
+                    default_delivery: commerce.default_delivery || prev.default_delivery || "",
                 }));
             }
         };
@@ -233,9 +339,14 @@ export default function CheckoutPage() {
         return items.reduce((acc, it) => acc + it.price * it.qty, 0);
     }, [items, validation]);
 
+    const selectedDeliveryOption = useMemo(
+        () => deliveryOptions.find((option) => option.key === deliveryMethod) || deliveryOptions[0] || null,
+        [deliveryOptions, deliveryMethod]
+    );
+    const isShippingDelivery = selectedDeliveryOption?.type !== "pickup";
     const displayCurrency = validation?.currency || currency;
-    const taxRate = Number(commerce.tax_rate || 0);
-    const shipping = subtotal > 0 ? shippingFlat : 0;
+    const taxRate = Number(checkoutSettings?.tax_rate ?? commerce.tax_rate ?? 0);
+    const shipping = subtotal > 0 ? Number(selectedDeliveryOption?.price || 0) : 0;
     const iva = (subtotal + shipping) * taxRate;
     const total = subtotal + shipping + iva;
 
@@ -254,14 +365,14 @@ export default function CheckoutPage() {
         })
         : items;
     const paymentSummary = useMemo(() => {
-        if (paymentMethod === "whatsapp") {
-            return "WhatsApp: enviamos el pedido y abrimos el chat con el detalle.";
-        }
         if (paymentMethod === "transfer") {
             return "Transferencia: se genera el pedido en estado pendiente de pago.";
         }
-        if (paymentMethod === "online_placeholder") {
-            return "Pago online no disponible por ahora. Proximamente habilitado.";
+        if (paymentMethod === "cash_on_pickup") {
+            return "Pago en local: confirmas online y abonas cuando retiras.";
+        }
+        if (paymentMethod === "stripe") {
+            return "Stripe: por ahora registramos el pedido y queda pendiente de cobro.";
         }
         return "";
     }, [paymentMethod]);
@@ -297,11 +408,15 @@ export default function CheckoutPage() {
             profile.fullName ||
             (user?.email ? user.email.split("@")[0] : "Cliente");
         const phone = profile.phone || "Sin teléfono";
-        const deliveryLabel = DELIVERY[deliveryMethod]?.title || deliveryMethod;
+        const deliveryLabel = selectedDeliveryOption?.title || deliveryMethod;
         const paymentLine =
             paymentMethod === "transfer"
                 ? "Pago: Transferencia bancaria"
-                : "Pago: WhatsApp";
+                : paymentMethod === "cash_on_pickup"
+                    ? "Pago: En local"
+                    : paymentMethod === "stripe"
+                        ? "Pago: Stripe"
+                        : "Pago";
         const addressParts = [
             shippingInfo.fullAddress || profile.line1,
             shippingInfo.city || profile.city,
@@ -338,8 +453,7 @@ export default function CheckoutPage() {
     };
     const handleCompletePurchase = async () => {
         if (!items.length) return;
-        if (paymentMethod === "online_placeholder") return;
-        if (deliveryMethod === "home") {
+        if (isShippingDelivery) {
             if (!shippingInfo.fullAddress.trim() || !shippingInfo.city.trim()) {
                 setCheckoutError("Completa direccion y ciudad para entrega a domicilio.");
                 return;
@@ -367,6 +481,10 @@ export default function CheckoutPage() {
                     customer: {
                         ...shippingInfo,
                         delivery_method: deliveryMethod,
+                        delivery_label: selectedDeliveryOption?.title || deliveryMethod,
+                        delivery_type: selectedDeliveryOption?.type || "shipping",
+                        shipping_zone_id: deliveryMethod.startsWith("zone:") ? deliveryMethod.replace("zone:", "") : undefined,
+                        branch_id: deliveryMethod.startsWith("branch:") ? deliveryMethod.replace("branch:", "") : undefined,
                         payment_method: paymentMethod,
                     },
                 }),
@@ -391,13 +509,16 @@ export default function CheckoutPage() {
             const data = await response.json();
             const checkoutModeResolved = data.checkout_mode || paymentMethod;
             const totals = data.totals || {};
-            const resolvedStatus = checkoutModeResolved === "transfer" ? "Pendiente de pago" : "En gestion";
+            const resolvedStatus =
+                checkoutModeResolved === "transfer" || checkoutModeResolved === "stripe"
+                    ? "Pendiente de pago"
+                    : "En gestion";
             const orderInfo = {
                 id: data.order?.id || data.order_id || data.id || `TMP-${Date.now()}`,
                 method: checkoutModeResolved,
                 paymentLabel,
                 deliveryMethod,
-                deliveryLabel: DELIVERY[deliveryMethod]?.title || deliveryMethod,
+                deliveryLabel: selectedDeliveryOption?.title || deliveryMethod,
                 status: resolvedStatus,
                 total: Number(totals.total ?? total),
                 currency: totals.currency || displayCurrency,
@@ -586,7 +707,7 @@ export default function CheckoutPage() {
                                 onOpen={() => setOpenStep(2)}
                             >
                                 <div className="pt-4 pb-2 space-y-3">
-                                    {Object.values(DELIVERY).map((opt) => {
+                                    {deliveryOptions.map((opt) => {
                                         const checked = deliveryMethod === opt.key;
                                         return (
                                             <label
@@ -658,6 +779,7 @@ export default function CheckoutPage() {
                                                 }}
                                                 icon={opt.icon}
                                                 label={opt.label}
+                                                description={opt.description}
                                                 highlight={opt.highlight}
                                                 disabled={opt.disabled}
                                             />
@@ -692,15 +814,7 @@ export default function CheckoutPage() {
                                             {orderSuccess.id ? (
                                                 <p>ID: {orderSuccess.id}</p>
                                             ) : null}
-                                            {orderSuccess.method === "whatsapp" ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => window.open(orderSuccess.whatsappUrl, "_blank", "noopener,noreferrer")}
-                                                    className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-600 text-white font-bold"
-                                                >
-                                                    Abrir WhatsApp
-                                                </button>
-                                            ) : (
+                                            {orderSuccess.method === "transfer" ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => window.open(orderSuccess.whatsappReceiptUrl || orderSuccess.whatsappUrl, "_blank", "noopener,noreferrer")}
@@ -708,7 +822,15 @@ export default function CheckoutPage() {
                                                 >
                                                     Enviar comprobante por WhatsApp
                                                 </button>
-                                            )}
+                                            ) : orderSuccess.method === "cash_on_pickup" ? (
+                                                <p className="text-xs font-semibold text-green-700">
+                                                    Pago en local seleccionado. Presentate en la sucursal elegida.
+                                                </p>
+                                            ) : orderSuccess.method === "stripe" ? (
+                                                <p className="text-xs font-semibold text-green-700">
+                                                    Stripe seleccionado. El pedido queda pendiente de cobro.
+                                                </p>
+                                            ) : null}
                                         </div>
                                     ) : null}
                                 </div>
@@ -779,7 +901,7 @@ export default function CheckoutPage() {
                             <button
                                 onClick={handleCompletePurchase}
                                 className="w-full mt-6 py-4 bg-primary text-white font-black text-lg rounded-lg shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-3 disabled:opacity-60"
-                                disabled={creating || !items.length || !!validationError || paymentMethod === "online_placeholder"}
+                                disabled={creating || !items.length || !!validationError}
                             >
                                 <span>{creating ? "Procesando..." : "Confirmar compra"}</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -887,7 +1009,7 @@ function Accordion({ step, title, openStep, onOpen, children }) {
     );
 }
 
-function PayOption({ active, onClick, icon, label, highlight, disabled = false }) {
+function PayOption({ active, onClick, icon, label, description, highlight, disabled = false }) {
     return (
         <button
             type="button"
@@ -910,6 +1032,9 @@ function PayOption({ active, onClick, icon, label, highlight, disabled = false }
                 {icon}
             </div>
             <p className="text-xs font-bold text-center">{label}</p>
+            {description ? (
+                <p className="text-[10px] text-center text-[#8a7560] dark:text-[#a59280] mt-1">{description}</p>
+            ) : null}
         </button>
     );
 }
@@ -922,7 +1047,4 @@ function Line({ label, value }) {
         </div>
     );
 }
-
-
-
 

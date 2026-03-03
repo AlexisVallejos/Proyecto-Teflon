@@ -4,6 +4,7 @@ export const DEFAULT_HOME_SECTIONS = [
         type: 'HeroSlider',
         enabled: true,
         props: {
+            variant: 'classic',
             title: 'Nuevo Hero',
             subtitle: 'Descripción aquí',
             tag: 'Novedad',
@@ -17,9 +18,11 @@ export const DEFAULT_HOME_SECTIONS = [
         type: 'FeaturedProducts',
         enabled: true,
         props: {
+            variant: 'classic',
             title: 'Destacados',
             subtitle: 'Lo mejor de nuestra tienda',
             ctaLabel: 'Ver catálogo',
+            ctaLink: '/catalog',
             styles: { alignment: 'items-end justify-between' },
         },
     },
@@ -178,3 +181,5 @@ export const DEFAULT_ABOUT_SECTIONS = [
         },
     },
 ];
+
+

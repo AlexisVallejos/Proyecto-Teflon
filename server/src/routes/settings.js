@@ -9,21 +9,146 @@ settingsRouter.use(resolveTenant);
 settingsAdminRouter.use(resolveTenant);
 
 const ALLOWED_MODES = new Set(['whatsapp', 'transfer', 'both']);
+const ALLOWED_METHODS = new Set(['transfer', 'stripe', 'cash_on_pickup']);
+
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizePaymentMethod(value) {
+  const raw = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (!raw) return null;
+
+  if (raw === 'cash' || raw === 'pickup' || raw === 'local' || raw === 'store') {
+    return 'cash_on_pickup';
+  }
+  if (raw === 'whatsapp') {
+    return 'transfer';
+  }
+  if (raw === 'online') {
+    return 'stripe';
+  }
+  if (!ALLOWED_METHODS.has(raw)) {
+    return null;
+  }
+  return raw;
+}
+
+function normalizeMethodsList(value) {
+  const list = Array.isArray(value) ? value : [];
+  const unique = [];
+  list.forEach((item) => {
+    const normalized = normalizePaymentMethod(item);
+    if (!normalized) return;
+    if (!unique.includes(normalized)) {
+      unique.push(normalized);
+    }
+  });
+  return unique;
+}
+
+function deriveMethodsFromLegacyMode(commerce = {}) {
+  const paymentMethods = normalizeMethodsList(commerce.payment_methods);
+  if (paymentMethods.length) {
+    return paymentMethods;
+  }
+
+  const fallbackMode = commerce.checkout_mode || commerce.mode || 'both';
+  if (fallbackMode === 'both' || fallbackMode === 'hybrid') {
+    return ['transfer', 'stripe'];
+  }
+  if (fallbackMode === 'transfer') {
+    return ['transfer'];
+  }
+  return ['stripe'];
+}
+
+function toLegacyMode(methods = []) {
+  if (methods.length === 1 && methods[0] === 'transfer') {
+    return 'transfer';
+  }
+  if (methods.includes('stripe') && methods.includes('transfer') && methods.length <= 2) {
+    return 'both';
+  }
+  if (methods.includes('transfer')) {
+    return 'transfer';
+  }
+  return 'both';
+}
+
+function normalizeBranch(entry = {}, index = 0) {
+  const id = String(entry.id || '').trim() || `branch-${index + 1}`;
+  return {
+    id,
+    name: String(entry.name || '').trim(),
+    address: String(entry.address || '').trim(),
+    hours: String(entry.hours || '').trim(),
+    phone: String(entry.phone || '').trim(),
+    pickup_fee: toNumber(entry.pickup_fee, 0),
+    enabled: entry.enabled !== false,
+  };
+}
+
+function normalizeBranches(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry, index) => normalizeBranch(entry, index))
+    .filter((entry) => entry.id && entry.name);
+}
+
+function normalizeShippingZone(entry = {}, index = 0) {
+  const id = String(entry.id || '').trim() || `zone-${index + 1}`;
+  return {
+    id,
+    name: String(entry.name || '').trim() || `Zona ${index + 1}`,
+    description: String(entry.description || '').trim(),
+    price: toNumber(entry.price, 0),
+    enabled: entry.enabled !== false,
+  };
+}
+
+function normalizeShippingZones(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry, index) => normalizeShippingZone(entry, index))
+    .filter((entry) => entry.id && entry.name);
+}
 
 function normalizeCheckoutSettings(commerce = {}) {
-  const fallbackMode = commerce.checkout_mode || commerce.mode || 'whatsapp';
-  const mode = ALLOWED_MODES.has(fallbackMode)
-    ? fallbackMode
-    : fallbackMode === 'hybrid'
-      ? 'both'
-      : 'whatsapp';
+  const methods = deriveMethodsFromLegacyMode(commerce);
+  const mode = toLegacyMode(methods);
 
   const bankTransfer = commerce.bank_transfer || {};
+  const branches = normalizeBranches(commerce.branches);
+  let shippingZones = normalizeShippingZones(commerce.shipping_zones);
+  if (!shippingZones.length) {
+    shippingZones = [
+      {
+        id: 'arg-general',
+        name: 'Argentina',
+        description: 'Cobertura nacional',
+        price: toNumber(commerce.shipping_flat, 0),
+        enabled: true,
+      },
+    ];
+  }
+  const defaultDelivery =
+    String(commerce.default_delivery || '').trim() ||
+    (shippingZones.length ? `zone:${shippingZones[0].id}` : branches.length ? `branch:${branches[0].id}` : '');
 
   return {
     mode,
+    enabled_methods: methods,
     whatsapp_number: commerce.whatsapp_number || '',
     whatsapp_template: commerce.whatsapp_template || '',
+    shipping_flat: toNumber(commerce.shipping_flat, 0),
+    tax_rate: toNumber(commerce.tax_rate, 0),
+    default_delivery: defaultDelivery,
+    shipping_zones: shippingZones,
+    branches,
     bank_transfer: {
       cbu: bankTransfer.cbu || '',
       alias: bankTransfer.alias || '',
@@ -38,11 +163,36 @@ function sanitizeCheckoutPayload(payload = {}) {
   const whatsappNumber = payload.whatsapp_number != null ? String(payload.whatsapp_number).trim() : null;
   const whatsappTemplate = payload.whatsapp_template != null ? String(payload.whatsapp_template).trim() : null;
   const bankTransfer = payload.bank_transfer || {};
+  const shippingZones = Array.isArray(payload.shipping_zones)
+    ? normalizeShippingZones(payload.shipping_zones)
+    : null;
+  const branches = Array.isArray(payload.branches) ? normalizeBranches(payload.branches) : null;
+  const methods = Array.isArray(payload.enabled_methods)
+    ? normalizeMethodsList(payload.enabled_methods)
+    : null;
+  const taxRate =
+    payload.tax_rate !== undefined && payload.tax_rate !== null ? toNumber(payload.tax_rate, 0) : null;
+  const shippingFlat =
+    payload.shipping_flat !== undefined && payload.shipping_flat !== null
+      ? toNumber(payload.shipping_flat, 0)
+      : null;
+  const defaultDelivery =
+    payload.default_delivery !== undefined && payload.default_delivery !== null
+      ? String(payload.default_delivery).trim()
+      : null;
+
+  const normalizedMode = methods?.length ? toLegacyMode(methods) : mode;
 
   return {
-    ...(mode ? { checkout_mode: mode } : {}),
+    ...(normalizedMode ? { checkout_mode: normalizedMode } : {}),
     ...(whatsappNumber !== null ? { whatsapp_number: whatsappNumber } : {}),
     ...(whatsappTemplate !== null ? { whatsapp_template: whatsappTemplate } : {}),
+    ...(methods ? { payment_methods: methods } : {}),
+    ...(taxRate !== null ? { tax_rate: taxRate } : {}),
+    ...(shippingFlat !== null ? { shipping_flat: shippingFlat } : {}),
+    ...(shippingZones ? { shipping_zones: shippingZones } : {}),
+    ...(branches ? { branches } : {}),
+    ...(defaultDelivery !== null ? { default_delivery: defaultDelivery } : {}),
     ...(payload.bank_transfer
       ? {
           bank_transfer: {

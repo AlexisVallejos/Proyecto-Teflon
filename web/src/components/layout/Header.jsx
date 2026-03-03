@@ -1,59 +1,113 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTenant } from "../../context/TenantContext";
 import { useStore } from "../../context/StoreContext";
-import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
-import { navigate } from "../../utils/navigation";
+import { isExternalPath, navigate, normalizeInternalPath } from "../../utils/navigation";
+import { getApiBase, getTenantHeaders } from "../../utils/api";
 
-const DEFAULT_PLACEHOLDER = "Buscar productos...";
+const DEFAULT_PLACEHOLDER = "Buscá tu producto";
+const HIDDEN_TOPICS = new Set(["buscador de tapas", "donde comprar", "mis proyectos"]);
+
+const normalizeLabel = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 const BrandMark = ({ className = "size-8" }) => (
   <svg
+    viewBox="0 0 32 32"
     fill="none"
-    viewBox="0 0 48 48"
     xmlns="http://www.w3.org/2000/svg"
     className={className}
     aria-hidden="true"
   >
-    <path
-      d="M13.8261 17.4264C16.7203 18.1174 20.2244 18.5217 24 18.5217C27.7756 18.5217 31.2797 18.1174 34.1739 17.4264C36.9144 16.7722 39.9967 15.2331 41.3563 14.1648L24.8486 40.6391C24.4571 41.267 23.5429 41.267 23.1514 40.6391L6.64374 14.1648C8.00331 15.2331 11.0856 16.7722 13.8261 17.4264Z"
-      fill="currentColor"
-    />
-    <path
-      clipRule="evenodd"
-      fillRule="evenodd"
-      d="M39.998 12.236C39.9944 12.2537 39.9875 12.2845 39.9748 12.3294C39.9436 12.4399 39.8949 12.5741 39.8346 12.7175C39.8168 12.7597 39.7989 12.8007 39.7813 12.8398C38.5103 13.7113 35.9788 14.9393 33.7095 15.4811C30.9875 16.131 27.6413 16.5217 24 16.5217C20.3587 16.5217 17.0125 16.131 14.2905 15.4811C12.0012 14.9346 9.44505 13.6897 8.18538 12.8168C8.17384 12.7925 8.16216 12.767 8.15052 12.7408C8.09919 12.6249 8.05721 12.5114 8.02977 12.411C8.00356 12.3152 8.00039 12.2667 8.00004 12.2612C8.00004 12.261 8 12.2607 8.00004 12.2612C8.00004 12.2359 8.0104 11.9233 8.68485 11.3686C9.34546 10.8254 10.4222 10.2469 11.9291 9.72276C14.9242 8.68098 19.1919 8 24 8C28.8081 8 33.0758 8.68098 36.0709 9.72276C37.5778 10.2469 38.6545 10.8254 39.3151 11.3686C39.9006 11.8501 39.9857 12.1489 39.998 12.236ZM4.95178 15.2312L21.4543 41.6973C22.6288 43.5809 25.3712 43.5809 26.5457 41.6973L43.0534 15.223C43.0709 15.1948 43.0878 15.1662 43.104 15.1371L41.3563 14.1648C43.104 15.1371 43.1038 15.1374 43.104 15.1371L43.1051 15.135L43.1065 15.1325L43.1101 15.1261L43.1199 15.1082C43.1276 15.094 43.1377 15.0754 43.1497 15.0527C43.1738 15.0075 43.2062 14.9455 43.244 14.8701C43.319 14.7208 43.4196 14.511 43.5217 14.2683C43.6901 13.8679 44 13.0689 44 12.2609C44 10.5573 43.003 9.22254 41.8558 8.2791C40.6947 7.32427 39.1354 6.55361 37.385 5.94477C33.8654 4.72057 29.133 4 24 4C18.867 4 14.1346 4.72057 10.615 5.94478C8.86463 6.55361 7.30529 7.32428 6.14419 8.27911C4.99695 9.22255 3.99999 10.5573 3.99999 12.2609C3.99999 13.1275 4.29264 13.9078 4.49321 14.3607C4.60375 14.6102 4.71348 14.8196 4.79687 14.9689C4.83898 15.0444 4.87547 15.1065 4.9035 15.1529C4.91754 15.1762 4.92954 15.1957 4.93916 15.2111L4.94662 15.223L4.95178 15.2312ZM35.9868 18.996L24 38.22L12.0131 18.996C12.4661 19.1391 12.9179 19.2658 13.3617 19.3718C16.4281 20.1039 20.0901 20.5217 24 20.5217C27.9099 20.5217 31.5719 20.1039 34.6383 19.3718C35.082 19.2658 35.5339 19.1391 35.9868 18.996Z"
-      fill="currentColor"
-    />
+    <rect x="2" y="2" width="28" height="28" rx="6" stroke="currentColor" strokeWidth="2.5" />
+    <path d="M11 9h10v5h-5v9h-5V9z" fill="currentColor" />
   </svg>
 );
+
+const SearchIcon = ({ className = "size-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="7" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
+const CartIcon = ({ className = "size-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="20" r="1.2" />
+    <circle cx="18" cy="20" r="1.2" />
+    <path d="M2 3h3l2.2 11h10.7l2-8.5H6.2" />
+  </svg>
+);
+
+const UserIcon = ({ className = "size-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-1a6 6 0 0 0-6-6H10a6 6 0 0 0-6 6v1" />
+    <circle cx="12" cy="8" r="4" />
+  </svg>
+);
+
+const ChevronDown = ({ className = "size-3" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+function MenuAnchor({ href, label, active = false, external = false, className = "" }) {
+  const finalClass = `inline-flex items-center gap-1 border-b-2 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
+    active
+      ? "border-[color:var(--color-primary,#0099e5)] text-[color:var(--color-primary,#0099e5)]"
+      : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)]"
+  } ${className}`;
+
+  if (external) {
+    return (
+      <a className={finalClass} href={href} target="_blank" rel="noopener noreferrer">
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <a
+      className={finalClass}
+      href={href}
+      onClick={(event) => {
+        event.preventDefault();
+        navigate(href);
+      }}
+    >
+      {label}
+    </a>
+  );
+}
 
 export default function Header({
   navLinks = [],
   searchPlaceholder = DEFAULT_PLACEHOLDER,
   brandName,
-  brandUppercase = true,
+  brandUppercase = false,
   showSearch = true,
   showCart = true,
   showAccount = true,
-  containerClassName = "max-w-[1280px]",
+  containerClassName = "max-w-[1408px]",
 }) {
   const { tenant, settings } = useTenant();
-  const { search, setSearch, cartCount, favorites } = useStore();
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { search, setSearch, cartCount } = useStore();
   const { user, isAdmin } = useAuth();
-  const [activeRoute, setActiveRoute] = useState(() => `${window.location.pathname}${window.location.hash || ""}`);
-  const navRef = useRef(null);
-  const linkRefs = useRef({});
-  const [indicator, setIndicator] = useState({ left: 0, width: 0, opacity: 0 });
+  const [activeRoute, setActiveRoute] = useState(() => `${window.location.pathname}${window.location.search || ""}${window.location.hash || ""}`);
+  const [catalogCategories, setCatalogCategories] = useState([]);
+  const [catalogBrands, setCatalogBrands] = useState([]);
 
-  const resolvedBrand =
-    brandName || settings?.branding?.name || tenant?.name || "El Teflon";
+  const resolvedBrand = brandName || settings?.branding?.name || tenant?.name || "El Teflon";
   const logoUrl = settings?.branding?.logo_url;
 
   useEffect(() => {
     const handleLocationChange = () => {
-      setActiveRoute(`${window.location.pathname}${window.location.hash || ""}`);
+      setActiveRoute(`${window.location.pathname}${window.location.search || ""}${window.location.hash || ""}`);
     };
 
     window.addEventListener("popstate", handleLocationChange);
@@ -66,42 +120,86 @@ export default function Header({
     };
   }, []);
 
-  const links = navLinks.map((link) =>
-    typeof link === "string" ? { label: link, href: "/catalog" } : link
-  );
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const loadCatalogMeta = async () => {
+      try {
+        const [categoriesRes, brandsRes] = await Promise.all([
+          fetch(`${getApiBase()}/public/categories`, {
+            headers: getTenantHeaders(),
+            signal: controller.signal,
+          }),
+          fetch(`${getApiBase()}/public/brands`, {
+            headers: getTenantHeaders(),
+            signal: controller.signal,
+          }),
+        ]);
+
+        if (active && categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
+          const normalizedCategories = Array.isArray(categoriesData)
+            ? categoriesData
+                .filter((item) => item && item.id && item.name)
+                .map((item) => ({
+                  id: item.id,
+                  name: item.name,
+                  parent_id: item.parent_id || null,
+                  parent_name: item.parent_name || null,
+                }))
+            : [];
+          setCatalogCategories(normalizedCategories);
+        }
+
+        if (active && brandsRes.ok) {
+          const brandsData = await brandsRes.json();
+          const normalizedBrands = Array.isArray(brandsData)
+            ? brandsData
+                .filter((item) => typeof item === "string" && item.trim())
+                .map((item) => item.trim())
+            : [];
+          setCatalogBrands(normalizedBrands);
+        }
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          console.error("No se pudo cargar metadata del navbar", error);
+        }
+      }
+    };
+
+    loadCatalogMeta();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
+  const links = navLinks
+    .map((link) => {
+      if (typeof link === "string") {
+        return { label: link, href: normalizeInternalPath(link, "/catalog") };
+      }
+      const fallbackByLabel = normalizeInternalPath(link?.label || "", "/");
+      const rawHref = link?.href || link?.path || fallbackByLabel;
+      return {
+        ...link,
+        href: normalizeInternalPath(rawHref, fallbackByLabel),
+      };
+    })
+    .filter((item) => !HIDDEN_TOPICS.has(normalizeLabel(item?.label)));
 
   const normalizeRoute = (value) => {
     if (!value) return "/";
-    const [rawPath, rawHash] = value.split("#");
+    if (isExternalPath(value)) return value;
+    const normalizedValue = normalizeInternalPath(value, "/");
+    const [rawPath, rawHash] = normalizedValue.split("#");
     let normalizedPath = rawPath || "/";
     if (normalizedPath === "/sobre-nosotros") normalizedPath = "/about";
     const hash = rawHash ? `#${rawHash}` : "";
     return `${normalizedPath}${hash}`;
   };
-
-  const updateIndicator = (target) => {
-    const key = normalizeRoute(target);
-    const node = linkRefs.current[key];
-    const container = navRef.current;
-    if (!node || !container) {
-      setIndicator((prev) => ({ ...prev, opacity: 0 }));
-      return;
-    }
-    const nodeRect = node.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    setIndicator({
-      left: nodeRect.left - containerRect.left,
-      width: nodeRect.width,
-      opacity: 1,
-    });
-  };
-
-  useEffect(() => {
-    updateIndicator(activeRoute);
-    const handleResize = () => updateIndicator(activeRoute);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [activeRoute, links.length]);
 
   const handleSearchKey = (event) => {
     if (event.key === "Enter") {
@@ -117,106 +215,147 @@ export default function Header({
     }
   };
 
+  const whatsappRaw = settings?.branding?.footer?.socials?.whatsapp || settings?.commerce?.whatsapp_number || "";
+  const whatsappCleaned = String(whatsappRaw).replace(/\D/g, "");
+  const whatsappHref = whatsappCleaned ? `https://wa.me/${whatsappCleaned}` : null;
+
+  const categoryTree = useMemo(() => {
+    if (!Array.isArray(catalogCategories) || !catalogCategories.length) return [];
+
+    const byId = new Map();
+    catalogCategories.forEach((item) => {
+      byId.set(item.id, {
+        id: item.id,
+        name: item.name,
+        parent_id: item.parent_id || null,
+        children: [],
+      });
+    });
+
+    const roots = [];
+    byId.forEach((node) => {
+      if (node.parent_id && byId.has(node.parent_id)) {
+        byId.get(node.parent_id).children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    const sorter = (a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+    roots.sort(sorter);
+    roots.forEach((item) => item.children.sort(sorter));
+    return roots;
+  }, [catalogCategories]);
+
+  const categoryLinks = useMemo(() => {
+    const links = [];
+    categoryTree.forEach((parent) => {
+      links.push({
+        label: parent.name,
+        href: `/catalog?category=${encodeURIComponent(parent.id)}`,
+      });
+      parent.children.forEach((child) => {
+        links.push({
+          label: `${parent.name} / ${child.name}`,
+          href: `/catalog?category=${encodeURIComponent(child.id)}`,
+        });
+      });
+    });
+    return links;
+  }, [categoryTree]);
+
+  const brandLinks = catalogBrands.slice(0, 10).map((brand) => ({
+    label: brand,
+    href: `/catalog?brand=${encodeURIComponent(brand)}`,
+  }));
+
+  const staticLinks = [
+    { label: "Sobre nosotros", href: "/about", external: false },
+    { label: "Contactanos", href: "/#contacto", external: false },
+    ...(whatsappHref ? [{ label: "WhatsApp", href: whatsappHref, external: true }] : []),
+  ];
+
+  const extraLinks = links.filter((item) => {
+    const key = normalizeLabel(item?.label);
+    return !["inicio", "home", "catalogo", "catalog", "productos", "sobre nosotros", "nosotros", "contactanos", "contacto", "whatsapp"].includes(key);
+  });
+
+  const productsActive = activeRoute.startsWith("/catalog");
+  const accountLabel = user ? "Mi cuenta" : "Ingresar";
+
+  const mobileQuickLinks = useMemo(() => {
+    const list = [
+      { label: "Productos", href: "/catalog", external: false },
+      ...categoryLinks.slice(0, 4),
+      ...brandLinks.slice(0, 4),
+      ...staticLinks,
+    ];
+    const seen = new Set();
+    return list.filter((item) => {
+      const key = `${item.label}-${item.href}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [categoryLinks, brandLinks, staticLinks]);
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-solid border-[#f5f2f0] dark:border-[#3d2e21] bg-white/90 dark:bg-[#181411]/90 backdrop-blur-md">
-      <div
-        className={`mx-auto flex items-center justify-between px-4 md:px-10 py-3 ${containerClassName}`}
-      >
-        <div className="flex items-center gap-6 md:gap-8">
+    <header className="sticky top-0 z-50 w-full border-y border-[#dbe2ea] bg-white">
+      <div className={`mx-auto ${containerClassName}`}>
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap md:gap-8 md:px-10 md:py-4">
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="flex items-center gap-3 md:gap-4 text-primary"
+            className="flex items-center gap-3 text-[color:var(--color-primary,#0099e5)]"
+            aria-label="Ir a inicio"
           >
             {logoUrl ? (
-              <img src={logoUrl} alt={resolvedBrand} className="size-8 object-contain" />
+              <img src={logoUrl} alt={resolvedBrand} className="h-10 w-auto max-w-[160px] object-contain" />
             ) : (
-              <BrandMark className="size-8" />
+              <>
+                <BrandMark className="size-9" />
+                <h2 className={`text-2xl font-bold leading-none tracking-tight sm:text-3xl ${brandUppercase ? "uppercase" : ""}`}>
+                  {resolvedBrand}
+                </h2>
+              </>
             )}
-            <h2 className={`text-xl font-black ${brandUppercase ? "uppercase" : ""} tracking-tight`}>
-              {resolvedBrand}
-            </h2>
           </button>
 
-          {links.length ? (
-            <nav ref={navRef} className="relative hidden lg:flex items-center gap-5 text-sm font-semibold">
-              <span
-                className="pointer-events-none absolute -bottom-1 h-0.5 rounded-full bg-primary transition-all duration-300"
-                style={{
-                  width: indicator.width ? `${indicator.width}px` : 0,
-                  transform: `translateX(${indicator.left}px)`,
-                  opacity: indicator.opacity,
-                }}
-              />
-              <span
-                className="pointer-events-none absolute -inset-x-2 -bottom-3 h-6 rounded-full bg-primary/10 blur-xl transition-all duration-300"
-                style={{
-                  width: indicator.width ? `${indicator.width + 20}px` : 0,
-                  transform: `translateX(${indicator.left - 10}px)`,
-                  opacity: indicator.opacity ? 0.6 : 0,
-                }}
-              />
-              {links.map((link) => {
-                const target = link.href || "/";
-                const normalizedTarget = normalizeRoute(target);
-                const isActive = normalizeRoute(activeRoute) === normalizedTarget;
-                return (
-                  <a
-                    key={link.label}
-                    href={target}
-                    ref={(node) => {
-                      if (node) linkRefs.current[normalizedTarget] = node;
-                    }}
-                    onMouseEnter={() => updateIndicator(target)}
-                    onFocus={() => updateIndicator(target)}
-                    onMouseLeave={() => updateIndicator(activeRoute)}
-                    onBlur={() => updateIndicator(activeRoute)}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate(target);
-                    }}
-                    className={`group relative px-1.5 py-1 transition-all duration-300 dark:text-white ${
-                      isActive ? "text-primary" : "hover:text-primary"
-                    }`}
-                  >
-                    <span className={`inline-flex items-center gap-1 transition-transform duration-300 ${isActive ? "translate-y-0" : "group-hover:-translate-y-0.5"}`}>
-                      {link.label}
-                    </span>
-                  </a>
-                );
-              })}
-            </nav>
-          ) : null}
-        </div>
-
-        <div className="flex flex-1 items-center justify-end gap-3 md:gap-6">
           {showSearch ? (
-            <label className="relative hidden sm:flex w-full max-w-xs h-10">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a7560]">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              </span>
+            <label className="relative order-3 w-full md:order-none md:flex-1 md:max-w-[520px]">
               <input
-                className="w-full rounded-lg border-none bg-[#f5f2f0] dark:bg-[#3d2e21] pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary dark:text-white"
+                className="h-11 w-full rounded-none border border-[#e4e9ef] bg-[#f7f8fa] pl-4 pr-12 text-sm text-[#1f2937] placeholder:text-[#9ca3af] focus:border-[color:var(--color-primary,#0099e5)] focus:outline-none"
                 placeholder={searchPlaceholder}
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={handleSearchKey}
               />
+              <button
+                type="button"
+                onClick={() => navigate("/catalog")}
+                className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center text-[color:var(--color-primary,#0099e5)]"
+                aria-label="Buscar"
+              >
+                <SearchIcon />
+              </button>
             </label>
-          ) : null}
+          ) : (
+            <div className="hidden md:block md:flex-1" />
+          )}
 
-          <div className="flex gap-2 md:gap-3">
+          <div className="ml-auto hidden items-center gap-7 text-[10px] font-semibold uppercase text-[#4a4a4a] lg:flex">
             {showCart ? (
               <button
                 type="button"
                 onClick={() => navigate("/cart")}
-                className="relative flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
-                aria-label="Carrito"
+                className="relative inline-flex flex-col items-center gap-0.5 hover:text-[color:var(--color-primary,#0099e5)]"
+                title="Carrito"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dark:text-white"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                <CartIcon className="size-5 text-[color:var(--color-primary,#0099e5)]" />
+                <span>Carrito</span>
                 {cartCount > 0 ? (
-                  <span className="absolute -top-1 -right-1 rounded-full bg-primary text-white text-[10px] font-bold px-1.5 min-w-[18px] text-center">
+                  <span className="absolute -right-3 -top-2 min-w-[16px] rounded-full bg-[#ef4444] px-1.5 text-center text-[10px] font-bold leading-[16px] text-white">
                     {cartCount}
                   </span>
                 ) : null}
@@ -227,29 +366,187 @@ export default function Header({
               <button
                 type="button"
                 onClick={handleAccountClick}
-                className="relative flex items-center justify-center rounded-lg h-10 w-10 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
-                aria-label="Cuenta"
+                className="inline-flex flex-col items-center gap-0.5 hover:text-[color:var(--color-primary,#0099e5)]"
+                title={accountLabel}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dark:text-white"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                {favorites?.length ? (
-                  <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#3d2e21]" />
+                <UserIcon className="size-5 text-[color:var(--color-primary,#0099e5)]" />
+                <span>Mi cuenta</span>
+              </button>
+            ) : null}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 lg:hidden">
+            {showCart ? (
+              <button
+                type="button"
+                onClick={() => navigate("/cart")}
+                className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)]"
+                aria-label="Carrito"
+              >
+                <CartIcon />
+                {cartCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 min-w-[14px] rounded-full bg-[#ef4444] px-1 text-center text-[9px] font-bold leading-[14px] text-white">
+                    {cartCount}
+                  </span>
                 ) : null}
               </button>
             ) : null}
+            {showAccount ? (
+              <button
+                type="button"
+                onClick={handleAccountClick}
+                className="flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)]"
+                aria-label="Cuenta"
+              >
+                <UserIcon />
+              </button>
+            ) : null}
+          </div>
+        </div>
 
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="flex items-center justify-center rounded-lg h-10 px-3 bg-[#f5f2f0] dark:bg-[#3d2e21] hover:bg-primary/20 transition-colors"
-              aria-label="Cambiar tema"
-              title="Cambiar tema"
-            >
-              {isDarkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-black"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-              )}
-            </button>
+        <div className="border-t border-[#e4e9ef]">
+          <nav className="hidden h-12 items-center justify-center gap-9 px-4 md:flex">
+            <div className="group relative h-full">
+              <button
+                type="button"
+                className={`inline-flex h-full items-center gap-1 border-b-2 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
+                  productsActive
+                    ? "border-[color:var(--color-primary,#0099e5)] text-[color:var(--color-primary,#0099e5)]"
+                    : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)]"
+                }`}
+              >
+                Productos
+                <ChevronDown className="size-3" />
+              </button>
+
+              <div className="invisible absolute left-1/2 top-full z-50 mt-2 w-[min(95vw,1080px)] -translate-x-1/2 rounded-md border border-[#e4e9ef] bg-white p-6 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100">
+                <div className="max-h-[68vh] overflow-y-auto pr-1">
+                  {categoryTree.length ? (
+                    <div className="grid gap-8 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+                      {categoryTree.map((parent) => (
+                        <div key={`parent-${parent.id}`}>
+                          <a
+                            href={`/catalog?category=${encodeURIComponent(parent.id)}`}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              navigate(`/catalog?category=${encodeURIComponent(parent.id)}`);
+                            }}
+                            className="block text-[12px] font-black uppercase tracking-[0.08em] text-[color:var(--color-primary,#0099e5)] hover:opacity-80"
+                          >
+                            {parent.name}
+                          </a>
+                          <div className="mt-2 space-y-1.5">
+                            {parent.children.length ? (
+                              parent.children.map((child) => (
+                                <a
+                                  key={`child-${child.id}`}
+                                  href={`/catalog?category=${encodeURIComponent(child.id)}`}
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    navigate(`/catalog?category=${encodeURIComponent(child.id)}`);
+                                  }}
+                                  className="block text-[15px] leading-tight text-[#4b5563] hover:text-[color:var(--color-primary,#0099e5)]"
+                                >
+                                  {child.name}
+                                </a>
+                              ))
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#6b7280]">No hay categorias disponibles.</p>
+                  )}
+
+                  {brandLinks.length ? (
+                    <div className="mt-6 border-t border-[#eef2f7] pt-4">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6b7280]">Marcas</p>
+                      <div className="flex flex-wrap gap-2">
+                        {brandLinks.map((item) => (
+                          <a
+                            key={`brand-${item.href}`}
+                            href={item.href}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              navigate(item.href);
+                            }}
+                            className="rounded-full border border-[#dbe2ea] px-2.5 py-1 text-[12px] text-[#1f2937] hover:border-[color:var(--color-primary,#0099e5)] hover:text-[color:var(--color-primary,#0099e5)]"
+                          >
+                            {item.label}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {staticLinks.map((item) => {
+              const normalizedTarget = item.external ? item.href : normalizeRoute(item.href);
+              const isActive = !item.external && normalizeRoute(activeRoute) === normalizedTarget;
+              return (
+                <MenuAnchor
+                  key={`${item.label}-${item.href}`}
+                  href={item.href}
+                  label={item.label}
+                  active={isActive}
+                  external={item.external}
+                  className="h-full"
+                />
+              );
+            })}
+
+            {extraLinks.map((item) => {
+              const target = item.href || "/";
+              const isExternalTarget = isExternalPath(target);
+              const normalizedTarget = isExternalTarget ? target : normalizeRoute(target);
+              const isActive = !isExternalTarget && normalizeRoute(activeRoute) === normalizedTarget;
+              return (
+                <MenuAnchor
+                  key={`${item.label}-${target}`}
+                  href={target}
+                  label={item.label}
+                  active={isActive}
+                  external={isExternalTarget}
+                  className="h-full"
+                />
+              );
+            })}
+          </nav>
+
+          <div className="overflow-x-auto md:hidden">
+            <nav className="flex min-w-max items-center gap-5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#1f2937]">
+              {mobileQuickLinks.map((item) => {
+                const external = isExternalPath(item.href);
+                const normalizedTarget = external ? item.href : normalizeRoute(item.href);
+                const isActive = !external && normalizeRoute(activeRoute) === normalizedTarget;
+                return external ? (
+                  <a
+                    key={`mobile-${item.label}-${item.href}`}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937]"}
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <a
+                    key={`mobile-${item.label}-${item.href}`}
+                    href={item.href}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      navigate(item.href);
+                    }}
+                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937]"}
+                  >
+                    {item.label}
+                  </a>
+                );
+              })}
+            </nav>
           </div>
         </div>
       </div>

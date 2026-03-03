@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate } from '../../utils/navigation';
@@ -8,7 +8,27 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const storedNotice = sessionStorage.getItem('teflon_auth_notice');
+        if (storedNotice) {
+            setNotice(storedNotice);
+            sessionStorage.removeItem('teflon_auth_notice');
+        }
+    }, []);
+
+    const mapLoginError = (code) => {
+        const dictionary = {
+            invalid_credentials: 'Credenciales invalidas.',
+            pending_approval: 'Tu cuenta esta pendiente de aprobacion por el administrador.',
+            user_inactive: 'Tu cuenta esta inactiva. Contacta al administrador.',
+            no_tenant_access: 'No tienes acceso a este tenant.',
+            email_password_required: 'Completa email y contrasena.',
+        };
+        return dictionary[code] || 'No se pudo iniciar sesion.';
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -23,7 +43,7 @@ export default function LoginPage() {
                 navigate('/profile');
             }
         } catch (err) {
-            setError(err.message);
+            setError(mapLoginError(err.message));
         } finally {
             setLoading(false);
         }
@@ -41,6 +61,11 @@ export default function LoginPage() {
                     {error && (
                         <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 text-sm font-medium border border-red-100">
                             {error}
+                        </div>
+                    )}
+                    {notice && (
+                        <div className="bg-emerald-50 text-emerald-700 p-4 rounded-lg mb-6 text-sm font-medium border border-emerald-100">
+                            {notice}
                         </div>
                     )}
 

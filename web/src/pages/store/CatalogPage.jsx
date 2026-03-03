@@ -8,6 +8,18 @@ import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 
+const getCategoryFromUrl = () => {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = params.get("category");
+    return raw ? raw.trim() : null;
+};
+
+const getBrandFromUrl = () => {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = params.get("brand");
+    return raw ? raw.trim() : null;
+};
+
 export default function CatalogPage() {
     const { search, showToast } = useStore();
     const { settings } = useTenant();
@@ -23,8 +35,8 @@ export default function CatalogPage() {
     const [brands, setBrands] = useState([]);
 
     // Filters State
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [selectedBrand, setSelectedBrand] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState(() => getCategoryFromUrl());
+    const [selectedBrand, setSelectedBrand] = useState(() => getBrandFromUrl());
     const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
 
     const [products, setProducts] = useState([]);
@@ -45,6 +57,26 @@ export default function CatalogPage() {
     useEffect(() => {
         setPage(1);
     }, [search]);
+
+    useEffect(() => {
+        const syncCategoryFromUrl = () => {
+            const nextCategory = getCategoryFromUrl();
+            const nextBrand = getBrandFromUrl();
+            setSelectedCategory((prev) => (prev === nextCategory ? prev : nextCategory));
+            setSelectedBrand((prev) => (prev === nextBrand ? prev : nextBrand));
+            setPage(1);
+        };
+
+        window.addEventListener("navigate", syncCategoryFromUrl);
+        window.addEventListener("popstate", syncCategoryFromUrl);
+
+        syncCategoryFromUrl();
+
+        return () => {
+            window.removeEventListener("navigate", syncCategoryFromUrl);
+            window.removeEventListener("popstate", syncCategoryFromUrl);
+        };
+    }, []);
 
 
     useEffect(() => {

@@ -1,10 +1,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
+import http from 'http';
 
 import { pool } from './db.js';
 import app from './app.js';
 import { ensurePricingSchema } from './services/userPricing.js';
-<<<<<<< Updated upstream
 
 async function runStartupMigrations() {
   await pool.query(
@@ -34,29 +34,46 @@ async function runStartupMigrations() {
   await pool.query(
     'CREATE INDEX IF NOT EXISTS tenant_offers_tenant_idx ON tenant_offers(tenant_id, enabled)'
   );
+
+  await pool.query(
+    [
+      'CREATE TABLE IF NOT EXISTS product_reviews (',
+      'id uuid PRIMARY KEY DEFAULT gen_random_uuid(),',
+      'tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,',
+      'product_id uuid NOT NULL REFERENCES product_cache(id) ON DELETE CASCADE,',
+      'user_id uuid REFERENCES users(id) ON DELETE SET NULL,',
+      'rating int NOT NULL DEFAULT 5 CHECK (rating BETWEEN 1 AND 5),',
+      'comment text NOT NULL,',
+      "status text NOT NULL DEFAULT 'published',",
+      'created_at timestamptz NOT NULL DEFAULT now(),',
+      'updated_at timestamptz NOT NULL DEFAULT now()',
+      ')',
+    ].join(' ')
+  );
+
+  await pool.query(
+    [
+      'CREATE INDEX IF NOT EXISTS product_reviews_tenant_product_idx',
+      'ON product_reviews(tenant_id, product_id, status, created_at DESC)',
+    ].join(' ')
+  );
+
+  await pool.query(
+    [
+      'CREATE INDEX IF NOT EXISTS product_reviews_user_idx',
+      'ON product_reviews(user_id, created_at DESC)',
+    ].join(' ')
+  );
 }
-=======
->>>>>>> Stashed changes
 
 // Verify DB connection on startup
 const dbHost = process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1] : 'NOT SET';
 console.log(`Checking DB connection to: ${dbHost}`);
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-pool
-  .query('SELECT 1')
-  .then(async () => {
-    await runStartupMigrations();
-    console.log('DB Connection OK');
-  })
-  .catch((e) => console.error('DB Connection FAILED:', e.message));
-=======
-=======
->>>>>>> Stashed changes
 
 async function bootstrapDb() {
   try {
     await pool.query('SELECT 1');
+    await runStartupMigrations();
     console.log('DB Connection OK');
     await ensurePricingSchema();
     console.log('Pricing schema ready');
@@ -65,13 +82,27 @@ async function bootstrapDb() {
   }
 }
 
-bootstrapDb();
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+async function startServer() {
+  await bootstrapDb();
 
-const port = process.env.PORT || 4000;
-app.listen(port, () => {
-  console.log(`API listening on port ${port}`);
+  const port = Number(process.env.PORT || 4000);
+  const server = http.createServer(app);
+
+  server.on('error', (err) => {
+    if (err?.code === 'EADDRINUSE') {
+      console.error(`Port ${port} is already in use. Stop the previous API process or change PORT in server/.env.`);
+      return;
+    }
+    console.error('Server startup error:', err);
+  });
+
+  server.on('listening', () => {
+    console.log(`API listening on port ${port}`);
+  });
+
+  server.listen(port);
+}
+
+startServer().catch((err) => {
+  console.error('Fatal startup error:', err?.message || err);
 });

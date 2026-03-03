@@ -76,8 +76,8 @@ export default function Services({
   } = styles;
 
   return (
-    <section className={`px-10 py-16 ${sectionBg}`}>
-      <div className="mx-auto max-w-[1280px]">
+    <section className={`px-4 py-16 md:px-10 ${sectionBg}`}>
+      <div className="mx-auto max-w-[1408px]">
         <div className={`mb-12 ${alignment}`}>
           <h2 className={`${titleSize} font-bold tracking-tight ${titleColor}`}>
             {title}

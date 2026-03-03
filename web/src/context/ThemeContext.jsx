@@ -5,18 +5,15 @@ const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
     const { tenant, settings } = useTenant();
-    const [isDarkMode, setIsDarkMode] = React.useState(false);
 
     useEffect(() => {
         const theme = settings?.theme || tenant?.theme || {};
-        const mode = theme.mode || (theme.dark_mode ? 'dark' : 'light');
-        if (mode === 'dark') {
-            setIsDarkMode(true);
-        } else if (mode === 'light') {
-            setIsDarkMode(false);
-        }
         const palette = theme.colors || {};
         const fallbackPalette = {};
+        const root = document.documentElement;
+
+        root.classList.remove('dark');
+        document.body?.classList?.remove('dark');
 
         ['primary', 'accent', 'background', 'text'].forEach((key) => {
             if (theme[key]) {
@@ -28,7 +25,6 @@ export const ThemeProvider = ({ children }) => {
         }
 
         const colors = { ...fallbackPalette, ...palette };
-        const root = document.documentElement;
 
         Object.entries(colors).forEach(([key, value]) => {
             if (typeof value === 'string') {
@@ -43,10 +39,10 @@ export const ThemeProvider = ({ children }) => {
         }
     }, [settings, tenant]);
 
-    const toggleTheme = () => setIsDarkMode((prev) => !prev);
+    const themeValue = settings?.theme || tenant?.theme || {};
 
     return (
-        <ThemeContext.Provider value={{ theme: settings?.theme || tenant?.theme, isDarkMode, toggleTheme }}>
+        <ThemeContext.Provider value={{ theme: themeValue }}>
             {children}
         </ThemeContext.Provider>
     );
