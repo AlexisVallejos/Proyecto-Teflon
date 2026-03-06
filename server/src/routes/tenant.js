@@ -898,6 +898,76 @@ tenantRouter.patch('/users/:id', async (req, res, next) => {
   }
 });
 
+tenantRouter.delete('/users/:id', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const userId = req.params.id;
+  if (!isUuid(userId)) {
+    return res.status(400).json({ error: 'invalid_user_id' });
+  }
+  if (req.user?.id === userId) {
+    return res.status(400).json({ error: 'cannot_delete_current_user' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const targetRes = await client.query(
+      'select id, role from users where id = $1',
+      [userId]
+    );
+    if (!targetRes.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    const targetUser = targetRes.rows[0];
+    if (targetUser.role === 'master_admin') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'cannot_delete_master_admin' });
+    }
+
+    const membershipDeleteRes = await client.query(
+      'delete from user_tenants where tenant_id = $1 and user_id = $2 returning user_id',
+      [tenantId, userId]
+    );
+    if (!membershipDeleteRes.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+
+    await client.query(
+      'delete from user_price_list where tenant_id = $1 and user_id = $2',
+      [tenantId, userId]
+    );
+
+    const membershipsRes = await client.query(
+      'select count(*)::int as total from user_tenants where user_id = $1',
+      [userId]
+    );
+    const remainingMemberships = Number(membershipsRes.rows[0]?.total || 0);
+
+    let deletedUser = false;
+    if (remainingMemberships === 0) {
+      await client.query(
+        "delete from users where id = $1 and role <> 'master_admin'",
+        [userId]
+      );
+      deletedUser = true;
+    }
+
+    await client.query('COMMIT');
+    return res.json({ ok: true, id: userId, deleted_user: deletedUser });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+});
+
 tenantRouter.put('/users/:id/price-list', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;

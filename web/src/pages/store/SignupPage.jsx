@@ -142,14 +142,76 @@ function Step3({ data, onChange, onBack, onSubmit, loading }) {
     );
 }
 
-function Stepper({ current }) {
-    const steps = ['Personal', 'Cuenta', 'Negocio'];
-    const progressWidth = ['0%', '50%', '100%'];
+function Step4({
+    email,
+    code,
+    onCodeChange,
+    onVerify,
+    onResend,
+    onBack,
+    loading,
+    resendLoading,
+    debugCode,
+}) {
+    return (
+        <div className="space-y-4">
+            <div className="rounded-lg border border-[#e5e1de] bg-[#faf7f4] p-3 text-sm text-[#5b4632]">
+                Te enviamos un codigo de verificacion a <span className="font-bold">{email}</span>.
+            </div>
+            {debugCode ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                    Codigo de prueba (entorno local): <span className="font-bold tracking-wider">{debugCode}</span>
+                </div>
+            ) : null}
+            <div>
+                <label className={labelClass}>Codigo de verificacion</label>
+                <input
+                    className={inputClass}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={code}
+                    onChange={(e) => onCodeChange(e.target.value.replace(/\D/g, ''))}
+                />
+            </div>
+            <div className="pt-1 space-y-3">
+                <button
+                    onClick={onVerify}
+                    disabled={loading}
+                    className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70"
+                >
+                    {loading ? 'Verificando...' : 'Verificar email'}
+                </button>
+                <button
+                    onClick={onResend}
+                    disabled={resendLoading}
+                    className="w-full border border-[#e5e1de] bg-white text-[#181411] font-bold py-3 rounded-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                >
+                    {resendLoading ? 'Reenviando...' : 'Reenviar codigo'}
+                </button>
+                <div className="text-center">
+                    <button onClick={onBack} className="text-[#8a7560] font-semibold text-sm hover:text-[#181411] transition-colors">
+                        Volver al paso anterior
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Stepper({ current, total = 3 }) {
+    const steps = total === 4
+        ? ['Personal', 'Cuenta', 'Negocio', 'Verificar']
+        : ['Personal', 'Cuenta', 'Negocio'];
+    const denominator = Math.max(1, steps.length - 1);
+    const progress = Math.max(0, Math.min(1, (current - 1) / denominator));
+    const progressWidth = `${Math.round(progress * 100)}%`;
 
     return (
         <div className="flex items-start justify-between mb-8 relative px-2">
             <div className="absolute top-3.5 left-0 w-full h-0.5 bg-[#f0ece8] z-0" />
-            <div className="absolute top-3.5 left-0 h-0.5 bg-primary z-0 transition-all duration-500" style={{ width: progressWidth[current - 1] }} />
+            <div className="absolute top-3.5 left-0 h-0.5 bg-primary z-0 transition-all duration-500" style={{ width: progressWidth }} />
             {steps.map((label, i) => {
                 const stepNum = i + 1;
                 const done = stepNum < current;
@@ -177,11 +239,28 @@ function mapSignupError(code) {
     return dictionary[code] || 'No se pudo crear la cuenta.';
 }
 
+function mapVerificationError(code) {
+    const dictionary = {
+        missing_fields: 'Completa el email y el codigo.',
+        invalid_code: 'El codigo ingresado no es valido.',
+        code_expired: 'El codigo expiro. Solicita uno nuevo.',
+        code_locked: 'Superaste los intentos permitidos. Reenviar codigo.',
+        code_not_found: 'No hay un codigo activo para este email.',
+        verification_not_found: 'No se encontro una verificacion para este email.',
+    };
+    return dictionary[code] || 'No se pudo verificar el email.';
+}
+
 export default function SignupPage() {
-    const { signup } = useAuth();
+    const { signup, verifyEmailCode, resendVerificationCode } = useAuth();
     const [step, setStep] = useState(1);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [verificationEmail, setVerificationEmail] = useState('');
+    const [verificationCode, setVerificationCode] = useState('');
+    const [verificationDebugCode, setVerificationDebugCode] = useState('');
+    const [verificationLoading, setVerificationLoading] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -260,17 +339,73 @@ export default function SignupPage() {
         setError('');
         setLoading(true);
         try {
-            const data = await signup(formData.email.trim(), formData.password, roleForApi);
-            const isPendingApproval = data?.requires_approval || data?.user?.status === 'pending';
-            const loginNotice = isPendingApproval
-                ? 'Cuenta creada. Tu usuario quedo pendiente de aprobacion del administrador.'
-                : 'Cuenta creada correctamente. Ya podes iniciar sesion.';
+            const data = await signup(
+                formData.email.trim(),
+                formData.password,
+                roleForApi,
+                formData.name.trim()
+            );
+            const normalizedEmail = formData.email.trim().toLowerCase();
+            const requiresVerification = data?.requires_email_verification !== false;
+            if (requiresVerification) {
+                setVerificationEmail(normalizedEmail);
+                setVerificationCode('');
+                setVerificationDebugCode(data?.verification?.debug_code || '');
+                setStep(4);
+                return;
+            }
+
+            const loginNotice = 'Cuenta creada correctamente. Ya podes iniciar sesion.';
             sessionStorage.setItem('teflon_auth_notice', loginNotice);
             navigate('/login');
         } catch (err) {
             setError(mapSignupError(String(err?.message || '')));
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleVerifyEmail = async () => {
+        if (!verificationEmail) {
+            setError('No encontramos el email para verificar.');
+            return;
+        }
+        if (!verificationCode.trim()) {
+            setError('Ingresa el codigo de verificacion.');
+            return;
+        }
+
+        setError('');
+        setVerificationLoading(true);
+        try {
+            await verifyEmailCode(verificationEmail, verificationCode.trim());
+            sessionStorage.setItem(
+                'teflon_auth_notice',
+                'Email verificado. Tu cuenta quedo pendiente de aprobacion del administrador.'
+            );
+            navigate('/login');
+        } catch (err) {
+            setError(mapVerificationError(String(err?.message || '')));
+        } finally {
+            setVerificationLoading(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!verificationEmail) {
+            setError('No encontramos el email para reenviar el codigo.');
+            return;
+        }
+
+        setError('');
+        setResendLoading(true);
+        try {
+            const data = await resendVerificationCode(verificationEmail);
+            setVerificationDebugCode(data?.verification?.debug_code || '');
+        } catch (err) {
+            setError(mapVerificationError(String(err?.message || '')));
+        } finally {
+            setResendLoading(false);
         }
     };
 
@@ -283,7 +418,7 @@ export default function SignupPage() {
                         <p className="text-[#8a7560] text-sm font-medium">Unite a Sanitarios El Teflon</p>
                     </div>
 
-                    <Stepper current={step} />
+                    <Stepper current={step} total={4} />
 
                     {error ? (
                         <div className="bg-red-50 text-red-700 p-3 rounded-xl border border-red-200 text-sm font-semibold mb-5">
@@ -294,6 +429,19 @@ export default function SignupPage() {
                     {step === 1 && <Step1 data={formData} onChange={update} onNext={goStep2} />}
                     {step === 2 && <Step2 data={formData} onChange={update} onNext={goStep3} onBack={() => setStep(1)} />}
                     {step === 3 && <Step3 data={formData} onChange={update} onBack={() => setStep(2)} onSubmit={submit} loading={loading} />}
+                    {step === 4 && (
+                        <Step4
+                            email={verificationEmail || formData.email.trim()}
+                            code={verificationCode}
+                            onCodeChange={setVerificationCode}
+                            onVerify={handleVerifyEmail}
+                            onResend={handleResendVerification}
+                            onBack={() => setStep(3)}
+                            loading={verificationLoading}
+                            resendLoading={resendLoading}
+                            debugCode={verificationDebugCode}
+                        />
+                    )}
 
                     <div className="mt-6 pt-4 border-t border-[#f0ece8] text-center">
                         <p className="text-[#8a7560] text-sm">

@@ -4,12 +4,16 @@ import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate } from '../../utils/navigation';
 
 export default function LoginPage() {
-    const { login } = useAuth();
+    const { login, verifyEmailCode, resendVerificationCode } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [loading, setLoading] = useState(false);
+    const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
+    const [verificationCode, setVerificationCode] = useState('');
+    const [verificationLoading, setVerificationLoading] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
 
     useEffect(() => {
         const storedNotice = sessionStorage.getItem('teflon_auth_notice');
@@ -26,8 +30,27 @@ export default function LoginPage() {
             user_inactive: 'Tu cuenta esta inactiva. Contacta al administrador.',
             no_tenant_access: 'No tienes acceso a este tenant.',
             email_password_required: 'Completa email y contrasena.',
+            email_not_verified: 'Debes verificar tu email antes de iniciar sesion.',
         };
         return dictionary[code] || 'No se pudo iniciar sesion.';
+    };
+
+    const mapVerificationError = (code) => {
+        const dictionary = {
+            missing_fields: 'Completa el codigo de verificacion.',
+            invalid_code: 'El codigo ingresado no es valido.',
+            code_expired: 'El codigo expiro. Solicita uno nuevo.',
+            code_locked: 'Superaste los intentos. Reenvia un nuevo codigo.',
+            code_not_found: 'No hay codigo activo. Reenvia uno nuevo.',
+            verification_not_found: 'No encontramos verificacion para este email.',
+        };
+        return dictionary[code] || 'No se pudo verificar el email.';
+    };
+
+    const getNormalizedLoginEmail = () => {
+        const rawEmail = String(email || '').trim();
+        if (!rawEmail) return '';
+        return rawEmail.toLowerCase() === 'admin' ? 'admin@teflon.local' : rawEmail.toLowerCase();
     };
 
     const handleSubmit = async (e) => {
@@ -43,9 +66,58 @@ export default function LoginPage() {
                 navigate('/profile');
             }
         } catch (err) {
-            setError(mapLoginError(err.message));
+            const code = String(err?.message || '');
+            setError(mapLoginError(code));
+            if (code === 'email_not_verified') {
+                setPendingVerificationEmail(getNormalizedLoginEmail());
+                setVerificationCode('');
+            } else {
+                setPendingVerificationEmail('');
+            }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleVerifyPendingEmail = async () => {
+        if (!pendingVerificationEmail) {
+            setError('No hay email pendiente de verificacion.');
+            return;
+        }
+        if (!verificationCode.trim()) {
+            setError('Ingresa el codigo de verificacion.');
+            return;
+        }
+
+        setError('');
+        setVerificationLoading(true);
+        try {
+            await verifyEmailCode(pendingVerificationEmail, verificationCode.trim());
+            setNotice('Email verificado correctamente. Inicia sesion nuevamente.');
+            setPendingVerificationEmail('');
+            setVerificationCode('');
+        } catch (err) {
+            setError(mapVerificationError(String(err?.message || '')));
+        } finally {
+            setVerificationLoading(false);
+        }
+    };
+
+    const handleResendCode = async () => {
+        if (!pendingVerificationEmail) {
+            setError('No hay email pendiente de verificacion.');
+            return;
+        }
+
+        setError('');
+        setResendLoading(true);
+        try {
+            await resendVerificationCode(pendingVerificationEmail);
+            setNotice(`Te reenviamos un codigo a ${pendingVerificationEmail}.`);
+        } catch (err) {
+            setError(mapVerificationError(String(err?.message || '')));
+        } finally {
+            setResendLoading(false);
         }
     };
 
@@ -101,6 +173,41 @@ export default function LoginPage() {
                             {loading ? 'Ingresando...' : 'Iniciar Sesión'}
                         </button>
                     </form>
+
+                    {pendingVerificationEmail ? (
+                        <div className="mt-6 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] bg-[#faf7f4] dark:bg-[#2b2219] p-4 space-y-3">
+                            <p className="text-[13px] font-semibold text-[#5b4632] dark:text-[#f4e7d8]">
+                                Verifica tu email para continuar: {pendingVerificationEmail}
+                            </p>
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={6}
+                                value={verificationCode}
+                                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                                className="w-full px-4 py-3 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white"
+                                placeholder="Codigo de 6 digitos"
+                            />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleVerifyPendingEmail}
+                                    disabled={verificationLoading}
+                                    className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70"
+                                >
+                                    {verificationLoading ? 'Verificando...' : 'Verificar'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleResendCode}
+                                    disabled={resendLoading}
+                                    className="w-full border border-[#e5e1de] dark:border-[#3d2f21] text-[#181411] dark:text-white font-bold py-3 rounded-lg transition-all active:scale-[0.98] disabled:opacity-70"
+                                >
+                                    {resendLoading ? 'Reenviando...' : 'Reenviar codigo'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
 
                     <div className="mt-8 text-center">
                         <p className="text-[#8a7560] text-sm">

@@ -8,6 +8,10 @@ export const authRouter = express.Router();
 const VERIFICATION_CODE_TTL_MINUTES = Math.max(5, Number(process.env.EMAIL_VERIFICATION_TTL_MINUTES || 15));
 const VERIFICATION_MAX_ATTEMPTS = Math.max(3, Number(process.env.EMAIL_VERIFICATION_MAX_ATTEMPTS || 5));
 
+function normalizeEmailInput(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
 async function ensureEmailVerificationSchema() {
   await pool.query('alter table users add column if not exists email_verified_at timestamptz');
   await pool.query('alter table users add column if not exists requires_email_verification boolean not null default false');
@@ -39,13 +43,58 @@ function hashVerificationCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
 }
 
-async function sendVerificationEmail(email, code) {
+function normalizeDisplayName(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return '';
+  return trimmed.slice(0, 80);
+}
+
+function getEmailCompanyName() {
+  const value = String(
+    process.env.EMAIL_COMPANY_NAME ||
+    process.env.APP_NAME ||
+    'Sanitarios El Teflon'
+  ).trim();
+  return value || 'Sanitarios El Teflon';
+}
+
+async function sendVerificationEmail(email, code, recipientName = '') {
   const smtpHost = process.env.SMTP_HOST;
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   const smtpPort = Number(process.env.SMTP_PORT || 587);
   const smtpSecure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
   const fromAddress = process.env.SMTP_FROM || smtpUser || 'no-reply@teflon.local';
+  const companyName = getEmailCompanyName();
+  const safeName = normalizeDisplayName(recipientName);
+  const greetingLine = safeName ? `Hola, ${safeName}:` : 'Hola:';
+  const subject = `Tu codigo de verificacion de ${companyName}`;
+  const textBody = [
+    greetingLine,
+    '',
+    'Aqui tienes el codigo de seguridad para verificar tu cuenta de Gmail y finalizar tu registro con nosotros.',
+    '',
+    'Tu codigo de verificacion es:',
+    String(code),
+    '',
+    'Solo tienes que copiar y pegar este numero en la pantalla de verificacion para continuar.',
+    '',
+    `Si no intentaste registrarte o iniciar sesion en ${companyName}, puedes ignorar y eliminar este correo de forma segura.`,
+    '',
+    'Saludos,',
+    '',
+    `El equipo de ${companyName}`,
+  ].join('\n');
+  const htmlBody = [
+    `<p>${greetingLine}</p>`,
+    '<p>Aqui tienes el codigo de seguridad para verificar tu cuenta de Gmail y finalizar tu registro con nosotros.</p>',
+    '<p><strong>Tu codigo de verificacion es:</strong></p>',
+    `<h2 style="letter-spacing:4px;">${code}</h2>`,
+    '<p>Solo tienes que copiar y pegar este numero en la pantalla de verificacion para continuar.</p>',
+    `<p>Si no intentaste registrarte o iniciar sesion en ${companyName}, puedes ignorar y eliminar este correo de forma segura.</p>`,
+    '<p>Saludos,</p>',
+    `<p>El equipo de ${companyName}</p>`,
+  ].join('');
 
   if (!smtpHost || !smtpUser || !smtpPass) {
     console.log(`[email-verification] SMTP no configurado. Codigo para ${email}: ${code}`);
@@ -74,9 +123,9 @@ async function sendVerificationEmail(email, code) {
     await transporter.sendMail({
       from: fromAddress,
       to: email,
-      subject: 'Codigo de verificacion - Sanitarios El Teflon',
-      text: `Tu codigo de verificacion es: ${code}\n\nExpira en ${VERIFICATION_CODE_TTL_MINUTES} minutos.`,
-      html: `<p>Tu codigo de verificacion es:</p><h2 style="letter-spacing:4px;">${code}</h2><p>Expira en ${VERIFICATION_CODE_TTL_MINUTES} minutos.</p>`,
+      subject,
+      text: textBody,
+      html: htmlBody,
     });
 
     return { sent: true, provider: 'smtp' };
@@ -87,8 +136,9 @@ async function sendVerificationEmail(email, code) {
   }
 }
 
-async function issueEmailVerificationCode(userId, email) {
+async function issueEmailVerificationCode(userId, email, recipientName = '') {
   await ensureEmailVerificationSchema();
+  const normalizedEmail = normalizeEmailInput(email);
   const code = generateVerificationCode();
   const codeHash = hashVerificationCode(code);
   const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60 * 1000);
@@ -104,10 +154,10 @@ async function issueEmailVerificationCode(userId, email) {
       '(user_id, email, code_hash, attempts, max_attempts, expires_at)',
       'values ($1, $2, $3, $4, $5, $6)',
     ].join(' '),
-    [userId, email, codeHash, 0, VERIFICATION_MAX_ATTEMPTS, expiresAt]
+    [userId, normalizedEmail, codeHash, 0, VERIFICATION_MAX_ATTEMPTS, expiresAt]
   );
 
-  const delivery = await sendVerificationEmail(email, code);
+  const delivery = await sendVerificationEmail(normalizedEmail, code, recipientName);
   const verification = {
     sent: delivery.sent,
     provider: delivery.provider,
@@ -138,6 +188,7 @@ async function getMembership(userId, tenantId) {
 
 authRouter.post('/bootstrap', async (req, res, next) => {
   try {
+    await ensureEmailVerificationSchema();
     const bootstrapToken = process.env.BOOTSTRAP_TOKEN || '';
     const provided = req.get('x-bootstrap-token') || req.body.token || '';
     if (!bootstrapToken || provided !== bootstrapToken) {
@@ -154,10 +205,11 @@ authRouter.post('/bootstrap', async (req, res, next) => {
       return res.status(400).json({ error: 'email_password_required' });
     }
 
+    const normalizedEmail = normalizeEmailInput(email);
     const passwordHash = await bcrypt.hash(password, 10);
     const insertRes = await pool.query(
       'insert into users (email, password_hash, role, status) values ($1, $2, $3, $4) returning id, email, role, status',
-      [email, passwordHash, 'master_admin', 'active']
+      [normalizedEmail, passwordHash, 'master_admin', 'active']
     );
 
     const user = insertRes.rows[0];
@@ -170,6 +222,7 @@ authRouter.post('/bootstrap', async (req, res, next) => {
 
 authRouter.post('/login', async (req, res, next) => {
   try {
+    await ensureEmailVerificationSchema();
     const { email, password, tenant_id } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'email_password_required' });
@@ -177,10 +230,13 @@ authRouter.post('/login', async (req, res, next) => {
 
     const rawEmail = String(email).trim();
     const normalizedEmail =
-      rawEmail.toLowerCase() === 'admin' ? 'admin@teflon.local' : rawEmail;
+      rawEmail.toLowerCase() === 'admin' ? 'admin@teflon.local' : normalizeEmailInput(rawEmail);
 
     const userRes = await pool.query(
-      'select id, email, password_hash, role, status, email_verified_at, requires_email_verification from users where email = $1',
+      [
+        'select id, email, password_hash, role, status, email_verified_at, requires_email_verification',
+        'from users where lower(email) = lower($1)',
+      ].join(' '),
       [normalizedEmail]
     );
     if (!userRes.rowCount) {
@@ -195,6 +251,12 @@ authRouter.post('/login', async (req, res, next) => {
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
       return res.status(401).json({ error: 'invalid_credentials' });
+    }
+    if (user.requires_email_verification && !user.email_verified_at) {
+      return res.status(403).json({
+        error: 'email_not_verified',
+        requires_email_verification: true,
+      });
     }
 
     let tenantId = null;
@@ -225,15 +287,19 @@ authRouter.post('/login', async (req, res, next) => {
 async function handleSignup(req, res, next) {
   try {
     await ensureEmailVerificationSchema();
-    const { email, password, role, tenant_id } = req.body;
+    const { email, password, role, tenant_id, name } = req.body;
     if (!email || !password || !tenant_id) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+    const normalizedEmail = normalizeEmailInput(email);
+    if (!normalizedEmail) {
       return res.status(400).json({ error: 'missing_fields' });
     }
 
     const validRoles = ['retail', 'wholesale'];
     const assignedRole = validRoles.includes(role) ? role : 'retail';
 
-    const countRes = await pool.query('select count(*) from users where email = $1', [email]);
+    const countRes = await pool.query('select count(*) from users where lower(email) = lower($1)', [normalizedEmail]);
     if (parseInt(countRes.rows[0].count) > 0) {
       return res.status(409).json({ error: 'user_exists' });
     }
@@ -245,7 +311,7 @@ async function handleSignup(req, res, next) {
         'values ($1, $2, $3, $4, $5, $6)',
         'returning id, email, role, status, email_verified_at, requires_email_verification',
       ].join(' '),
-      [email, passwordHash, assignedRole, 'active', new Date(), false]
+      [normalizedEmail, passwordHash, assignedRole, 'active', null, true]
     );
 
     const user = userRes.rows[0];
@@ -255,8 +321,11 @@ async function handleSignup(req, res, next) {
       'insert into user_tenants (user_id, tenant_id, role, status) values ($1, $2, $3, $4)',
       [user.id, tenant_id, assignedRole, membershipStatus]
     );
+    const verification = await issueEmailVerificationCode(user.id, user.email, name);
     return res.status(201).json({
       requires_approval: true,
+      requires_email_verification: true,
+      verification,
       user: { id: user.id, email: user.email, role: assignedRole, status: membershipStatus, tenant_id },
     });
   } catch (err) {
@@ -274,10 +343,11 @@ authRouter.post('/verify-email', async (req, res, next) => {
     if (!email || !code) {
       return res.status(400).json({ error: 'missing_fields' });
     }
+    const normalizedEmail = normalizeEmailInput(email);
 
     const userRes = await pool.query(
-      'select id, email, requires_email_verification, email_verified_at from users where email = $1',
-      [String(email).trim()]
+      'select id, email, requires_email_verification, email_verified_at from users where lower(email) = lower($1)',
+      [normalizedEmail]
     );
     if (!userRes.rowCount) {
       return res.status(404).json({ error: 'verification_not_found' });
@@ -344,10 +414,11 @@ authRouter.post('/resend-verification', async (req, res, next) => {
     if (!email) {
       return res.status(400).json({ error: 'missing_fields' });
     }
+    const normalizedEmail = normalizeEmailInput(email);
 
     const userRes = await pool.query(
-      'select id, email, requires_email_verification, email_verified_at from users where email = $1',
-      [String(email).trim()]
+      'select id, email, requires_email_verification, email_verified_at from users where lower(email) = lower($1)',
+      [normalizedEmail]
     );
     if (!userRes.rowCount) {
       return res.status(404).json({ error: 'verification_not_found' });

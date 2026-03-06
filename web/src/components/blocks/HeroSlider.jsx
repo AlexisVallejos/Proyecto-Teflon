@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { navigate } from "../../utils/navigation";
 import FashionHeroSlider from "./FashionHeroSlider";
 import HomeDecorHeroSlider from "./HomeDecorHeroSlider";
+import SanitariosIndustrialHeroSlider from "./SanitariosIndustrialHeroSlider";
 import { normalizeHeroSlides, normalizeHeroStyles, normalizeHeroVariant } from "../../data/heroSliderTemplates";
 
 function ClassicHeroSlider({
@@ -299,6 +300,15 @@ export default function HeroSlider(props) {
       <HomeDecorHeroSlider
         slides={normalizeHeroSlides("home_decor", props?.slides)}
         styles={normalizeHeroStyles("home_decor", props?.styles)}
+      />
+    );
+  }
+
+  if (variant === "sanitarios_industrial") {
+    return (
+      <SanitariosIndustrialHeroSlider
+        slides={normalizeHeroSlides("sanitarios_industrial", props?.slides)}
+        styles={normalizeHeroStyles("sanitarios_industrial", props?.styles)}
       />
     );
   }

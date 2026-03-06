@@ -2,6 +2,7 @@ export const HERO_VARIANT_OPTIONS = [
     { value: 'classic', label: 'Clasico (actual)' },
     { value: 'fashion', label: 'Fashion' },
     { value: 'home_decor', label: 'Home Decor' },
+    { value: 'sanitarios_industrial', label: 'Sanitarios Industrial' },
 ];
 
 export const HERO_COLOR_FIELDS = {
@@ -28,6 +29,26 @@ export const HERO_COLOR_FIELDS = {
         { key: 'secondaryButtonBgColor', label: 'Boton secundario (fondo)' },
         { key: 'secondaryButtonTextColor', label: 'Boton secundario (texto)' },
         { key: 'secondaryButtonBorderColor', label: 'Boton secundario (borde)' },
+    ],
+    sanitarios_industrial: [
+        { key: 'backgroundColor', label: 'Fondo blueprint' },
+        { key: 'gridLineColor', label: 'Lineas grid' },
+        { key: 'leftPanelColor', label: 'Panel diagonal' },
+        { key: 'titleColor', label: 'Titulos' },
+        { key: 'labelColor', label: 'Etiqueta' },
+        { key: 'cardBgColor', label: 'Card vidrio (fondo)' },
+        { key: 'cardBorderColor', label: 'Card vidrio (borde)' },
+        { key: 'cardTitleColor', label: 'Card titulo' },
+        { key: 'cardSubtitleColor', label: 'Card subtitulo' },
+        { key: 'textColor', label: 'Card texto' },
+        { key: 'primaryButtonBgColor', label: 'Boton primario (fondo)' },
+        { key: 'primaryButtonTextColor', label: 'Boton primario (texto)' },
+        { key: 'secondaryButtonBgColor', label: 'Boton secundario (fondo)' },
+        { key: 'secondaryButtonTextColor', label: 'Boton secundario (texto)' },
+        { key: 'secondaryButtonBorderColor', label: 'Boton secundario (borde)' },
+        { key: 'specColor', label: 'Especificacion superior' },
+        { key: 'dotActiveColor', label: 'Dot activo' },
+        { key: 'dotInactiveColor', label: 'Dot inactivo' },
     ],
 };
 
@@ -87,9 +108,29 @@ const HOME_DECOR_DEFAULT_SLIDES = [
     },
 ];
 
+const SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES = [
+    {
+        label: 'Industrial Series',
+        title: 'DUCHA',
+        subtitle: 'PREMIUM',
+        description: 'Precision tecnica y durabilidad extrema en cada componente.',
+        featured: 'Sanitarios El Teflon',
+        cardEyebrow: 'Master Dealer',
+        cardTitle: 'Sanitarios El Teflon',
+        specLabel: 'Spec: Chrome_04 // 2024',
+        image:
+            'https://lh3.googleusercontent.com/aida-public/AB6AXuCtrx3pTyYlPgB-m5Qu8uUwctQeJRkUAX5nF4uBy2EZwom64tlIa_jjJvKQZoFhDcseM0gZGo98GRYEGNf2hmNgD_EbPbEoOxG5vWrWAiXYIIWF2p48XGa626y2T8Xfxt5AK9C4upAWDExfCK11CrcPsFqDSnlQ5hTkj0bxFygNWYkKXfJXjpiX4QTnbkzXxUTP1V14BbbMtMm6kle200TQd25KHbu1zdec36SSAutjvA0O9VIiku54n_VWSvD0qL0kXDAiOZKDahg',
+        primaryButtonLabel: 'SHOP NOW',
+        primaryButtonLink: '/catalog',
+        secondaryButtonLabel: '',
+        secondaryButtonLink: '',
+    },
+];
+
 const SLIDE_DEFAULTS_BY_VARIANT = {
     fashion: FASHION_DEFAULT_SLIDES,
     home_decor: HOME_DECOR_DEFAULT_SLIDES,
+    sanitarios_industrial: SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES,
 };
 
 const STYLE_DEFAULTS_BY_VARIANT = {
@@ -117,6 +158,26 @@ const STYLE_DEFAULTS_BY_VARIANT = {
         secondaryButtonTextColor: '#0f172a',
         secondaryButtonBorderColor: '#cbd5e1',
     },
+    sanitarios_industrial: {
+        backgroundColor: '#f97316',
+        gridLineColor: '#ffffff',
+        leftPanelColor: '#121212',
+        titleColor: '#ffffff',
+        labelColor: '#f97316',
+        cardBgColor: '#ffffff',
+        cardBorderColor: '#ffffff',
+        cardTitleColor: '#ffffff',
+        cardSubtitleColor: '#e4e4e7',
+        textColor: '#f4f4f5',
+        primaryButtonBgColor: '#ffffff',
+        primaryButtonTextColor: '#f97316',
+        secondaryButtonBgColor: '#18181b',
+        secondaryButtonTextColor: '#ffffff',
+        secondaryButtonBorderColor: '#3f3f46',
+        specColor: '#e4e4e7',
+        dotActiveColor: '#f97316',
+        dotInactiveColor: '#d4d4d8',
+    },
 };
 
 const EMPTY_SLIDE = {
@@ -125,6 +186,9 @@ const EMPTY_SLIDE = {
     subtitle: '',
     description: '',
     featured: '',
+    cardEyebrow: '',
+    cardTitle: '',
+    specLabel: '',
     image: '',
     primaryButtonLabel: '',
     primaryButtonLink: '',
@@ -164,6 +228,9 @@ const normalizeSlide = (rawSlide = {}) => ({
     subtitle: sanitizeText(rawSlide.subtitle),
     description: sanitizeText(rawSlide.description),
     featured: sanitizeText(rawSlide.featured),
+    cardEyebrow: sanitizeText(rawSlide.cardEyebrow),
+    cardTitle: sanitizeText(rawSlide.cardTitle),
+    specLabel: sanitizeText(rawSlide.specLabel),
     image: sanitizeText(rawSlide.image),
     primaryButtonLabel: sanitizeText(rawSlide.primaryButtonLabel),
     primaryButtonLink: sanitizeText(rawSlide.primaryButtonLink),

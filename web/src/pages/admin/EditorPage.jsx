@@ -247,6 +247,7 @@ export default function EditorPage() {
     const [priceListsError, setPriceListsError] = useState('');
     const [userDrafts, setUserDrafts] = useState({});
     const [userSavingId, setUserSavingId] = useState(null);
+    const [userDeletingId, setUserDeletingId] = useState(null);
     const [offers, setOffers] = useState([]);
     const [offersLoading, setOffersLoading] = useState(false);
     const [offersError, setOffersError] = useState('');
@@ -928,6 +929,24 @@ const setSections = (nextValue) => {
         return data?.price_list || null;
     }, []);
 
+    const deleteUserMembership = useCallback(async (userId) => {
+        const token = localStorage.getItem('teflon_token');
+        const headers = {
+            ...getTenantHeaders(),
+            'Authorization': `Bearer ${token}`,
+        };
+        const res = await fetch(`${getApiBase()}/tenant/users/${userId}`, {
+            method: 'DELETE',
+            headers,
+        });
+        if (!res.ok) {
+            const body = await res.json().catch(() => null);
+            const fallback = await res.text().catch(() => '');
+            throw new Error(body?.error || fallback || 'No se pudo eliminar el usuario');
+        }
+        return res.json();
+    }, []);
+
     const saveUserSetup = useCallback(async (item) => {
         if (!item?.id) return;
         const draft = getUserDraft(item);
@@ -1025,6 +1044,51 @@ const setSections = (nextValue) => {
             setUserSavingId(null);
         }
     }, [patchUserMembership]);
+
+    const removeUser = useCallback(async (item) => {
+        if (!item?.id) return;
+        const confirmed = window.confirm(`Se eliminara el usuario ${item.email}. Esta accion no se puede deshacer.`);
+        if (!confirmed) return;
+
+        setUserDeletingId(item.id);
+        try {
+            await deleteUserMembership(item.id);
+            setUsersList((prev) => prev.filter((current) => current.id !== item.id));
+            setUsersTotal((prev) => Math.max(0, prev - 1));
+            setUserDrafts((prev) => {
+                const next = { ...prev };
+                delete next[item.id];
+                return next;
+            });
+            if (selectedUser?.id === item.id) {
+                setSelectedUser(null);
+                setUserOrders([]);
+                setUserOrdersError('');
+            }
+
+            showSuccess('Usuario eliminado');
+
+            if (usersList.length === 1 && usersPage > 1) {
+                setUsersPage((prev) => Math.max(prev - 1, 1));
+            } else {
+                loadUsers();
+            }
+        } catch (err) {
+            console.error('Failed to remove user', err);
+            const code = String(err?.message || '');
+            if (code.includes('cannot_delete_current_user')) {
+                alert('No puedes eliminar tu propio usuario.');
+                return;
+            }
+            if (code.includes('cannot_delete_master_admin')) {
+                alert('No puedes eliminar un usuario master admin.');
+                return;
+            }
+            alert('No se pudo eliminar el usuario');
+        } finally {
+            setUserDeletingId(null);
+        }
+    }, [deleteUserMembership, loadUsers, selectedUser, usersList.length, usersPage]);
 
     const loadUserOrders = useCallback(async (userId) => {
         if (!userId) return;
@@ -2994,7 +3058,9 @@ useEffect(() => {
                                             };
                                             const isDirty = hasUserDraftChanges(item);
                                             const isSaving = userSavingId === item.id;
+                                            const isDeleting = userDeletingId === item.id;
                                             const isSelected = selectedUser?.id === item.id;
+                                            const isCurrentUser = user?.id === item.id;
                                             const needsWholesaleApproval =
                                                 (item.role || '') === 'wholesale' && (item.status || '') === 'pending';
 
@@ -3107,14 +3173,24 @@ useEffect(() => {
                                                         <p className="text-[10px] text-[#8a7560] truncate">
                                                             Lista actual: {item.price_list_name || 'Automatica'}
                                                         </p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => saveUserSetup(item)}
-                                                            disabled={!isDirty || isSaving}
-                                                            className="px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[9px] font-black uppercase tracking-widest disabled:opacity-40"
-                                                        >
-                                                            {isSaving ? 'Guardando...' : 'Guardar'}
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => saveUserSetup(item)}
+                                                                disabled={!isDirty || isSaving || isDeleting}
+                                                                className="px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[9px] font-black uppercase tracking-widest disabled:opacity-40"
+                                                            >
+                                                                {isSaving ? 'Guardando...' : 'Guardar'}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeUser(item)}
+                                                                disabled={isSaving || isDeleting || isCurrentUser}
+                                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${isSaving || isDeleting || isCurrentUser ? 'border-[#e5e1de] text-zinc-400 cursor-not-allowed' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
+                                                            >
+                                                                {isCurrentUser ? 'Tu cuenta' : (isDeleting ? 'Eliminando...' : 'Eliminar')}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
@@ -3682,6 +3758,37 @@ useEffect(() => {
                                                             }
                                                             className="w-full rounded-lg border border-[#e5e1de] bg-transparent px-2 py-1 text-[11px] dark:border-[#3d2f21]"
                                                         />
+                                                        {editingHeroVariant === 'sanitarios_industrial' ? (
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={slide.cardEyebrow || ''}
+                                                                    placeholder="Card: etiqueta superior"
+                                                                    onChange={(event) =>
+                                                                        updateHeroSlide(editingSection.index, slideIndex, { cardEyebrow: event.target.value })
+                                                                    }
+                                                                    className="w-full rounded-lg border border-[#e5e1de] bg-transparent px-2 py-1 text-[11px] dark:border-[#3d2f21]"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={slide.cardTitle || ''}
+                                                                    placeholder="Card: titulo principal"
+                                                                    onChange={(event) =>
+                                                                        updateHeroSlide(editingSection.index, slideIndex, { cardTitle: event.target.value })
+                                                                    }
+                                                                    className="w-full rounded-lg border border-[#e5e1de] bg-transparent px-2 py-1 text-[11px] dark:border-[#3d2f21]"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={slide.specLabel || ''}
+                                                                    placeholder="Texto superior derecho (spec)"
+                                                                    onChange={(event) =>
+                                                                        updateHeroSlide(editingSection.index, slideIndex, { specLabel: event.target.value })
+                                                                    }
+                                                                    className="w-full rounded-lg border border-[#e5e1de] bg-transparent px-2 py-1 text-[11px] dark:border-[#3d2f21]"
+                                                                />
+                                                            </div>
+                                                        ) : null}
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <input
                                                                 type="text"

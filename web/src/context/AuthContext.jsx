@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
-    const signup = async (email, password, role) => {
+    const signup = async (email, password, role, name = '') => {
         const response = await fetch(`${getApiBase()}/auth/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -113,6 +113,7 @@ export const AuthProvider = ({ children }) => {
                 email,
                 password,
                 role,
+                name,
                 tenant_id: import.meta.env.VITE_TENANT_ID
             }),
         });
