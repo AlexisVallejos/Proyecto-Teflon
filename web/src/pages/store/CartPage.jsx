@@ -3,12 +3,14 @@ import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
+import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 
 export default function CartPage() {
     const { cartItems, updateQty, removeItem, addToCart } = useStore();
     const { settings } = useTenant();
+    const { user, loading: authLoading } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
     const showPrices = settings?.commerce?.show_prices !== false;
@@ -89,21 +91,25 @@ export default function CartPage() {
 
     const freeShippingThreshold = Number(settings?.commerce?.free_shipping_threshold || 0);
     const freeShippingRemaining = Math.max(0, freeShippingThreshold - subtotal);
+    const goToAuthForCheckout = (path = "/login") => {
+        sessionStorage.setItem("teflon_post_login_redirect", "/checkout");
+        navigate(path);
+    };
 
     if (!cartItems.length) {
         return (
             <StoreLayout>
                 <main className="max-w-[960px] mx-auto w-full px-4 md:px-10 py-16 text-center">
-                    <h1 className="text-3xl font-black mb-4">Tu carrito está vacío</h1>
+                    <h1 className="text-3xl font-black mb-4">Tu carrito esta vacio</h1>
                     <p className="text-[#8a7560] mb-8">
-                        Sumá productos para empezar tu compra.
+                        Suma productos para empezar tu compra.
                     </p>
                     <button
                         type="button"
                         onClick={() => navigate("/catalog")}
                         className="bg-primary text-white font-bold px-6 py-3 rounded-lg"
                     >
-                        Ir al catálogo
+                        Ir al catalogo
                     </button>
                 </main>
             </StoreLayout>
@@ -116,12 +122,11 @@ export default function CartPage() {
                 <div className="flex flex-col gap-2 mb-8">
                     <h1 className="text-3xl font-black tracking-tight">Carrito de compras</h1>
                     <p className="text-[#8a7560] text-sm">
-                        Tenés {cartCount} producto{cartCount === 1 ? "" : "s"} en tu carrito
+                        Tienes {cartCount} producto{cartCount === 1 ? "" : "s"} en tu carrito
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Left */}
                     <div className="lg:col-span-8 flex flex-col gap-6">
                         {cartItems.map((it) => (
                             <CartItem
@@ -137,7 +142,6 @@ export default function CartPage() {
                             />
                         ))}
 
-                        {/* Frequently Bought Together */}
                         <div className="mt-10">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-bold flex items-center gap-2">
@@ -152,11 +156,11 @@ export default function CartPage() {
                                         Cargando sugeridos...
                                     </div>
                                 ) : frequentlyBought.length ? (
-                                    frequentlyBought.map((x) => (
+                                    frequentlyBought.map((item) => (
                                         <UpsellCard
-                                            key={x.id}
-                                            item={x}
-                                            onAdd={() => addToCart(x)}
+                                            key={item.id}
+                                            item={item}
+                                            onAdd={() => addToCart(item)}
                                             currency={currency}
                                             locale={locale}
                                             showPrices={showPrices}
@@ -171,7 +175,6 @@ export default function CartPage() {
                         </div>
                     </div>
 
-                    {/* Right */}
                     <div className="lg:col-span-4 flex flex-col gap-6">
                         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 sticky top-24">
                             <h2 className="text-xl font-bold mb-6">Resumen del pedido</h2>
@@ -182,7 +185,7 @@ export default function CartPage() {
                                     value={formatCurrency(subtotal, currency, locale)}
                                 />
                                 <Row
-                                    label="Envío"
+                                    label="Envio"
                                     value={formatCurrency(shipping, currency, locale)}
                                 />
                                 <Row
@@ -200,19 +203,47 @@ export default function CartPage() {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => navigate("/checkout")}
-                                className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg transition-colors flex items-center justify-center gap-2 mb-4"
-                            >
-                                Continuar al pago
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                            </button>
+                            {user ? (
+                                <button
+                                    onClick={() => navigate("/checkout")}
+                                    className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg transition-colors flex items-center justify-center gap-2 mb-4"
+                                >
+                                    Continuar al pago
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                                </button>
+                            ) : (
+                                <div className="mb-4 space-y-3 rounded-xl border border-[#e6e0db] bg-[#f9f7f4] p-4 text-left">
+                                    <p className="text-sm font-bold text-[#181411]">
+                                        Para continuar con el pago, inicia sesion o crea tu cuenta.
+                                    </p>
+                                    <p className="text-xs text-[#8a7560]">
+                                        Puedes seguir agregando productos al carrito, pero el checkout requiere una cuenta activa.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => goToAuthForCheckout("/login")}
+                                            disabled={authLoading}
+                                            className="flex-1 min-w-[180px] rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
+                                        >
+                                            {authLoading ? "Cargando..." : "Iniciar sesion"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => goToAuthForCheckout("/signup")}
+                                            className="flex-1 min-w-[180px] rounded-lg border border-[#d9d1ca] px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary"
+                                        >
+                                            Crear cuenta
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex flex-col gap-4 mt-8">
                                 <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
                                     <div className="flex flex-col">
-                                        <span className="text-xs font-bold">Envío gratis</span>
+                                        <span className="text-xs font-bold">Envio gratis</span>
                                         <span className="text-[10px] text-zinc-500">
                                             {freeShippingThreshold > 0
                                                 ? freeShippingRemaining > 0
@@ -220,9 +251,9 @@ export default function CartPage() {
                                                         freeShippingRemaining,
                                                         currency,
                                                         locale
-                                                    )} para envío gratis`
-                                                    : "Ya calificás para envío gratis"
-                                                : "Beneficios en envíos seleccionados"}
+                                                    )} para envio gratis`
+                                                    : "Ya calificas para envio gratis"
+                                                : "Beneficios en envios seleccionados"}
                                         </span>
                                     </div>
                                 </div>
@@ -232,14 +263,13 @@ export default function CartPage() {
                                     <div className="flex flex-col">
                                         <span className="text-xs font-bold">Compra segura</span>
                                         <span className="text-[10px] text-zinc-500">
-                                            Tus datos están protegidos
+                                            Tus datos estan protegidos
                                         </span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    {/* /Right */}
                 </div>
             </main>
         </StoreLayout>
@@ -288,7 +318,7 @@ function CartItem({ item, onRemove, onDec, onInc, onChangeQty, currency, locale,
                 </div>
 
                 <p className="text-sm text-zinc-500 mt-2">
-                    Acabado: {item.variant || "Estándar"}
+                    Acabado: {item.variant || "Estandar"}
                 </p>
 
                 <div className="mt-auto flex items-end justify-between">
@@ -355,5 +385,3 @@ function UpsellCard({ item, onAdd, currency, locale, showPrices }) {
         </div>
     );
 }
-
-

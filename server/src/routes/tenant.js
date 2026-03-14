@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
 import { getTenantOffers } from '../services/offers.js';
+import { buildTenantIntegrationManifest, resolveServerBaseUrl } from '../services/integrationManifest.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,6 +88,38 @@ function parseUuidArray(value) {
   return { ok: true, items: [...unique] };
 }
 
+function parseBooleanInput(value, fallback = false) {
+  if (value === undefined) return fallback;
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['true', '1', 'yes', 'si', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+async function fetchTenantProductRow(db, tenantId, productId) {
+  const result = await db.query(
+    [
+      [
+        'select p.id, p.erp_id, p.external_id, p.source_system, p.sku, p.name, p.description, p.price, p.price_wholesale, p.stock, p.brand, p.data,',
+        "(o.featured = true) as is_featured,",
+        "case when o.hidden = true then false else coalesce(p.is_visible_web, true) end as is_visible_web,",
+        'coalesce(p.admin_locked, false) as admin_locked,',
+        'coalesce(p.is_active_source, true) as is_active_source,',
+        'p.deleted_at, p.last_sync_at,',
+        "case when p.external_id is null then 'manual' when p.deleted_at is not null then 'deleted' when coalesce(p.is_active_source, true) = false then 'source_inactive' else 'synced' end as sync_status,",
+        "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+      ].join(' '),
+      'from product_cache p',
+      'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
+      'where p.tenant_id = $1 and p.id = $2',
+    ].join(' '),
+    [tenantId, productId]
+  );
+
+  return result.rows[0] || null;
+}
+
 async function upsertTenantCommerce(tenantId, commerce) {
   const existing = await pool.query(
     'select tenant_id from tenant_settings where tenant_id = $1',
@@ -112,6 +145,26 @@ async function upsertTenantCommerce(tenantId, commerce) {
   );
 }
 
+async function findLatestProductSyncToken(db, tenantId) {
+  const result = await db.query(
+    [
+      'select id, name, token_hash, scope, created_at',
+      'from api_tokens',
+      'where tenant_id = $1',
+      "and (scope = 'products:sync' or scope = '*')",
+      'order by created_at desc',
+      'limit 1',
+    ].join(' '),
+    [tenantId]
+  );
+
+  return result.rows[0] || null;
+}
+
+function createProductSyncTokenValue() {
+  return `teflon_${crypto.randomBytes(24).toString('hex')}`;
+}
+
 tenantRouter.get('/settings', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
@@ -125,6 +178,63 @@ tenantRouter.get('/settings', async (req, res, next) => {
     return res.json({ tenant_id: tenantId, settings });
   } catch (err) {
     return next(err);
+  }
+});
+
+tenantRouter.get('/integrations/product-sync', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const tokenRecord = await findLatestProductSyncToken(pool, tenantId);
+    const baseUrl = resolveServerBaseUrl(req);
+    return res.json(buildTenantIntegrationManifest({
+      baseUrl,
+      tenantId,
+      tokenRecord,
+    }));
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/integrations/product-sync/token/rotate', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const tokenName = String(req.body?.name || 'ERP Sync').trim() || 'ERP Sync';
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(
+      "delete from api_tokens where tenant_id = $1 and scope = 'products:sync'",
+      [tenantId]
+    );
+
+    const tokenValue = createProductSyncTokenValue();
+    const insertRes = await client.query(
+      [
+        'insert into api_tokens (tenant_id, name, token_hash, scope)',
+        'values ($1, $2, $3, $4)',
+        'returning id, name, token_hash, scope, created_at',
+      ].join(' '),
+      [tenantId, tokenName, tokenValue, 'products:sync']
+    );
+
+    await client.query('COMMIT');
+    const baseUrl = resolveServerBaseUrl(req);
+
+    return res.json(buildTenantIntegrationManifest({
+      baseUrl,
+      tenantId,
+      tokenRecord: insertRes.rows[0],
+    }));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
   }
 });
 
@@ -567,8 +677,11 @@ tenantRouter.delete('/brands/:name', async (req, res, next) => {
     return res.status(400).json({ error: 'name_required' });
   }
 
+  const client = await pool.connect();
   try {
-    const settingsRes = await pool.query(
+    await client.query('BEGIN');
+
+    const settingsRes = await client.query(
       'select commerce from tenant_settings where tenant_id = $1',
       [tenantId]
     );
@@ -584,11 +697,40 @@ tenantRouter.delete('/brands/:name', async (req, res, next) => {
       ...commerce,
       brands: nextBrands,
     };
-    await upsertTenantCommerce(tenantId, nextCommerce);
 
+    if (!settingsRes.rowCount) {
+      await client.query(
+        'insert into tenant_settings (tenant_id, branding, theme, commerce) values ($1, $2::jsonb, $3::jsonb, $4::jsonb)',
+        [tenantId, {}, {}, nextCommerce]
+      );
+    } else {
+      await client.query(
+        [
+          'update tenant_settings',
+          'set commerce = $2::jsonb,',
+          'updated_at = now()',
+          'where tenant_id = $1',
+        ].join(' '),
+        [tenantId, nextCommerce]
+      );
+    }
+
+    await client.query(
+      [
+        'update product_cache',
+        'set brand = null, updated_at = now()',
+        "where tenant_id = $1 and lower(trim(coalesce(brand, ''))) = $2",
+      ].join(' '),
+      [tenantId, targetKey]
+    );
+
+    await client.query('COMMIT');
     return res.json({ ok: true, items: nextBrands });
   } catch (err) {
+    await client.query('ROLLBACK');
     return next(err);
+  } finally {
+    client.release();
   }
 });
 
@@ -601,13 +743,18 @@ tenantRouter.get('/products', async (req, res, next) => {
     const result = await pool.query(
       [
         [
-          'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.stock, p.brand, p.data,',
+          'select p.id, p.erp_id, p.external_id, p.source_system, p.sku, p.name, p.description, p.price, p.price_wholesale, p.stock, p.brand, p.data,',
           "(o.featured = true) as is_featured,",
+          "case when o.hidden = true then false else coalesce(p.is_visible_web, true) end as is_visible_web,",
+          'coalesce(p.admin_locked, false) as admin_locked,',
+          'coalesce(p.is_active_source, true) as is_active_source,',
+          'p.deleted_at, p.last_sync_at,',
+          "case when p.external_id is null then 'manual' when p.deleted_at is not null then 'deleted' when coalesce(p.is_active_source, true) = false then 'source_inactive' else 'synced' end as sync_status,",
           "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
         ].join(' '),
         'from product_cache p',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
-        "where p.tenant_id = $1 and p.status = 'active' and (o.hidden is null or o.hidden = false)",
+        "where p.tenant_id = $1 and p.status = 'active'",
         'order by p.name asc'
       ].join(' '),
       [tenantId]
@@ -1095,7 +1242,15 @@ tenantRouter.delete('/products/:id', async (req, res, next) => {
   try {
     await client.query('BEGIN');
     const result = await client.query(
-      'update product_cache set status = $3, updated_at = now() where tenant_id = $1 and id = $2 returning id',
+      [
+        'update product_cache',
+        'set status = $3,',
+        'is_visible_web = false,',
+        'deleted_at = coalesce(deleted_at, now()),',
+        'updated_at = now()',
+        'where tenant_id = $1 and id = $2',
+        'returning id',
+      ].join(' '),
       [tenantId, productId, 'archived']
     );
     if (!result.rowCount) {
@@ -1137,7 +1292,7 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
 
     const existingRes = await client.query(
       [
-        'select id, sku, name, description, price, price_wholesale, stock, brand, data',
+        'select id, sku, name, description, price, price_wholesale, stock, brand, data, external_id, source_system, is_visible_web, admin_locked',
         'from product_cache',
         "where tenant_id = $1 and id = $2 and status = 'active'",
       ].join(' '),
@@ -1155,6 +1310,8 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
       Object.prototype.hasOwnProperty.call(req.body || {}, 'category_id') ||
       Object.prototype.hasOwnProperty.call(req.body || {}, 'category_ids');
     const hasFeaturedPayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'is_featured');
+    const hasVisiblePayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'is_visible_web');
+    const hasAdminLockedPayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'admin_locked');
 
     const rawName = req.body?.name ?? existing.name;
     const name = String(rawName || '').trim();
@@ -1226,9 +1383,24 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
     const deliveryTime = Object.prototype.hasOwnProperty.call(req.body || {}, 'delivery_time')
       ? (req.body?.delivery_time || null)
       : (existingData.delivery_time || null);
+    const shippingDetails = Object.prototype.hasOwnProperty.call(req.body || {}, 'shipping_details')
+      ? (req.body?.shipping_details || null)
+      : (existingData.shipping_details || null);
     const warranty = Object.prototype.hasOwnProperty.call(req.body || {}, 'warranty')
       ? (req.body?.warranty || null)
       : (existingData.warranty || null);
+    const isVisibleWeb = hasVisiblePayload
+      ? parseBooleanInput(req.body?.is_visible_web, existing.is_visible_web !== false)
+      : existing.is_visible_web !== false;
+    const adminLocked = hasAdminLockedPayload
+      ? parseBooleanInput(req.body?.admin_locked, existing.admin_locked === true)
+      : existing.admin_locked === true;
+    const externalId = Object.prototype.hasOwnProperty.call(req.body || {}, 'external_id')
+      ? String(req.body?.external_id || '').trim() || null
+      : (existing.external_id || null);
+    const sourceSystem = Object.prototype.hasOwnProperty.call(req.body || {}, 'source_system')
+      ? String(req.body?.source_system || '').trim() || null
+      : (existing.source_system || null);
 
     const productData = {
       ...existingData,
@@ -1237,16 +1409,33 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
       specifications,
       collection,
       delivery_time: deliveryTime,
+      shipping_details: shippingDetails,
       warranty,
     };
 
     await client.query(
       [
         'update product_cache',
-        'set sku = $3, name = $4, description = $5, price = $6, price_wholesale = $7, stock = greatest($8, 0), brand = $9, data = $10::jsonb, updated_at = now()',
+        'set sku = $3, name = $4, description = $5, price = $6, price_wholesale = $7, stock = greatest($8, 0), brand = $9, data = $10::jsonb,',
+        'external_id = $11, source_system = $12, is_visible_web = $13, admin_locked = $14, updated_at = now()',
         'where tenant_id = $1 and id = $2',
       ].join(' '),
-      [tenantId, productId, sku, name, description, price, priceWholesale, stock, brand, JSON.stringify(productData)]
+      [
+        tenantId,
+        productId,
+        sku,
+        name,
+        description,
+        price,
+        priceWholesale,
+        stock,
+        brand,
+        JSON.stringify(productData),
+        externalId,
+        sourceSystem,
+        isVisibleWeb,
+        adminLocked,
+      ]
     );
 
     if (hasCategoryPayload) {
@@ -1292,8 +1481,20 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
       );
     }
 
+    if (hasVisiblePayload) {
+      await client.query(
+        [
+          'insert into product_overrides (tenant_id, product_id, hidden)',
+          'values ($1, $2, $3)',
+          'on conflict (tenant_id, product_id) do update set hidden = $3',
+        ].join(' '),
+        [tenantId, productId, !isVisibleWeb]
+      );
+    }
+
     await client.query('COMMIT');
-    return res.json({ ok: true, id: productId });
+    const item = await fetchTenantProductRow(pool, tenantId, productId);
+    return res.json({ ok: true, id: productId, item });
   } catch (err) {
     await client.query('ROLLBACK');
     return next(err);
@@ -1322,7 +1523,12 @@ tenantRouter.post('/products', async (req, res, next) => {
     specifications,
     collection,
     delivery_time,
+    shipping_details,
     warranty,
+    external_id,
+    source_system,
+    is_visible_web,
+    admin_locked,
   } = req.body;
 
   if (!name) {
@@ -1357,18 +1563,43 @@ tenantRouter.post('/products', async (req, res, next) => {
   try {
     await client.query('BEGIN');
 
+    const externalId = String(external_id || '').trim() || null;
+    const sourceSystem = String(source_system || '').trim() || null;
+    const isVisibleWeb = parseBooleanInput(is_visible_web, true);
+    const adminLocked = parseBooleanInput(admin_locked, false);
+
     const productData = {
       images: imageData,
       features: features || [],
       specifications: specifications || {},
       collection: collection || null,
       delivery_time: delivery_time || null,
+      shipping_details: shipping_details || null,
       warranty: warranty || null
     };
 
     const result = await client.query(
-      'insert into product_cache (tenant_id, sku, name, price, price_wholesale, stock, brand, description, data) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id',
-      [tenantId, sku || null, name, price || 0, price_wholesale || price || 0, stock || 0, brand || null, description || null, JSON.stringify(productData)]
+      [
+        'insert into product_cache (tenant_id, erp_id, external_id, source_system, sku, name, price, price_wholesale, stock, brand, description, data, is_visible_web, admin_locked)',
+        'values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14)',
+        'returning id',
+      ].join(' '),
+      [
+        tenantId,
+        externalId,
+        externalId,
+        sourceSystem,
+        sku || null,
+        name,
+        price || 0,
+        price_wholesale || price || 0,
+        stock || 0,
+        brand || null,
+        description || null,
+        JSON.stringify(productData),
+        isVisibleWeb,
+        adminLocked,
+      ]
     );
 
     const productId = result.rows[0].id;
@@ -1401,8 +1632,35 @@ tenantRouter.post('/products', async (req, res, next) => {
       );
     }
 
+    await client.query(
+      [
+        'insert into product_overrides (tenant_id, product_id, hidden)',
+        'values ($1, $2, $3)',
+        'on conflict (tenant_id, product_id) do update set hidden = $3',
+      ].join(' '),
+      [tenantId, productId, !isVisibleWeb]
+    );
+
+    if (externalId && sourceSystem) {
+      await client.query(
+        [
+          'insert into product_sync_metadata (tenant_id, product_id, external_id, source_system, last_sync_at, raw_payload, updated_at)',
+          'values ($1, $2, $3, $4, $5, $6::jsonb, now())',
+          'on conflict (tenant_id, external_id)',
+          'do update set',
+          'product_id = excluded.product_id,',
+          'source_system = excluded.source_system,',
+          'last_sync_at = excluded.last_sync_at,',
+          'raw_payload = excluded.raw_payload,',
+          'updated_at = now()',
+        ].join(' '),
+        [tenantId, productId, externalId, sourceSystem, new Date(), JSON.stringify({ source: 'tenant_admin_manual_create' })]
+      );
+    }
+
     await client.query('COMMIT');
-    return res.json({ id: productId, ok: true });
+    const item = await fetchTenantProductRow(pool, tenantId, productId);
+    return res.json({ id: productId, ok: true, item });
   } catch (err) {
     await client.query('ROLLBACK');
     return next(err);

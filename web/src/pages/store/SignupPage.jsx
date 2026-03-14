@@ -151,18 +151,12 @@ function Step4({
     onBack,
     loading,
     resendLoading,
-    debugCode,
 }) {
     return (
         <div className="space-y-4">
             <div className="rounded-lg border border-[#e5e1de] bg-[#faf7f4] p-3 text-sm text-[#5b4632]">
                 Te enviamos un codigo de verificacion a <span className="font-bold">{email}</span>.
             </div>
-            {debugCode ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                    Codigo de prueba (entorno local): <span className="font-bold tracking-wider">{debugCode}</span>
-                </div>
-            ) : null}
             <div>
                 <label className={labelClass}>Codigo de verificacion</label>
                 <input
@@ -258,7 +252,6 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false);
     const [verificationEmail, setVerificationEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
-    const [verificationDebugCode, setVerificationDebugCode] = useState('');
     const [verificationLoading, setVerificationLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -279,6 +272,31 @@ export default function SignupPage() {
     );
 
     const update = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
+
+    const persistProfileAddress = (email) => {
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        if (!normalizedEmail) return;
+
+        const payload = {
+            fullName: formData.name.trim(),
+            line1: formData.address.trim(),
+            city: '',
+            postal: '',
+            region: '',
+            country: 'Argentina',
+            phone: formData.phone.trim(),
+            phoneCountry: 'AR',
+            phoneNumber: formData.phone.trim(),
+            company: formData.company.trim(),
+            cuit: formData.cuit.trim(),
+        };
+
+        try {
+            localStorage.setItem(`teflon_profile_address_${normalizedEmail}`, JSON.stringify(payload));
+        } catch (err) {
+            console.warn('No se pudo guardar la direccion inicial del perfil', err);
+        }
+    };
 
     const validateStep1 = () => {
         if (!formData.name.trim()) return 'Completa tu nombre.';
@@ -347,10 +365,10 @@ export default function SignupPage() {
             );
             const normalizedEmail = formData.email.trim().toLowerCase();
             const requiresVerification = data?.requires_email_verification !== false;
+            persistProfileAddress(normalizedEmail);
             if (requiresVerification) {
                 setVerificationEmail(normalizedEmail);
                 setVerificationCode('');
-                setVerificationDebugCode(data?.verification?.debug_code || '');
                 setStep(4);
                 return;
             }
@@ -400,8 +418,7 @@ export default function SignupPage() {
         setError('');
         setResendLoading(true);
         try {
-            const data = await resendVerificationCode(verificationEmail);
-            setVerificationDebugCode(data?.verification?.debug_code || '');
+            await resendVerificationCode(verificationEmail);
         } catch (err) {
             setError(mapVerificationError(String(err?.message || '')));
         } finally {
@@ -439,7 +456,6 @@ export default function SignupPage() {
                             onBack={() => setStep(3)}
                             loading={verificationLoading}
                             resendLoading={resendLoading}
-                            debugCode={verificationDebugCode}
                         />
                     )}
 

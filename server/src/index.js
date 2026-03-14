@@ -5,6 +5,7 @@ import http from 'http';
 import { pool } from './db.js';
 import app from './app.js';
 import { ensurePricingSchema } from './services/userPricing.js';
+import { ensureProductSyncSchema } from './services/integration.service.js';
 
 async function runStartupMigrations() {
   await pool.query(
@@ -64,6 +65,8 @@ async function runStartupMigrations() {
       'ON product_reviews(user_id, created_at DESC)',
     ].join(' ')
   );
+
+  await ensureProductSyncSchema();
 }
 
 // Verify DB connection on startup

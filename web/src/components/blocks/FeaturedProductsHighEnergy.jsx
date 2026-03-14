@@ -1,6 +1,7 @@
 import React from 'react';
 import { navigate } from '../../utils/navigation';
 import { normalizeFeaturedStyles } from '../../data/featuredProductsTemplates';
+import PriceAccessPrompt from '../PriceAccessPrompt';
 
 const openLink = (value) => {
     if (!value) return;
@@ -20,6 +21,9 @@ export default function FeaturedProductsHighEnergy({
     styles = {},
     onAddToCart,
     onOpenProduct,
+    showPricesEnabled = true,
+    canViewPrices = true,
+    authLoading = false,
 }) {
     const colors = normalizeFeaturedStyles('high_energy', styles);
 
@@ -74,9 +78,13 @@ export default function FeaturedProductsHighEnergy({
 
                                 <div className="space-y-3 p-4">
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${product.inStock ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                            {product.inStock ? 'Disponible' : 'Sin stock'}
-                                        </span>
+                                        {product.stockStatus ? (
+                                            <span
+                                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${product.stockStatus.bg} ${product.stockStatus.tone}`}
+                                            >
+                                                {product.stockStatus.label}
+                                            </span>
+                                        ) : <span />}
                                         <span className="text-xs font-black uppercase tracking-[0.12em]" style={{ color: colors.accentColor }}>
                                             Flash
                                         </span>
@@ -91,10 +99,22 @@ export default function FeaturedProductsHighEnergy({
                                         {product.name}
                                     </button>
 
-                                    <div className="flex items-end justify-between">
-                                        <p className="text-2xl font-black" style={{ color: colors.priceColor }}>
-                                            {product.displayPrice}
-                                        </p>
+                                    <div className="flex items-end justify-between gap-3">
+                                        <div className="min-w-0">
+                                            {showPricesEnabled ? (
+                                                canViewPrices ? (
+                                                    <p className="text-2xl font-black" style={{ color: colors.priceColor }}>
+                                                        {product.displayPrice}
+                                                    </p>
+                                                ) : authLoading ? (
+                                                    <p className="text-sm font-medium text-[#8a7560]">Cargando precio...</p>
+                                                ) : (
+                                                    <PriceAccessPrompt compact />
+                                                )
+                                            ) : (
+                                                <p className="text-sm font-medium text-[#8a7560]">Consultar precio</p>
+                                            )}
+                                        </div>
                                         <span className="rounded bg-black/5 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-600">
                                             Hoy
                                         </span>
@@ -113,7 +133,7 @@ export default function FeaturedProductsHighEnergy({
                                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1 6h12M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" />
                                         </svg>
-                                        {product.inStock ? 'Agregar' : 'Agotado'}
+                                        {product.inStock ? 'Agregar al carrito' : 'Sin stock'}
                                     </button>
                                 </div>
                             </article>

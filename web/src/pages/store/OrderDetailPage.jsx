@@ -3,6 +3,7 @@ import StoreLayout from '../../components/layout/StoreLayout';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { navigate } from '../../utils/navigation';
 import { formatCurrency } from '../../utils/format';
+import { getBillingDocumentLabel, getBillingVatLabel, hasBillingInfo, normalizeBillingInfo } from '../../utils/billing';
 
 const STATUS_LABELS = {
     submitted: 'En gestión',
@@ -135,6 +136,8 @@ export default function OrderDetailPage() {
         : deliveryMethod.startsWith('branch:')
             ? `Retiro (${deliveryMethod.replace('branch:', '')})`
             : DELIVERY_LABELS[deliveryMethod] || order?.deliveryLabel || '-');
+    const billingInfo = normalizeBillingInfo(order?.customer || {});
+    const showBillingInfo = hasBillingInfo(billingInfo);
 
     if (loading) {
         return (
@@ -250,6 +253,31 @@ export default function OrderDetailPage() {
                                 <p className="text-sm text-[#181411] dark:text-white">{formatAddress(order.customer) || '-'}</p>
                             </div>
                         </section>
+                        {showBillingInfo ? (
+                            <section className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-6 space-y-3">
+                                <p className="text-sm font-bold text-[#181411] dark:text-white">Facturacion</p>
+                                <div>
+                                    <p className="text-xs uppercase text-[#8a7560]">Razon social</p>
+                                    <p className="text-sm font-bold text-[#181411] dark:text-white">{billingInfo.businessName || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase text-[#8a7560]">Direccion</p>
+                                    <p className="text-sm text-[#181411] dark:text-white">{billingInfo.address || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase text-[#8a7560]">Localidad</p>
+                                    <p className="text-sm text-[#181411] dark:text-white">{billingInfo.city || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase text-[#8a7560]">Tipo de IVA</p>
+                                    <p className="text-sm text-[#181411] dark:text-white">{getBillingVatLabel(billingInfo.vatType)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs uppercase text-[#8a7560]">{getBillingDocumentLabel(billingInfo.documentType)}</p>
+                                    <p className="text-sm text-[#181411] dark:text-white">{billingInfo.documentNumber || '-'}</p>
+                                </div>
+                            </section>
+                        ) : null}
                     </aside>
                 </div>
             </main>

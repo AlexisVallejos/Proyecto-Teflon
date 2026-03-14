@@ -9,6 +9,7 @@ import { authRouter, getMeHandler } from './routes/auth.js';
 import { settingsRouter, settingsAdminRouter } from './routes/settings.js';
 import { ordersRouter, adminOrdersRouter } from './routes/orders.js';
 import { webhooksRouter } from './routes/webhooks.js';
+import { integrationsRouter } from './routes/integrations.js';
 import { authenticate, optionalAuthenticate, requireRole } from './middleware/auth.js';
 
 const app = express();
@@ -34,6 +35,7 @@ app.use('/api/orders', optionalAuthenticate, ordersRouter);
 app.use('/public', optionalAuthenticate, publicRouter);
 app.use('/checkout', optionalAuthenticate, checkoutRouter);
 app.use('/webhooks', webhooksRouter);
+app.use('/api/v1/integrations', integrationsRouter);
 
 if (disableAuth) {
   console.warn('AUTH DISABLED: /tenant and /admin routes are open without token.');

@@ -7,6 +7,7 @@ import { formatCurrency } from "../../utils/format";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
+import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 
 const FALLBACK_IMAGE = "https://via.placeholder.com/900";
 
@@ -19,11 +20,12 @@ const getProductId = () => {
 export default function ProductDetail() {
     const { addToCart, toggleFavorite, isFavorite, showToast } = useStore();
     const { settings } = useTenant();
-    const { isWholesale, user } = useAuth();
+    const { isWholesale, user, loading: authLoading } = useAuth();
 
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
-    const showPrices = settings?.commerce?.show_prices !== false;
+    const showPricesEnabled = settings?.commerce?.show_prices !== false;
+    const canViewPrices = showPricesEnabled && !!user;
     const showStock = settings?.commerce?.show_stock !== false;
     const reviewsEnabledFromSettings = settings?.commerce?.reviews_enabled !== false;
     const lowStockThreshold = getLowStockThreshold(settings);
@@ -116,40 +118,6 @@ export default function ProductDetail() {
         let active = true;
         if (!productId) return () => {};
 
-        const loadRelated = async () => {
-            setRelatedLoading(true);
-            try {
-                const res = await fetch(`${getApiBase()}/public/products/${productId}/related?limit=4`, {
-                    headers: { ...getTenantHeaders(), ...getAuthHeaders() },
-                });
-                if (!res.ok) {
-                    throw new Error(`Error al cargar relacionados: ${res.status}`);
-                }
-                const data = await res.json();
-                if (!active) return;
-                setRelatedProducts(Array.isArray(data.items) ? data.items : []);
-            } catch (err) {
-                if (!active) return;
-                console.error("No se pudieron cargar los productos relacionados", err);
-                setRelatedProducts([]);
-            } finally {
-                if (active) {
-                    setRelatedLoading(false);
-                }
-            }
-        };
-
-        loadRelated();
-
-        return () => {
-            active = false;
-        };
-    }, [productId]);
-
-    useEffect(() => {
-        let active = true;
-        if (!productId) return () => {};
-
         const loadReviews = async () => {
             setReviewsLoading(true);
             setReviewsError("");
@@ -177,6 +145,40 @@ export default function ProductDetail() {
         };
 
         loadReviews();
+
+        return () => {
+            active = false;
+        };
+    }, [productId]);
+
+    useEffect(() => {
+        let active = true;
+        if (!productId) return () => {};
+
+        const loadRelated = async () => {
+            setRelatedLoading(true);
+            try {
+                const res = await fetch(`${getApiBase()}/public/products/${productId}/related?limit=4`, {
+                    headers: { ...getTenantHeaders(), ...getAuthHeaders() },
+                });
+                if (!res.ok) {
+                    throw new Error(`Error al cargar relacionados: ${res.status}`);
+                }
+                const data = await res.json();
+                if (!active) return;
+                setRelatedProducts(Array.isArray(data.items) ? data.items : []);
+            } catch (err) {
+                if (!active) return;
+                console.error("No se pudieron cargar los productos relacionados", err);
+                setRelatedProducts([]);
+            } finally {
+                if (active) {
+                    setRelatedLoading(false);
+                }
+            }
+        };
+
+        loadRelated();
 
         return () => {
             active = false;
@@ -248,31 +250,6 @@ export default function ProductDetail() {
         return normalized;
     }, [view]);
 
-    const features = useMemo(() => {
-        if (!view) return [];
-        const items = Array.isArray(view.extra?.features) ? view.extra.features : [];
-        return items.filter((item) => item && (item.title || item.description || item.text));
-    }, [view]);
-
-    const specifications = useMemo(() => {
-        if (!view) return [];
-        const specMap = view.extra?.specifications || {};
-        const labels = {
-            material: "Material",
-            medidas: "Medidas",
-            terminacion: "Terminación",
-            descarga: "Descarga",
-            warranty: "Garantía",
-        };
-        return Object.entries(specMap)
-            .map(([key, value]) => ({
-                key,
-                label: labels[key] || key,
-                value,
-            }))
-            .filter((item) => item.value !== undefined && item.value !== null && String(item.value).trim() !== "");
-    }, [view]);
-
     const relatedCards = useMemo(() => {
         return relatedProducts.map((item, index) => {
             const data = item.data || {};
@@ -300,6 +277,10 @@ export default function ProductDetail() {
             };
         });
     }, [relatedProducts, isWholesale]);
+
+    const canBuy = view ? isInStock(view.stock) : false;
+    const stockStatus = view && showStock ? getStockStatus(view.stock, lowStockThreshold) : null;
+    const favoriteActive = view ? isFavorite(view.id) : false;
 
     const handleReviewSubmit = async (event) => {
         event.preventDefault();
@@ -368,10 +349,6 @@ export default function ProductDetail() {
         const safeRating = Math.max(1, Math.min(5, Number(value || 0)));
         return "★".repeat(safeRating) + "☆".repeat(5 - safeRating);
     };
-
-    const canBuy = view ? isInStock(view.stock) : false;
-    const stockStatus = view && showStock ? getStockStatus(view.stock, lowStockThreshold) : null;
-    const favoriteActive = view ? isFavorite(view.id) : false;
 
     const handleAdd = () => {
         if (!view || !canBuy) return;
@@ -474,14 +451,12 @@ export default function ProductDetail() {
                                             {stockStatus.label}
                                         </span>
                                     ) : null}
-                                    {view.extra?.delivery_time ? (
-                                        <span className="text-xs text-[#8a7560]">Entrega en {view.extra.delivery_time}</span>
-                                    ) : null}
                                 </div>
 
                                 <div className="border-y border-[#e5e1de] dark:border-[#3d2f21] py-4 space-y-2">
                                     <p className="text-[11px] font-bold uppercase tracking-widest text-[#8a7560]">Precio</p>
-                                    {showPrices ? (
+                                    {showPricesEnabled ? (
+                                        canViewPrices ? (
                                         <div className="flex items-end gap-3">
                                             <span className="text-3xl font-black text-[#181411] dark:text-white">
                                                 {formatCurrency(view.price, currency, locale)}
@@ -501,6 +476,11 @@ export default function ProductDetail() {
                                                 </span>
                                             )}
                                         </div>
+                                        ) : authLoading ? (
+                                            <p className="text-[#8a7560]">Cargando precio...</p>
+                                        ) : (
+                                            <PriceAccessPrompt />
+                                        )
                                     ) : (
                                         <p className="text-[#8a7560]">Contactar para precio</p>
                                     )}
@@ -551,28 +531,6 @@ export default function ProductDetail() {
                                     {favoriteActive ? "Quitar de favoritos" : "Agregar a favoritos"}
                                 </button>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div className="flex items-start gap-3 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-3 bg-white/70 dark:bg-[#1a130c]">
-                                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-[#181411] dark:text-white">Envío rápido</p>
-                                            <p className="text-[11px] text-[#8a7560]">Consultá tiempos y cobertura.</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-3 bg-white/70 dark:bg-[#1a130c]">
-                                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"></path></svg>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-bold text-[#181411] dark:text-white">Garantía</p>
-                                            <p className="text-[11px] text-[#8a7560]">
-                                                {view.extra?.warranty ? view.extra.warranty : "Consultá condiciones."}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -580,8 +538,6 @@ export default function ProductDetail() {
                             <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-[#e5e1de] dark:border-[#3d2f21] px-6 pt-5">
                                 {[
                                     { id: "description", label: "Descripción" },
-                                    { id: "specs", label: "Especificaciones" },
-                                    { id: "shipping", label: "Envío" },
                                     { id: "reviews", label: "Reseñas" },
                                 ].map((tab) => (
                                     <button
@@ -602,63 +558,10 @@ export default function ProductDetail() {
                                             <h3 className="text-xl font-black text-[#181411] dark:text-white mb-2">
                                                 {view.name}
                                             </h3>
-                                            <p className="text-sm text-[#8a7560] leading-relaxed">
+                                            <p className="text-sm text-[#8a7560] leading-relaxed whitespace-pre-line">
                                                 {view.description || "Sin descripción disponible."}
                                             </p>
                                         </div>
-                                        {features.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {features.map((feature, index) => (
-                                                    <div key={index} className="flex items-start gap-3">
-                                                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                                            <span className="text-sm font-black">
-                                                                {feature.icon || "✓"}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-[#181411] dark:text-white">
-                                                                {feature.title || "Característica"}
-                                                            </p>
-                                                            <p className="text-[12px] text-[#8a7560]">
-                                                                {feature.description || feature.text || ""}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                ) : null}
-
-                                {activeTab === "specs" ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {specifications.length > 0 ? (
-                                            specifications.map((spec) => (
-                                                <div key={spec.key}>
-                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#8a7560]">
-                                                        {spec.label}
-                                                    </p>
-                                                    <p className="text-sm font-semibold text-[#181411] dark:text-white mt-1">
-                                                        {spec.value}
-                                                    </p>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-[#8a7560]">Sin especificaciones.</p>
-                                        )}
-                                    </div>
-                                ) : null}
-
-                                {activeTab === "shipping" ? (
-                                    <div className="space-y-2">
-                                        <p className="text-sm text-[#8a7560]">
-                                            {view.extra?.delivery_time
-                                                ? `Entrega estimada: ${view.extra.delivery_time}.`
-                                                : "Consulta tiempos de envío y disponibilidad."}
-                                        </p>
-                                        <p className="text-sm text-[#8a7560]">
-                                            Coordinamos envíos y retiros con la logística que mejor se adapte a tu obra.
-                                        </p>
                                     </div>
                                 ) : null}
 
@@ -820,7 +723,8 @@ export default function ProductDetail() {
                                                         {item.name}
                                                     </h3>
                                                 </div>
-                                                {showPrices ? (
+                                                {showPricesEnabled ? (
+                                                    canViewPrices ? (
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-primary font-black text-base">
                                                             {formatCurrency(item.price, currency, locale)}
@@ -831,6 +735,11 @@ export default function ProductDetail() {
                                                             </span>
                                                         ) : null}
                                                     </div>
+                                                    ) : authLoading ? (
+                                                        <span className="text-[#8a7560] text-xs">Cargando precio...</span>
+                                                    ) : (
+                                                        <PriceAccessPrompt compact />
+                                                    )
                                                 ) : (
                                                     <span className="text-[#8a7560] text-xs">Consultar precio</span>
                                                 )}

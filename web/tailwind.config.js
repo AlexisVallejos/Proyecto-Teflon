@@ -8,14 +8,33 @@ export default {
     theme: {
         extend: {
             colors: {
-                primary: 'var(--color-primary, #f97316)', // Orange-500 fallback
-                'background-light': '#ffffff',
-                'background-dark': '#0f0f0f', // Near black for dark mode
+                primary: 'var(--color-primary, #6366f1)', // Default to Indigo Vivid
+                'zinc-dark': '#09090b',
+                'evolution-indigo': '#6366f1',
+                border: 'rgba(255, 255, 255, 0.1)',
+                background: {
+                    DEFAULT: '#09090b',
+                    light: '#ffffff',
+                    dark: '#09090b',
+                },
+                accent: {
+                    DEFAULT: '#6366f1',
+                    foreground: '#ffffff',
+                },
             },
             fontFamily: {
-                inter: ['Inter', 'sans-serif'],
-            }
+                sans: ['Inter', 'Geist Sans', 'sans-serif'],
+                mono: ['JetBrains Mono', 'monospace'],
+            },
+            backdropBlur: {
+                xs: '2px',
+            },
+            boxShadow: {
+                'glow': '0 0 15px -3px rgba(99, 102, 241, 0.3)',
+            },
         },
     },
-    plugins: [],
+    plugins: [
+        require("tailwindcss-animate"),
+    ],
 }

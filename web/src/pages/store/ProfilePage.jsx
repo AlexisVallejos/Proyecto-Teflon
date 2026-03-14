@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { useAuth } from '../../context/AuthContext';
 const User = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
@@ -23,37 +23,58 @@ import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/format';
 import { navigate } from '../../utils/navigation';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
+import {
+    BILLING_DOCUMENT_OPTIONS,
+    BILLING_VAT_OPTIONS,
+    EMPTY_BILLING_INFO,
+    getBillingDocumentLabel,
+    getBillingVatLabel,
+    hasBillingInfo,
+    normalizeBillingInfo,
+} from '../../utils/billing';
 
 const STATUS_STYLES = {
     Enviado: 'bg-primary/20 text-primary',
     Entregado: 'bg-green-100 text-green-700',
     Pendiente: 'bg-zinc-100 text-zinc-600',
     'Pendiente de pago': 'bg-amber-100 text-amber-700',
-    'En gestión': 'bg-blue-100 text-blue-700',
+    'En gestion': 'bg-blue-100 text-blue-700',
     Confirmado: 'bg-emerald-100 text-emerald-700',
     Pagado: 'bg-emerald-100 text-emerald-700',
     'En proceso': 'bg-amber-100 text-amber-700',
     Impaga: 'bg-rose-100 text-rose-700',
     Cancelado: 'bg-zinc-200 text-zinc-600',
     Borrador: 'bg-zinc-100 text-zinc-600',
+    Recibido: 'bg-blue-100 text-blue-700',
+};
+
+const ORDER_STATUS_LABELS = {
+    draft: 'Borrador',
+    pending: 'Pendiente',
+    pending_payment: 'Pendiente de pago',
+    processing: 'En proceso',
+    paid: 'Pagado',
+    unpaid: 'Impaga',
+    submitted: 'Recibido',
+    cancelled: 'Cancelado',
 };
 
 const PHONE_COUNTRIES = [
-    { code: 'AR', name: 'Argentina', dial: '+54', flag: '🇦🇷' },
-    { code: 'US', name: 'Estados Unidos', dial: '+1', flag: '🇺🇸' },
-    { code: 'BR', name: 'Brasil', dial: '+55', flag: '🇧🇷' },
-    { code: 'CL', name: 'Chile', dial: '+56', flag: '🇨🇱' },
-    { code: 'UY', name: 'Uruguay', dial: '+598', flag: '🇺🇾' },
-    { code: 'PY', name: 'Paraguay', dial: '+595', flag: '🇵🇾' },
-    { code: 'BO', name: 'Bolivia', dial: '+591', flag: '🇧🇴' },
-    { code: 'PE', name: 'Perú', dial: '+51', flag: '🇵🇪' },
-    { code: 'CO', name: 'Colombia', dial: '+57', flag: '🇨🇴' },
-    { code: 'VE', name: 'Venezuela', dial: '+58', flag: '🇻🇪' },
-    { code: 'EC', name: 'Ecuador', dial: '+593', flag: '🇪🇨' },
-    { code: 'MX', name: 'México', dial: '+52', flag: '🇲🇽' },
-    { code: 'ES', name: 'España', dial: '+34', flag: '🇪🇸' },
-    { code: 'IT', name: 'Italia', dial: '+39', flag: '🇮🇹' },
-    { code: 'FR', name: 'Francia', dial: '+33', flag: '🇫🇷' },
+    { code: 'AR', name: 'Argentina', dial: '+54' },
+    { code: 'US', name: 'Estados Unidos', dial: '+1' },
+    { code: 'BR', name: 'Brasil', dial: '+55' },
+    { code: 'CL', name: 'Chile', dial: '+56' },
+    { code: 'UY', name: 'Uruguay', dial: '+598' },
+    { code: 'PY', name: 'Paraguay', dial: '+595' },
+    { code: 'BO', name: 'Bolivia', dial: '+591' },
+    { code: 'PE', name: 'Peru', dial: '+51' },
+    { code: 'CO', name: 'Colombia', dial: '+57' },
+    { code: 'VE', name: 'Venezuela', dial: '+58' },
+    { code: 'EC', name: 'Ecuador', dial: '+593' },
+    { code: 'MX', name: 'Mexico', dial: '+52' },
+    { code: 'ES', name: 'Espana', dial: '+34' },
+    { code: 'IT', name: 'Italia', dial: '+39' },
+    { code: 'FR', name: 'Francia', dial: '+33' },
 ];
 
 const getCountryByCode = (code) =>
@@ -65,7 +86,7 @@ const getCountryByDial = (dial) =>
 const buildPhone = (countryCode, number) => {
     const country = getCountryByCode(countryCode);
     const trimmed = (number || '').trim();
-    return trimmed ? `${country.dial} ${trimmed}` : country.dial;
+    return trimmed ? `${country.dial} ${trimmed}` : '';
 };
 
 const STATUS_ICONS = {
@@ -73,23 +94,126 @@ const STATUS_ICONS = {
     Entregado: CheckCircle,
     Pendiente: Clock,
     'Pendiente de pago': CreditCard,
-    'En gestión': Clock,
+    'En gestion': Clock,
     Confirmado: CheckCircle,
     Pagado: CheckCircle,
     'En proceso': Clock,
     Impaga: Clock,
     Cancelado: Clock,
     Borrador: Clock,
+    Recibido: Package,
 };
 
-const STATUS_LABELS = {
-    submitted: 'En gestión',
-    pending_payment: 'Pendiente de pago',
-    paid: 'Pagado',
-    processing: 'En proceso',
-    unpaid: 'Impaga',
-    cancelled: 'Cancelado',
-    draft: 'Borrador',
+const normalizeEmailKey = (value = '') => String(value || '').trim().toLowerCase();
+
+const getProfileAddressKeys = (user) => {
+    const keys = [];
+    if (user?.id) {
+        keys.push(`teflon_profile_address_${user.id}`);
+    }
+    const email = normalizeEmailKey(user?.email);
+    if (email) {
+        keys.push(`teflon_profile_address_${email}`);
+    }
+    return [...new Set(keys)];
+};
+
+const formatOrderStatusLabel = (status = '') => {
+    const raw = String(status || '').trim();
+    const normalized = raw.toLowerCase();
+    return ORDER_STATUS_LABELS[normalized] || raw || 'Pendiente';
+};
+
+const normalizePhoneFields = (value = {}, fallbackCountry = 'AR') => {
+    let phoneCountry = String(value.phoneCountry || fallbackCountry || 'AR').trim().toUpperCase() || 'AR';
+    let phoneNumber = String(value.phoneNumber || '').trim();
+    const rawPhone = String(value.phone || '').trim();
+    const phoneMatch = rawPhone.match(/^(\+\d{1,3})\s*(.*)$/);
+
+    if (!value.phoneCountry && phoneMatch) {
+        const countryByDial = getCountryByDial(phoneMatch[1]);
+        if (countryByDial) {
+            phoneCountry = countryByDial.code;
+        }
+    }
+
+    if (!phoneNumber) {
+        phoneNumber = phoneMatch ? phoneMatch[2].trim() : rawPhone;
+    }
+
+    const country = getCountryByCode(phoneCountry);
+    const plainDial = country.dial.replace('+', '');
+
+    if (phoneNumber.startsWith(country.dial)) {
+        phoneNumber = phoneNumber.slice(country.dial.length).trim();
+    } else if (plainDial && phoneNumber.startsWith(plainDial)) {
+        phoneNumber = phoneNumber.slice(plainDial.length).trim();
+    }
+
+    phoneNumber = phoneNumber.replace(/^\+/, '').trim();
+
+    return {
+        phoneCountry: country.code,
+        phoneNumber,
+        phone: buildPhone(country.code, phoneNumber),
+    };
+};
+
+const normalizeProfileAddress = (value = {}, fallback = {}) => {
+    const merged = {
+        fullName: '',
+        line1: '',
+        city: '',
+        postal: '',
+        region: '',
+        country: 'Argentina',
+        company: '',
+        cuit: '',
+        ...fallback,
+        ...value,
+    };
+    const billing = normalizeBillingInfo(merged);
+
+    return {
+        ...merged,
+        fullName: String(merged.fullName || merged.name || '').trim(),
+        line1: String(merged.line1 || merged.address || '').trim(),
+        city: String(merged.city || '').trim(),
+        postal: String(merged.postal || '').trim(),
+        region: String(merged.region || '').trim(),
+        country: String(merged.country || 'Argentina').trim() || 'Argentina',
+        company: String(merged.company || '').trim(),
+        cuit: String(merged.cuit || '').trim(),
+        billingBusinessName: billing.businessName,
+        billingAddress: billing.address,
+        billingCity: billing.city,
+        billingVatType: billing.vatType,
+        billingDocumentType: billing.documentType,
+        billingDocumentNumber: billing.documentNumber,
+        billing,
+        ...normalizePhoneFields(merged, fallback.phoneCountry || 'AR'),
+    };
+};
+
+const buildWholesaleQuoteMessage = ({
+    companyName = '',
+    customerName = '',
+    customerEmail = '',
+    customerPhone = '',
+    businessName = '',
+    cuit = '',
+    addressLine = '',
+}) => {
+    return [
+        `Hola, quiero solicitar una cotizacion mayorista para ${companyName || 'su empresa'}.`,
+        '',
+        `Nombre: ${customerName || '-'}`,
+        `Email: ${customerEmail || '-'}`,
+        `Telefono: ${customerPhone || '-'}`,
+        `Empresa: ${businessName || '-'}`,
+        `CUIT: ${cuit || '-'}`,
+        `Direccion: ${addressLine || '-'}`,
+    ].join('\n');
 };
 
 const ProfileIcon = ({ name, className = "h-5 w-5" }) => {
@@ -104,15 +228,18 @@ export default function ProfilePage() {
     const locale = settings?.commerce?.locale || 'es-AR';
     const showPrices = settings?.commerce?.show_prices !== false;
     const defaultAddress = useMemo(() => ({
-        fullName: 'alexisvallejos803',
-        line1: 'Av. Colon 1234, 4to B',
-        city: 'Mar del Plata',
-        postal: 'B7600',
-        region: 'Buenos Aires',
+        fullName: '',
+        line1: '',
+        city: '',
+        postal: '',
+        region: '',
         country: 'Argentina',
-        phone: '+54 2236334301',
+        phone: '',
         phoneCountry: 'AR',
-        phoneNumber: '2236334301',
+        phoneNumber: '',
+        company: '',
+        cuit: '',
+        ...EMPTY_BILLING_INFO,
     }), []);
     const [address, setAddress] = useState(defaultAddress);
     const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -120,6 +247,18 @@ export default function ProfilePage() {
     const [profilePhoto, setProfilePhoto] = useState('');
     const [activeSection, setActiveSection] = useState('account');
     const [orders, setOrders] = useState([]);
+    const displayName = useMemo(() => {
+        if (!user?.email) return 'Cliente';
+        const [name] = user.email.split('@');
+        return name || 'Cliente';
+    }, [user]);
+    const profileName = useMemo(
+        () => address?.fullName?.trim() || displayName,
+        [address?.fullName, displayName]
+    );
+    const billingDetails = useMemo(() => normalizeBillingInfo(address), [address]);
+    const hasProfileBillingInfo = useMemo(() => hasBillingInfo(address), [address]);
+    const addressStorageKeys = useMemo(() => getProfileAddressKeys(user), [user]);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -127,71 +266,52 @@ export default function ProfilePage() {
         }
     }, [loading, user]);
 
-    if (loading) {
-        return (
-            <StoreLayout>
-                <div className="min-h-[60vh] flex items-center justify-center text-sm text-[#8a7560]">
-                    Cargando perfil...
-                </div>
-            </StoreLayout>
-        );
-    }
-
-    if (!user) {
-        return null;
-    }
-
-    const displayName = useMemo(() => {
-        if (!user?.email) return 'Cliente';
-        const [name] = user.email.split('@');
-        return name || 'Cliente';
-    }, [user]);
-
     useEffect(() => {
-        if (!user) return;
-        const key = `teflon_profile_address_${user.id || user.email}`;
+        const fallback = normalizeProfileAddress(
+            {
+                ...defaultAddress,
+                fullName: displayName,
+            },
+            defaultAddress
+        );
+
+        if (!user) {
+            setAddress(fallback);
+            setAddressDraft(fallback);
+            return;
+        }
+
         try {
-            const raw = localStorage.getItem(key);
+            let storedKey = '';
+            let raw = '';
+
+            for (const key of addressStorageKeys) {
+                const candidate = localStorage.getItem(key);
+                if (candidate) {
+                    storedKey = key;
+                    raw = candidate;
+                    break;
+                }
+            }
+
             if (raw) {
                 const parsed = JSON.parse(raw);
-                const merged = { ...defaultAddress, ...parsed };
-                const rawPhone = typeof merged.phone === 'string' ? merged.phone.trim() : '';
-                if (!merged.phoneCountry || !merged.phoneNumber) {
-                    const match = rawPhone.match(/^(\+\d{1,3})\s*(.*)$/);
-                    if (match) {
-                        const country = getCountryByDial(match[1]);
-                        if (country && !merged.phoneCountry) {
-                            merged.phoneCountry = country.code;
-                        }
-                        if (!merged.phoneNumber) {
-                            merged.phoneNumber = match[2].trim();
-                        }
-                    } else if (!merged.phoneNumber && rawPhone) {
-                        merged.phoneNumber = rawPhone;
-                    }
-                }
-                if (!merged.phoneCountry) {
-                    merged.phoneCountry = defaultAddress.phoneCountry;
-                }
-                if (!merged.phoneNumber) {
-                    merged.phoneNumber = defaultAddress.phoneNumber;
-                }
-                merged.phone = buildPhone(merged.phoneCountry, merged.phoneNumber);
+                const merged = normalizeProfileAddress(parsed, fallback);
                 setAddress(merged);
                 setAddressDraft(merged);
+
+                if (addressStorageKeys.length && storedKey !== addressStorageKeys[0]) {
+                    localStorage.setItem(addressStorageKeys[0], JSON.stringify(merged));
+                }
                 return;
             }
         } catch (err) {
-            console.warn('No se pudo cargar la dirección guardada', err);
+            console.warn('No se pudo cargar la direccion guardada', err);
         }
-        const fallback = {
-            ...defaultAddress,
-            fullName: displayName || defaultAddress.fullName,
-        };
-        fallback.phone = buildPhone(fallback.phoneCountry, fallback.phoneNumber);
+
         setAddress(fallback);
         setAddressDraft(fallback);
-    }, [user, defaultAddress, displayName]);
+    }, [user, defaultAddress, displayName, addressStorageKeys]);
 
     useEffect(() => {
         if (!user) return;
@@ -230,11 +350,13 @@ export default function ProfilePage() {
                 const items = Array.isArray(data.items) ? data.items : [];
                 const mapped = items.map((order) => ({
                     id: order.id,
-                    status: STATUS_LABELS[order.status] || order.status || 'Pendiente',
+                    status: formatOrderStatusLabel(order.status),
                     total: order.total,
                     currency: order.currency || currency,
                     locale,
                     createdAt: order.created_at,
+                    customer: order.customer || {},
+                    checkout_mode: order.checkout_mode || '',
                     items: Array.isArray(order.items)
                         ? order.items.map((item) => ({
                             id: item.product_id || item.id,
@@ -270,6 +392,42 @@ export default function ProfilePage() {
         if (user?.role === 'wholesale') return 'Mayorista';
         return 'Minorista';
     }, [user, isAdmin]);
+    const isWholesaleUser = user?.role === 'wholesale';
+    const ordersWhatsappNumber = useMemo(
+        () => String(settings?.commerce?.whatsapp_number || '').replace(/\D/g, ''),
+        [settings?.commerce?.whatsapp_number]
+    );
+    const wholesaleBusinessName = address?.company?.trim() || profileName;
+    const wholesaleAddressLine = [
+        address?.line1,
+        [address?.city, address?.postal].filter(Boolean).join(', '),
+        [address?.region, address?.country].filter(Boolean).join(', '),
+    ]
+        .filter(Boolean)
+        .join(' | ');
+    const wholesaleQuoteUrl = useMemo(() => {
+        if (!ordersWhatsappNumber) return '';
+        const message = buildWholesaleQuoteMessage({
+            companyName: settings?.branding?.name || '',
+            customerName: profileName,
+            customerEmail: user?.email || '',
+            customerPhone: buildPhone(address?.phoneCountry, address?.phoneNumber),
+            businessName: wholesaleBusinessName,
+            cuit: address?.cuit || '',
+            addressLine: wholesaleAddressLine,
+        });
+        return `https://wa.me/${ordersWhatsappNumber}?text=${encodeURIComponent(message)}`;
+    }, [
+        ordersWhatsappNumber,
+        settings?.branding?.name,
+        profileName,
+        user?.email,
+        address?.phoneCountry,
+        address?.phoneNumber,
+        address?.cuit,
+        wholesaleBusinessName,
+        wholesaleAddressLine,
+    ]);
 
     const sectionLabels = {
         account: 'Mi cuenta',
@@ -299,6 +457,20 @@ export default function ProfilePage() {
             year: 'numeric',
         });
     };
+
+    if (loading) {
+        return (
+            <StoreLayout>
+                <div className="min-h-[60vh] flex items-center justify-center text-sm text-[#8a7560]">
+                    Cargando perfil...
+                </div>
+            </StoreLayout>
+        );
+    }
+
+    if (!user) {
+        return null;
+    }
 
     const handleViewOrder = (order) => {
         try {
@@ -342,34 +514,42 @@ export default function ProfilePage() {
         navigate('/');
     };
 
+    const handleWholesaleQuote = () => {
+        if (!wholesaleQuoteUrl) return;
+        window.open(wholesaleQuoteUrl, '_blank', 'noopener,noreferrer');
+    };
+
     const saveAddress = () => {
         if (!user) return;
-        const next = { ...addressDraft };
-        next.phone = buildPhone(next.phoneCountry, next.phoneNumber);
+        const next = normalizeProfileAddress(addressDraft, defaultAddress);
         setAddress(next);
-        const key = `teflon_profile_address_${user.id || user.email}`;
         try {
-            localStorage.setItem(key, JSON.stringify(next));
+            addressStorageKeys.forEach((key) => {
+                localStorage.setItem(key, JSON.stringify(next));
+            });
         } catch (err) {
-            console.warn('No se pudo guardar la dirección', err);
+            console.warn('No se pudo guardar la direccion', err);
         }
         setIsEditingAddress(false);
     };
 
     const resetAddress = () => {
         if (!user) return;
-        const fallback = {
-            ...defaultAddress,
-            fullName: displayName || defaultAddress.fullName,
-        };
-        fallback.phone = buildPhone(fallback.phoneCountry, fallback.phoneNumber);
+        const fallback = normalizeProfileAddress(
+            {
+                ...defaultAddress,
+                fullName: displayName,
+            },
+            defaultAddress
+        );
         setAddress(fallback);
         setAddressDraft(fallback);
-        const key = `teflon_profile_address_${user.id || user.email}`;
         try {
-            localStorage.removeItem(key);
+            addressStorageKeys.forEach((key) => {
+                localStorage.removeItem(key);
+            });
         } catch (err) {
-            console.warn('No se pudo limpiar la dirección', err);
+            console.warn('No se pudo limpiar la direccion', err);
         }
         setIsEditingAddress(false);
     };
@@ -420,7 +600,7 @@ export default function ProfilePage() {
                                     )}
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-sm font-bold dark:text-white">{displayName}</span>
+                                    <span className="text-sm font-bold dark:text-white">{profileName}</span>
                                     <span className="text-xs text-[#8a7560]">{roleLabel}</span>
                                 </div>
                             </div>
@@ -473,7 +653,7 @@ export default function ProfilePage() {
                                 className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all font-medium"
                             >
                                 <LogOut className="w-5 h-5" />
-                                <span className="text-sm">Cerrar sesión</span>
+                                <span className="text-sm">Cerrar sesion</span>
                             </button>
                         </div>
                     </aside>
@@ -499,10 +679,10 @@ export default function ProfilePage() {
                                     </div>
                                     <div>
                                         <h1 className="text-2xl font-black text-[#181411] dark:text-white leading-tight">
-                                            Hola, {displayName}!
+                                            Hola, {profileName}!
                                         </h1>
                                         <p className="text-[#8a7560] mt-1 text-sm">
-                                            Gestioná tu cuenta, revisá tus pedidos y actualizá tu perfil.
+                                            Administra tu cuenta, revisa tus pedidos y actualiza tus datos.
                                         </p>
                                         <div className="flex flex-wrap gap-3 mt-3">
                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
@@ -614,7 +794,7 @@ export default function ProfilePage() {
                                                     ) : (
                                                         <tr>
                                                             <td colSpan={5} className="px-6 py-8 text-center text-[#8a7560]">
-                                                                Todavía no hay pedidos recientes.
+                                                                Todavia no hay pedidos recientes.
                                                             </td>
                                                         </tr>
                                                     )}
@@ -629,7 +809,7 @@ export default function ProfilePage() {
                                 <div className={`${addressesSpanClass} space-y-6`}>
                                     <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm overflow-hidden">
                                         <div className="px-6 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] flex justify-between items-center">
-                                            <h3 className="font-bold text-lg">Dirección principal</h3>
+                                            <h3 className="font-bold text-lg">Direccion principal</h3>
                                             <MapPin className="h-5 w-5 shrink-0 text-[#8a7560]" />
                                         </div>
                                         <div className="p-6">
@@ -638,23 +818,64 @@ export default function ProfilePage() {
                                                     <div className="flex items-start gap-3">
                                                         <User className="text-primary w-5 h-5 mt-1" />
                                                         <div>
-                                                            <p className="font-bold text-sm">{address.fullName || displayName}</p>
+                                                            <p className="font-bold text-sm">{profileName}</p>
                                                             <p className="text-xs text-[#8a7560]">Cuenta {roleLabel}</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-start gap-3">
                                                         <Home className="text-primary w-5 h-5 mt-1" />
                                                         <div>
-                                                            <p className="text-sm">{address.line1}</p>
-                                                            <p className="text-sm">{address.city}{address.postal ? `, ${address.postal}` : ''}</p>
-                                                            <p className="text-sm font-semibold">{address.region}, {address.country}</p>
+                                                            {address.line1 ? (
+                                                                <>
+                                                                    <p className="text-sm">{address.line1}</p>
+                                                                    {address.city || address.postal ? (
+                                                                        <p className="text-sm">
+                                                                            {address.city}
+                                                                            {address.postal ? `${address.city ? ', ' : ''}${address.postal}` : ''}
+                                                                        </p>
+                                                                    ) : null}
+                                                                    <p className="text-sm font-semibold">{[address.region, address.country].filter(Boolean).join(', ')}</p>
+                                                                </>
+                                                            ) : (
+                                                                <p className="text-sm text-[#8a7560]">
+                                                                    Aca vas a ver la direccion que cargaste en el registro o la que edites despues.
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-start gap-3">
                                                         <Phone className="text-primary w-5 h-5 mt-1" />
                                                         <p className="text-sm">
-                                                            {buildPhone(address.phoneCountry, address.phoneNumber)}
+                                                            {buildPhone(address.phoneCountry, address.phoneNumber) || 'Sin telefono cargado'}
                                                         </p>
+                                                    </div>
+                                                    <div className="border-t border-[#e5e1de] pt-3">
+                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#8a7560] mb-2">
+                                                            Facturacion
+                                                        </p>
+                                                        {hasProfileBillingInfo ? (
+                                                            <div className="space-y-1 text-sm">
+                                                                <p className="font-semibold text-[#181411] dark:text-white">
+                                                                    {billingDetails.businessName}
+                                                                </p>
+                                                                <p className="text-[#181411] dark:text-white">
+                                                                    {billingDetails.address || '-'}
+                                                                </p>
+                                                                <p className="text-[#181411] dark:text-white">
+                                                                    {billingDetails.city || '-'}
+                                                                </p>
+                                                                <p className="text-[#181411] dark:text-white">
+                                                                    IVA: {getBillingVatLabel(billingDetails.vatType)}
+                                                                </p>
+                                                                <p className="text-[#181411] dark:text-white">
+                                                                    {getBillingDocumentLabel(billingDetails.documentType)}: {billingDetails.documentNumber || '-'}
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-sm text-[#8a7560]">
+                                                                Agrega tus datos de facturacion para reutilizarlos al hacer pedidos.
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ) : (
@@ -669,7 +890,7 @@ export default function ProfilePage() {
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
-                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Dirección</label>
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Direccion</label>
                                                         <input
                                                             type="text"
                                                             value={addressDraft.line1}
@@ -687,7 +908,7 @@ export default function ProfilePage() {
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
-                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Código postal</label>
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Codigo postal</label>
                                                         <input
                                                             type="text"
                                                             value={addressDraft.postal}
@@ -705,7 +926,7 @@ export default function ProfilePage() {
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
-                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">País</label>
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Pais</label>
                                                         <input
                                                             type="text"
                                                             value={addressDraft.country}
@@ -714,7 +935,7 @@ export default function ProfilePage() {
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
-                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Teléfono</label>
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Telefono</label>
                                                         <div className="flex flex-col md:flex-row gap-2">
                                                             <select
                                                                 value={addressDraft.phoneCountry}
@@ -728,7 +949,7 @@ export default function ProfilePage() {
                                                             >
                                                                 {PHONE_COUNTRIES.map((country) => (
                                                                     <option key={country.code} value={country.code}>
-                                                                        {country.flag} {country.dial} {country.name}
+                                                                        {country.dial} {country.name}
                                                                     </option>
                                                                 ))}
                                                             </select>
@@ -741,9 +962,83 @@ export default function ProfilePage() {
                                                                         phoneNumber: e.target.value,
                                                                     })
                                                                 }
-                                                                placeholder="Número de teléfono"
+                                                                placeholder="Numero de telefono"
                                                                 className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
                                                             />
+                                                        </div>
+                                                    </div>
+                                                    <div className="border-t border-[#e5e1de] pt-3 mt-2">
+                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#8a7560] mb-3">
+                                                            Facturacion
+                                                        </p>
+                                                        <div className="grid grid-cols-1 gap-3">
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                <label className="text-[10px] font-bold uppercase text-[#8a7560]">Razon social</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={addressDraft.billingBusinessName || ''}
+                                                                    onChange={(e) => setAddressDraft({ ...addressDraft, billingBusinessName: e.target.value })}
+                                                                    className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                                />
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                <label className="text-[10px] font-bold uppercase text-[#8a7560]">Direccion de facturacion</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={addressDraft.billingAddress || ''}
+                                                                    onChange={(e) => setAddressDraft({ ...addressDraft, billingAddress: e.target.value })}
+                                                                    className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                                />
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                <label className="text-[10px] font-bold uppercase text-[#8a7560]">Localidad</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={addressDraft.billingCity || ''}
+                                                                    onChange={(e) => setAddressDraft({ ...addressDraft, billingCity: e.target.value })}
+                                                                    className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                                />
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                <label className="text-[10px] font-bold uppercase text-[#8a7560]">Tipo de IVA</label>
+                                                                <select
+                                                                    value={addressDraft.billingVatType || ''}
+                                                                    onChange={(e) => setAddressDraft({ ...addressDraft, billingVatType: e.target.value })}
+                                                                    className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                                >
+                                                                    <option value="">Seleccionar</option>
+                                                                    {BILLING_VAT_OPTIONS.map((option) => (
+                                                                        <option key={option.value} value={option.value}>
+                                                                            {option.label}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
+                                                                <div className="grid grid-cols-1 gap-2">
+                                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Documento</label>
+                                                                    <select
+                                                                        value={addressDraft.billingDocumentType || 'cuit'}
+                                                                        onChange={(e) => setAddressDraft({ ...addressDraft, billingDocumentType: e.target.value })}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                                    >
+                                                                        {BILLING_DOCUMENT_OPTIONS.map((option) => (
+                                                                            <option key={option.value} value={option.value}>
+                                                                                {option.label}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="grid grid-cols-1 gap-2">
+                                                                    <label className="text-[10px] font-bold uppercase text-[#8a7560]">Numero</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={addressDraft.billingDocumentNumber || ''}
+                                                                        onChange={(e) => setAddressDraft({ ...addressDraft, billingDocumentNumber: e.target.value })}
+                                                                        className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                                    />
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -787,20 +1082,30 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-primary rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
-                                        <div className="relative z-10">
-                                            <h4 className="font-bold text-lg mb-2">¿Necesitás cotización mayorista?</h4>
-                                            <p className="text-white/80 text-sm mb-4">
-                                                Contactá a nuestro equipo para precios profesionales.
-                                            </p>
-                                            <button className="w-full bg-white text-primary font-bold py-2 rounded-lg text-sm hover:bg-[#f8f7f5] transition-all">
-                                                Contactar asesor
-                                            </button>
+                                    {isWholesaleUser ? (
+                                        <div className="bg-primary rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
+                                            <div className="relative z-10">
+                                                <h4 className="font-bold text-lg mb-2">Necesitas cotizacion mayorista?</h4>
+                                                <p className="text-white/80 text-sm mb-2">
+                                                    Contacta a nuestro equipo por el mismo WhatsApp configurado para los pedidos.
+                                                </p>
+                                                <p className="text-white/70 text-xs mb-4">
+                                                    El mensaje sale armado con tus datos para pedir precios mayoristas.
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleWholesaleQuote}
+                                                    disabled={!wholesaleQuoteUrl}
+                                                    className="w-full bg-white text-primary font-bold py-2 rounded-lg text-sm hover:bg-[#f8f7f5] transition-all disabled:cursor-not-allowed disabled:bg-white/80 disabled:text-primary/60"
+                                                >
+                                                    {wholesaleQuoteUrl ? 'Contactar asesor' : 'Configura el WhatsApp de pedidos'}
+                                                </button>
+                                            </div>
+                                            <Headset
+                                                className="h-[100px] w-[100px] text-white/10 absolute -bottom-4 -right-4 group-hover:scale-110 transition-transform"
+                                            />
                                         </div>
-                                        <Headset
-                                            className="h-[100px] w-[100px] text-white/10 absolute -bottom-4 -right-4 group-hover:scale-110 transition-transform"
-                                        />
-                                    </div>
+                                    ) : null}
                                 </div>
                             ) : null}
 
@@ -872,7 +1177,7 @@ export default function ProfilePage() {
                                                 <Heart className="h-6 w-6 text-primary fill-current" />
                                                 Favoritos
                                             </div>
-                                            Todavía no agregaste favoritos.
+                                            Todavia no agregaste favoritos.
                                         </div>
                                     )}
                                 </>
@@ -885,7 +1190,7 @@ export default function ProfilePage() {
                                         Seguridad
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold uppercase text-[#8a7560]">Nueva contraseña</label>
+                                        <label className="text-xs font-bold uppercase text-[#8a7560]">Nueva contrasena</label>
                                         <input
                                             type="password"
                                             className="w-full mt-2 px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent"
@@ -893,7 +1198,7 @@ export default function ProfilePage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold uppercase text-[#8a7560]">Confirmar contraseña</label>
+                                        <label className="text-xs font-bold uppercase text-[#8a7560]">Confirmar contrasena</label>
                                         <input
                                             type="password"
                                             className="w-full mt-2 px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent"
@@ -912,3 +1217,4 @@ export default function ProfilePage() {
         </StoreLayout>
     );
 }
+

@@ -1,14 +1,19 @@
 import React from "react";
 import { useStore } from "../context/StoreContext";
 import { useTenant } from "../context/TenantContext";
+import { useAuth } from "../context/AuthContext";
 import { formatCurrency } from "../utils/format";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../utils/stock";
+import PriceAccessPrompt from "./PriceAccessPrompt";
 
 export default function ProductCard({ product }) {
   const { addToCart } = useStore();
   const { settings } = useTenant();
+  const { user, loading } = useAuth();
   const currency = settings?.commerce?.currency || "ARS";
   const locale = settings?.commerce?.locale || "es-AR";
+  const showPricesEnabled = settings?.commerce?.show_prices !== false;
+  const canViewPrices = showPricesEnabled && !!user;
 
   const { id, sku, name, price, badge, image, alt, stock } = product;
   const showStock = settings?.commerce?.show_stock !== false;
@@ -61,10 +66,16 @@ export default function ProductCard({ product }) {
             {stockStatus.label}
           </span>
         ) : null}
-        {settings?.commerce?.show_prices !== false ? (
+        {showPricesEnabled ? (
+          canViewPrices ? (
           <p className="text-2xl font-black text-primary mt-1">
             {formatCurrency(price, currency, locale)}
           </p>
+          ) : loading ? (
+            <p className="text-sm text-[#8a7560] mt-1">Cargando precio...</p>
+          ) : (
+            <PriceAccessPrompt compact className="mt-1" />
+          )
         ) : (
           <p className="text-sm text-[#8a7560] mt-1">Consultar precio</p>
         )}

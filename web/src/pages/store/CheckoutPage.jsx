@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useEffect } from "react";
+﻿import React, { useMemo, useRef, useState, useEffect } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { useStore } from "../../context/StoreContext";
@@ -6,8 +6,30 @@ import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
 import { navigate } from "../../utils/navigation";
+import {
+    BILLING_DOCUMENT_OPTIONS,
+    BILLING_VAT_OPTIONS,
+    EMPTY_BILLING_INFO,
+    getBillingDocumentLabel,
+    getBillingVatLabel,
+    hasBillingInfo,
+    normalizeBillingInfo,
+} from "../../utils/billing";
 
 const SUPPORTED_PAYMENT_METHODS = ["transfer", "stripe", "cash_on_pickup"];
+const ORDER_CHANNEL_OPTIONS = [
+    {
+        key: "whatsapp",
+        label: "WhatsApp",
+        description: "Recibes el pedido y sigues el contacto por WhatsApp.",
+    },
+    {
+        key: "email",
+        label: "Gmail",
+        description: "Te enviamos la confirmacion del pedido a tu correo.",
+    },
+];
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 const normalizePaymentMethod = (value) => {
     const raw = String(value || "").trim().toLowerCase();
@@ -29,10 +51,18 @@ const uniquePaymentMethods = (list = []) => {
     return methods;
 };
 
+const normalizeOrderChannel = (value) => {
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return null;
+    if (["gmail", "mail", "correo"].includes(raw)) return "email";
+    if (raw === "wa") return "whatsapp";
+    return ["whatsapp", "email"].includes(raw) ? raw : null;
+};
+
 export default function CheckoutPage() {
     const { cartItems, clearCart } = useStore();
     const { settings } = useTenant();
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const commerce = settings?.commerce || {};
     const currency = commerce.currency || "ARS";
     const locale = commerce.locale || "es-AR";
@@ -55,11 +85,18 @@ export default function CheckoutPage() {
     const [checkoutError, setCheckoutError] = useState(null);
 
     // Form state
+    const [customerInfo, setCustomerInfo] = useState({
+        fullName: "",
+        phone: "",
+        email: user?.email || "",
+    });
     const [shippingInfo, setShippingInfo] = useState({
         fullAddress: "",
         city: "",
         postalCode: "",
     });
+    const [billingInfo, setBillingInfo] = useState(EMPTY_BILLING_INFO);
+    const [orderChannel, setOrderChannel] = useState("whatsapp");
     const shippingAutofillRef = useRef(false);
     const shippingZones = useMemo(() => {
         const fromSettings = Array.isArray(checkoutSettings?.shipping_zones) ? checkoutSettings.shipping_zones : [];
@@ -150,7 +187,7 @@ export default function CheckoutPage() {
     }, [deliveryOptions, deliveryMethod, checkoutSettings]);
 
     const bankTransfer = checkoutSettings?.bank_transfer || commerce.bank_transfer || {};
-    const whatsappNumber = (checkoutSettings?.whatsapp_number || commerce.whatsapp_number || "2236334301").replace(/\D/g, "");
+    const whatsappNumber = String(checkoutSettings?.whatsapp_number || commerce.whatsapp_number || "").replace(/\D/g, "");
     const enabledMethods = useMemo(() => {
         const settingsMethods = uniquePaymentMethods(checkoutSettings?.enabled_methods);
         if (settingsMethods.length) return settingsMethods;
@@ -195,6 +232,10 @@ export default function CheckoutPage() {
     }, [enabledMethods]);
 
     const [paymentMethod, setPaymentMethod] = useState("stripe");
+    const goToAuthForCheckout = (path = "/login") => {
+        sessionStorage.setItem("teflon_post_login_redirect", "/checkout");
+        navigate(path);
+    };
 
     useEffect(() => {
         const firstEnabled = paymentOptions.find((opt) => !opt.disabled);
@@ -203,6 +244,21 @@ export default function CheckoutPage() {
             setPaymentMethod(firstEnabled?.key || "stripe");
         }
     }, [paymentOptions, paymentMethod]);
+
+    useEffect(() => {
+        if (!user?.email) return;
+        setCustomerInfo((prev) => ({
+            ...prev,
+            email: prev.email || user.email,
+            fullName: prev.fullName || user.email.split("@")[0] || "",
+        }));
+    }, [user]);
+
+    useEffect(() => {
+        if (!whatsappNumber && orderChannel === "whatsapp") {
+            setOrderChannel("email");
+        }
+    }, [orderChannel, whatsappNumber]);
 
     const [orderSuccess, setOrderSuccess] = useState(null);
 
@@ -269,14 +325,33 @@ export default function CheckoutPage() {
                 city: parsed.city || "",
                 postalCode: parsed.postal || parsed.postalCode || "",
             };
+            const prefillCustomer = {
+                fullName: parsed.fullName || user?.email?.split("@")[0] || "",
+                phone: parsed.phone || parsed.phoneNumber || "",
+                email: user?.email || "",
+            };
+            const prefillBilling = normalizeBillingInfo(parsed);
             setShippingInfo((prev) => ({
                 fullAddress: prev.fullAddress || prefill.fullAddress,
                 city: prev.city || prefill.city,
                 postalCode: prev.postalCode || prefill.postalCode,
             }));
+            setCustomerInfo((prev) => ({
+                fullName: prev.fullName || prefillCustomer.fullName,
+                phone: prev.phone || prefillCustomer.phone,
+                email: prev.email || prefillCustomer.email,
+            }));
+            setBillingInfo((prev) => ({
+                businessName: prev.businessName || prefillBilling.businessName,
+                address: prev.address || prefillBilling.address,
+                city: prev.city || prefillBilling.city,
+                vatType: prev.vatType || prefillBilling.vatType,
+                documentType: prev.documentType || prefillBilling.documentType || "cuit",
+                documentNumber: prev.documentNumber || prefillBilling.documentNumber,
+            }));
             shippingAutofillRef.current = true;
         } catch (err) {
-            console.warn("No se pudo cargar la dirección de perfil", err);
+            console.warn("No se pudo cargar la direccion de perfil", err);
         }
     }, [user]);
 
@@ -284,6 +359,14 @@ export default function CheckoutPage() {
         let active = true;
 
         const validateCart = async () => {
+            if (authLoading) {
+                return;
+            }
+            if (!user) {
+                setValidation(null);
+                setValidationError(null);
+                return;
+            }
             if (!items.length) {
                 setValidation(null);
                 setValidationError(null);
@@ -320,7 +403,7 @@ export default function CheckoutPage() {
                 console.error("Error al validar el carrito", err);
                 if (active) {
                     setValidation(null);
-                    setValidationError("No se pudo validar el carrito. Revisá los productos.");
+                    setValidationError("No se pudo validar el carrito. Revisa los productos.");
                 }
             }
         };
@@ -330,7 +413,7 @@ export default function CheckoutPage() {
         return () => {
             active = false;
         };
-    }, [items]);
+    }, [authLoading, items, user]);
 
     const subtotal = useMemo(() => {
         if (validation?.subtotal != null) {
@@ -381,23 +464,38 @@ export default function CheckoutPage() {
         () => paymentOptions.find((opt) => opt.key === paymentMethod)?.label || "",
         [paymentOptions, paymentMethod]
     );
+    const normalizedBilling = useMemo(() => normalizeBillingInfo(billingInfo), [billingInfo]);
+    const hasOrderBillingInfo = useMemo(() => hasBillingInfo(normalizedBilling), [normalizedBilling]);
 
     const getProfileAddress = () => {
         if (!user) return {};
-        const key = `teflon_profile_address_${user.id || user.email}`;
         try {
-            const raw = localStorage.getItem(key);
-            if (!raw) return {};
-            const parsed = JSON.parse(raw);
+            const keys = [];
+            if (user.id) {
+                keys.push(`teflon_profile_address_${user.id}`);
+            }
+            if (user.email) {
+                keys.push(`teflon_profile_address_${String(user.email).trim().toLowerCase()}`);
+            }
+            let parsed = null;
+            for (const key of keys) {
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                    parsed = JSON.parse(raw);
+                    break;
+                }
+            }
+            if (!parsed) return {};
             return {
                 fullName: parsed.fullName || "",
                 phone: parsed.phone || parsed.phoneNumber || "",
                 line1: parsed.line1 || "",
                 city: parsed.city || "",
                 postal: parsed.postal || "",
+                billing: normalizeBillingInfo(parsed),
             };
         } catch (err) {
-            console.warn("No se pudo leer la dirección de perfil", err);
+            console.warn("No se pudo leer la direccion de perfil", err);
             return {};
         }
     };
@@ -405,9 +503,11 @@ export default function CheckoutPage() {
     const buildWhatsappMessage = (note = "") => {
         const profile = getProfileAddress();
         const name =
+            customerInfo.fullName.trim() ||
             profile.fullName ||
             (user?.email ? user.email.split("@")[0] : "Cliente");
-        const phone = profile.phone || "Sin teléfono";
+        const phone = customerInfo.phone.trim() || profile.phone || "Sin telefono";
+        const email = customerInfo.email.trim() || user?.email || "Sin email";
         const deliveryLabel = selectedDeliveryOption?.title || deliveryMethod;
         const paymentLine =
             paymentMethod === "transfer"
@@ -427,8 +527,9 @@ export default function CheckoutPage() {
         const lines = [
             "Pedido nuevo",
             `Cliente: ${name}`,
-            `Teléfono: ${phone}`,
-            `Dirección: ${addressParts || "Sin dirección"}`,
+            `Telefono: ${phone}`,
+            `Email: ${email}`,
+            `Direccion: ${addressParts || "Sin direccion"}`,
             `Entrega: ${deliveryLabel}`,
             paymentLine,
             "",
@@ -440,6 +541,17 @@ export default function CheckoutPage() {
             "",
             `Total: ${formatCurrency(total, displayCurrency, locale)}`,
         ];
+        if (hasOrderBillingInfo) {
+            lines.push(
+                "",
+                "Facturacion:",
+                `Razon social: ${normalizedBilling.businessName || "-"}`,
+                `Direccion: ${normalizedBilling.address || "-"}`,
+                `Localidad: ${normalizedBilling.city || "-"}`,
+                `IVA: ${getBillingVatLabel(normalizedBilling.vatType)}`,
+                `${getBillingDocumentLabel(normalizedBilling.documentType)}: ${normalizedBilling.documentNumber || "-"}`
+            );
+        }
         if (note) {
             lines.push("", note);
         }
@@ -448,14 +560,98 @@ export default function CheckoutPage() {
 
     const buildWhatsappUrl = (note = "") => {
         const message = buildWhatsappMessage(note);
-        const number = whatsappNumber || "2236334301";
+        const number = whatsappNumber;
+        if (!number) return null;
         return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     };
+
+    const persistProfileCheckoutData = (customerPayload) => {
+        if (!user || !customerPayload) return;
+        const keys = [];
+        if (user.id) {
+            keys.push(`teflon_profile_address_${user.id}`);
+        }
+        if (user.email) {
+            keys.push(`teflon_profile_address_${String(user.email).trim().toLowerCase()}`);
+        }
+        if (!keys.length) return;
+
+        const billing = normalizeBillingInfo(customerPayload.billing || customerPayload);
+
+        try {
+            let previous = {};
+            for (const key of keys) {
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                    previous = JSON.parse(raw);
+                    break;
+                }
+            }
+
+            const next = {
+                ...previous,
+                fullName: customerPayload.full_name || customerPayload.fullName || previous.fullName || "",
+                line1: customerPayload.fullAddress || previous.line1 || "",
+                city: customerPayload.city || previous.city || "",
+                postal: customerPayload.postalCode || previous.postal || "",
+                phone: customerPayload.phone || previous.phone || "",
+                company: previous.company || "",
+                cuit: previous.cuit || billing.documentNumber || "",
+                billingBusinessName: billing.businessName,
+                billingAddress: billing.address,
+                billingCity: billing.city,
+                billingVatType: billing.vatType,
+                billingDocumentType: billing.documentType,
+                billingDocumentNumber: billing.documentNumber,
+                billing,
+            };
+
+            keys.forEach((key) => {
+                localStorage.setItem(key, JSON.stringify(next));
+            });
+        } catch (err) {
+            console.warn("No se pudo guardar la facturacion del perfil", err);
+        }
+    };
+
     const handleCompletePurchase = async () => {
         if (!items.length) return;
+        if (!user) {
+            setCheckoutError("Inicia sesion para continuar con el pago.");
+            goToAuthForCheckout("/login");
+            return;
+        }
+        const normalizedEmail = String(customerInfo.email || "").trim().toLowerCase();
+        const normalizedName = String(customerInfo.fullName || "").trim();
+        const normalizedPhone = String(customerInfo.phone || "").trim();
+
+        if (!normalizedName) {
+            setCheckoutError("Completa tu nombre para generar el pedido.");
+            return;
+        }
+        if (!normalizedEmail || !EMAIL_PATTERN.test(normalizedEmail)) {
+            setCheckoutError("Completa un email valido para recibir la confirmacion.");
+            return;
+        }
+        if (orderChannel === "whatsapp" && !whatsappNumber) {
+            setCheckoutError("El canal por WhatsApp no esta disponible para esta tienda.");
+            return;
+        }
         if (isShippingDelivery) {
             if (!shippingInfo.fullAddress.trim() || !shippingInfo.city.trim()) {
                 setCheckoutError("Completa direccion y ciudad para entrega a domicilio.");
+                return;
+            }
+        }
+        if (hasOrderBillingInfo) {
+            if (
+                !normalizedBilling.businessName ||
+                !normalizedBilling.address ||
+                !normalizedBilling.city ||
+                !normalizedBilling.vatType ||
+                !normalizedBilling.documentNumber
+            ) {
+                setCheckoutError("Completa razon social, direccion, localidad, tipo de IVA y numero de documento para la facturacion.");
                 return;
             }
         }
@@ -464,6 +660,22 @@ export default function CheckoutPage() {
         setCheckoutError(null);
 
         try {
+            const customerPayload = {
+                ...customerInfo,
+                ...shippingInfo,
+                full_name: normalizedName,
+                phone: normalizedPhone,
+                email: normalizedEmail,
+                contact_channel: orderChannel,
+                delivery_method: deliveryMethod,
+                delivery_label: selectedDeliveryOption?.title || deliveryMethod,
+                delivery_type: selectedDeliveryOption?.type || "shipping",
+                shipping_zone_id: deliveryMethod.startsWith("zone:") ? deliveryMethod.replace("zone:", "") : undefined,
+                branch_id: deliveryMethod.startsWith("branch:") ? deliveryMethod.replace("branch:", "") : undefined,
+                payment_method: paymentMethod,
+                billing: normalizedBilling,
+            };
+
             const response = await fetch(`${getApiBase()}/api/orders/submit`, {
                 method: "POST",
                 headers: {
@@ -478,15 +690,8 @@ export default function CheckoutPage() {
                     })),
                     checkout_mode: paymentMethod,
                     payment_method: paymentMethod,
-                    customer: {
-                        ...shippingInfo,
-                        delivery_method: deliveryMethod,
-                        delivery_label: selectedDeliveryOption?.title || deliveryMethod,
-                        delivery_type: selectedDeliveryOption?.type || "shipping",
-                        shipping_zone_id: deliveryMethod.startsWith("zone:") ? deliveryMethod.replace("zone:", "") : undefined,
-                        branch_id: deliveryMethod.startsWith("branch:") ? deliveryMethod.replace("branch:", "") : undefined,
-                        payment_method: paymentMethod,
-                    },
+                    order_channel: orderChannel,
+                    customer: customerPayload,
                 }),
             });
 
@@ -508,7 +713,14 @@ export default function CheckoutPage() {
 
             const data = await response.json();
             const checkoutModeResolved = data.checkout_mode || paymentMethod;
+            const resolvedOrderChannel = normalizeOrderChannel(data.contact_channel) || orderChannel;
             const totals = data.totals || {};
+            const emailDelivery = data.email_delivery || {
+                sent: false,
+                provider: "unknown",
+                email: normalizedEmail,
+            };
+            const whatsappUrl = data.whatsapp_url || buildWhatsappUrl();
             const resolvedStatus =
                 checkoutModeResolved === "transfer" || checkoutModeResolved === "stripe"
                     ? "Pendiente de pago"
@@ -523,21 +735,30 @@ export default function CheckoutPage() {
                 total: Number(totals.total ?? total),
                 currency: totals.currency || displayCurrency,
                 locale,
+                contactChannel: resolvedOrderChannel,
+                customerName: normalizedName,
+                customerEmail: normalizedEmail,
+                customer: customerPayload,
+                billing: normalizedBilling,
+                emailDelivery,
                 items: items.map((item) => ({
                     id: item.id,
                     sku: item.sku || item.id,
                     name: item.name,
                     qty: item.qty,
                 })),
-                whatsappUrl: data.whatsapp_url || buildWhatsappUrl(),
-                whatsappReceiptUrl: buildWhatsappUrl(
+                whatsappUrl,
+                whatsappReceiptUrl: whatsappUrl
+                    ? buildWhatsappUrl(
                     "Pago realizado. Adjunto comprobante."
-                ),
+                )
+                    : null,
                 bankTransfer,
                 createdAt: new Date().toISOString(),
             };
 
             try {
+                persistProfileCheckoutData(customerPayload);
                 localStorage.setItem("teflon_last_order", JSON.stringify(orderInfo));
                 const historyKey = `teflon_orders_${user?.id || user?.email || "guest"}`;
                 const existing = localStorage.getItem(historyKey);
@@ -555,25 +776,74 @@ export default function CheckoutPage() {
             navigate("/order-success");
         } catch (err) {
             console.error("Error al crear la orden", err);
-            setCheckoutError("No se pudo iniciar el pago. Proba nuevamente.");
+            setCheckoutError(err?.message || "No se pudo iniciar el pago. Proba nuevamente.");
         } finally {
             setCreating(false);
         }
     };
+    if (authLoading) {
+        return (
+            <StoreLayout>
+                <main className="max-w-[960px] mx-auto w-full px-4 md:px-10 py-16 text-center">
+                    <h1 className="text-3xl font-black mb-4">Cargando checkout</h1>
+                    <p className="text-[#8a7560] mb-8">
+                        Estamos verificando tu sesion.
+                    </p>
+                </main>
+            </StoreLayout>
+        );
+    }
+
+    if (!user) {
+        return (
+            <StoreLayout>
+                <main className="max-w-[960px] mx-auto w-full px-4 md:px-10 py-16 text-center">
+                    <h1 className="text-3xl font-black mb-4">Debes iniciar sesion para continuar</h1>
+                    <p className="text-[#8a7560] mb-8">
+                        Puedes usar el carrito sin problema, pero para finalizar la compra necesitas una cuenta activa.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => goToAuthForCheckout("/login")}
+                            className="bg-primary text-white font-bold px-6 py-3 rounded-lg"
+                        >
+                            Iniciar sesion
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => goToAuthForCheckout("/signup")}
+                            className="border border-[#d9d1ca] text-[#181411] font-bold px-6 py-3 rounded-lg"
+                        >
+                            Crear cuenta
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/cart")}
+                            className="border border-[#d9d1ca] text-[#8a7560] font-bold px-6 py-3 rounded-lg"
+                        >
+                            Volver al carrito
+                        </button>
+                    </div>
+                </main>
+            </StoreLayout>
+        );
+    }
+
     if (!items.length) {
         return (
             <StoreLayout>
                 <main className="max-w-[960px] mx-auto w-full px-4 md:px-10 py-16 text-center">
                     <h1 className="text-3xl font-black mb-4">No hay productos para pagar</h1>
                     <p className="text-[#8a7560] mb-8">
-                        Sumá productos al carrito para continuar.
+                        Suma productos al carrito para continuar.
                     </p>
                     <button
                         type="button"
-                        onClick={() => (window.location.hash = '#catalog')}
+                        onClick={() => navigate("/catalog")}
                         className="bg-primary text-white font-bold px-6 py-3 rounded-lg"
                     >
-                        Ir al catálogo
+                        Ir al catalogo
                     </button>
                 </main>
             </StoreLayout>
@@ -628,15 +898,69 @@ export default function CheckoutPage() {
                             {/* 1 Shipping */}
                             <Accordion
                                 step={1}
-                                title="Información de envío"
+                                title="Informacion de envio"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(1)}
                             >
                                 <div className="pt-4 pb-2 space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Nombre completo
+                                            </label>
+                                            <input
+                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                placeholder="Tu nombre"
+                                                type="text"
+                                                value={customerInfo.fullName}
+                                                onChange={(e) =>
+                                                    setCustomerInfo((prev) => ({
+                                                        ...prev,
+                                                        fullName: e.target.value,
+                                                    }))
+                                                }
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Telefono
+                                            </label>
+                                            <input
+                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                placeholder="+54 11..."
+                                                type="tel"
+                                                value={customerInfo.phone}
+                                                onChange={(e) =>
+                                                    setCustomerInfo((prev) => ({
+                                                        ...prev,
+                                                        phone: e.target.value,
+                                                    }))
+                                                }
+                                            />
+                                        </div>
                                         <div className="col-span-2">
                                             <label className="block text-sm font-medium mb-1">
-                                                Dirección completa
+                                                Gmail o email
+                                            </label>
+                                            <input
+                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                placeholder="tucorreo@gmail.com"
+                                                type="email"
+                                                value={customerInfo.email}
+                                                onChange={(e) =>
+                                                    setCustomerInfo((prev) => ({
+                                                        ...prev,
+                                                        email: e.target.value,
+                                                    }))
+                                                }
+                                            />
+                                            <p className="mt-1 text-xs text-[#8a7560] dark:text-[#a59280]">
+                                                Aca te enviamos la confirmacion del pedido.
+                                            </p>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-medium mb-1">
+                                                Direccion completa
                                             </label>
                                             <input
                                                 className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
@@ -670,7 +994,7 @@ export default function CheckoutPage() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-1">
-                                                Código postal
+                                                Codigo postal
                                             </label>
                                             <input
                                                 className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
@@ -684,6 +1008,129 @@ export default function CheckoutPage() {
                                                     }))
                                                 }
                                             />
+                                        </div>
+                                        <div className="col-span-2 mt-2 pt-4 border-t border-[#e6e0db] dark:border-[#3d2e1f]">
+                                            <div className="mb-3">
+                                                <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                                    Datos de facturacion
+                                                </p>
+                                                <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
+                                                    Completa estos datos si necesitas factura.
+                                                </p>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="col-span-2">
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Razon social
+                                                    </label>
+                                                    <input
+                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        placeholder="Ej: Mi Empresa SRL"
+                                                        type="text"
+                                                        value={billingInfo.businessName}
+                                                        onChange={(e) =>
+                                                            setBillingInfo((prev) => ({
+                                                                ...prev,
+                                                                businessName: e.target.value,
+                                                            }))
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="col-span-2">
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Direccion de facturacion
+                                                    </label>
+                                                    <input
+                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        placeholder="Calle y numero"
+                                                        type="text"
+                                                        value={billingInfo.address}
+                                                        onChange={(e) =>
+                                                            setBillingInfo((prev) => ({
+                                                                ...prev,
+                                                                address: e.target.value,
+                                                            }))
+                                                        }
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Localidad
+                                                    </label>
+                                                    <input
+                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        placeholder="Mar del Plata"
+                                                        type="text"
+                                                        value={billingInfo.city}
+                                                        onChange={(e) =>
+                                                            setBillingInfo((prev) => ({
+                                                                ...prev,
+                                                                city: e.target.value,
+                                                            }))
+                                                        }
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Tipo de IVA
+                                                    </label>
+                                                    <select
+                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        value={billingInfo.vatType}
+                                                        onChange={(e) =>
+                                                            setBillingInfo((prev) => ({
+                                                                ...prev,
+                                                                vatType: e.target.value,
+                                                            }))
+                                                        }
+                                                    >
+                                                        <option value="">Seleccionar</option>
+                                                        {BILLING_VAT_OPTIONS.map((option) => (
+                                                            <option key={option.value} value={option.value}>
+                                                                {option.label}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Tipo de documento
+                                                    </label>
+                                                    <select
+                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        value={billingInfo.documentType}
+                                                        onChange={(e) =>
+                                                            setBillingInfo((prev) => ({
+                                                                ...prev,
+                                                                documentType: e.target.value,
+                                                            }))
+                                                        }
+                                                    >
+                                                        {BILLING_DOCUMENT_OPTIONS.map((option) => (
+                                                            <option key={option.value} value={option.value}>
+                                                                {option.label}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-1">
+                                                        Numero
+                                                    </label>
+                                                    <input
+                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        placeholder="20-12345678-9 / 12345678"
+                                                        type="text"
+                                                        value={billingInfo.documentNumber}
+                                                        onChange={(e) =>
+                                                            setBillingInfo((prev) => ({
+                                                                ...prev,
+                                                                documentNumber: e.target.value,
+                                                            }))
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -702,7 +1149,7 @@ export default function CheckoutPage() {
                             {/* 2 Delivery */}
                             <Accordion
                                 step={2}
-                                title="Método de entrega"
+                                title="Metodo de entrega"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(2)}
                             >
@@ -762,7 +1209,7 @@ export default function CheckoutPage() {
                             {/* 3 Payment */}
                             <Accordion
                                 step={3}
-                                title="Método de pago"
+                                title="Metodo de pago"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(3)}
                             >
@@ -789,6 +1236,49 @@ export default function CheckoutPage() {
                                     <div className="rounded-lg border border-[#e6e0db] dark:border-[#3d2e1f] p-4 text-sm text-[#8a7560] dark:text-[#a59280]">
                                         {paymentSummary}
                                     </div>
+
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                                Metodo de pedido
+                                            </p>
+                                            <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
+                                                Elige si quieres continuar por WhatsApp o recibir la confirmacion en Gmail.
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {ORDER_CHANNEL_OPTIONS.map((option) => {
+                                                const disabled = option.key === "whatsapp" && !whatsappNumber;
+                                                return (
+                                                    <PayOption
+                                                        key={option.key}
+                                                        active={orderChannel === option.key}
+                                                        onClick={() => {
+                                                            if (!disabled) {
+                                                                setOrderChannel(option.key);
+                                                            }
+                                                        }}
+                                                        icon={
+                                                            option.key === "whatsapp" ? (
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-1.9 5.4A8.5 8.5 0 1 1 21 11.5Z"></path><path d="M8 12s1.5 3 4 3 4-3 4-3"></path></svg>
+                                                            ) : (
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m3 7 9 6 9-6"></path></svg>
+                                                            )
+                                                        }
+                                                        label={option.label}
+                                                        description={disabled ? "Configura un numero de WhatsApp en la tienda." : option.description}
+                                                        disabled={disabled}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="rounded-lg border border-[#e6e0db] dark:border-[#3d2e1f] p-4 text-sm text-[#8a7560] dark:text-[#a59280]">
+                                            {orderChannel === "whatsapp"
+                                                ? "El pedido queda registrado y tambien intentaremos enviarte una copia por email."
+                                                : "El pedido queda registrado y la confirmacion principal llega a tu Gmail."}
+                                        </div>
+                                    </div>
+
                                     {paymentMethod === "transfer" ? (
                                         <div className="rounded-lg border border-[#e6e0db] dark:border-[#3d2e1f] p-4 text-sm space-y-2">
                                             <p className="font-bold text-[#181411] dark:text-white">Datos bancarios</p>
@@ -810,11 +1300,22 @@ export default function CheckoutPage() {
                                     {orderSuccess ? (
                                         <div className="rounded-lg border border-green-200 bg-green-50 text-green-700 px-4 py-3 text-sm space-y-2">
                                             <p className="font-bold">Pedido confirmado</p>
-                                            <p>Método: {orderSuccess.paymentLabel || paymentLabel}</p>
+                                            <p>Metodo: {orderSuccess.paymentLabel || paymentLabel}</p>
+                                            <p>Canal: {orderSuccess.contactChannel === "email" ? "Gmail" : "WhatsApp"}</p>
+                                            {orderSuccess.customerEmail ? (
+                                                <p>Email: {orderSuccess.customerEmail}</p>
+                                            ) : null}
+                                            {orderSuccess.emailDelivery ? (
+                                                <p className="text-xs font-semibold">
+                                                    {orderSuccess.emailDelivery.sent
+                                                        ? `Confirmacion enviada a ${orderSuccess.emailDelivery.email || orderSuccess.customerEmail}.`
+                                                        : "No pudimos enviar la confirmacion por email en este intento."}
+                                                </p>
+                                            ) : null}
                                             {orderSuccess.id ? (
                                                 <p>ID: {orderSuccess.id}</p>
                                             ) : null}
-                                            {orderSuccess.method === "transfer" ? (
+                                            {orderSuccess.method === "transfer" && (orderSuccess.whatsappReceiptUrl || orderSuccess.whatsappUrl) ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => window.open(orderSuccess.whatsappReceiptUrl || orderSuccess.whatsappUrl, "_blank", "noopener,noreferrer")}
@@ -887,7 +1388,7 @@ export default function CheckoutPage() {
                             {/* Totals */}
                             <div className="border-t border-[#e6e0db] dark:border-[#3d2e1f] pt-4 space-y-3">
                                 <Line label="Subtotal" value={formatCurrency(subtotal, displayCurrency, locale)} />
-                                <Line label="Envío" value={formatCurrency(shipping, displayCurrency, locale)} />
+                                <Line label="Envio" value={formatCurrency(shipping, displayCurrency, locale)} />
                                 <Line label="Impuestos" value={formatCurrency(iva, displayCurrency, locale)} />
                             </div>
 
@@ -933,9 +1434,9 @@ function StepProgress({ openStep }) {
                 <div className="w-[1.5px] bg-primary h-12" />
             </div>
             <div className="flex flex-col pt-1 pb-4">
-                <p className="text-primary text-base font-bold">Envío y entrega</p>
+                <p className="text-primary text-base font-bold">Envio y entrega</p>
                 <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                    Completá la dirección o elegí retiro
+                    Completa la direccion o elige retiro
                 </p>
             </div>
 
@@ -948,10 +1449,10 @@ function StepProgress({ openStep }) {
             </div>
             <div className={`flex flex-col pt-1 pb-4 ${openStep >= 2 ? "" : "opacity-50"}`}>
                 <p className="text-[#181411] dark:text-white text-base font-medium">
-                    Método de pago
+                    Metodo de pago
                 </p>
                 <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                    Seleccioná cómo querés pagar
+                    Selecciona como quieres pagar
                 </p>
             </div>
 
@@ -962,7 +1463,7 @@ function StepProgress({ openStep }) {
                 </div>
             </div>
             <div className={`flex flex-col pt-1 ${openStep >= 3 ? "" : "opacity-50"}`}>
-                <p className="text-[#181411] dark:text-white text-base font-medium">Confirmación</p>
+                <p className="text-[#181411] dark:text-white text-base font-medium">Confirmacion</p>
             </div>
         </div>
     );
@@ -1047,4 +1548,5 @@ function Line({ label, value }) {
         </div>
     );
 }
+
 

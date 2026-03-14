@@ -1,6 +1,7 @@
 import React from 'react';
 import { navigate } from '../../utils/navigation';
 import { normalizeFeaturedStyles } from '../../data/featuredProductsTemplates';
+import PriceAccessPrompt from '../PriceAccessPrompt';
 
 const openLink = (value) => {
     if (!value) return;
@@ -20,6 +21,9 @@ export default function FeaturedProductsLuxury({
     styles = {},
     onAddToCart,
     onOpenProduct,
+    showPricesEnabled = true,
+    canViewPrices = true,
+    authLoading = false,
 }) {
     const colors = normalizeFeaturedStyles('luxury', styles);
 
@@ -82,9 +86,11 @@ export default function FeaturedProductsLuxury({
 
                                 <div className="mt-5 flex flex-1 flex-col">
                                     <div className="mb-2 flex items-center justify-between">
-                                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${product.inStock ? 'text-emerald-600' : 'text-zinc-500'}`}>
-                                            {product.inStock ? 'Disponible' : 'Sin stock'}
-                                        </span>
+                                        {product.stockStatus ? (
+                                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.2em] ${product.stockStatus.bg} ${product.stockStatus.tone}`}>
+                                                {product.stockStatus.label}
+                                            </span>
+                                        ) : <span />}
                                         <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: colors.accentColor }}>
                                             Premium
                                         </span>
@@ -102,9 +108,21 @@ export default function FeaturedProductsLuxury({
                                         {product.name}
                                     </button>
 
-                                    <p className="mt-2 text-lg font-semibold" style={{ color: colors.priceColor }}>
-                                        {product.displayPrice}
-                                    </p>
+                                    <div className="mt-2">
+                                        {showPricesEnabled ? (
+                                            canViewPrices ? (
+                                                <p className="text-lg font-semibold" style={{ color: colors.priceColor }}>
+                                                    {product.displayPrice}
+                                                </p>
+                                            ) : authLoading ? (
+                                                <p className="text-sm font-medium text-[#8a7560]">Cargando precio...</p>
+                                            ) : (
+                                                <PriceAccessPrompt compact />
+                                            )
+                                        ) : (
+                                            <p className="text-sm font-medium text-[#8a7560]">Consultar precio</p>
+                                        )}
+                                    </div>
 
                                     <button
                                         type="button"
@@ -120,7 +138,7 @@ export default function FeaturedProductsLuxury({
                                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1 6h12M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" />
                                         </svg>
-                                        {product.inStock ? 'Agregar al carrito' : 'Agotado'}
+                                        {product.inStock ? 'Agregar al carrito' : 'Sin stock'}
                                     </button>
                                 </div>
                             </article>

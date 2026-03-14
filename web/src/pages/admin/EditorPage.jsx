@@ -134,7 +134,27 @@ const normalizeColorInputValue = (value, fallback = '#000000') => {
 };
 
 export default function EditorPage() {
-    const [activeTab, setActiveTab] = useState('home');
+    const getInitialTab = () => {
+        if (typeof window === 'undefined') return 'home';
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            const allowedTabs = new Set([
+                'home',
+                'about',
+                'appearance',
+                'catalog',
+                'pricing',
+                'checkout',
+                'users',
+                'tenants',
+            ]);
+            return allowedTabs.has(tab) ? tab : 'home';
+        } catch (err) {
+            return 'home';
+        }
+    };
+    const [activeTab, setActiveTab] = useState(getInitialTab);
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [brands, setBrands] = useState([]);

@@ -2,6 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { navigate } from "../../utils/navigation";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
+import {
+    getBillingDocumentLabel,
+    getBillingVatLabel,
+    hasBillingInfo,
+    normalizeBillingInfo,
+} from "../../utils/billing";
 
 export default function OrderSuccessPage() {
     const [order, setOrder] = useState(null);
@@ -9,6 +15,9 @@ export default function OrderSuccessPage() {
         mode: "both",
         whatsapp_number: "",
         bank_transfer: {},
+        customer_order_processing_label: "En proceso",
+        customer_order_processing_text: "Tu pedido fue recibido y se encuentra en proceso.",
+        admin_order_confirmation_label: "En confirmacion",
     });
     const [proofFile, setProofFile] = useState(null);
     const [proofUploading, setProofUploading] = useState(false);
@@ -43,6 +52,9 @@ export default function OrderSuccessPage() {
                     mode: data.mode || "both",
                     whatsapp_number: data.whatsapp_number || "",
                     bank_transfer: data.bank_transfer || {},
+                    customer_order_processing_label: data.customer_order_processing_label || "En proceso",
+                    customer_order_processing_text: data.customer_order_processing_text || "Tu pedido fue recibido y se encuentra en proceso.",
+                    admin_order_confirmation_label: data.admin_order_confirmation_label || "En confirmacion",
                 });
             } catch (err) {
                 if (!active) return;
@@ -57,25 +69,49 @@ export default function OrderSuccessPage() {
             active = false;
         };
     }, []);
+    const contactChannelLabel = useMemo(
+        () => (order?.contactChannel === "email" ? "Gmail" : "WhatsApp"),
+        [order]
+    );
+    const emailTarget = order?.emailDelivery?.email || order?.customerEmail || "";
+    const emailSent = order?.emailDelivery?.sent === true;
+    const emailFailed = Boolean(emailTarget) && order?.emailDelivery?.sent === false;
     const title = useMemo(() => {
-        if (order?.method === "whatsapp") return "Pedido exitoso";
         if (order?.method === "transfer") return "Pedido pendiente de pago";
+        if (order?.contactChannel === "email") return "Pedido enviado por email";
         return "Pedido confirmado";
     }, [order]);
     const subtitle = useMemo(() => {
-        if (order?.method === "whatsapp") {
-            return "Proseguiremos por WhatsApp. Gracias por tu compra, estamos armando tu pedido.";
-        }
+        const customCustomerText =
+            String(checkoutConfig.customer_order_processing_text || "").trim() ||
+            "Tu pedido fue recibido y se encuentra en proceso.";
         if (order?.method === "transfer") {
-            return "Realiza la transferencia y sube tu comprobante para acelerar la validacion.";
+            if (emailSent && emailTarget) {
+                return `${customCustomerText} Tambien enviamos el detalle a ${emailTarget}. Realiza la transferencia y sube tu comprobante para acelerar la validacion.`;
+            }
+            return `${customCustomerText} Realiza la transferencia y sube tu comprobante para acelerar la validacion.`;
         }
-        return "Gracias por tu compra.";
-    }, [order]);
+        if (order?.contactChannel === "email") {
+            return emailSent && emailTarget
+                ? `${customCustomerText} Te enviamos la confirmacion del pedido a ${emailTarget}.`
+                : `${customCustomerText} Tu pedido quedo registrado y se intentara notificar por email.`;
+        }
+        if (emailSent && emailTarget) {
+            return `${customCustomerText} Puedes continuar por WhatsApp. Tambien enviamos una copia del pedido a ${emailTarget}.`;
+        }
+        return customCustomerText;
+    }, [checkoutConfig.customer_order_processing_text, emailSent, emailTarget, order]);
 
     const items = Array.isArray(order?.items) ? order.items : [];
+    const billingInfo = useMemo(
+        () => normalizeBillingInfo(order?.customer || order?.billing || {}),
+        [order]
+    );
+    const showBillingInfo = useMemo(() => hasBillingInfo(billingInfo), [billingInfo]);
 
     const shouldShowProof = order?.method === "transfer";
     const showTransferData = order?.method === "transfer";
+    const showWhatsappAction = Boolean(order?.whatsappUrl) && (order?.contactChannel === "whatsapp" || emailFailed || shouldShowProof);
 
     const transferData = order?.bankTransfer || checkoutConfig.bank_transfer || {};
     const alias = transferData.alias || "";
@@ -179,6 +215,24 @@ export default function OrderSuccessPage() {
                         </div>
                     ) : null}
 
+                    <div className="text-sm text-[#8a7560]">
+                        Canal del pedido: {contactChannelLabel}
+                    </div>
+
+                    {emailTarget ? (
+                        <div
+                            className={`rounded-lg border px-4 py-3 text-sm ${
+                                emailSent
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-amber-200 bg-amber-50 text-amber-700"
+                            }`}
+                        >
+                            {emailSent
+                                ? `Confirmacion enviada a ${emailTarget}.`
+                                : `No pudimos confirmar el email a ${emailTarget} en este intento.`}
+                        </div>
+                    ) : null}
+
                     {showTransferData ? (
                         <div className="mt-4 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-4 text-left space-y-3">
                             <p className="text-sm font-bold text-[#181411] dark:text-white">
@@ -258,6 +312,29 @@ export default function OrderSuccessPage() {
                         </div>
                     ) : null}
 
+                    {showBillingInfo ? (
+                        <div className="mt-6 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] p-4 text-left space-y-2">
+                            <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                Datos de facturacion
+                            </p>
+                            <p className="text-sm text-[#181411] dark:text-white">
+                                Razon social: <span className="font-semibold">{billingInfo.businessName || "-"}</span>
+                            </p>
+                            <p className="text-sm text-[#181411] dark:text-white">
+                                Direccion: <span className="font-semibold">{billingInfo.address || "-"}</span>
+                            </p>
+                            <p className="text-sm text-[#181411] dark:text-white">
+                                Localidad: <span className="font-semibold">{billingInfo.city || "-"}</span>
+                            </p>
+                            <p className="text-sm text-[#181411] dark:text-white">
+                                Tipo de IVA: <span className="font-semibold">{getBillingVatLabel(billingInfo.vatType)}</span>
+                            </p>
+                            <p className="text-sm text-[#181411] dark:text-white">
+                                {getBillingDocumentLabel(billingInfo.documentType)}: <span className="font-semibold">{billingInfo.documentNumber || "-"}</span>
+                            </p>
+                        </div>
+                    ) : null}
+
                     {shouldShowProof ? (
                         <div className="mt-6 text-left space-y-3">
                             <p className="text-sm font-bold text-[#181411] dark:text-white">
@@ -296,18 +373,13 @@ export default function OrderSuccessPage() {
                     ) : null}
 
                     <div className="flex flex-col md:flex-row gap-3 justify-center pt-4">
-                    {order?.whatsappUrl ? (
+                    {showWhatsappAction ? (
                         <button
                             type="button"
-                            onClick={() => {
-                                const url = order.method === "whatsapp"
-                                    ? order.whatsappUrl
-                                    : order.whatsappReceiptUrl || order.whatsappUrl;
-                                window.open(url, "_blank", "noopener,noreferrer");
-                            }}
+                            onClick={() => window.open(order.whatsappReceiptUrl || order.whatsappUrl, "_blank", "noopener,noreferrer")}
                             className="px-5 h-11 rounded-lg bg-green-600 text-white font-bold"
                         >
-                            Continuar por WhatsApp
+                            {order?.contactChannel === "whatsapp" ? "Continuar por WhatsApp" : "Usar WhatsApp como alternativa"}
                         </button>
                     ) : null}
                         <button

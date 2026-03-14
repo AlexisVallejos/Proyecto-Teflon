@@ -2,7 +2,7 @@ export const HERO_VARIANT_OPTIONS = [
     { value: 'classic', label: 'Clasico (actual)' },
     { value: 'fashion', label: 'Fashion' },
     { value: 'home_decor', label: 'Home Decor' },
-    { value: 'sanitarios_industrial', label: 'Sanitarios Industrial' },
+    { value: 'sanitarios_industrial', label: 'Industrial Showcase' },
 ];
 
 export const HERO_COLOR_FIELDS = {
@@ -111,16 +111,16 @@ const HOME_DECOR_DEFAULT_SLIDES = [
 const SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES = [
     {
         label: 'Industrial Series',
-        title: 'DUCHA',
-        subtitle: 'PREMIUM',
-        description: 'Precision tecnica y durabilidad extrema en cada componente.',
-        featured: 'Sanitarios El Teflon',
-        cardEyebrow: 'Master Dealer',
-        cardTitle: 'Sanitarios El Teflon',
-        specLabel: 'Spec: Chrome_04 // 2024',
+        title: 'PRODUCTO',
+        subtitle: 'DESTACADO',
+        description: 'Presencia visual fuerte y detalles tecnicos para lanzamientos de alto impacto.',
+        featured: 'Marca principal',
+        cardEyebrow: 'Edicion especial',
+        cardTitle: 'Nombre de marca',
+        specLabel: 'Spec: Model_01 // 2026',
         image:
             'https://lh3.googleusercontent.com/aida-public/AB6AXuCtrx3pTyYlPgB-m5Qu8uUwctQeJRkUAX5nF4uBy2EZwom64tlIa_jjJvKQZoFhDcseM0gZGo98GRYEGNf2hmNgD_EbPbEoOxG5vWrWAiXYIIWF2p48XGa626y2T8Xfxt5AK9C4upAWDExfCK11CrcPsFqDSnlQ5hTkj0bxFygNWYkKXfJXjpiX4QTnbkzXxUTP1V14BbbMtMm6kle200TQd25KHbu1zdec36SSAutjvA0O9VIiku54n_VWSvD0qL0kXDAiOZKDahg',
-        primaryButtonLabel: 'SHOP NOW',
+        primaryButtonLabel: 'VER MAS',
         primaryButtonLink: '/catalog',
         secondaryButtonLabel: '',
         secondaryButtonLink: '',

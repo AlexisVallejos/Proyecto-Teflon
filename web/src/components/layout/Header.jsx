@@ -6,7 +6,7 @@ import { isExternalPath, navigate, normalizeInternalPath } from "../../utils/nav
 import { getApiBase, getTenantHeaders } from "../../utils/api";
 
 const DEFAULT_PLACEHOLDER = "Buscá tu producto";
-const HIDDEN_TOPICS = new Set(["buscador de tapas", "donde comprar", "mis proyectos"]);
+const HIDDEN_TOPICS = new Set(["buscador de tapas", "donde comprar", "mis proyectos", "messi"]);
 
 const normalizeLabel = (value) =>
   String(value || "")
@@ -142,6 +142,7 @@ export default function Header({
           const normalizedCategories = Array.isArray(categoriesData)
             ? categoriesData
                 .filter((item) => item && item.id && item.name)
+                .filter((item) => !HIDDEN_TOPICS.has(normalizeLabel(item.name)))
                 .map((item) => ({
                   id: item.id,
                   name: item.name,
@@ -157,6 +158,7 @@ export default function Header({
           const normalizedBrands = Array.isArray(brandsData)
             ? brandsData
                 .filter((item) => typeof item === "string" && item.trim())
+                .filter((item) => !HIDDEN_TOPICS.has(normalizeLabel(item)))
                 .map((item) => item.trim())
             : [];
           setCatalogBrands(normalizedBrands);

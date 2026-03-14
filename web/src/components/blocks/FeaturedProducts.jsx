@@ -1,9 +1,11 @@
 import React, { useMemo } from "react";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
+import { useAuth } from "../../context/AuthContext";
 import ProductCard from "../ProductCard";
 import { navigate } from "../../utils/navigation";
 import { formatCurrency } from "../../utils/format";
+import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 import FeaturedProductsModern from "./FeaturedProductsModern";
 import FeaturedProductsHighEnergy from "./FeaturedProductsHighEnergy";
 import FeaturedProductsLuxury from "./FeaturedProductsLuxury";
@@ -97,8 +99,13 @@ export default function FeaturedProducts({
 }) {
   const { search, addToCart } = useStore();
   const { settings } = useTenant();
+  const { user, loading: authLoading } = useAuth();
   const currency = settings?.commerce?.currency || "ARS";
   const locale = settings?.commerce?.locale || "es-AR";
+  const showPricesEnabled = settings?.commerce?.show_prices !== false;
+  const canViewPrices = showPricesEnabled && !!user;
+  const showStock = settings?.commerce?.show_stock !== false;
+  const lowStockThreshold = getLowStockThreshold(settings);
   const selectedVariant = normalizeFeaturedVariant(variant);
 
   const visibleProducts = useMemo(() => {
@@ -111,8 +118,10 @@ export default function FeaturedProducts({
   const variantProducts = useMemo(() => {
     return visibleProducts.map((item, index) => {
       const rawPrice = Number(item?.price || 0);
-      const stockNumber = Number(item?.stock);
-      const inStock = Number.isFinite(stockNumber) ? stockNumber > 0 : true;
+      const stockValue = typeof item?.stock === "number" ? item.stock : Number(item?.stock);
+      const stock = Number.isFinite(stockValue) ? stockValue : undefined;
+      const inStock = isInStock(stock);
+      const stockStatus = showStock ? getStockStatus(stock, lowStockThreshold) : null;
       const id = item?.id || item?.sku || `featured-${index}`;
       const displayPrice = Number.isFinite(rawPrice)
         ? formatCurrency(rawPrice, currency, locale)
@@ -124,6 +133,8 @@ export default function FeaturedProducts({
         alt: item?.alt || item?.name || "Producto",
         image,
         inStock,
+        stock,
+        stockStatus,
         displayPrice,
         badgeText: item?.badge?.text || (item?.is_featured ? "Destacado" : ""),
         cartPayload: {
@@ -133,11 +144,11 @@ export default function FeaturedProducts({
           price: Number.isFinite(rawPrice) ? rawPrice : 0,
           image,
           alt: item?.alt || item?.name || "Producto",
-          stock: Number.isFinite(stockNumber) ? stockNumber : 0,
+          stock,
         },
       };
     });
-  }, [visibleProducts, currency, locale]);
+  }, [visibleProducts, currency, locale, showStock, lowStockThreshold]);
 
   const openProduct = (product) => {
     if (!product?.id || !isUuid(product.id)) return;
@@ -161,6 +172,9 @@ export default function FeaturedProducts({
         styles={normalizeFeaturedStyles("modern", styles)}
         onOpenProduct={openProduct}
         onAddToCart={addProductToCart}
+        showPricesEnabled={showPricesEnabled}
+        canViewPrices={canViewPrices}
+        authLoading={authLoading}
       />
     );
   }
@@ -176,6 +190,9 @@ export default function FeaturedProducts({
         styles={normalizeFeaturedStyles("high_energy", styles)}
         onOpenProduct={openProduct}
         onAddToCart={addProductToCart}
+        showPricesEnabled={showPricesEnabled}
+        canViewPrices={canViewPrices}
+        authLoading={authLoading}
       />
     );
   }
@@ -191,6 +208,9 @@ export default function FeaturedProducts({
         styles={normalizeFeaturedStyles("luxury", styles)}
         onOpenProduct={openProduct}
         onAddToCart={addProductToCart}
+        showPricesEnabled={showPricesEnabled}
+        canViewPrices={canViewPrices}
+        authLoading={authLoading}
       />
     );
   }

@@ -3,14 +3,16 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { pool } from '../db.js';
 import { authenticate, signToken } from '../middleware/auth.js';
+import {
+  getEmailCompanyName,
+  normalizeDisplayName,
+  normalizeEmailInput,
+  sendSmtpEmail,
+} from '../services/mailer.js';
 
 export const authRouter = express.Router();
 const VERIFICATION_CODE_TTL_MINUTES = Math.max(5, Number(process.env.EMAIL_VERIFICATION_TTL_MINUTES || 15));
 const VERIFICATION_MAX_ATTEMPTS = Math.max(3, Number(process.env.EMAIL_VERIFICATION_MAX_ATTEMPTS || 5));
-
-function normalizeEmailInput(email) {
-  return String(email || '').trim().toLowerCase();
-}
 
 async function ensureEmailVerificationSchema() {
   await pool.query('alter table users add column if not exists email_verified_at timestamptz');
@@ -43,28 +45,7 @@ function hashVerificationCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
 }
 
-function normalizeDisplayName(name) {
-  const trimmed = String(name || '').trim();
-  if (!trimmed) return '';
-  return trimmed.slice(0, 80);
-}
-
-function getEmailCompanyName() {
-  const value = String(
-    process.env.EMAIL_COMPANY_NAME ||
-    process.env.APP_NAME ||
-    'Sanitarios El Teflon'
-  ).trim();
-  return value || 'Sanitarios El Teflon';
-}
-
 async function sendVerificationEmail(email, code, recipientName = '') {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpPort = Number(process.env.SMTP_PORT || 587);
-  const smtpSecure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
-  const fromAddress = process.env.SMTP_FROM || smtpUser || 'no-reply@teflon.local';
   const companyName = getEmailCompanyName();
   const safeName = normalizeDisplayName(recipientName);
   const greetingLine = safeName ? `Hola, ${safeName}:` : 'Hola:';
@@ -96,44 +77,18 @@ async function sendVerificationEmail(email, code, recipientName = '') {
     `<p>El equipo de ${companyName}</p>`,
   ].join('');
 
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    console.log(`[email-verification] SMTP no configurado. Codigo para ${email}: ${code}`);
-    return { sent: false, provider: 'log' };
-  }
+  const delivery = await sendSmtpEmail({
+    to: email,
+    subject,
+    text: textBody,
+    html: htmlBody,
+    logPrefix: 'email-verification',
+  });
 
-  try {
-    const nodemailerModule = await import('nodemailer').catch(() => null);
-    const nodemailer = nodemailerModule?.default || nodemailerModule;
-    if (!nodemailer?.createTransport) {
-      console.warn('[email-verification] nodemailer no disponible. Se usa fallback por consola.');
-      console.log(`[email-verification] Codigo para ${email}: ${code}`);
-      return { sent: false, provider: 'log' };
-    }
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
-
-    await transporter.sendMail({
-      from: fromAddress,
-      to: email,
-      subject,
-      text: textBody,
-      html: htmlBody,
-    });
-
-    return { sent: true, provider: 'smtp' };
-  } catch (err) {
-    console.error('[email-verification] Error enviando email', err);
+  if (!delivery.sent) {
     console.log(`[email-verification] Codigo para ${email}: ${code}`);
-    return { sent: false, provider: 'smtp_error' };
   }
+  return delivery;
 }
 
 async function issueEmailVerificationCode(userId, email, recipientName = '') {

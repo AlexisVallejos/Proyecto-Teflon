@@ -7,6 +7,7 @@ import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
+import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 
 const getCategoryFromUrl = () => {
     const params = new URLSearchParams(window.location.search || "");
@@ -23,10 +24,11 @@ const getBrandFromUrl = () => {
 export default function CatalogPage() {
     const { search, showToast } = useStore();
     const { settings } = useTenant();
-    const { isWholesale } = useAuth();
+    const { isWholesale, user, loading: authLoading } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
-    const showPrices = settings?.commerce?.show_prices !== false;
+    const showPricesEnabled = settings?.commerce?.show_prices !== false;
+    const canViewPrices = showPricesEnabled && !!user;
     const showStock = settings?.commerce?.show_stock !== false;
     const lowStockThreshold = getLowStockThreshold(settings);
 
@@ -388,7 +390,9 @@ export default function CatalogPage() {
                                             <CatalogProductCard
                                                 key={p.id}
                                                 product={p}
-                                                showPrices={showPrices}
+                                                showPricesEnabled={showPricesEnabled}
+                                                canViewPrices={canViewPrices}
+                                                authLoading={authLoading}
                                                 currency={currency}
                                                 locale={locale}
                                                 showStock={showStock}
@@ -454,7 +458,7 @@ export default function CatalogPage() {
     );
 }
 
-function CatalogProductCard({ product, showPrices, currency, locale, showStock, lowStockThreshold, onFavoriteChange }) {
+function CatalogProductCard({ product, showPricesEnabled, canViewPrices, authLoading, currency, locale, showStock, lowStockThreshold, onFavoriteChange }) {
     const { addToCart, toggleFavorite, isFavorite } = useStore();
     const { name, desc, price, oldPrice, tag, image, alt, stock } = product;
     const favoriteActive = isFavorite(product.id);
@@ -532,7 +536,8 @@ function CatalogProductCard({ product, showPrices, currency, locale, showStock, 
 
                 <div className="flex items-center justify-between mt-2">
                     <div className="flex flex-col">
-                        {showPrices ? (
+                        {showPricesEnabled ? (
+                            canViewPrices ? (
                             <>
                                 <span className="text-primary font-black text-xl">
                                     {formatCurrency(price, currency, locale)}
@@ -552,6 +557,11 @@ function CatalogProductCard({ product, showPrices, currency, locale, showStock, 
                                     </span>
                                 ) : null}
                             </>
+                            ) : authLoading ? (
+                                <span className="text-[#8a7560] text-sm">Cargando precio...</span>
+                            ) : (
+                                <PriceAccessPrompt compact />
+                            )
                         ) : (
                             <span className="text-[#8a7560] text-sm">Consultar precio</span>
                         )}

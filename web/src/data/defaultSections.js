@@ -5,11 +5,11 @@ export const DEFAULT_HOME_SECTIONS = [
         enabled: true,
         props: {
             variant: 'classic',
-            title: 'Nuevo Hero',
-            subtitle: 'Descripción aquí',
+            title: 'Nuevo lanzamiento',
+            subtitle: 'Presenta tu propuesta principal con un mensaje claro y adaptable a cualquier rubro.',
             tag: 'Novedad',
-            primaryButton: { label: 'Ver más', link: '/catalog' },
-            secondaryButton: { label: 'Ver catálogo', link: '/catalog' },
+            primaryButton: { label: 'Ver mas', link: '/catalog' },
+            secondaryButton: { label: 'Ver catalogo', link: '/catalog' },
             styles: { alignment: 'center', overlayOpacity: '0.6' },
         },
     },
@@ -20,8 +20,8 @@ export const DEFAULT_HOME_SECTIONS = [
         props: {
             variant: 'classic',
             title: 'Destacados',
-            subtitle: 'Lo mejor de nuestra tienda',
-            ctaLabel: 'Ver catálogo',
+            subtitle: 'Una seleccion pensada para mostrar lo mejor de tu marca.',
+            ctaLabel: 'Ver catalogo',
             ctaLink: '/catalog',
             styles: { alignment: 'items-end justify-between' },
         },
@@ -31,11 +31,11 @@ export const DEFAULT_HOME_SECTIONS = [
         type: 'Services',
         enabled: true,
         props: {
-            title: 'Nuestros Servicios',
-            subtitle: 'Descripción de servicios',
+            title: 'Nuestros servicios',
+            subtitle: 'Beneficios que se adaptan a distintos modelos de negocio.',
             items: [
-                { icon: 'package', title: 'Envío gratis', text: 'En compras mayores a $50.000' },
-                { icon: 'shield', title: 'Garantía', text: '6 meses de garantía oficial' },
+                { icon: 'package', title: 'Entrega flexible', text: 'Opciones de envio y retiro segun tu operacion.' },
+                { icon: 'shield', title: 'Soporte confiable', text: 'Acompanamiento antes y despues de cada compra.' },
             ],
         },
     },
@@ -50,7 +50,7 @@ export const DEFAULT_ABOUT_SECTIONS = [
             tagline: 'Desde 2014',
             title: 'Nuestra historia',
             description:
-                'Definimos excelencia en soluciones sanitarias premium. Descubrí la trayectoria y el detalle que nos distingue.',
+                'Construimos experiencias de compra pensadas para marcas que quieren crecer con identidad propia y una comunicacion clara.',
             primaryButton: { label: 'Ver colecciones', link: '/catalog' },
             secondaryButton: { label: 'Conocer al equipo', link: '#equipo' },
             backgroundImage:
@@ -69,19 +69,19 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutMission',
         enabled: true,
         props: {
-            eyebrow: 'Nuestro propósito',
-            title: 'La misión',
+            eyebrow: 'Nuestro proposito',
+            title: 'La mision',
             paragraphs: [
-                'Creemos que la base de cada proyecto está en los detalles que no se ven. Combinamos ingeniería avanzada y materiales premium para soluciones que duran.',
-                'Desde reformas residenciales hasta desarrollos comerciales, ofrecemos sanitarios que equilibran diseño y resistencia.',
+                'Creemos que una buena marca se construye con consistencia, claridad y una experiencia simple para cada cliente.',
+                'Acompanamos a negocios de distintos rubros con catalogos flexibles, una presentacion cuidada y una tienda facil de gestionar.',
             ],
             highlights: [
-                { icon: 'verified', title: 'Calidad certificada', text: 'Procesos con estándares ISO 9001.' },
-                { icon: 'eco', title: 'Eco innovación', text: 'Tecnología para ahorro de agua.' },
+                { icon: 'verified', title: 'Calidad constante', text: 'Procesos ordenados y foco en cada detalle.' },
+                { icon: 'eco', title: 'Mejora continua', text: 'Ajustes practicos para vender mejor.' },
             ],
             image:
                 'https://lh3.googleusercontent.com/aida-public/AB6AXuDaDIcmwXvGopChH4z2NtypzPKEOIJB5DIz-cix6aLVUAg6015AqowjMQbKKJ273hv-K-Mdeeq78GFd-8Wt2hah0kOFgDkEGW24otJ-Yqrdn019S_zxUM4qMhyJ0sXG12Fr-Nk9EA4ZnVoQXzs0ZTjGJtuHBj_cdqJ4Z-i7TOx-wRo3JuBOyDsruX5utjj00tVbmE0sUIiRoPxHOH4_ohJ25dVPm0jFLFwKMx0fn7DC6IGRbByTaUUBATc5XDKzCDFZBcDdlv3kpB4',
-            imageAlt: 'Profesional revisando fittings de calidad',
+            imageAlt: 'Equipo trabajando en una propuesta de marca',
             styles: {
                 accentColor: '#f27f0d',
                 backgroundColor: '#ffffff',
@@ -96,9 +96,9 @@ export const DEFAULT_ABOUT_SECTIONS = [
         enabled: true,
         props: {
             items: [
-                { value: '10+', label: 'Años de experiencia', accent: true },
+                { value: '10+', label: 'Anos de experiencia', accent: true },
                 { value: '5k+', label: 'Clientes satisfechos' },
-                { value: '2', label: 'Sucursales' },
+                { value: '2', label: 'Canales activos' },
                 { value: '24/7', label: 'Soporte al cliente' },
             ],
             styles: {
@@ -119,17 +119,17 @@ export const DEFAULT_ABOUT_SECTIONS = [
                 {
                     icon: 'quality',
                     title: 'Calidad',
-                    description: 'Procesos rigurosos y materiales premium para cada componente.',
+                    description: 'Cuidamos la presentacion, la experiencia y la consistencia en cada punto de contacto.',
                 },
                 {
                     icon: 'commitment',
                     title: 'Compromiso',
-                    description: 'Acompañamos cada proyecto con soporte real y cercano.',
+                    description: 'Acompanamos cada proyecto con soporte real, claro y cercano.',
                 },
                 {
                     icon: 'innovation',
-                    title: 'Innovación',
-                    description: 'Buscamos nuevas soluciones para diseños modernos y eficientes.',
+                    title: 'Innovacion',
+                    description: 'Probamos nuevas ideas para mejorar la tienda y la forma de vender.',
                 },
             ],
             styles: {
@@ -147,11 +147,11 @@ export const DEFAULT_ABOUT_SECTIONS = [
         enabled: true,
         props: {
             anchor: 'equipo',
-            title: 'Precisión e inspiración en cada detalle.',
+            title: 'Ideas claras y ejecucion consistente.',
             quote:
-                'Nuestro trabajo no es solo sobre sanitarios, es sobre la seguridad y el confort de cada hogar. Cada unión cuenta.',
-            author: 'Julian Sterling',
-            role: 'Fundador y jefe de ingeniería',
+                'Nuestro trabajo no es solo vender productos: es ayudar a que cada marca se presente mejor, ordene su oferta y conecte con sus clientes.',
+            author: 'Alex Morgan',
+            role: 'Fundador y direccion general',
             avatarImage:
                 'https://lh3.googleusercontent.com/aida-public/AB6AXuAea9Hk8KW-uNz2oCLHAOeVLaF4OEuHrLoMYAQ5icf0UpW2MbWEoppeOoK7-_ef46vSPLm9bOZn19yxGPkKgbqwzNxdl8pCXwjX84M0rsOM-14FdHnwu8rzaIZR1UJSvo2LVbbFvgWP_nntPKbU-nmwnPjWuzy9XiXqlmi62Yw8p6R5XWHQoEjxiw4mfhRuljOaKyPWkvPFELxYq8TKyXzDzeOlvj5ntTgVpCWOshfxNK3WLIQvRk7FstFclk10_lOYekLKXyXKEYA',
             backgroundImage:
@@ -169,7 +169,7 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutCTA',
         enabled: true,
         props: {
-            title: 'Listo para tu próximo proyecto?',
+            title: 'Listo para llevar tu marca al siguiente nivel?',
             primaryLink: { label: 'Ver productos', link: '/catalog' },
             secondaryLink: { label: 'Contactar ventas', link: '/#contacto' },
             styles: {
@@ -181,5 +181,3 @@ export const DEFAULT_ABOUT_SECTIONS = [
         },
     },
 ];
-
-

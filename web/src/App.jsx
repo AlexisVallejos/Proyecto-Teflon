@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { TenantProvider } from './context/TenantContext';
+import { ToastProvider } from './context/ToastContext';
 import { StoreProvider } from './context/StoreContext';
-
 import { ThemeProvider } from './context/ThemeContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
-// Import pages from new structure
+// Store pages
 import HomePage from './pages/store/HomePage';
 import CatalogPage from './pages/store/CatalogPage';
 import CartPage from './pages/store/CartPage';
@@ -16,9 +18,11 @@ import SignupPage from './pages/store/SignupPage';
 import ProfilePage from './pages/store/ProfilePage';
 import OrderSuccessPage from './pages/store/OrderSuccessPage';
 import OrderDetailPage from './pages/store/OrderDetailPage';
+
+// Admin pages
 import EditorPage from './pages/admin/EditorPage';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import ErrorBoundary from './components/ErrorBoundary';
+import EvolutionAdmin from './pages/admin/evolution/EvolutionAdmin';
+import PreviewPage from './pages/admin/evolution/PreviewPage';
 
 function AppContent() {
     const [route, setRoute] = useState(window.location.pathname);
@@ -27,10 +31,9 @@ function AppContent() {
     useEffect(() => {
         const handleLocationChange = () => setRoute(window.location.pathname);
 
-        // Listen for browser back/forward buttons
+        // Browser back/forward
         window.addEventListener('popstate', handleLocationChange);
-
-        // Listen for custom navigation events
+        // Custom navigation events
         window.addEventListener('navigate', handleLocationChange);
 
         return () => {
@@ -40,7 +43,12 @@ function AppContent() {
     }, []);
 
     let Component = HomePage;
-    if (route === '/admin') {
+    const isPreviewRoute = route === '/admin/preview';
+    const isAdminRoute = route === '/admin' || route === '/admin/evolution' || route === '/admin/legacy';
+
+    if (isPreviewRoute) {
+        Component = PreviewPage;
+    } else if (isAdminRoute) {
         if (authLoading) {
             Component = () => (
                 <div className="min-h-screen flex items-center justify-center text-sm text-[#8a7560]">
@@ -48,7 +56,7 @@ function AppContent() {
                 </div>
             );
         } else if (isAdmin) {
-            Component = EditorPage;
+            Component = route === '/admin/legacy' ? EditorPage : EvolutionAdmin;
         } else if (user) {
             Component = ProfilePage;
         } else {
@@ -78,13 +86,15 @@ function App() {
     return (
         <AuthProvider>
             <TenantProvider>
-                <StoreProvider>
-                    <ThemeProvider>
-                        <ErrorBoundary>
-                            <AppContent />
-                        </ErrorBoundary>
-                    </ThemeProvider>
-                </StoreProvider>
+                <ToastProvider>
+                    <StoreProvider>
+                        <ThemeProvider>
+                            <ErrorBoundary>
+                                <AppContent />
+                            </ErrorBoundary>
+                        </ThemeProvider>
+                    </StoreProvider>
+                </ToastProvider>
             </TenantProvider>
         </AuthProvider>
     );

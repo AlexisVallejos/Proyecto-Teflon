@@ -1,6 +1,7 @@
 import React from 'react';
 import { navigate } from '../../utils/navigation';
 import { normalizeFeaturedStyles } from '../../data/featuredProductsTemplates';
+import PriceAccessPrompt from '../PriceAccessPrompt';
 
 const openLink = (value) => {
     if (!value) return;
@@ -20,6 +21,9 @@ export default function FeaturedProductsModern({
     styles = {},
     onAddToCart,
     onOpenProduct,
+    showPricesEnabled = true,
+    canViewPrices = true,
+    authLoading = false,
 }) {
     const colors = normalizeFeaturedStyles('modern', styles);
 
@@ -77,9 +81,13 @@ export default function FeaturedProductsModern({
                                 </button>
 
                                 <div className="flex flex-col gap-3 p-4">
-                                    <span className={`inline-flex w-fit rounded px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${product.inStock ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                        {product.inStock ? 'Hay stock' : 'Sin stock'}
-                                    </span>
+                                    {product.stockStatus ? (
+                                        <span
+                                            className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${product.stockStatus.bg} ${product.stockStatus.tone}`}
+                                        >
+                                            {product.stockStatus.label}
+                                        </span>
+                                    ) : null}
                                     <button
                                         type="button"
                                         onClick={() => onOpenProduct?.(product)}
@@ -88,9 +96,19 @@ export default function FeaturedProductsModern({
                                     >
                                         {product.name}
                                     </button>
-                                    <p className="text-2xl font-black" style={{ color: colors.priceColor }}>
-                                        {product.displayPrice}
-                                    </p>
+                                    {showPricesEnabled ? (
+                                        canViewPrices ? (
+                                            <p className="text-2xl font-black" style={{ color: colors.priceColor }}>
+                                                {product.displayPrice}
+                                            </p>
+                                        ) : authLoading ? (
+                                            <p className="text-sm font-medium text-[#8a7560]">Cargando precio...</p>
+                                        ) : (
+                                            <PriceAccessPrompt compact />
+                                        )
+                                    ) : (
+                                        <p className="text-sm font-medium text-[#8a7560]">Consultar precio</p>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => onAddToCart?.(product)}
@@ -104,7 +122,7 @@ export default function FeaturedProductsModern({
                                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.3" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1 6h12M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" />
                                         </svg>
-                                        {product.inStock ? 'Agregar' : 'Agotado'}
+                                        {product.inStock ? 'Agregar al carrito' : 'Sin stock'}
                                     </button>
                                 </div>
                             </article>

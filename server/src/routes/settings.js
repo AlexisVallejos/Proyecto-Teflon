@@ -144,6 +144,15 @@ function normalizeCheckoutSettings(commerce = {}) {
     enabled_methods: methods,
     whatsapp_number: commerce.whatsapp_number || '',
     whatsapp_template: commerce.whatsapp_template || '',
+    order_notification_email: commerce.order_notification_email || commerce.email || '',
+    admin_order_confirmation_label: commerce.admin_order_confirmation_label || 'En confirmacion',
+    customer_order_processing_label: commerce.customer_order_processing_label || 'En proceso',
+    admin_order_confirmation_text:
+      commerce.admin_order_confirmation_text ||
+      'Tienes un pedido en confirmacion. Revisa el panel de usuarios y confirma la compra.',
+    customer_order_processing_text:
+      commerce.customer_order_processing_text ||
+      'Tu pedido fue recibido y se encuentra en proceso.',
     shipping_flat: toNumber(commerce.shipping_flat, 0),
     tax_rate: toNumber(commerce.tax_rate, 0),
     default_delivery: defaultDelivery,
@@ -162,6 +171,16 @@ function sanitizeCheckoutPayload(payload = {}) {
   const mode = ALLOWED_MODES.has(payload.mode) ? payload.mode : null;
   const whatsappNumber = payload.whatsapp_number != null ? String(payload.whatsapp_number).trim() : null;
   const whatsappTemplate = payload.whatsapp_template != null ? String(payload.whatsapp_template).trim() : null;
+  const orderNotificationEmail =
+    payload.order_notification_email != null ? String(payload.order_notification_email).trim() : null;
+  const adminOrderConfirmationLabel =
+    payload.admin_order_confirmation_label != null ? String(payload.admin_order_confirmation_label).trim() : null;
+  const customerOrderProcessingLabel =
+    payload.customer_order_processing_label != null ? String(payload.customer_order_processing_label).trim() : null;
+  const adminOrderConfirmationText =
+    payload.admin_order_confirmation_text != null ? String(payload.admin_order_confirmation_text).trim() : null;
+  const customerOrderProcessingText =
+    payload.customer_order_processing_text != null ? String(payload.customer_order_processing_text).trim() : null;
   const bankTransfer = payload.bank_transfer || {};
   const shippingZones = Array.isArray(payload.shipping_zones)
     ? normalizeShippingZones(payload.shipping_zones)
@@ -187,6 +206,11 @@ function sanitizeCheckoutPayload(payload = {}) {
     ...(normalizedMode ? { checkout_mode: normalizedMode } : {}),
     ...(whatsappNumber !== null ? { whatsapp_number: whatsappNumber } : {}),
     ...(whatsappTemplate !== null ? { whatsapp_template: whatsappTemplate } : {}),
+    ...(orderNotificationEmail !== null ? { order_notification_email: orderNotificationEmail } : {}),
+    ...(adminOrderConfirmationLabel !== null ? { admin_order_confirmation_label: adminOrderConfirmationLabel } : {}),
+    ...(customerOrderProcessingLabel !== null ? { customer_order_processing_label: customerOrderProcessingLabel } : {}),
+    ...(adminOrderConfirmationText !== null ? { admin_order_confirmation_text: adminOrderConfirmationText } : {}),
+    ...(customerOrderProcessingText !== null ? { customer_order_processing_text: customerOrderProcessingText } : {}),
     ...(methods ? { payment_methods: methods } : {}),
     ...(taxRate !== null ? { tax_rate: taxRate } : {}),
     ...(shippingFlat !== null ? { shipping_flat: shippingFlat } : {}),

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
-import { navigate } from '../../utils/navigation';
+import { navigate, normalizeInternalPath } from '../../utils/navigation';
 
 export default function LoginPage() {
     const { login, verifyEmailCode, resendVerificationCode } = useAuth();
@@ -53,6 +53,14 @@ export default function LoginPage() {
         return rawEmail.toLowerCase() === 'admin' ? 'admin@teflon.local' : rawEmail.toLowerCase();
     };
 
+    const consumePostLoginRedirect = () => {
+        const pendingRedirect = sessionStorage.getItem('teflon_post_login_redirect');
+        if (!pendingRedirect) return false;
+        sessionStorage.removeItem('teflon_post_login_redirect');
+        navigate(normalizeInternalPath(pendingRedirect, '/profile'));
+        return true;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -60,6 +68,9 @@ export default function LoginPage() {
         try {
             const data = await login(email, password);
             const role = data?.user?.role;
+            if (consumePostLoginRedirect()) {
+                return;
+            }
             if (role === 'tenant_admin' || role === 'master_admin') {
                 navigate('/admin');
             } else {
@@ -127,7 +138,7 @@ export default function LoginPage() {
                 <div className="max-w-md w-full bg-white dark:bg-[#1a130c] p-10 rounded-2xl shadow-xl border border-[#e5e1de] dark:border-[#3d2f21]">
                     <div className="text-center mb-8">
                         <h2 className="text-3xl font-black text-[#181411] dark:text-white">Bienvenido</h2>
-                        <p className="text-[#8a7560] mt-2">Ingresá a tu cuenta mayorista o retail</p>
+                        <p className="text-[#8a7560] mt-2">Ingresa a tu cuenta mayorista o retail</p>
                     </div>
 
                     {error && (
@@ -154,13 +165,13 @@ export default function LoginPage() {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-[#181411] dark:text-white mb-2">Contraseña</label>
+                            <label className="block text-sm font-bold text-[#181411] dark:text-white mb-2">Contrasena</label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full px-4 py-3 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white"
-                                placeholder="••••••••"
+                                placeholder="********"
                                 required
                             />
                         </div>
@@ -170,7 +181,7 @@ export default function LoginPage() {
                             disabled={loading}
                             className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70"
                         >
-                            {loading ? 'Ingresando...' : 'Iniciar Sesión'}
+                            {loading ? 'Ingresando...' : 'Iniciar sesion'}
                         </button>
                     </form>
 
@@ -211,7 +222,7 @@ export default function LoginPage() {
 
                     <div className="mt-8 text-center">
                         <p className="text-[#8a7560] text-sm">
-                            ¿No tenés cuenta?{' '}
+                            No tienes cuenta?{' '}
                             <button
                                 onClick={() => navigate('/signup')}
                                 className="text-primary font-bold hover:underline"
