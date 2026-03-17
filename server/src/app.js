@@ -18,6 +18,7 @@ app.set('trust proxy', true);
 const corsOrigin = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN : true;
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const ADMIN_ROLES = ['tenant_admin', 'master_admin'];
 const disableAuth = process.env.DISABLE_AUTH === 'true';

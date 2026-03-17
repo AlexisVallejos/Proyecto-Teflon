@@ -23,6 +23,19 @@ Endpoint de prueba de conexion:
 
 `GET /api/v1/integrations/ping`
 
+## Capa de compatibilidad para sistemas de gestion
+
+Si el sistema de gestion solo permite configurar `Dominio`, `Consumer Key` y `Consumer Secret`, tambien puede usar esta capa:
+
+- `GET /api/v1/integrations/gestion/ping`
+- `POST /api/v1/integrations/gestion/producto`
+- `POST /api/v1/integrations/gestion/productos`
+
+Tambien existe alias tecnico:
+
+- `GET /api/v1/integrations/compat/ping`
+- `POST /api/v1/integrations/compat/products/sync`
+
 ## Autenticacion
 
 Headers requeridos:
@@ -42,6 +55,20 @@ Authorization: Bearer TU_TOKEN
 El token debe tener scope:
 
 `products:sync`
+
+### Compatibilidad Consumer Key / Secret
+
+Si el sistema no trabaja con headers custom, puede autenticarse con:
+
+- `consumer_key`
+- `consumer_secret`
+
+Formas aceptadas:
+
+- query string
+- body JSON
+- `application/x-www-form-urlencoded`
+- `Basic Auth`
 
 ## Datos de acceso de este tenant
 
@@ -65,6 +92,10 @@ Ejemplo de respuesta:
   "server_time": "2026-03-13T18:00:00.000Z"
 }
 ```
+
+Prueba de conexion en modo compatibilidad:
+
+`GET /api/v1/integrations/gestion/ping?consumer_key=TU_KEY&consumer_secret=TU_SECRET`
 
 ## Formato del request
 
@@ -90,6 +121,47 @@ Ejemplo de respuesta:
 }
 ```
 
+## Formato alternativo compatible con gestion
+
+El backend tambien acepta formatos mas cercanos a los nombres que suelen usar los sistemas de gestion:
+
+```json
+{
+  "source_system": "gestion-escritorio",
+  "producto": {
+    "codigo_propio": "666",
+    "detalle_ampliado": "ABLANDADOR AGUA AF1500 FLUVIAL",
+    "detalle_abreviado": "ABLANDADOR AGUA AF1500 FLUVIAL",
+    "texto_asociado": "Descripcion ampliada del articulo enviada por el sistema de gestion.",
+    "familia": "UUID_CATEGORIA_BOMBAS",
+    "precio": 1465583,
+    "mayorista": 0,
+    "disponibilidad": 12,
+    "activo": true,
+    "imagenes": [
+      "https://dominio-del-sistema.com/imagenes/666_1.jpg",
+      "https://dominio-del-sistema.com/imagenes/666_2.jpg"
+    ]
+  }
+}
+```
+
+Tambien se aceptan aliases como:
+
+- `codigo`, `codigo_propio`, `codigo_producto`
+- `titulo`, `detalle_ampliado`
+- `descripcion`, `texto_asociado`, `desc_ampliada`
+- `familia` si envia el UUID de categoria del ecommerce
+- `precio`, `precio_venta`, `precio_iva`
+- `mayorista`, `precio_mayorista`
+- `disponibilidad`, `stock_actual`
+- `activo`
+- `imagenes`, `imagen1..8`
+
+Nota:
+
+- si el sistema envia `familia`, `category` o `categoria`, el valor debe ser el UUID real de la categoria en el ecommerce, no el nombre.
+
 ## Campos soportados por item
 
 Campos recomendados:
@@ -104,6 +176,7 @@ Campos recomendados:
 - `brand`: marca.
 - `description`: descripcion base.
 - `images`: array de URLs o imagenes.
+- `category_id` o `category_ids`: UUID o UUIDs de categorias ya creadas en el ecommerce.
 
 Importante:
 
@@ -156,6 +229,7 @@ Ejemplo de mapeo:
 | `activo` | `is_active` |
 | `marca` | `brand` |
 | `descripcion` | `description` |
+| `familia` | `category_id` |
 | `imagen_url` | `images[0]` |
 
 ## Respuesta esperada
@@ -290,3 +364,5 @@ Luego cada fila debe transformarse a este formato:
 ## Texto corto para pasar al proveedor del sistema de gestion
 
 Necesitamos que el sistema de gestion lea productos desde su propia base de datos y los envie por API al ecommerce. El endpoint es `POST /api/v1/integrations/products/sync`. Deben enviar `x-api-key`, `x-tenant-id` y un JSON con `source_system` + `items`. Cada item debe incluir como minimo `external_id`, `sku`, `name`, `price_retail`, `stock` e `is_active`. El `external_id` debe ser estable y unico, porque se usa para crear o actualizar productos. No deben escribir directamente en la base del ecommerce; toda la integracion debe hacerse por API.
+
+Si su software solo permite configurar `Dominio`, `Consumer Key` y `Consumer Secret`, puede usar la capa de compatibilidad del ecommerce con `GET /api/v1/integrations/gestion/ping` y `POST /api/v1/integrations/gestion/producto` o `POST /api/v1/integrations/gestion/productos`.

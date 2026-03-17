@@ -64,6 +64,10 @@ const IntegrationsEditor = ({ manager }) => {
         () => JSON.stringify(manifest?.schema?.sample_payload || {}, null, 2),
         [manifest]
     );
+    const compatibilitySamplePayload = useMemo(
+        () => JSON.stringify(manifest?.compatibility?.sample_payload || {}, null, 2),
+        [manifest]
+    );
 
     if (loading && !manifest) {
         return (
@@ -151,6 +155,37 @@ const IntegrationsEditor = ({ manager }) => {
                             <p className="text-[11px] text-zinc-500">Nombre visible: {manifest?.auth?.token_name || 'ERP Sync'}</p>
                         </div>
                     </div>
+
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3 space-y-3">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Compatibilidad sistema de gestion</p>
+                            <p className="mt-1 text-[11px] text-zinc-500">
+                                Si el software solo deja configurar Dominio, Consumer Key y Consumer Secret, pasales estos datos.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Consumer Key</p>
+                                    <CopyButton value={manifest?.compatibility?.consumer_key} label="Copiar key" />
+                                </div>
+                                <div className={codeClass}>{manifest?.compatibility?.consumer_key || 'Genera un token para usar compatibilidad'}</div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Consumer Secret</p>
+                                    <CopyButton value={manifest?.compatibility?.consumer_secret} label="Copiar secret" />
+                                </div>
+                                <div className={codeClass}>{manifest?.compatibility?.consumer_secret || 'Sin secret disponible'}</div>
+                            </div>
+                        </div>
+
+                        <p className="text-[11px] text-zinc-500">
+                            El Consumer Secret se deriva del token actual. Si regeneras el token, tambien cambia este secret.
+                        </p>
+                    </div>
                 </div>
 
                 <div className={cardClass}>
@@ -162,8 +197,11 @@ const IntegrationsEditor = ({ manager }) => {
                     <EndpointRow label="Prueba de conexion" url={manifest?.endpoints?.ping_url || ''} />
                     <EndpointRow label="Sincronizacion de productos" url={manifest?.endpoints?.sync_products_url || ''} />
                     <EndpointRow label="Esquema JSON del producto" url={manifest?.endpoints?.schema_product_url || ''} />
+                    <EndpointRow label="Compatibilidad ping" url={manifest?.compatibility?.endpoints?.ping_url || ''} />
+                    <EndpointRow label="Compatibilidad producto" url={manifest?.compatibility?.endpoints?.product_url || ''} />
+                    <EndpointRow label="Compatibilidad productos" url={manifest?.compatibility?.endpoints?.products_url || ''} />
 
-                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-amber-100">
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-white">
                         El stock viaja dentro del mismo item de producto. No hace falta una URL separada de stock si el sistema ya puede enviar JSON de producto.
                     </div>
                 </div>
@@ -215,12 +253,26 @@ const IntegrationsEditor = ({ manager }) => {
                         {samplePayload}
                     </pre>
 
+                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">JSON ejemplo compatibilidad</p>
+                            <CopyButton value={compatibilitySamplePayload} label="Copiar JSON compat" />
+                        </div>
+                        <pre className="custom-scrollbar overflow-auto rounded-2xl border border-white/10 bg-black/30 p-4 text-[12px] leading-6 text-zinc-200">
+                            {compatibilitySamplePayload}
+                        </pre>
+                    </div>
+
                     <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Pedido corto para el proveedor</p>
                         <p className="text-[12px] leading-6 text-zinc-300">
                             Necesitamos que el sistema de gestion lea productos desde su propia base y los envie a la URL de sincronizacion.
                             Debe mandar `x-api-key`, `x-tenant-id`, `source_system` y un array `items` con `external_id`, `sku`, `name`,
-                            `price_retail`, `price_wholesale`, `stock`, `is_active`, `description` e `images` si las tiene.
+                            `price_retail`, `price_wholesale`, `stock`, `is_active`, `description`, `category_id` e `images` si las tiene.
+                        </p>
+                        <p className="text-[12px] leading-6 text-zinc-300">
+                            Si el software solo acepta `Consumer Key` y `Consumer Secret`, debe usar la capa de compatibilidad con las URLs
+                            `Compatibilidad producto` o `Compatibilidad productos`.
                         </p>
                     </div>
                 </div>

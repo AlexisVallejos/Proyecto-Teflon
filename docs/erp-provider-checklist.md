@@ -15,6 +15,12 @@ Deben consumir:
 - `GET /api/v1/integrations/ping`
 - `POST /api/v1/integrations/products/sync`
 
+Si el software solo soporta `Consumer Key / Consumer Secret`, tambien pueden consumir:
+
+- `GET /api/v1/integrations/gestion/ping`
+- `POST /api/v1/integrations/gestion/producto`
+- `POST /api/v1/integrations/gestion/productos`
+
 ### 2. Lectura desde su propia base de datos
 
 Pedirle que el sistema de gestion lea productos desde su propia base.
@@ -90,6 +96,7 @@ Pedirle que te confirmen que pueden enviar este formato:
       "is_active": true,
       "brand": "Marca",
       "description": "Descripcion",
+      "category_id": "UUID_CATEGORIA_BOMBAS",
       "images": [
         "https://..."
       ]
@@ -102,6 +109,7 @@ Aclara tambien esto:
 
 - el `stock` debe viajar dentro del mismo item del producto
 - no hace falta una URL separada de stock si ya envian el JSON de productos
+- si envian `familia`, `category` o `categoria`, el valor debe ser el UUID de la categoria del ecommerce, no el nombre
 
 ### 8. Headers obligatorios
 
@@ -112,6 +120,13 @@ x-api-key: erp-sync-local-001
 x-tenant-id: 636736e2-e135-44cd-ac5c-5d4ccb839a73
 Content-Type: application/json
 ```
+
+Si no soportan headers custom, tambien pueden usar:
+
+- `consumer_key`
+- `consumer_secret`
+
+por query string, body o `Basic Auth`.
 
 ### 9. Prueba de conexion
 
@@ -131,4 +146,6 @@ Pedirle que registren:
 
 ## Texto listo para copiar y enviar
 
-Necesito que integren el sistema de gestion con mi ecommerce por API. La integracion debe leer productos desde su propia base de datos y consumir dos endpoints: `GET /api/v1/integrations/ping` para probar conexion y `POST /api/v1/integrations/products/sync` para sincronizar productos. No deben escribir directamente en la base del ecommerce. Cada producto debe enviarse con un identificador estable `external_id`, junto con `sku`, `name`, `price_retail`, `price_wholesale` si existe, `stock`, `is_active`, `brand`, `description` e `images` si tienen URLs. Tambien necesito que el sistema permita configurar `x-api-key`, `x-tenant-id` y `source_system`, y que guarde log de resultados y errores.
+Necesito que integren el sistema de gestion con mi ecommerce por API. La integracion debe leer productos desde su propia base de datos y consumir dos endpoints: `GET /api/v1/integrations/ping` para probar conexion y `POST /api/v1/integrations/products/sync` para sincronizar productos. No deben escribir directamente en la base del ecommerce. Cada producto debe enviarse con un identificador estable `external_id`, junto con `sku`, `name`, `price_retail`, `price_wholesale` si existe, `stock`, `is_active`, `brand`, `description`, `category_id` si aplica e `images` si tienen URLs. Si usan `familia`, el valor debe ser el UUID de la categoria del ecommerce. Tambien necesito que el sistema permita configurar `x-api-key`, `x-tenant-id` y `source_system`, y que guarde log de resultados y errores.
+
+Si el sistema no trabaja con headers custom y solo permite `Consumer Key` y `Consumer Secret`, puede usar la capa de compatibilidad del ecommerce con `GET /api/v1/integrations/gestion/ping` y `POST /api/v1/integrations/gestion/producto` o `POST /api/v1/integrations/gestion/productos`.

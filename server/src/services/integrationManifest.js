@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 const PRODUCT_FIELDS = [
   {
     key: 'external_id',
@@ -60,10 +62,16 @@ const PRODUCT_FIELDS = [
     description: 'Lista de URLs publicas de imagenes.',
   },
   {
-    key: 'category',
-    type: 'string',
+    key: 'category_id',
+    type: 'uuid',
     required: false,
-    description: 'Familia o categoria principal. Se recomienda enviarla para futuros mapeos.',
+    description: 'UUID de la categoria principal ya creada en el ecommerce.',
+  },
+  {
+    key: 'category_ids',
+    type: 'uuid[]',
+    required: false,
+    description: 'Lista de UUIDs de categorias del ecommerce para asociar el producto.',
   },
   {
     key: 'updated_at',
@@ -89,10 +97,46 @@ const SAMPLE_PAYLOAD = {
       images: [
         'https://dominio-del-sistema.com/imagenes/prod-1001.jpg',
       ],
-      category: 'Bombas',
+      category_id: 'UUID_CATEGORIA_BOMBAS',
       updated_at: '2026-03-14T15:00:00.000Z',
     },
   ],
+};
+
+const LEGACY_SAMPLE_PAYLOAD = {
+  source_system: 'gestion-escritorio',
+    producto: {
+      codigo_propio: '666',
+      detalle_ampliado: 'ABLANDADOR AGUA AF1500 FLUVIAL',
+      detalle_abreviado: 'ABLANDADOR AGUA AF1500 FLUVIAL',
+      texto_asociado: 'Descripcion ampliada del articulo enviada por el sistema de gestion.',
+      familia: 'UUID_CATEGORIA_BOMBAS',
+      precio: 1465583,
+      mayorista: 0,
+      disponibilidad: 12,
+    activo: true,
+    imagenes: [
+      'https://dominio-del-sistema.com/imagenes/666_1.jpg',
+      'https://dominio-del-sistema.com/imagenes/666_2.jpg',
+    ],
+  },
+};
+
+export const buildProductSyncCompatibilitySecret = ({ tenantId, tokenValue }) => {
+  const normalizedTenant = String(tenantId || '').trim();
+  const normalizedToken = String(tokenValue || '').trim();
+  if (!normalizedTenant || !normalizedToken) return null;
+
+  const salt = String(
+    process.env.INTEGRATIONS_COMPAT_SECRET_SALT ||
+    process.env.APP_SECRET ||
+    'teflon-integrations-compat'
+  );
+
+  return crypto
+    .createHmac('sha256', salt)
+    .update(`${normalizedTenant}:${normalizedToken}`)
+    .digest('hex');
 };
 
 export const resolveServerBaseUrl = (req) => {
@@ -134,6 +178,11 @@ export const buildProductSyncSchema = (baseUrl) => ({
 
 export const buildTenantIntegrationManifest = ({ baseUrl, tenantId, tokenRecord = null }) => {
   const schema = buildProductSyncSchema(baseUrl);
+  const consumerKey = tokenRecord?.token_hash || null;
+  const consumerSecret = buildProductSyncCompatibilitySecret({
+    tenantId,
+    tokenValue: consumerKey,
+  });
 
   return {
     tenant_id: tenantId,
@@ -146,5 +195,22 @@ export const buildTenantIntegrationManifest = ({ baseUrl, tenantId, tokenRecord 
     },
     endpoints: schema.endpoints,
     schema,
+    compatibility: {
+      mode: 'consumer_key_secret',
+      domain: baseUrl,
+      consumer_key: consumerKey,
+      consumer_secret: consumerSecret,
+      endpoints: {
+        ping_url: `${baseUrl}/api/v1/integrations/gestion/ping`,
+        product_url: `${baseUrl}/api/v1/integrations/gestion/producto`,
+        products_url: `${baseUrl}/api/v1/integrations/gestion/productos`,
+      },
+      notes: [
+        'Pensado para sistemas de gestion que solo permiten configurar Dominio, Consumer Key y Consumer Secret.',
+        'Acepta un producto por request o un lote de productos.',
+        'Tambien acepta x-www-form-urlencoded ademas de JSON.',
+      ],
+      sample_payload: LEGACY_SAMPLE_PAYLOAD,
+    },
   };
 };

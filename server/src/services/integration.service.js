@@ -4,6 +4,7 @@ let productSyncSchemaReady = false;
 let productSyncSchemaPromise = null;
 
 const DEFAULT_SOURCE_SYSTEM = 'erp';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -18,6 +19,109 @@ const readNumeric = (value) => {
 };
 
 const hasOwn = (source, key) => Object.prototype.hasOwnProperty.call(source || {}, key);
+const isUuid = (value) => UUID_REGEX.test(String(value || '').trim());
+
+const readBoolean = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (['true', '1', 'si', 'sí', 'yes', 'y', 'on', 'activo', 'active'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'n', 'off', 'inactivo', 'inactive'].includes(normalized)) return false;
+  return null;
+};
+
+const firstPresentValue = (source, aliases = []) => {
+  for (const key of aliases) {
+    if (hasOwn(source, key)) {
+      return source[key];
+    }
+  }
+  return undefined;
+};
+
+const firstTextAlias = (source, aliases = []) => {
+  for (const key of aliases) {
+    const value = firstPresentValue(source, [key]);
+    const normalized = toTextOrNull(value);
+    if (normalized) return normalized;
+  }
+  return null;
+};
+
+const firstNumericAlias = (source, aliases = []) => {
+  for (const key of aliases) {
+    const value = firstPresentValue(source, [key]);
+    const normalized = readNumeric(value);
+    if (normalized != null) return normalized;
+  }
+  return null;
+};
+
+const firstBooleanAlias = (source, aliases = []) => {
+  for (const key of aliases) {
+    const value = firstPresentValue(source, [key]);
+    const normalized = readBoolean(value);
+    if (normalized != null) return normalized;
+  }
+  return null;
+};
+
+const collectRawImages = (source) => {
+  const rawCollections = [];
+  const directImages = firstPresentValue(source, ['images', 'imagenes']);
+  if (Array.isArray(directImages)) {
+    rawCollections.push(...directImages);
+  } else if (typeof directImages === 'string' && directImages.trim()) {
+    rawCollections.push(directImages.trim());
+  }
+
+  const singularImage = firstPresentValue(source, ['image', 'imagen', 'image_url', 'imagen_url', 'url_imagen']);
+  if (typeof singularImage === 'string' && singularImage.trim()) {
+    rawCollections.push(singularImage.trim());
+  }
+
+  for (let index = 1; index <= 8; index += 1) {
+    [
+      `image_${index}`,
+      `image${index}`,
+      `imagen_${index}`,
+      `imagen${index}`,
+      `imagen_${index}_url`,
+      `url_imagen_${index}`,
+    ].forEach((key) => {
+      const value = firstPresentValue(source, [key]);
+      if (typeof value === 'string' && value.trim()) {
+        rawCollections.push(value.trim());
+      }
+    });
+  }
+
+  return rawCollections;
+};
+
+const normalizeCategoryIds = (raw, aliases = []) => {
+  const collected = [];
+
+  aliases.forEach((key) => {
+    const value = firstPresentValue(raw, [key]);
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        const normalized = String(entry || '').trim();
+        if (normalized) collected.push(normalized);
+      });
+      return;
+    }
+
+    const normalized = String(value || '').trim();
+    if (normalized) {
+      collected.push(normalized);
+    }
+  });
+
+  return [...new Set(collected.filter((value) => isUuid(value)))];
+};
 
 const normalizeImageCollection = (images, fallbackAlt) => {
   if (!Array.isArray(images) || !images.length) return null;
@@ -51,26 +155,110 @@ const normalizeImageCollection = (images, fallbackAlt) => {
 
 const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM) => {
   const raw = isPlainObject(rawItem) ? rawItem : {};
-  const externalId = toTextOrNull(raw.external_id ?? raw.externalId ?? raw.id);
+  const rawImages = collectRawImages(raw);
+  const externalId = firstTextAlias(raw, [
+    'external_id',
+    'externalId',
+    'id',
+    'sku',
+    'codigo',
+    'codigo_propio',
+    'codigoPropio',
+    'codigo_producto',
+    'product_code',
+    'codigo_barras_1',
+    'codigo_barras1',
+  ]);
   const sourceSystem =
-    toTextOrNull(raw.source_system ?? raw.sourceSystem ?? raw.origin ?? fallbackSourceSystem) || DEFAULT_SOURCE_SYSTEM;
-  const name = toTextOrNull(raw.name) || toTextOrNull(raw.title) || toTextOrNull(raw.sku) || externalId || 'Producto sincronizado';
-  const sku = toTextOrNull(raw.sku) || externalId;
-  const description = hasOwn(raw, 'description') ? toTextOrNull(raw.description) : null;
-  const brand = hasOwn(raw, 'brand') ? toTextOrNull(raw.brand) : null;
-  const priceRetail = readNumeric(raw.price_retail ?? raw.priceRetail ?? raw.price);
-  const priceWholesale = readNumeric(raw.price_wholesale ?? raw.priceWholesale);
-  const stock = readNumeric(raw.stock ?? raw.inventory ?? raw.quantity);
+    firstTextAlias(raw, ['source_system', 'sourceSystem', 'origin']) ||
+    toTextOrNull(fallbackSourceSystem) ||
+    DEFAULT_SOURCE_SYSTEM;
+  const name =
+    firstTextAlias(raw, ['name', 'title', 'titulo', 'detalle_ampliado', 'detalleAmpliado', 'product_name']) ||
+    firstTextAlias(raw, ['sku', 'codigo', 'codigo_propio']) ||
+    externalId ||
+    'Producto sincronizado';
+  const sku = firstTextAlias(raw, ['sku', 'codigo', 'codigo_propio', 'codigo_producto', 'product_code']) || externalId;
+  const description = firstTextAlias(raw, [
+    'description',
+    'descripcion',
+    'descripcion_ampliada',
+    'descripcion_larga',
+    'desc_ampliada',
+    'detalle_abreviado',
+    'detalleAbreviado',
+    'texto_asociado',
+    'textoAsociado',
+    'full_description',
+  ]);
+  const shortDescription = firstTextAlias(raw, [
+    'short_description',
+    'descripcion_corta',
+    'desc_corta',
+    'detalle_abreviado',
+    'detalleAbreviado',
+  ]);
+  const brand = firstTextAlias(raw, ['brand', 'marca']);
+  const rawCategoryValue = firstTextAlias(raw, ['category', 'categoria', 'family', 'familia', 'rubro']);
+  const categoryIds = normalizeCategoryIds(raw, [
+    'category_id',
+    'categoryId',
+    'category_ids',
+    'categoryIds',
+    'family_id',
+    'familyId',
+    'family_ids',
+    'familyIds',
+    'familia_id',
+    'familiaId',
+    'familia_ids',
+    'familiaIds',
+    'categories',
+    'categorias',
+    'familias',
+    'family',
+    'familia',
+    'category',
+    'categoria',
+  ]);
+  const sourceCategoryLabel = rawCategoryValue && !isUuid(rawCategoryValue) ? rawCategoryValue : null;
+  const priceRetail = firstNumericAlias(raw, [
+    'price_retail',
+    'priceRetail',
+    'price',
+    'precio',
+    'precio_venta',
+    'precioVenta',
+    'precio_iva',
+    'precio_final',
+    'precio01',
+    'precio_01',
+    'tarifa_1',
+  ]);
+  const priceWholesale = firstNumericAlias(raw, [
+    'price_wholesale',
+    'priceWholesale',
+    'wholesale_price',
+    'precio_wholesale',
+    'precio_mayorista',
+    'mayorista',
+    'precio03',
+    'precio_03',
+    'tarifa_3',
+  ]);
+  const stock = firstNumericAlias(raw, [
+    'stock',
+    'inventory',
+    'quantity',
+    'disponibilidad',
+    'stock_actual',
+    'existencia',
+    'cantidad',
+  ]);
 
-  const rawIsActive = hasOwn(raw, 'is_active')
-    ? raw.is_active
-    : hasOwn(raw, 'isActive')
-      ? raw.isActive
-      : hasOwn(raw, 'active')
-        ? raw.active
-        : undefined;
-  const hasIsActive = rawIsActive !== undefined;
-  const isActiveSource = hasIsActive ? rawIsActive !== false : true;
+  const rawIsActive = firstBooleanAlias(raw, ['is_active', 'isActive', 'active', 'activo']);
+  const hasIsActive = rawIsActive != null;
+  const isActiveSource = hasIsActive ? rawIsActive : true;
 
   const rawDeletedAt = raw.deleted_at ?? raw.deletedAt ?? null;
   const explicitDeleted = raw.deleted === true || raw.is_deleted === true;
@@ -87,9 +275,15 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     sku,
     name,
     description,
+    shortDescription,
     brand,
-    hasDescription: hasOwn(raw, 'description'),
-    hasBrand: hasOwn(raw, 'brand'),
+    categoryIds,
+    sourceCategoryLabel,
+    hasDescription: description !== null,
+    hasShortDescription: shortDescription !== null,
+    hasBrand: brand !== null,
+    hasCategoryIds: categoryIds.length > 0,
+    hasSourceCategoryLabel: sourceCategoryLabel !== null,
     hasPriceRetail: priceRetail != null,
     hasPriceWholesale: priceWholesale != null,
     hasStock: stock != null,
@@ -98,8 +292,8 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     priceWholesale,
     stock,
     isActiveSource,
-    images: normalizeImageCollection(raw.images, name),
-    hasImages: hasOwn(raw, 'images'),
+    images: normalizeImageCollection(rawImages, name),
+    hasImages: rawImages.length > 0,
     deletedAt,
     rawPayload: raw,
   };
@@ -110,6 +304,14 @@ const buildProductDataFromSync = ({ existingData, item, allowEditorialSync }) =>
 
   if (allowEditorialSync && item.hasImages) {
     next.images = item.images || [];
+  }
+
+  if (allowEditorialSync && item.hasShortDescription) {
+    next.short_description = item.shortDescription || null;
+  }
+
+  if (allowEditorialSync && item.hasSourceCategoryLabel) {
+    next.source_category = item.sourceCategoryLabel || null;
   }
 
   return next;
@@ -140,6 +342,39 @@ async function upsertSyncMetadata(client, { tenantId, productId, externalId, sou
     ].join(' '),
     [tenantId, productId, externalId, sourceSystem, lastSyncAt, JSON.stringify(rawPayload || {})]
   );
+}
+
+async function replaceProductCategories(client, { tenantId, productId, categoryIds }) {
+  const selectedCategoryIds = Array.isArray(categoryIds)
+    ? [...new Set(categoryIds.filter((value) => isUuid(value)))]
+    : [];
+
+  if (selectedCategoryIds.length) {
+    const validCategoriesRes = await client.query(
+      'select id from categories where tenant_id = $1 and id = any($2::uuid[])',
+      [tenantId, selectedCategoryIds]
+    );
+
+    if (validCategoriesRes.rowCount !== selectedCategoryIds.length) {
+      const error = new Error('invalid_category_ids');
+      error.status = 400;
+      error.code = 'invalid_category_ids';
+      throw error;
+    }
+  }
+
+  await client.query('delete from product_categories where product_id = $1', [productId]);
+
+  if (selectedCategoryIds.length) {
+    await client.query(
+      [
+        'insert into product_categories (product_id, category_id)',
+        'select $1, unnest($2::uuid[])',
+        'on conflict do nothing',
+      ].join(' '),
+      [productId, selectedCategoryIds]
+    );
+  }
 }
 
 export async function ensureProductSyncSchema() {
@@ -313,6 +548,13 @@ export async function syncIntegrationProducts({
         );
 
         const productId = insertRes.rows[0].id;
+        if (item.hasCategoryIds) {
+          await replaceProductCategories(client, {
+            tenantId,
+            productId,
+            categoryIds: item.categoryIds,
+          });
+        }
         await upsertSyncMetadata(client, {
           tenantId,
           productId,
@@ -389,6 +631,14 @@ export async function syncIntegrationProducts({
           syncedAt,
         ]
       );
+
+      if (allowEditorialSync && item.hasCategoryIds) {
+        await replaceProductCategories(client, {
+          tenantId,
+          productId: existing.id,
+          categoryIds: item.categoryIds,
+        });
+      }
 
       await upsertSyncMetadata(client, {
         tenantId,
