@@ -74,7 +74,7 @@ function AppContent() {
     else if (route === '/signup') Component = SignupPage;
 
     return (
-        <div className="w-full min-h-screen bg-gray-50 transition-colors duration-200">
+        <div className="w-full min-h-screen bg-gray-50 text-[#181411] transition-colors duration-200 dark:bg-[#090b0f] dark:text-[#e6edf7]">
             <div key={route} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <Component />
             </div>

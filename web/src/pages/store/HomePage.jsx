@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import PageBuilder from "../../components/PageBuilder";
-import { HOME_PAGE_DATA } from "../../data/mock";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
@@ -8,27 +7,6 @@ import { useAuth } from "../../context/AuthContext";
 import HeroSlider from "../../components/blocks/HeroSlider";
 import FeaturedProducts from "../../components/blocks/FeaturedProducts";
 import Services from "../../components/blocks/Services";
-
-const FALLBACK_FEATURED = [
-    {
-        id: "demo-1",
-        name: "Grifería de lujo cromada",
-        price: 120,
-        badge: { text: "En stock", className: "bg-green-500" },
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCZI-CyV0a_MHtU0aC5uA0xV1K3o4Mx6s0hXSD-jAfFvKUvsnFez9VbpuhA2fqg6-nJIqEj0a5h-tTDm8ZsBhkns2TbUvo5ZTL8rlUrciw_DA9rIxZAaY1DjARxNdURIjk3PuU2Ary_6uW8b4hP0BLxU3Sxbe3uvYOBIrnhz13Go72OtqaMTN82gq5UvCnNK6t45bfoxvL7_BAqk77LiNIjLWf8pHzDPdgsLxC0jfGfhmNE4h91nii9vqbKVwelru79KaFIyEAkGGw",
-        alt: "Grifería moderna cromada para baño",
-        stock: 10,
-    },
-    {
-        id: "demo-2",
-        name: "Mueble de baño en roble",
-        price: 350,
-        badge: { text: "Poco stock", className: "bg-orange-500" },
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuA-emIIyjxSLD1gTruwFOpPoZq5IFjF6Su7lEW2RuOeHjkmVFxMqCnldNcHYcVJzbmYw0rqpSChrjsPdHF_UpNwpqcwuG0QJuRpq5hcDNCXcopdU3Zj2s9jAEfn3WQzRJl9WTdS2QfZ8s9m5aFMD16ze5brLhUIKSYaNX2N9Z3zY8N-xMXRIibKXSlG30itHlK06AlrXw5SgpVGbaVZ1XQbmJ36hgzlPJPBXqSBDBNPu3g0BRvwbrHk6ZM_czkwlvjQiDi3BlQ2NAk",
-        alt: "Mueble minimalista de baño en madera",
-        stock: 2,
-    },
-];
 
 const buildFeaturedCard = (product, index, isWholesale = false) => {
     const data = product.data || {};
@@ -58,7 +36,8 @@ const buildFeaturedCard = (product, index, isWholesale = false) => {
 export default function HomePage() {
     const { isWholesale } = useAuth();
     const [sections, setSections] = useState(null);
-    const [featuredProducts, setFeaturedProducts] = useState(FALLBACK_FEATURED);
+    const [featuredProducts, setFeaturedProducts] = useState([]);
+    const [featuredLoaded, setFeaturedLoaded] = useState(false);
 
     useEffect(() => {
         async function loadHome() {
@@ -73,7 +52,6 @@ export default function HomePage() {
                     }
                 }
 
-                // Load featured products independently to ensure we have fresh data
                 const productsRes = await fetch(`${getApiBase()}/public/products?limit=4&featured=true`, {
                     headers: { ...getTenantHeaders(), ...getAuthHeaders() },
                 });
@@ -84,7 +62,9 @@ export default function HomePage() {
                     }
                 }
             } catch (err) {
-                console.error('No se pudo cargar la página de inicio', err);
+                console.error('No se pudo cargar la pagina de inicio', err);
+            } finally {
+                setFeaturedLoaded(true);
             }
         }
         loadHome();
@@ -92,13 +72,15 @@ export default function HomePage() {
 
     const finalSections = useMemo(() => {
         if (!sections) return null;
-        return sections.map(s => {
-            if (s.type === 'FeaturedProducts') {
-                return { ...s, props: { ...s.props, products: featuredProducts } };
-            }
-            return s;
-        });
-    }, [sections, featuredProducts]);
+        return sections
+            .filter((section) => section.type !== 'FeaturedProducts' || (featuredLoaded && featuredProducts.length > 0))
+            .map((section) => {
+                if (section.type === 'FeaturedProducts') {
+                    return { ...section, props: { ...section.props, products: featuredProducts } };
+                }
+                return section;
+            });
+    }, [sections, featuredLoaded, featuredProducts]);
 
     return (
         <StoreLayout>
@@ -108,9 +90,11 @@ export default function HomePage() {
                 ) : (
                     <>
                         <HeroSlider />
-                        <section id="ofertas">
-                            <FeaturedProducts products={featuredProducts} />
-                        </section>
+                        {featuredLoaded && featuredProducts.length > 0 ? (
+                            <section id="ofertas">
+                                <FeaturedProducts products={featuredProducts} />
+                            </section>
+                        ) : null}
                         <section id="sobre-nosotros">
                             <Services />
                         </section>

@@ -5,6 +5,9 @@ import {
     DEFAULT_ADMIN_PANEL_THEME,
     LIGHT_ADMIN_PANEL_THEME,
 } from '../../../utils/adminPanelTheme';
+import {
+    DEFAULT_STOREFRONT_LIGHT_THEME,
+} from '../../../utils/storefrontTheme';
 
 const fieldClass =
     "w-full rounded-xl border border-white/25 bg-zinc-900/70 px-3 py-2.5 text-sm text-white placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-[var(--admin-accent)] focus:ring-2 focus:ring-[var(--admin-accent-soft)]";
@@ -206,17 +209,23 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                 <div className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Tema</h3>
+                    <div className="space-y-2">
+                        <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Modo tienda</p>
+                        <p className="text-xs text-zinc-500">
+                            La tienda queda fija en modo claro. Desde aca solo ajustas colores y marca del storefront.
+                        </p>
+                    </div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                             <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Color primario</p>
                             <div className="flex items-center gap-3">
                                 <input
                                     type="color"
-                                    value={theme.primary || '#f97316'}
+                                    value={theme.primary || DEFAULT_STOREFRONT_LIGHT_THEME.primary}
                                     onChange={(e) => updateTheme({ primary: e.target.value })}
                                     className="h-9 w-10 rounded-lg border-none bg-transparent"
                                 />
-                                <span className="text-xs font-mono text-zinc-300">{theme.primary || '#f97316'}</span>
+                                <span className="text-xs font-mono text-zinc-300">{theme.primary || DEFAULT_STOREFRONT_LIGHT_THEME.primary}</span>
                             </div>
                         </div>
 
@@ -225,12 +234,42 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             <div className="flex items-center gap-3">
                                 <input
                                     type="color"
-                                    value={theme.text || theme.secondary || '#181411'}
+                                    value={theme.text || theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.text}
                                     onChange={(e) => updateTheme({ text: e.target.value, secondary: e.target.value })}
                                     className="h-9 w-10 rounded-lg border-none bg-transparent"
                                 />
                                 <span className="text-xs font-mono text-zinc-300">
-                                    {theme.text || theme.secondary || '#181411'}
+                                    {theme.text || theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.text}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Color fondo</p>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="color"
+                                    value={theme.background || DEFAULT_STOREFRONT_LIGHT_THEME.background}
+                                    onChange={(e) => updateTheme({ background: e.target.value })}
+                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                />
+                                <span className="text-xs font-mono text-zinc-300">
+                                    {theme.background || DEFAULT_STOREFRONT_LIGHT_THEME.background}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Texto secundario</p>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="color"
+                                    value={theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.secondary}
+                                    onChange={(e) => updateTheme({ secondary: e.target.value })}
+                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                />
+                                <span className="text-xs font-mono text-zinc-300">
+                                    {theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.secondary}
                                 </span>
                             </div>
                         </div>

@@ -8,6 +8,7 @@ import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
+import StoreSkeleton from "../../components/StoreSkeleton";
 
 const FALLBACK_IMAGE = "https://via.placeholder.com/900";
 
@@ -383,9 +384,7 @@ export default function ProductDetail() {
                 </div>
 
                 {loading ? (
-                    <div className="rounded-xl border border-dashed border-[#e5e1de] dark:border-[#3d2f21] p-10 text-center text-[#8a7560]">
-                        Cargando producto...
-                    </div>
+                    <StoreSkeleton variant="product" />
                 ) : error ? (
                     <div className="rounded-xl border border-dashed border-red-200 bg-red-50 p-10 text-center text-red-600">
                         {error}

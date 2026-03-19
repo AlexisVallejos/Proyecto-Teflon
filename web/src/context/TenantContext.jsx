@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getApiBase, getTenantHeaders } from '../utils/api';
+import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../utils/storefrontTheme';
+import StoreSkeleton from '../components/StoreSkeleton';
 
 const DEFAULT_TENANT = {
     id: 'demo-tenant-id',
@@ -36,11 +38,7 @@ const DEFAULT_SETTINGS = {
         },
     },
     theme: {
-        primary: '#ea580c',
-        accent: '#181411',
-        background: '#ffffff',
-        text: '#181411',
-        font_family: 'Inter, sans-serif',
+        ...DEFAULT_STOREFRONT_LIGHT_THEME,
     },
     commerce: {
         currency: 'ARS',
@@ -59,7 +57,7 @@ const DEFAULT_SETTINGS = {
         tax_rate: 0.21,
         shipping_flat: 1500,
         free_shipping_threshold: 999,
-        payment_methods: ['stripe', 'transfer'],
+        payment_methods: ['transfer', 'cash_on_pickup'],
         default_delivery: 'zone:arg-general',
         shipping_zones: [
             {
@@ -189,7 +187,7 @@ export const TenantProvider = ({ children }) => {
     }, [refreshTenantSettings]);
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center">Cargando tienda...</div>;
+        return <StoreSkeleton variant="page" />;
     }
 
     return (

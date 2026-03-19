@@ -1,27 +1,36 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useTenant } from './TenantContext';
+import { getStorefrontThemePreset } from '../utils/storefrontTheme';
 
 const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
     const { tenant, settings } = useTenant();
+    const configuredTheme = settings?.theme || tenant?.theme || {};
+    const mode = 'light';
+    const effectiveTheme = useMemo(() => getStorefrontThemePreset('light', configuredTheme), [configuredTheme]);
 
     useEffect(() => {
-        const theme = settings?.theme || tenant?.theme || {};
-        const palette = theme.colors || {};
+        const palette = effectiveTheme.colors || {};
         const fallbackPalette = {};
         const root = document.documentElement;
 
-        root.classList.remove('dark');
-        document.body?.classList?.remove('dark');
+        root.classList.toggle('dark', mode === 'dark');
+        document.body?.classList?.toggle('dark', mode === 'dark');
+        root.dataset.theme = mode;
+        root.style.colorScheme = mode;
+        if (document.body) {
+            document.body.dataset.theme = mode;
+            document.body.style.colorScheme = mode;
+        }
 
-        ['primary', 'accent', 'background', 'text'].forEach((key) => {
-            if (theme[key]) {
-                fallbackPalette[key] = theme[key];
+        ['primary', 'accent', 'background', 'text', 'secondary'].forEach((key) => {
+            if (effectiveTheme[key]) {
+                fallbackPalette[key] = effectiveTheme[key];
             }
         });
-        if (!fallbackPalette.text && theme.secondary) {
-            fallbackPalette.text = theme.secondary;
+        if (!fallbackPalette.text && effectiveTheme.secondary) {
+            fallbackPalette.text = effectiveTheme.secondary;
         }
 
         const colors = { ...fallbackPalette, ...palette };
@@ -33,16 +42,36 @@ export const ThemeProvider = ({ children }) => {
         });
 
         const fontFamily =
-            theme.font_family || theme.fontFamily || theme.typography?.fontFamily;
+            effectiveTheme.font_family || effectiveTheme.fontFamily || effectiveTheme.typography?.fontFamily;
         if (fontFamily) {
             root.style.setProperty('--font-family', fontFamily);
         }
-    }, [settings, tenant]);
+        try {
+            window.localStorage.removeItem('teflon_storefront_mode');
+        } catch (error) {
+            // Ignore storage failures.
+        }
+    }, [effectiveTheme, mode]);
 
-    const themeValue = settings?.theme || tenant?.theme || {};
+    const noop = () => {
+        try {
+            window.localStorage.removeItem('teflon_storefront_mode');
+        } catch (error) {
+            // Ignore storage failures.
+        }
+    };
 
     return (
-        <ThemeContext.Provider value={{ theme: themeValue }}>
+        <ThemeContext.Provider
+            value={{
+                theme: effectiveTheme,
+                mode,
+                configuredMode: 'light',
+                setMode: noop,
+                toggleMode: noop,
+                clearModePreference: noop,
+            }}
+        >
             {children}
         </ThemeContext.Provider>
     );

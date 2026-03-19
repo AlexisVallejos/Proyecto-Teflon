@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
+import StoreSkeleton from "../../components/StoreSkeleton";
 
 const getCategoryFromUrl = () => {
     const params = new URLSearchParams(window.location.search || "");
@@ -375,9 +376,7 @@ export default function CatalogPage() {
                     {/* Product Grid */}
                     <div className="flex-1">
                         {loading ? (
-                            <div className="rounded-xl border border-dashed border-[#e5e1de] dark:border-[#3d2f21] p-10 text-center text-[#8a7560]">
-                                Cargando productos...
-                            </div>
+                            <StoreSkeleton variant="catalog" />
                         ) : (
                             <>
                                 {filtered.length === 0 ? (

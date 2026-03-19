@@ -32,7 +32,7 @@ const formatCheckoutModeLabel = (mode = '') => {
     const normalized = String(mode || '').toLowerCase();
     if (normalized === 'whatsapp') return 'WhatsApp';
     if (normalized === 'transfer') return 'Transferencia';
-    if (normalized === 'stripe') return 'Stripe';
+    if (normalized === 'stripe') return 'Pago online';
     if (normalized === 'cash_on_pickup') return 'Pago en local';
     return normalized || '-';
 };
@@ -52,7 +52,7 @@ const getOrderStatusClassName = (status = '') => {
 const formatPaymentDetail = (order) => {
     const customer = order?.customer || {};
     const method = String(customer.payment_method || customer.payment || '').toLowerCase();
-    if (method === 'stripe') return 'Stripe';
+    if (method === 'stripe') return 'Pago online';
     if (method === 'cash_on_pickup' || method === 'cash' || method === 'local') return 'Pago en local';
     if (order?.checkout_mode === 'transfer') {
         return method.includes('efectivo') ? 'Transferencia / Efectivo' : 'Transferencia';

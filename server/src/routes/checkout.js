@@ -13,7 +13,7 @@ export const checkoutRouter = express.Router();
 
 checkoutRouter.use(resolveTenant);
 
-const ALLOWED_METHODS = new Set(['transfer', 'stripe', 'cash_on_pickup']);
+const ALLOWED_METHODS = new Set(['transfer', 'cash_on_pickup']);
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -31,9 +31,6 @@ function normalizePaymentMethod(value) {
   if (raw === 'whatsapp') {
     return 'transfer';
   }
-  if (raw === 'online' || raw === 'online_placeholder') {
-    return 'stripe';
-  }
   return ALLOWED_METHODS.has(raw) ? raw : null;
 }
 
@@ -49,12 +46,15 @@ function getEnabledMethods(commerce = {}) {
 
   const mode = String(commerce.checkout_mode || commerce.mode || 'both').toLowerCase();
   if (mode === 'hybrid' || mode === 'both') {
-    return ['transfer', 'stripe'];
+    return ['transfer', 'cash_on_pickup'];
   }
   if (mode === 'transfer') {
     return ['transfer'];
   }
-  return ['stripe'];
+  if (mode === 'cash_on_pickup') {
+    return ['cash_on_pickup'];
+  }
+  return ['transfer'];
 }
 
 function resolveCheckoutMethod(commerce = {}, requested = '') {
@@ -279,8 +279,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
       }
     }
 
-    const orderStatus =
-      checkoutMode === 'transfer' || checkoutMode === 'stripe' ? 'pending_payment' : 'submitted';
+    const orderStatus = checkoutMode === 'transfer' ? 'pending_payment' : 'submitted';
     const customerPayload = {
       ...customer,
       payment_method: checkoutMode,
@@ -327,9 +326,7 @@ checkoutRouter.post('/create', async (req, res, next) => {
         ? 'bank_transfer'
         : checkoutMode === 'cash_on_pickup'
           ? 'cash_on_pickup'
-          : checkoutMode === 'stripe'
-            ? 'stripe'
-            : 'manual';
+          : 'manual';
     payment = {
       provider,
       status: orderStatus === 'pending_payment' ? 'pending' : 'submitted',

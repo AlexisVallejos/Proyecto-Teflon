@@ -9,7 +9,7 @@ settingsRouter.use(resolveTenant);
 settingsAdminRouter.use(resolveTenant);
 
 const ALLOWED_MODES = new Set(['whatsapp', 'transfer', 'both']);
-const ALLOWED_METHODS = new Set(['transfer', 'stripe', 'cash_on_pickup']);
+const ALLOWED_METHODS = new Set(['transfer', 'cash_on_pickup']);
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -27,9 +27,6 @@ function normalizePaymentMethod(value) {
   }
   if (raw === 'whatsapp') {
     return 'transfer';
-  }
-  if (raw === 'online') {
-    return 'stripe';
   }
   if (!ALLOWED_METHODS.has(raw)) {
     return null;
@@ -58,19 +55,22 @@ function deriveMethodsFromLegacyMode(commerce = {}) {
 
   const fallbackMode = commerce.checkout_mode || commerce.mode || 'both';
   if (fallbackMode === 'both' || fallbackMode === 'hybrid') {
-    return ['transfer', 'stripe'];
+    return ['transfer', 'cash_on_pickup'];
   }
   if (fallbackMode === 'transfer') {
     return ['transfer'];
   }
-  return ['stripe'];
+  if (fallbackMode === 'cash_on_pickup') {
+    return ['cash_on_pickup'];
+  }
+  return ['transfer'];
 }
 
 function toLegacyMode(methods = []) {
   if (methods.length === 1 && methods[0] === 'transfer') {
     return 'transfer';
   }
-  if (methods.includes('stripe') && methods.includes('transfer') && methods.length <= 2) {
+  if (methods.includes('transfer') && methods.includes('cash_on_pickup') && methods.length <= 2) {
     return 'both';
   }
   if (methods.includes('transfer')) {

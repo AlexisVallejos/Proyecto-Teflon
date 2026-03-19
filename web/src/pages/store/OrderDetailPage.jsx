@@ -4,6 +4,7 @@ import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { navigate } from '../../utils/navigation';
 import { formatCurrency } from '../../utils/format';
 import { getBillingDocumentLabel, getBillingVatLabel, hasBillingInfo, normalizeBillingInfo } from '../../utils/billing';
+import StoreSkeleton from '../../components/StoreSkeleton';
 
 const STATUS_LABELS = {
     submitted: 'En gestión',
@@ -44,7 +45,7 @@ const getOrderIdFromUrl = () => {
 const normalizePaymentLabel = (order) => {
     const customer = order?.customer || {};
     const method = String(customer.payment_method || customer.payment || '').toLowerCase();
-    if (method === 'stripe' || order.checkout_mode === 'stripe') return 'Stripe';
+    if (method === 'stripe' || order.checkout_mode === 'stripe') return 'Pago online';
     if (method === 'cash_on_pickup' || method === 'cash' || method === 'local' || order.checkout_mode === 'cash_on_pickup') return 'Pago en local';
     if (order.checkout_mode === 'transfer') {
         return method.includes('efectivo') ? 'Transferencia / Efectivo' : 'Transferencia';
@@ -142,9 +143,9 @@ export default function OrderDetailPage() {
     if (loading) {
         return (
             <StoreLayout>
-                <div className="min-h-[60vh] flex items-center justify-center text-sm text-[#8a7560]">
-                    Cargando detalles del pedido...
-                </div>
+                <main className="max-w-[1100px] mx-auto w-full px-4 md:px-10 py-8">
+                    <StoreSkeleton variant="order" />
+                </main>
             </StoreLayout>
         );
     }

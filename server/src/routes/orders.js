@@ -59,7 +59,7 @@ const proofUpload = multer({
   },
 });
 
-const ALLOWED_METHODS = new Set(['transfer', 'stripe', 'cash_on_pickup']);
+const ALLOWED_METHODS = new Set(['transfer', 'cash_on_pickup']);
 const ALLOWED_ORDER_CHANNELS = new Set(['whatsapp', 'email']);
 const ALLOWED_STATUSES = new Set([
   'submitted',
@@ -86,9 +86,6 @@ function normalizePaymentMethod(value) {
   }
   if (raw === 'whatsapp') {
     return 'transfer';
-  }
-  if (raw === 'online' || raw === 'online_placeholder') {
-    return 'stripe';
   }
   return ALLOWED_METHODS.has(raw) ? raw : null;
 }
@@ -127,12 +124,15 @@ function getEnabledMethods(settings = {}) {
   const rawMode = settings.checkout_mode || settings.mode || 'both';
   const normalizedMode = String(rawMode).toLowerCase();
   if (normalizedMode === 'hybrid' || normalizedMode === 'both') {
-    return ['transfer', 'stripe'];
+    return ['transfer', 'cash_on_pickup'];
   }
   if (normalizedMode === 'transfer') {
     return ['transfer'];
   }
-  return ['stripe'];
+  if (normalizedMode === 'cash_on_pickup') {
+    return ['cash_on_pickup'];
+  }
+  return ['transfer'];
 }
 
 function resolveCheckoutMethod(settings = {}, requested = '') {
@@ -368,7 +368,7 @@ function formatOrderAmount(value, currency = 'ARS') {
 function formatCheckoutModeLabel(mode = '') {
   const normalized = String(mode || '').toLowerCase();
   if (normalized === 'transfer') return 'Transferencia bancaria';
-  if (normalized === 'stripe') return 'Stripe';
+  if (normalized === 'stripe') return 'Pago online';
   if (normalized === 'cash_on_pickup') return 'Pago en local';
   return normalized || 'Manual';
 }
@@ -635,8 +635,6 @@ async function sendOrderConfirmationEmail({
   const statusLine =
     checkoutMode === 'transfer'
       ? 'Tu pedido quedo pendiente de pago. Cuando tengas el comprobante podes subirlo desde tu panel.'
-      : checkoutMode === 'stripe'
-        ? 'Tu pedido quedo registrado y esta pendiente de cobro.'
       : checkoutMode === 'cash_on_pickup'
           ? 'Tu pedido quedo reservado para abonar al retirar.'
           : 'Tu pedido ya fue recibido correctamente.';
@@ -1139,8 +1137,7 @@ ordersRouter.post('/submit', async (req, res, next) => {
     const tax = (validation.subtotal + shipping) * taxRate;
     const total = validation.subtotal + shipping + tax;
 
-    const status =
-      checkoutMode === 'transfer' || checkoutMode === 'stripe' ? 'pending_payment' : 'submitted';
+    const status = checkoutMode === 'transfer' ? 'pending_payment' : 'submitted';
     const customerPayload = {
       ...customer,
       shipping_zone_id: shippingInfo.shipping_zone_id,
@@ -1186,9 +1183,7 @@ ordersRouter.post('/submit', async (req, res, next) => {
         ? 'bank_transfer'
         : checkoutMode === 'cash_on_pickup'
           ? 'cash_on_pickup'
-          : checkoutMode === 'stripe'
-            ? 'stripe'
-            : 'manual';
+          : 'manual';
     await client.query(
       [
         'insert into payments (tenant_id, order_id, provider, status, amount, currency, metadata)',
@@ -1411,7 +1406,7 @@ ordersRouter.post('/:id/proof', proofUpload.single('proof'), async (req, res, ne
     if (paymentRes.rowCount) {
       const payment = paymentRes.rows[0];
       const nextProvider = payment.provider || 'manual';
-      const nextStatus = payment.provider === 'stripe' ? payment.status : 'proof_submitted';
+      const nextStatus = payment.provider === 'bank_transfer' ? 'proof_submitted' : payment.status;
       await pool.query(
         [
           'update payments',

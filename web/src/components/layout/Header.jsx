@@ -60,7 +60,7 @@ function MenuAnchor({ href, label, active = false, external = false, className =
   const finalClass = `inline-flex items-center gap-1 border-b-2 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
     active
       ? "border-[color:var(--color-primary,#0099e5)] text-[color:var(--color-primary,#0099e5)]"
-      : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)]"
+      : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)] dark:text-[#e7ddd3]"
   } ${className}`;
 
   if (external) {
@@ -302,7 +302,7 @@ export default function Header({
   }, [categoryLinks, brandLinks, staticLinks]);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-y border-[#dbe2ea] bg-white">
+    <header className="sticky top-0 z-50 w-full border-y border-[#dbe2ea] bg-white dark:border-[#3d2f21] dark:bg-[#120c08]">
       <div className={`mx-auto ${containerClassName}`}>
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap md:gap-8 md:px-10 md:py-4">
           <button
@@ -326,7 +326,7 @@ export default function Header({
           {showSearch ? (
             <label className="relative order-3 w-full md:order-none md:flex-1 md:max-w-[520px]">
               <input
-                className="h-11 w-full rounded-none border border-[#e4e9ef] bg-[#f7f8fa] pl-4 pr-12 text-sm text-[#1f2937] placeholder:text-[#9ca3af] focus:border-[color:var(--color-primary,#0099e5)] focus:outline-none"
+                className="h-11 w-full rounded-none border border-[#e4e9ef] bg-[#f7f8fa] pl-4 pr-12 text-sm text-[#1f2937] placeholder:text-[#9ca3af] focus:border-[color:var(--color-primary,#0099e5)] focus:outline-none dark:border-[#3d2f21] dark:bg-[#1a130c] dark:text-[#f8f7f5] dark:placeholder:text-[#a59280]"
                 placeholder={searchPlaceholder}
                 type="text"
                 value={search}
@@ -346,7 +346,7 @@ export default function Header({
             <div className="hidden md:block md:flex-1" />
           )}
 
-          <div className="ml-auto hidden items-center gap-7 text-[10px] font-semibold uppercase text-[#4a4a4a] lg:flex">
+          <div className="ml-auto hidden items-center gap-7 text-[10px] font-semibold uppercase text-[#4a4a4a] dark:text-[#cdbca9] lg:flex">
             {showCart ? (
               <button
                 type="button"
@@ -382,7 +382,7 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => navigate("/cart")}
-                className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)]"
+                className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:bg-[#1a130c]"
                 aria-label="Carrito"
               >
                 <CartIcon />
@@ -397,7 +397,7 @@ export default function Header({
               <button
                 type="button"
                 onClick={handleAccountClick}
-                className="flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)]"
+                className="flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:bg-[#1a130c]"
                 aria-label="Cuenta"
               >
                 <UserIcon />
@@ -406,7 +406,7 @@ export default function Header({
           </div>
         </div>
 
-        <div className="border-t border-[#e4e9ef]">
+        <div className="border-t border-[#e4e9ef] dark:border-[#3d2f21]">
           <nav className="hidden h-12 items-center justify-center gap-9 px-4 md:flex">
             <div className="group relative h-full">
               <button
@@ -414,14 +414,14 @@ export default function Header({
                 className={`inline-flex h-full items-center gap-1 border-b-2 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
                   productsActive
                     ? "border-[color:var(--color-primary,#0099e5)] text-[color:var(--color-primary,#0099e5)]"
-                    : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)]"
+                    : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)] dark:text-[#e7ddd3]"
                 }`}
               >
                 Productos
                 <ChevronDown className="size-3" />
               </button>
 
-              <div className="invisible absolute left-1/2 top-full z-50 mt-2 w-[min(95vw,1080px)] -translate-x-1/2 rounded-md border border-[#e4e9ef] bg-white p-6 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100">
+              <div className="invisible absolute left-1/2 top-full z-50 mt-2 w-[min(95vw,1080px)] -translate-x-1/2 rounded-md border border-[#e4e9ef] bg-white p-6 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100 dark:border-[#3d2f21] dark:bg-[#1a130c]">
                 <div className="max-h-[68vh] overflow-y-auto pr-1">
                   {categoryTree.length ? (
                     <div className="grid gap-8 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
@@ -447,7 +447,7 @@ export default function Header({
                                     event.preventDefault();
                                     navigate(`/catalog?category=${encodeURIComponent(child.id)}`);
                                   }}
-                                  className="block text-[15px] leading-tight text-[#4b5563] hover:text-[color:var(--color-primary,#0099e5)]"
+                                  className="block text-[15px] leading-tight text-[#4b5563] hover:text-[color:var(--color-primary,#0099e5)] dark:text-[#cdbca9]"
                                 >
                                   {child.name}
                                 </a>
@@ -458,12 +458,12 @@ export default function Header({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-[#6b7280]">No hay categorias disponibles.</p>
+                    <p className="text-sm text-[#6b7280] dark:text-[#a59280]">No hay categorias disponibles.</p>
                   )}
 
                   {brandLinks.length ? (
-                    <div className="mt-6 border-t border-[#eef2f7] pt-4">
-                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6b7280]">Marcas</p>
+                    <div className="mt-6 border-t border-[#eef2f7] pt-4 dark:border-[#3d2f21]">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6b7280] dark:text-[#a59280]">Marcas</p>
                       <div className="flex flex-wrap gap-2">
                         {brandLinks.map((item) => (
                           <a
@@ -473,7 +473,7 @@ export default function Header({
                               event.preventDefault();
                               navigate(item.href);
                             }}
-                            className="rounded-full border border-[#dbe2ea] px-2.5 py-1 text-[12px] text-[#1f2937] hover:border-[color:var(--color-primary,#0099e5)] hover:text-[color:var(--color-primary,#0099e5)]"
+                            className="rounded-full border border-[#dbe2ea] px-2.5 py-1 text-[12px] text-[#1f2937] hover:border-[color:var(--color-primary,#0099e5)] hover:text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:text-[#e7ddd3]"
                           >
                             {item.label}
                           </a>
@@ -519,7 +519,7 @@ export default function Header({
           </nav>
 
           <div className="overflow-x-auto md:hidden">
-            <nav className="flex min-w-max items-center gap-5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#1f2937]">
+            <nav className="flex min-w-max items-center gap-5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#1f2937] dark:text-[#e7ddd3]">
               {mobileQuickLinks.map((item) => {
                 const external = isExternalPath(item.href);
                 const normalizedTarget = external ? item.href : normalizeRoute(item.href);
@@ -530,7 +530,7 @@ export default function Header({
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937]"}
+                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937] dark:text-[#e7ddd3]"}
                   >
                     {item.label}
                   </a>
@@ -542,7 +542,7 @@ export default function Header({
                       event.preventDefault();
                       navigate(item.href);
                     }}
-                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937]"}
+                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937] dark:text-[#e7ddd3]"}
                   >
                     {item.label}
                   </a>

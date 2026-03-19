@@ -2,7 +2,6 @@
 
 const CHECKOUT_METHOD_OPTIONS = [
     { key: 'transfer', label: 'Transferencia' },
-    { key: 'stripe', label: 'Stripe' },
     { key: 'cash_on_pickup', label: 'Pago en local' },
 ];
 
@@ -39,7 +38,7 @@ const compactFieldClass =
 const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const checkoutMethods = Array.isArray(settings?.commerce?.payment_methods)
         ? settings.commerce.payment_methods
-        : ['stripe', 'transfer'];
+        : ['transfer', 'cash_on_pickup'];
 
     const shippingZones = Array.isArray(settings?.commerce?.shipping_zones)
         ? settings.commerce.shipping_zones

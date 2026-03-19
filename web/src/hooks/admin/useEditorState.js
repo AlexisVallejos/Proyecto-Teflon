@@ -6,6 +6,7 @@ import {
     DEFAULT_ADMIN_PANEL_BRANDING,
     DEFAULT_ADMIN_PANEL_THEME,
 } from '../../utils/adminPanelTheme';
+import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../../utils/storefrontTheme';
 
 const RESERVED_PLACEHOLDER_TERMS = new Set(['messi']);
 
@@ -56,9 +57,7 @@ export function useEditorState(user) {
             footer: { description: '', socials: {}, contact: {}, quickLinks: [] }
         },
         theme: {
-            primary: '#6366f1',
-            secondary: '#09090b',
-            font_family: 'Inter',
+            ...DEFAULT_STOREFRONT_LIGHT_THEME,
             admin_panel: DEFAULT_ADMIN_PANEL_THEME,
         },
         commerce: {
@@ -70,7 +69,7 @@ export function useEditorState(user) {
             customer_order_processing_label: 'En proceso',
             admin_order_confirmation_text: 'Tienes un pedido en confirmacion. Revisa el panel de usuarios y confirma la compra.',
             customer_order_processing_text: 'Tu pedido fue recibido y se encuentra en proceso.',
-            payment_methods: ['stripe', 'transfer'],
+            payment_methods: ['transfer', 'cash_on_pickup'],
             shipping_zones: [],
             branches: [],
             price_adjustments: {

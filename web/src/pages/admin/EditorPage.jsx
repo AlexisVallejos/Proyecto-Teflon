@@ -36,7 +36,6 @@ const EMPTY_OFFER_FORM = {
 
 const CHECKOUT_METHOD_OPTIONS = [
     { key: 'transfer', label: 'Transferencia' },
-    { key: 'stripe', label: 'Stripe' },
     { key: 'cash_on_pickup', label: 'Pago en local' },
 ];
 
@@ -204,7 +203,7 @@ export default function EditorPage() {
             brands: [],
             reviews_enabled: true,
             tax_rate: 0.21,
-            payment_methods: ['stripe', 'transfer'],
+            payment_methods: ['transfer', 'cash_on_pickup'],
             default_delivery: 'zone:arg-general',
             shipping_zones: [
                 {
@@ -298,7 +297,7 @@ export default function EditorPage() {
     };
     const checkoutMethods = Array.isArray(settings.commerce?.payment_methods)
         ? settings.commerce.payment_methods
-        : ['stripe', 'transfer'];
+        : ['transfer', 'cash_on_pickup'];
     const shippingZones = Array.isArray(settings.commerce?.shipping_zones)
         ? settings.commerce.shipping_zones
         : [];
@@ -377,14 +376,14 @@ export default function EditorPage() {
         const normalized = String(mode || '').toLowerCase();
         if (normalized === 'whatsapp') return 'WhatsApp';
         if (normalized === 'transfer') return 'Transferencia';
-        if (normalized === 'stripe') return 'Stripe';
+        if (normalized === 'stripe') return 'Pago online';
         if (normalized === 'cash_on_pickup') return 'Pago en local';
         return normalized || '-';
     };
     const formatPaymentDetail = (order) => {
         const customer = order?.customer || {};
         const method = (customer.payment_method || customer.payment || '').toString().toLowerCase();
-        if (method === 'stripe') return 'Stripe';
+        if (method === 'stripe') return 'Pago online';
         if (method === 'cash_on_pickup' || method === 'cash' || method === 'local') return 'Pago en local';
         if (order.checkout_mode === 'transfer') {
             return method.includes('efectivo') ? 'Transferencia / Efectivo' : 'Transferencia';
@@ -393,7 +392,7 @@ export default function EditorPage() {
             return method || 'WhatsApp (efectivo o transferencia)';
         }
         if (order.checkout_mode === 'stripe') {
-            return 'Stripe';
+            return 'Pago online';
         }
         if (order.checkout_mode === 'cash_on_pickup') {
             return 'Pago en local';

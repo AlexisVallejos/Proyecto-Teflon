@@ -16,7 +16,7 @@ import {
     normalizeBillingInfo,
 } from "../../utils/billing";
 
-const SUPPORTED_PAYMENT_METHODS = ["transfer", "stripe", "cash_on_pickup"];
+const SUPPORTED_PAYMENT_METHODS = ["transfer", "cash_on_pickup"];
 const ORDER_CHANNEL_OPTIONS = [
     {
         key: "whatsapp",
@@ -35,7 +35,6 @@ const normalizePaymentMethod = (value) => {
     const raw = String(value || "").trim().toLowerCase();
     if (!raw) return null;
     if (["cash", "pickup", "local", "store"].includes(raw)) return "cash_on_pickup";
-    if (["online", "online_placeholder"].includes(raw)) return "stripe";
     return SUPPORTED_PAYMENT_METHODS.includes(raw) ? raw : null;
 };
 
@@ -68,7 +67,7 @@ export default function CheckoutPage() {
     const locale = commerce.locale || "es-AR";
     const [checkoutSettings, setCheckoutSettings] = useState({
         mode: "both",
-        enabled_methods: uniquePaymentMethods(commerce.payment_methods || ["stripe", "transfer"]),
+        enabled_methods: uniquePaymentMethods(commerce.payment_methods || ["transfer", "cash_on_pickup"]),
         whatsapp_number: commerce.whatsapp_number || "",
         whatsapp_template: "",
         bank_transfer: commerce.bank_transfer || {},
@@ -195,21 +194,12 @@ export default function CheckoutPage() {
         if (commerceMethods.length) return commerceMethods;
         const mode = checkoutSettings?.mode || commerce.checkout_mode || commerce.mode || "both";
         if (mode === "transfer") return ["transfer"];
-        return ["stripe", "transfer"];
+        if (mode === "cash_on_pickup") return ["cash_on_pickup"];
+        return ["transfer", "cash_on_pickup"];
     }, [checkoutSettings, commerce]);
 
     const paymentOptions = useMemo(() => {
         const options = [];
-        if (enabledMethods.includes("stripe")) {
-            options.push({
-                key: "stripe",
-                label: "Stripe",
-                description: "Pago con tarjeta de debito o credito",
-                icon: (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><path d="M2 10h20"></path></svg>
-                ),
-            });
-        }
         if (enabledMethods.includes("transfer")) {
             options.push({
                 key: "transfer",
@@ -231,7 +221,7 @@ export default function CheckoutPage() {
         return options;
     }, [enabledMethods]);
 
-    const [paymentMethod, setPaymentMethod] = useState("stripe");
+    const [paymentMethod, setPaymentMethod] = useState("transfer");
     const goToAuthForCheckout = (path = "/login") => {
         sessionStorage.setItem("teflon_post_login_redirect", "/checkout");
         navigate(path);
@@ -241,7 +231,7 @@ export default function CheckoutPage() {
         const firstEnabled = paymentOptions.find((opt) => !opt.disabled);
         const selected = paymentOptions.find((opt) => opt.key === paymentMethod && !opt.disabled);
         if (!selected) {
-            setPaymentMethod(firstEnabled?.key || "stripe");
+            setPaymentMethod(firstEnabled?.key || "transfer");
         }
     }, [paymentOptions, paymentMethod]);
 
@@ -297,7 +287,7 @@ export default function CheckoutPage() {
                 setCheckoutSettings((prev) => ({
                     ...prev,
                     mode: commerce.checkout_mode || commerce.mode || prev.mode || "both",
-                    enabled_methods: uniquePaymentMethods(commerce.payment_methods || prev.enabled_methods || ["stripe", "transfer"]),
+                    enabled_methods: uniquePaymentMethods(commerce.payment_methods || prev.enabled_methods || ["transfer", "cash_on_pickup"]),
                     whatsapp_number: commerce.whatsapp_number || prev.whatsapp_number || "",
                     bank_transfer: commerce.bank_transfer || prev.bank_transfer || {},
                     tax_rate: Number(commerce.tax_rate ?? prev.tax_rate ?? 0),
@@ -454,10 +444,7 @@ export default function CheckoutPage() {
         if (paymentMethod === "cash_on_pickup") {
             return "Pago en local: confirmas online y abonas cuando retiras.";
         }
-        if (paymentMethod === "stripe") {
-            return "Stripe: por ahora registramos el pedido y queda pendiente de cobro.";
-        }
-        return "";
+        return "El pedido se registra y te mostramos los pasos siguientes.";
     }, [paymentMethod]);
 
     const paymentLabel = useMemo(
@@ -514,9 +501,7 @@ export default function CheckoutPage() {
                 ? "Pago: Transferencia bancaria"
                 : paymentMethod === "cash_on_pickup"
                     ? "Pago: En local"
-                    : paymentMethod === "stripe"
-                        ? "Pago: Stripe"
-                        : "Pago";
+                    : "Pago";
         const addressParts = [
             shippingInfo.fullAddress || profile.line1,
             shippingInfo.city || profile.city,
@@ -722,7 +707,7 @@ export default function CheckoutPage() {
             };
             const whatsappUrl = data.whatsapp_url || buildWhatsappUrl();
             const resolvedStatus =
-                checkoutModeResolved === "transfer" || checkoutModeResolved === "stripe"
+                checkoutModeResolved === "transfer"
                     ? "Pendiente de pago"
                     : "En gestion";
             const orderInfo = {
@@ -1326,10 +1311,6 @@ export default function CheckoutPage() {
                                             ) : orderSuccess.method === "cash_on_pickup" ? (
                                                 <p className="text-xs font-semibold text-green-700">
                                                     Pago en local seleccionado. Presentate en la sucursal elegida.
-                                                </p>
-                                            ) : orderSuccess.method === "stripe" ? (
-                                                <p className="text-xs font-semibold text-green-700">
-                                                    Stripe seleccionado. El pedido queda pendiente de cobro.
                                                 </p>
                                             ) : null}
                                         </div>
