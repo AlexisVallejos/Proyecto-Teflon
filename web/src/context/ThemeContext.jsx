@@ -41,6 +41,16 @@ export const ThemeProvider = ({ children }) => {
             }
         });
 
+        const catalogTheme =
+            effectiveTheme.catalog && typeof effectiveTheme.catalog === 'object'
+                ? effectiveTheme.catalog
+                : {};
+        Object.entries(catalogTheme).forEach(([key, value]) => {
+            if (typeof value === 'string') {
+                root.style.setProperty(`--catalog-${key.replace(/_/g, '-')}`, value);
+            }
+        });
+
         const fontFamily =
             effectiveTheme.font_family || effectiveTheme.fontFamily || effectiveTheme.typography?.fontFamily;
         if (fontFamily) {

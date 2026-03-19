@@ -59,7 +59,44 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
 
     const isEditing = Boolean(editingProductId);
     const selectedCategories = Array.isArray(productDraft.category_ids) ? productDraft.category_ids : [];
+    const specificationRows = Array.isArray(productDraft.specifications) ? productDraft.specifications : [];
     const syncMeta = SYNC_STATUS_META[productDraft.sync_status] || SYNC_STATUS_META.manual;
+
+    const updateSpecificationRow = (index, field, value) => {
+        setProductDraft((prev) => {
+            const currentRows = Array.isArray(prev.specifications) ? [...prev.specifications] : [];
+            if (!currentRows[index]) return prev;
+            currentRows[index] = {
+                ...currentRows[index],
+                [field]: value,
+            };
+            return {
+                ...prev,
+                specifications: currentRows,
+            };
+        });
+    };
+
+    const addSpecificationRow = () => {
+        setProductDraft((prev) => ({
+            ...prev,
+            specifications: [
+                ...(Array.isArray(prev.specifications) ? prev.specifications : []),
+                { key: '', value: '' },
+            ],
+        }));
+    };
+
+    const removeSpecificationRow = (index) => {
+        setProductDraft((prev) => {
+            const currentRows = Array.isArray(prev.specifications) ? [...prev.specifications] : [];
+            currentRows.splice(index, 1);
+            return {
+                ...prev,
+                specifications: currentRows,
+            };
+        });
+    };
 
     return (
         <div className="space-y-6">
@@ -140,13 +177,137 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
                 </div>
 
                 <EvolutionInput
-                    label="Descripcion"
-                    value={productDraft.description || ''}
-                    onChange={(e) => setProductDraft({ ...productDraft, description: e.target.value })}
-                    placeholder="Ej: Inclui materiales, medidas, envio, garantia y todo el detalle comercial en este campo."
-                    helperText="Usa esta descripcion como ficha completa del producto. Aca va toda la informacion."
+                    label="Detalle corto"
+                    value={productDraft.short_description || ''}
+                    onChange={(e) => setProductDraft({ ...productDraft, short_description: e.target.value })}
+                    placeholder="Ej: Resumen breve para catalogo y destacados."
+                    helperText="Este texto se muestra en catalogo y productos destacados."
                     multiline
                 />
+
+                <EvolutionInput
+                    label="Descripcion larga"
+                    value={productDraft.long_description || ''}
+                    onChange={(e) => setProductDraft({ ...productDraft, long_description: e.target.value })}
+                    placeholder="Ej: Inclui materiales, medidas, envio, garantia y todo el detalle comercial en este campo."
+                    helperText="Esta descripcion se usa en la ficha completa del producto."
+                    multiline
+                />
+
+                <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className={sectionLabelClass}>Especificaciones</p>
+                            <p className="mt-1 text-[11px] text-zinc-500">
+                                Carga las especificaciones como celdas. Ejemplo: Material / Bronce, Medida / 30 cm.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={addSpecificationRow}
+                            className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 hover:bg-white/10"
+                        >
+                            <Plus size={12} weight="bold" />
+                            Agregar celda
+                        </button>
+                    </div>
+
+                    <label className="inline-flex items-center gap-2 text-[10px] font-bold text-zinc-400">
+                        <input
+                            type="checkbox"
+                            checked={productDraft.show_specifications !== false}
+                            onChange={(e) => setProductDraft({ ...productDraft, show_specifications: e.target.checked })}
+                        />
+                        Mostrar especificaciones en la ficha del producto
+                    </label>
+
+                    <div className="space-y-2">
+                        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 px-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Campo</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Valor</p>
+                            <span />
+                        </div>
+
+                        {specificationRows.length ? (
+                            specificationRows.map((row, index) => (
+                                <div
+                                    key={`specification-${index}`}
+                                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 rounded-xl border border-white/10 bg-black/10 p-2"
+                                >
+                                    <input
+                                        type="text"
+                                        value={row?.key || ''}
+                                        onChange={(e) => updateSpecificationRow(index, 'key', e.target.value)}
+                                        placeholder="Ej: Material"
+                                        className={fieldClass}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={row?.value || ''}
+                                        onChange={(e) => updateSpecificationRow(index, 'value', e.target.value)}
+                                        placeholder="Ej: Bronce cromado"
+                                        className={fieldClass}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSpecificationRow(index)}
+                                        className="inline-flex items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 text-rose-300 hover:bg-rose-500/15"
+                                        aria-label="Eliminar especificacion"
+                                    >
+                                        <Trash size={14} weight="bold" />
+                                    </button>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-3 py-4 text-[11px] text-zinc-500">
+                                Todavia no cargaste especificaciones.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div>
+                        <p className={sectionLabelClass}>Variaciones</p>
+                        <p className="mt-1 text-[11px] text-zinc-500">
+                            Usa el mismo grupo en todas las variantes. Marca una como raiz para que el catalogo la muestre como expandible.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <EvolutionInput
+                            label="Grupo de variaciones"
+                            value={productDraft.variant_group || ''}
+                            onChange={(e) => setProductDraft({ ...productDraft, variant_group: e.target.value })}
+                            placeholder="Ej: griferia-linea-nova"
+                            helperText="Identificador comun entre raiz y variantes."
+                        />
+                        <EvolutionInput
+                            label="Nombre del grupo"
+                            value={productDraft.variant_group_label || ''}
+                            onChange={(e) => setProductDraft({ ...productDraft, variant_group_label: e.target.value })}
+                            placeholder="Ej: Linea Nova"
+                            helperText="Texto visible para el bloque de variaciones."
+                        />
+                    </div>
+
+                    <EvolutionInput
+                        label="Etiqueta de variacion"
+                        value={productDraft.variant_label || ''}
+                        onChange={(e) => setProductDraft({ ...productDraft, variant_label: e.target.value })}
+                        placeholder="Ej: Cromo mate / Negro / 30 cm"
+                        helperText="Lo que el cliente vera al desplegar las variantes."
+                    />
+
+                    <label className="inline-flex items-center gap-2 text-[10px] font-bold text-zinc-400">
+                        <input
+                            type="checkbox"
+                            checked={Boolean(productDraft.is_variant_root)}
+                            onChange={(e) => setProductDraft({ ...productDraft, is_variant_root: e.target.checked })}
+                        />
+                        Marcar como producto raiz del grupo
+                    </label>
+                </div>
 
                 <div className="space-y-2">
                     <p className={`${sectionLabelClass} pl-1`}>Categorias del producto</p>

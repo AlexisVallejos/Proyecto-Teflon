@@ -131,6 +131,13 @@ export default function FeaturedProducts({
       return {
         id,
         name: item?.name || "Producto",
+        shortDescription:
+          item?.shortDescription ||
+          item?.short_description ||
+          item?.data?.short_description ||
+          item?.data?.shortDescription ||
+          item?.description ||
+          "",
         alt: item?.alt || item?.name || "Producto",
         image,
         inStock,

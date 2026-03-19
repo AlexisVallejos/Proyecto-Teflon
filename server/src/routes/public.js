@@ -66,6 +66,35 @@ function mapProductRow(row, pricingContext) {
     categoryIds: row.category_ids || [],
   });
   const finalPrice = applyOfferDiscount(effective, bestOffer.percent);
+  const data = row.data && typeof row.data === 'object' ? row.data : {};
+  const specifications =
+    data.specifications && typeof data.specifications === 'object' ? data.specifications : {};
+  const rawVariationGroup = String(
+    data.variant_group || data.variantGroup || ''
+  ).trim();
+  const rawVariationGroupLabel = String(
+    data.variant_group_label || data.variantGroupLabel || ''
+  ).trim();
+  const rawVariationLabel = String(
+    data.variant_label ||
+      data.variantLabel ||
+      data.variant ||
+      specifications.color ||
+      specifications.acabado ||
+      specifications.terminacion ||
+      specifications.modelo ||
+      specifications.medida ||
+      ''
+  ).trim();
+  const collectionGroup = String(data.collection || '').trim();
+  const hasVariationSignal = Boolean(rawVariationGroup || rawVariationLabel);
+  const variationGroup = rawVariationGroup || (hasVariationSignal ? collectionGroup : null);
+  const isVariantRoot =
+    data.is_variant_root === true ||
+    data.isVariantRoot === true ||
+    String(data.is_variant_root || data.isVariantRoot || '')
+      .trim()
+      .toLowerCase() === 'true';
 
   return {
     id: row.id,
@@ -73,13 +102,27 @@ function mapProductRow(row, pricingContext) {
     sku: row.sku,
     name: row.name,
     description: row.description,
+    short_description:
+      data.short_description ||
+      data.shortDescription ||
+      null,
+    long_description:
+      data.long_description ||
+      data.longDescription ||
+      row.description ||
+      null,
+    show_specifications: data.show_specifications !== false,
     price: finalPrice,
     price_retail: retail,
     price_wholesale: wholesale,
     currency: row.currency,
     stock: row.stock,
     brand: row.brand,
-    data: row.data || {},
+    data,
+    variation_group: variationGroup || null,
+    variation_group_label: rawVariationGroupLabel || variationGroup || null,
+    variation_label: rawVariationLabel || null,
+    is_variant_root: isVariantRoot,
     pricing: {
       segment,
       pending_wholesale: pendingWholesale,
@@ -93,6 +136,134 @@ function mapProductRow(row, pricingContext) {
         : null,
     },
   };
+}
+
+function parseBooleanQuery(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (['true', '1', 'yes', 'si', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function parseNumericQuery(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+}
+
+function normalizeSortValue(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (
+    [
+      'name-desc',
+      'price-asc',
+      'price-desc',
+      'stock-asc',
+      'stock-desc',
+    ].includes(normalized)
+  ) {
+    return normalized;
+  }
+  return 'name-asc';
+}
+
+function getComparablePrice(item) {
+  if (item?.price_range && Number.isFinite(Number(item.price_range.min))) {
+    return Number(item.price_range.min);
+  }
+  return Number(item?.price || 0);
+}
+
+function getComparableStock(item) {
+  return Number(item?.stock || 0);
+}
+
+function getVariationDisplayLabel(item) {
+  return String(item?.variation_label || item?.sku || item?.name || '')
+    .trim()
+    .toLowerCase();
+}
+
+function sortPublicProducts(items, sort) {
+  const collator = new Intl.Collator('es', { sensitivity: 'base' });
+  const next = [...items];
+  next.sort((a, b) => {
+    if (sort === 'name-desc') {
+      return collator.compare(String(b?.name || ''), String(a?.name || ''));
+    }
+    if (sort === 'price-asc') {
+      return getComparablePrice(a) - getComparablePrice(b);
+    }
+    if (sort === 'price-desc') {
+      return getComparablePrice(b) - getComparablePrice(a);
+    }
+    if (sort === 'stock-asc') {
+      return getComparableStock(a) - getComparableStock(b);
+    }
+    if (sort === 'stock-desc') {
+      return getComparableStock(b) - getComparableStock(a);
+    }
+    return collator.compare(String(a?.name || ''), String(b?.name || ''));
+  });
+  return next;
+}
+
+function groupProductsByVariation(products, sort) {
+  const groups = new Map();
+
+  products.forEach((item) => {
+    const rawGroup = String(item?.variation_group || '').trim();
+    const key = rawGroup ? `group:${rawGroup.toLowerCase()}` : `single:${item.id}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        rawGroup: rawGroup || null,
+        items: [],
+      });
+    }
+    groups.get(key).items.push(item);
+  });
+
+  const collator = new Intl.Collator('es', { sensitivity: 'base' });
+  const groupedItems = [...groups.values()].map(({ rawGroup, items }) => {
+    const ordered = [...items].sort((a, b) => {
+      if (a.is_variant_root && !b.is_variant_root) return -1;
+      if (!a.is_variant_root && b.is_variant_root) return 1;
+      if (!a.variation_label && b.variation_label) return -1;
+      if (a.variation_label && !b.variation_label) return 1;
+      return collator.compare(getVariationDisplayLabel(a), getVariationDisplayLabel(b));
+    });
+
+    const root =
+      ordered.find((item) => item.is_variant_root) ||
+      ordered.find((item) => !item.variation_label) ||
+      ordered[0];
+    const variations = [root, ...ordered.filter((item) => item.id !== root.id)].map((item) => ({
+      ...item,
+      is_root: item.id === root.id,
+    }));
+    const prices = variations.map((item) => getComparablePrice(item));
+    const minPrice = prices.length ? Math.min(...prices) : getComparablePrice(root);
+    const maxPrice = prices.length ? Math.max(...prices) : getComparablePrice(root);
+
+    return {
+      ...root,
+      grouped: Boolean(rawGroup) && variations.length > 1,
+      variation_group: rawGroup,
+      variation_group_label:
+        root.variation_group_label || rawGroup || root.name || 'Variaciones',
+      variation_count: variations.length,
+      price_range: {
+        min: minPrice,
+        max: maxPrice,
+      },
+      variations,
+    };
+  });
+
+  return sortPublicProducts(groupedItems, sort);
 }
 
 function mapReviewRow(row) {
@@ -237,8 +408,11 @@ publicRouter.get('/products', async (req, res, next) => {
     const q = String(req.query.q || '').trim();
     const category = req.query.category;
     const brand = req.query.brand;
-    const minPrice = req.query.minPrice;
-    const maxPrice = req.query.maxPrice;
+    const minPrice = parseNumericQuery(req.query.minPrice);
+    const maxPrice = parseNumericQuery(req.query.maxPrice);
+    const inStockOnly = parseBooleanQuery(req.query.inStock, false);
+    const grouped = parseBooleanQuery(req.query.grouped, false);
+    const sort = normalizeSortValue(req.query.sort);
 
     const limit = Math.min(parseInt(req.query.limit || '24', 10), 100);
     const page = Math.max(parseInt(req.query.page || '1', 10), 1);
@@ -249,7 +423,11 @@ publicRouter.get('/products', async (req, res, next) => {
 
     if (q) {
       params.push(`%${q}%`);
-      where += ` and (p.name ilike $${params.length} or p.description ilike $${params.length})`;
+      where += [
+        ` and (p.name ilike $${params.length}`,
+        `or p.description ilike $${params.length}`,
+        `or coalesce(p.data->>'short_description', '') ilike $${params.length})`,
+      ].join(' ');
     }
 
     if (category) {
@@ -282,51 +460,42 @@ publicRouter.get('/products', async (req, res, next) => {
       where += ` and p.brand = $${params.length}`;
     }
 
-    if (minPrice) {
-      params.push(minPrice);
-      where += ` and p.price >= $${params.length}`;
-    }
-
-    if (maxPrice) {
-      params.push(maxPrice);
-      where += ` and p.price <= $${params.length}`;
-    }
-
-    const filterParams = [...params];
-    params.push(limit);
-    const limitIndex = params.length;
-    params.push(offset);
-    const offsetIndex = params.length;
-
-    const countSql = [
-      'select count(distinct p.id) as total',
-      'from product_cache p',
-      'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
-      `where ${where}`,
-    ].join(' ');
-
     const sql = [
       'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
       "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
       'from product_cache p',
       'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
       `where ${where}`,
-      `order by p.name asc limit $${limitIndex} offset $${offsetIndex}`,
+      'order by p.name asc',
     ].join(' ');
 
-    const [countRes, productsRes] = await Promise.all([
-      pool.query(countSql, filterParams),
-      pool.query(sql, params),
-    ]);
-    const products = productsRes.rows.map((row) => mapProductRow(row, pricingContext));
-    const total = Number(countRes.rows[0]?.total || 0);
+    const productsRes = await pool.query(sql, params);
+    let products = productsRes.rows.map((row) => mapProductRow(row, pricingContext));
+
+    if (Number.isFinite(minPrice)) {
+      products = products.filter((item) => getComparablePrice(item) >= minPrice);
+    }
+    if (Number.isFinite(maxPrice)) {
+      products = products.filter((item) => getComparablePrice(item) <= maxPrice);
+    }
+    if (inStockOnly) {
+      products = products.filter((item) => Number(item.stock || 0) > 0);
+    }
+
+    const filteredItems = grouped
+      ? groupProductsByVariation(products, sort)
+      : sortPublicProducts(products, sort);
+    const total = filteredItems.length;
+    const paginatedItems = filteredItems.slice(offset, offset + limit);
 
     return res.json({
       page,
       limit,
       total,
       total_pages: total > 0 ? Math.ceil(total / limit) : 0,
-      items: products,
+      sort,
+      grouped,
+      items: paginatedItems,
     });
   } catch (err) {
     return next(err);

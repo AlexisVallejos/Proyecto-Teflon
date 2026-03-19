@@ -7,6 +7,7 @@ import {
 } from '../../../utils/adminPanelTheme';
 import {
     DEFAULT_STOREFRONT_LIGHT_THEME,
+    getCatalogThemePreset,
 } from '../../../utils/storefrontTheme';
 
 const fieldClass =
@@ -28,6 +29,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const theme = settings?.theme || {};
     const adminBranding = branding?.admin_panel || {};
     const adminTheme = theme?.admin_panel || {};
+    const catalogTheme = getCatalogThemePreset('light', theme);
     const footer = branding?.footer || {};
     const socials = footer?.socials || {};
     const contact = footer?.contact || {};
@@ -51,6 +53,19 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
             branding: {
                 ...(prev.branding || {}),
                 ...patch,
+            },
+        }));
+    };
+
+    const updateCatalogTheme = (patch) => {
+        setSettings((prev) => ({
+            ...prev,
+            theme: {
+                ...(prev.theme || {}),
+                catalog: {
+                    ...(((prev.theme || {}).catalog) || {}),
+                    ...patch,
+                },
             },
         }));
     };
@@ -271,6 +286,95 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                 <span className="text-xs font-mono text-zinc-300">
                                     {theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.secondary}
                                 </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <div className="space-y-1">
+                            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Catalogo</p>
+                            <p className="text-xs text-zinc-500">
+                                Ajusta el color del listado: fondo, paneles, tarjetas, bordes y texto secundario.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Fondo catalogo</p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={catalogTheme.shell_bg}
+                                        onChange={(e) => updateCatalogTheme({ shell_bg: e.target.value })}
+                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                    />
+                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.shell_bg}</span>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Paneles</p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={catalogTheme.panel_bg}
+                                        onChange={(e) => updateCatalogTheme({ panel_bg: e.target.value })}
+                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                    />
+                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.panel_bg}</span>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Superficie</p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={catalogTheme.surface_bg}
+                                        onChange={(e) => updateCatalogTheme({ surface_bg: e.target.value })}
+                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                    />
+                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.surface_bg}</span>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Tarjetas</p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={catalogTheme.card_bg}
+                                        onChange={(e) => updateCatalogTheme({ card_bg: e.target.value })}
+                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                    />
+                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.card_bg}</span>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Bordes</p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={catalogTheme.border}
+                                        onChange={(e) => updateCatalogTheme({ border: e.target.value })}
+                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                    />
+                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.border}</span>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Texto secundario</p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={catalogTheme.muted_text}
+                                        onChange={(e) => updateCatalogTheme({ muted_text: e.target.value })}
+                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
+                                    />
+                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.muted_text}</span>
+                                </div>
                             </div>
                         </div>
                     </div>

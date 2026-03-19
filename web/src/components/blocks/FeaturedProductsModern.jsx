@@ -96,6 +96,11 @@ export default function FeaturedProductsModern({
                                     >
                                         {product.name}
                                     </button>
+                                    {product.shortDescription ? (
+                                        <p className="line-clamp-2 text-sm leading-6" style={{ color: colors.subtitleColor }}>
+                                            {product.shortDescription}
+                                        </p>
+                                    ) : null}
                                     {showPricesEnabled ? (
                                         canViewPrices ? (
                                             <p className="text-2xl font-black" style={{ color: colors.priceColor }}>

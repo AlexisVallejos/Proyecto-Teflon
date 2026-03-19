@@ -107,6 +107,11 @@ export default function FeaturedProductsLuxury({
                                     >
                                         {product.name}
                                     </button>
+                                    {product.shortDescription ? (
+                                        <p className="mt-2 line-clamp-2 text-sm leading-6" style={{ color: colors.subtitleColor }}>
+                                            {product.shortDescription}
+                                        </p>
+                                    ) : null}
 
                                     <div className="mt-2">
                                         {showPricesEnabled ? (

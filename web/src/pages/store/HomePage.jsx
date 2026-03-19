@@ -26,6 +26,18 @@ const buildFeaturedCard = (product, index, isWholesale = false) => {
         id: product.id,
         sku: product.sku || product.erp_id,
         name: product.name,
+        shortDescription:
+            product.short_description ||
+            data.short_description ||
+            data.shortDescription ||
+            product.description ||
+            "",
+        longDescription:
+            product.long_description ||
+            data.long_description ||
+            data.longDescription ||
+            product.description ||
+            "",
         price: isWholesale ? Number(product.price_wholesale || product.price) : Number(product.price || 0),
         badge: isWholesale && !!product.price_wholesale ? { text: "Mayorista", className: "bg-primary" } : badge,
         image,

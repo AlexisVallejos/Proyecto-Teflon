@@ -8,13 +8,20 @@ const createEmptyProduct = () => ({
     price: '',
     stock: 0,
     brand: '',
-    description: '',
+    short_description: '',
+    long_description: '',
     images: [],
     is_featured: false,
     category_id: '',
     category_ids: [],
     features: [],
+    specifications: [],
+    show_specifications: true,
     collection: '',
+    variant_group: '',
+    variant_group_label: '',
+    variant_label: '',
+    is_variant_root: false,
     is_visible_web: true,
     admin_locked: false,
     external_id: '',
@@ -31,6 +38,28 @@ const readImageAsDataUrl = (file) =>
         reader.onerror = (err) => reject(err);
         reader.readAsDataURL(file);
     });
+
+const mapSpecificationsObjectToRows = (specifications) => {
+    if (!specifications || typeof specifications !== 'object' || Array.isArray(specifications)) {
+        return [];
+    }
+
+    return Object.entries(specifications).map(([key, value]) => ({
+        key: String(key || '').trim(),
+        value: String(value ?? '').trim(),
+    }));
+};
+
+const mapSpecificationRowsToObject = (rows) => {
+    const list = Array.isArray(rows) ? rows : [];
+    return list.reduce((acc, row) => {
+        const key = String(row?.key || '').trim();
+        const value = String(row?.value || '').trim();
+        if (!key || !value) return acc;
+        acc[key] = value;
+        return acc;
+    }, {});
+};
 
 const buildProductFormFromProduct = (product) => {
     const data = product?.data && typeof product.data === 'object' ? product.data : {};
@@ -71,13 +100,29 @@ const buildProductFormFromProduct = (product) => {
         price: product?.price ?? '',
         stock: Number(product?.stock ?? 0),
         brand: product?.brand || '',
-        description: product?.description || '',
+        short_description:
+            data.short_description ||
+            data.shortDescription ||
+            product?.short_description ||
+            '',
+        long_description:
+            data.long_description ||
+            data.longDescription ||
+            product?.long_description ||
+            product?.description ||
+            '',
         images,
         is_featured: Boolean(product?.is_featured),
         category_id: categoryIds[0] || '',
         category_ids: categoryIds,
         features: Array.isArray(data.features) ? data.features : [],
+        specifications: mapSpecificationsObjectToRows(data.specifications),
+        show_specifications: data.show_specifications !== false,
         collection: data.collection || '',
+        variant_group: data.variant_group || data.variantGroup || '',
+        variant_group_label: data.variant_group_label || data.variantGroupLabel || '',
+        variant_label: data.variant_label || data.variantLabel || data.variant || '',
+        is_variant_root: data.is_variant_root === true || data.isVariantRoot === true,
         is_visible_web: product?.is_visible_web !== false,
         admin_locked: Boolean(product?.admin_locked),
         external_id: product?.external_id || '',
@@ -118,13 +163,16 @@ const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => (
     id: productId,
     sku: payload.sku || null,
     name: payload.name || '',
-    description: payload.description || null,
+    description: payload.long_description || payload.description || null,
+    short_description: payload.short_description || null,
+    long_description: payload.long_description || payload.description || null,
     price: Number(payload.price || 0),
     stock: Number(payload.stock || 0),
     brand: payload.brand || null,
     category_id: categoryIds[0] || '',
     category_ids: categoryIds,
     is_featured: Boolean(payload.is_featured),
+    show_specifications: payload.show_specifications !== false,
     is_visible_web: payload.is_visible_web !== false,
     admin_locked: Boolean(payload.admin_locked),
     external_id: payload.external_id || null,
@@ -135,7 +183,18 @@ const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => (
     data: {
         images: Array.isArray(payload.images) ? payload.images : [],
         features: Array.isArray(payload.features) ? payload.features : [],
+        specifications:
+            payload.specifications && typeof payload.specifications === 'object' && !Array.isArray(payload.specifications)
+                ? payload.specifications
+                : {},
+        show_specifications: payload.show_specifications !== false,
+        short_description: payload.short_description || null,
+        long_description: payload.long_description || payload.description || null,
         collection: payload.collection || null,
+        variant_group: payload.variant_group || null,
+        variant_group_label: payload.variant_group_label || null,
+        variant_label: payload.variant_label || null,
+        is_variant_root: payload.is_variant_root === true,
     },
 });
 
@@ -199,6 +258,8 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
             const categoryIds = normalizeCategoryIds(productDraft, categories);
             const payload = {
                 ...productDraft,
+                description: productDraft.long_description || '',
+                specifications: mapSpecificationRowsToObject(productDraft.specifications),
                 category_id: categoryIds[0] || '',
                 category_ids: categoryIds,
                 stock: Number(productDraft.stock || 0),
@@ -249,6 +310,8 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
             const categoryIds = normalizeCategoryIds(productDraft, categories);
             const payload = {
                 ...productDraft,
+                description: productDraft.long_description || '',
+                specifications: mapSpecificationRowsToObject(productDraft.specifications),
                 category_id: categoryIds[0] || '',
                 category_ids: categoryIds,
                 stock: Number(productDraft.stock || 0),

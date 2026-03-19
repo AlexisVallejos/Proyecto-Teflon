@@ -117,6 +117,7 @@ export default function Header({
   const [catalogCategories, setCatalogCategories] = useState([]);
   const [catalogBrands, setCatalogBrands] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedMobileCategories, setExpandedMobileCategories] = useState({});
 
   const resolvedBrand = brandName || settings?.branding?.name || tenant?.name || "El Teflon";
   const logoUrl = settings?.branding?.logo_url;
@@ -275,6 +276,16 @@ export default function Header({
     roots.forEach((item) => item.children.sort(sorter));
     return roots;
   }, [catalogCategories]);
+
+  useEffect(() => {
+    setExpandedMobileCategories((prev) => {
+      const next = {};
+      categoryTree.forEach((parent) => {
+        next[parent.id] = typeof prev[parent.id] === "boolean" ? prev[parent.id] : false;
+      });
+      return next;
+    });
+  }, [categoryTree]);
 
   const categoryLinks = useMemo(() => {
     const next = [];
@@ -608,14 +619,35 @@ export default function Header({
                     <div className="space-y-3">
                       {categoryTree.map((parent) => (
                         <div key={`mobile-category-${parent.id}`} className="rounded-2xl border border-[#e6ecf2] p-3 dark:border-[#2c1f16]">
-                          <button
-                            type="button"
-                            onClick={() => handleMobileNavigate(`/catalog?category=${encodeURIComponent(parent.id)}`)}
-                            className="block w-full text-left text-sm font-bold text-[color:var(--color-primary,#0099e5)]"
-                          >
-                            {parent.name}
-                          </button>
-                          {parent.children.length ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleMobileNavigate(`/catalog?category=${encodeURIComponent(parent.id)}`)}
+                              className="block min-w-0 flex-1 text-left text-sm font-bold text-[color:var(--color-primary,#0099e5)]"
+                            >
+                              {parent.name}
+                            </button>
+                            {parent.children.length ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedMobileCategories((prev) => ({
+                                    ...prev,
+                                    [parent.id]: !prev[parent.id],
+                                  }))
+                                }
+                                className={`inline-flex size-8 items-center justify-center rounded-lg border transition-colors ${
+                                  expandedMobileCategories[parent.id]
+                                    ? "border-[color:var(--color-primary,#0099e5)] bg-[color:var(--color-primary,#0099e5)]/10 text-[color:var(--color-primary,#0099e5)]"
+                                    : "border-[#dbe2ea] text-[#4b5563] dark:border-[#3d2f21] dark:text-[#cdbca9]"
+                                }`}
+                                aria-label={expandedMobileCategories[parent.id] ? `Ocultar subcategorias de ${parent.name}` : `Mostrar subcategorias de ${parent.name}`}
+                              >
+                                <ChevronDown className={`size-3 transition-transform ${expandedMobileCategories[parent.id] ? "rotate-180" : ""}`} />
+                              </button>
+                            ) : null}
+                          </div>
+                          {parent.children.length && expandedMobileCategories[parent.id] ? (
                             <div className="mt-2 space-y-2 border-l border-[#e6ecf2] pl-3 dark:border-[#2c1f16]">
                               {parent.children.map((child) => (
                                 <button

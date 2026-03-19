@@ -98,6 +98,11 @@ export default function FeaturedProductsHighEnergy({
                                     >
                                         {product.name}
                                     </button>
+                                    {product.shortDescription ? (
+                                        <p className="line-clamp-2 text-sm leading-6" style={{ color: colors.subtitleColor }}>
+                                            {product.shortDescription}
+                                        </p>
+                                    ) : null}
 
                                     <div className="flex items-end justify-between gap-3">
                                         <div className="min-w-0">

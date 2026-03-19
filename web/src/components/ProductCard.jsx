@@ -16,6 +16,13 @@ export default function ProductCard({ product }) {
   const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
 
   const { id, sku, name, price, badge, image, alt, stock } = product;
+  const shortDescription =
+    product?.shortDescription ||
+    product?.short_description ||
+    product?.data?.short_description ||
+    product?.data?.shortDescription ||
+    product?.description ||
+    "";
   const showStock = settings?.commerce?.show_stock !== false;
   const lowStockThreshold = getLowStockThreshold(settings);
   const stockStatus = showStock ? getStockStatus(stock, lowStockThreshold) : null;
@@ -59,6 +66,11 @@ export default function ProductCard({ product }) {
 
       <div className="px-2 pb-2 text-left">
         <h3 className="text-lg font-bold dark:text-white line-clamp-1">{name}</h3>
+        {shortDescription ? (
+          <p className="mt-1 line-clamp-2 text-sm text-[#8a7560] dark:text-[#b8a795]">
+            {shortDescription}
+          </p>
+        ) : null}
         {stockStatus ? (
           <span
             className={`mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${stockStatus.bg} ${stockStatus.tone}`}

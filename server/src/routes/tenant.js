@@ -1321,9 +1321,17 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
     }
 
     const sku = req.body?.sku !== undefined ? String(req.body.sku || '').trim() || null : existing.sku;
-    const description = req.body?.description !== undefined
-      ? String(req.body.description || '').trim() || null
-      : existing.description;
+    const shortDescription = Object.prototype.hasOwnProperty.call(req.body || {}, 'short_description')
+      ? String(req.body?.short_description || '').trim() || null
+      : (String(existingData.short_description || existingData.shortDescription || '').trim() || null);
+    const longDescriptionSource = Object.prototype.hasOwnProperty.call(req.body || {}, 'long_description')
+      ? req.body?.long_description
+      : (
+          Object.prototype.hasOwnProperty.call(req.body || {}, 'description')
+            ? req.body?.description
+            : (existingData.long_description || existingData.longDescription || existing.description)
+        );
+    const description = String(longDescriptionSource || '').trim() || null;
     const brand = req.body?.brand !== undefined
       ? normalizeBrandName(req.body.brand) || null
       : existing.brand;
@@ -1377,9 +1385,24 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
     const specifications = Object.prototype.hasOwnProperty.call(req.body || {}, 'specifications')
       ? (req.body?.specifications && typeof req.body.specifications === 'object' ? req.body.specifications : {})
       : (existingData.specifications && typeof existingData.specifications === 'object' ? existingData.specifications : {});
+    const showSpecifications = Object.prototype.hasOwnProperty.call(req.body || {}, 'show_specifications')
+      ? parseBooleanInput(req.body?.show_specifications, existingData.show_specifications !== false)
+      : (existingData.show_specifications !== false);
     const collection = Object.prototype.hasOwnProperty.call(req.body || {}, 'collection')
       ? (req.body?.collection || null)
       : (existingData.collection || null);
+    const variantGroup = Object.prototype.hasOwnProperty.call(req.body || {}, 'variant_group')
+      ? String(req.body?.variant_group || '').trim() || null
+      : (String(existingData.variant_group || existingData.variantGroup || '').trim() || null);
+    const variantGroupLabel = Object.prototype.hasOwnProperty.call(req.body || {}, 'variant_group_label')
+      ? String(req.body?.variant_group_label || '').trim() || null
+      : (String(existingData.variant_group_label || existingData.variantGroupLabel || '').trim() || null);
+    const variantLabel = Object.prototype.hasOwnProperty.call(req.body || {}, 'variant_label')
+      ? String(req.body?.variant_label || '').trim() || null
+      : (String(existingData.variant_label || existingData.variantLabel || existingData.variant || '').trim() || null);
+    const isVariantRoot = Object.prototype.hasOwnProperty.call(req.body || {}, 'is_variant_root')
+      ? parseBooleanInput(req.body?.is_variant_root, false)
+      : (existingData.is_variant_root === true || existingData.isVariantRoot === true);
     const deliveryTime = Object.prototype.hasOwnProperty.call(req.body || {}, 'delivery_time')
       ? (req.body?.delivery_time || null)
       : (existingData.delivery_time || null);
@@ -1406,8 +1429,15 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
       ...existingData,
       images: imageData,
       features,
+      short_description: shortDescription,
+      long_description: description,
       specifications,
+      show_specifications: showSpecifications,
       collection,
+      variant_group: variantGroup,
+      variant_group_label: variantGroupLabel,
+      variant_label: variantLabel,
+      is_variant_root: isVariantRoot,
       delivery_time: deliveryTime,
       shipping_details: shippingDetails,
       warranty,
@@ -1515,13 +1545,20 @@ tenantRouter.post('/products', async (req, res, next) => {
     stock,
     brand,
     description,
+    short_description,
+    long_description,
     images,
     is_featured,
     category_id,
     category_ids,
     features,
     specifications,
+    show_specifications,
     collection,
+    variant_group,
+    variant_group_label,
+    variant_label,
+    is_variant_root,
     delivery_time,
     shipping_details,
     warranty,
@@ -1559,6 +1596,9 @@ tenantRouter.post('/products', async (req, res, next) => {
     imageData = [{ url: images, alt: name, primary: true }];
   }
 
+  const shortDescription = String(short_description || '').trim() || null;
+  const normalizedLongDescription = String((long_description ?? description) || '').trim() || null;
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -1571,8 +1611,15 @@ tenantRouter.post('/products', async (req, res, next) => {
     const productData = {
       images: imageData,
       features: features || [],
+      short_description: shortDescription,
+      long_description: normalizedLongDescription,
       specifications: specifications || {},
+      show_specifications: parseBooleanInput(show_specifications, true),
       collection: collection || null,
+      variant_group: String(variant_group || '').trim() || null,
+      variant_group_label: String(variant_group_label || '').trim() || null,
+      variant_label: String(variant_label || '').trim() || null,
+      is_variant_root: parseBooleanInput(is_variant_root, false),
       delivery_time: delivery_time || null,
       shipping_details: shipping_details || null,
       warranty: warranty || null
@@ -1595,7 +1642,7 @@ tenantRouter.post('/products', async (req, res, next) => {
         price_wholesale || price || 0,
         stock || 0,
         brand || null,
-        description || null,
+        normalizedLongDescription,
         JSON.stringify(productData),
         isVisibleWeb,
         adminLocked,

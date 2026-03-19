@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
@@ -8,14 +8,19 @@ import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 import { getPriceAccessState } from "../../utils/priceVisibility";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
+import { createPlaceholderImage } from "../../utils/productImage";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
 
-const FALLBACK_IMAGES = [
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuBQfYj1LC2KxJbrFc3JaW30fWNfBzOogedTliYaUerOGoeN9U0yPBa1Ly6cy0ifOVDGxRUhn39rTwm0asqqAroPQHLpdkrk_InCtirUQjGAQLvthIiB6EbRD71XqIoNekpixuF5np0LnNX1TY1UFuOELn9k9yOF23KgFYf1gCkfGPYdqRsN1a1b37xx0ItWp_yRvOdkSXB6CKK-dwrUA-uIDgTyng5s8My5tUJf8uzoYo7ri3rjEb8vDaZsLXgEsjTyaUDUDLV5wrk",
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuBVydqb7G5A_PT5CeAhoUo5VF2YXn8B2Hx2Y7DXvOB4gcZRtfBQHFy3IXPSOyox8_pIRZ01SgjOZeoV9ydnJd4VX1MFyFby5IDfG7nwbc2nvES8jZnphd62afdnYbb6Iaf8EhHngYqYD6DaMh8Y7GWRUftLJ-ruDjZNpatP8hNSQbK7lpweqdguNtcjdh8H7Qh_N1McVphjwD3cKtffejU4Ws_7fNBO0ICFabsb2GdV_B21lIn06nqXxOYw8NB228co8N3wupZ7HDc",
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuClfnnmyLSA1sheGaWQ5qYtxE0FF5qt12jk3aemf83GNBih8DrAxP333h6xoVymK2lFU8U24cWhKMczFknhA-0Grlo6BouODj-zkSJYahGjgDFAhCvYq_CdPJ6qf8USI4qWjTdBKGuPmXK6thIxNiVzbevOytIAWSgcxSvo5yQd3peEKnUsUA5ipDJrAubSfTLPPqHtK_07CVE4c8pIjXYITA0N02MfWaQVtHo7zU7YyVY-xODc39GfPmw_pebT52VXD-UGu7QlFfg",
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuAkClqY_wDhmuGwKW6w359XUqENuKc8aFogvTgQ_FDq87gKL2BNINH2x9v9gOdB770HKriEtiFBPB3KwankIDLcCQIqUFhdosfhhsOV2F03ExDPdQw8T6RKvZ7-TkLtHx4lrgXoWojWLnxjLYsqoyw297omFCNExuUp8_titY2UjKXJfbqDnqzOSqON-o5ZdJL0juGNioWdiLRE_dD9vylviYWQqdwwnb37AekTF5_A6oeoh3_WpvFW0lqNEU953ZUCrwPQNCqBrCc",
+const FALLBACK_IMAGE = createPlaceholderImage({ label: "Producto", width: 720, height: 720 });
+const DEFAULT_SORT = "name-asc";
+const SORT_OPTIONS = [
+    { value: "name-asc", label: "Nombre A-Z" },
+    { value: "name-desc", label: "Nombre Z-A" },
+    { value: "price-asc", label: "Precio menor a mayor" },
+    { value: "price-desc", label: "Precio mayor a menor" },
+    { value: "stock-desc", label: "Mayor stock" },
+    { value: "stock-asc", label: "Menor stock" },
 ];
 
 const normalizeFilterValue = (value) => {
@@ -23,15 +28,37 @@ const normalizeFilterValue = (value) => {
     return raw || null;
 };
 
+const normalizePriceFilterValue = (value) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) return "";
+    return String(parsed);
+};
+
+const parseBooleanFilter = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    return ["true", "1", "yes", "si", "on"].includes(normalized);
+};
+
+const normalizeSortValue = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    return SORT_OPTIONS.some((option) => option.value === normalized) ? normalized : DEFAULT_SORT;
+};
+
 const getFiltersFromUrl = () => {
     const params = new URLSearchParams(window.location.search || "");
     return {
         category: normalizeFilterValue(params.get("category")),
         brand: normalizeFilterValue(params.get("brand")),
+        minPrice: normalizePriceFilterValue(params.get("minPrice")),
+        maxPrice: normalizePriceFilterValue(params.get("maxPrice")),
+        inStock: parseBooleanFilter(params.get("inStock")),
+        sort: normalizeSortValue(params.get("sort")),
     };
 };
 
-const buildCatalogHref = ({ category, brand }) => {
+const buildCatalogHref = ({ category, brand, minPrice, maxPrice, inStock, sort }) => {
     const params = new URLSearchParams();
     if (normalizeFilterValue(category)) {
         params.set("category", normalizeFilterValue(category));
@@ -39,8 +66,62 @@ const buildCatalogHref = ({ category, brand }) => {
     if (normalizeFilterValue(brand)) {
         params.set("brand", normalizeFilterValue(brand));
     }
+    if (normalizePriceFilterValue(minPrice)) {
+        params.set("minPrice", normalizePriceFilterValue(minPrice));
+    }
+    if (normalizePriceFilterValue(maxPrice)) {
+        params.set("maxPrice", normalizePriceFilterValue(maxPrice));
+    }
+    if (inStock) {
+        params.set("inStock", "true");
+    }
+    if (normalizeSortValue(sort) !== DEFAULT_SORT) {
+        params.set("sort", normalizeSortValue(sort));
+    }
     const query = params.toString();
     return query ? `/catalog?${query}` : "/catalog";
+};
+
+const getProductImage = (product) => {
+    const data = product?.data || {};
+    const rawImages = Array.isArray(data.images) ? data.images : [];
+    const rawFirst = rawImages[0];
+    return (
+        data.image ||
+        data.image_url ||
+        (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
+        FALLBACK_IMAGE
+    );
+};
+
+const getVariationName = (product) => {
+    const explicit = String(product?.variation_label || "").trim();
+    if (explicit) return explicit;
+    const data = product?.data || {};
+    const specs = data.specifications && typeof data.specifications === "object" ? data.specifications : {};
+    return (
+        String(data.variant_label || data.variant || specs.color || specs.acabado || specs.modelo || product?.sku || product?.name || "")
+            .trim() || "Variacion"
+    );
+};
+
+const CATALOG_STYLES = {
+    shell: { backgroundColor: "var(--catalog-shell-bg, #f7f3ee)" },
+    panel: {
+        backgroundColor: "var(--catalog-panel-bg, #fffdfb)",
+        borderColor: "var(--catalog-border, #e5e1de)",
+    },
+    surface: {
+        backgroundColor: "var(--catalog-surface-bg, #fcfbfa)",
+        borderColor: "var(--catalog-border, #e5e1de)",
+    },
+    card: {
+        backgroundColor: "var(--catalog-card-bg, #ffffff)",
+        borderColor: "var(--catalog-border, #e5e1de)",
+    },
+    media: { backgroundColor: "var(--catalog-surface-bg, #fcfbfa)" },
+    border: { borderColor: "var(--catalog-border, #e5e1de)" },
+    muted: { color: "var(--catalog-muted-text, #8a7560)" },
 };
 
 const normalizeCategory = (item) => {
@@ -88,7 +169,7 @@ const findBrand = (brands, value) => {
 export default function CatalogPage() {
     const { search, showToast } = useStore();
     const { settings } = useTenant();
-    const { isWholesale, user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
     const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
@@ -101,6 +182,10 @@ export default function CatalogPage() {
     const [brands, setBrands] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(initialFilters.category);
     const [selectedBrand, setSelectedBrand] = useState(initialFilters.brand);
+    const [selectedMinPrice, setSelectedMinPrice] = useState(initialFilters.minPrice);
+    const [selectedMaxPrice, setSelectedMaxPrice] = useState(initialFilters.maxPrice);
+    const [inStockOnly, setInStockOnly] = useState(initialFilters.inStock);
+    const [sort, setSort] = useState(initialFilters.sort);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
@@ -116,6 +201,10 @@ export default function CatalogPage() {
             const next = getFiltersFromUrl();
             setSelectedCategory((prev) => (prev === next.category ? prev : next.category));
             setSelectedBrand((prev) => (prev === next.brand ? prev : next.brand));
+            setSelectedMinPrice((prev) => (prev === next.minPrice ? prev : next.minPrice));
+            setSelectedMaxPrice((prev) => (prev === next.maxPrice ? prev : next.maxPrice));
+            setInStockOnly((prev) => (prev === next.inStock ? prev : next.inStock));
+            setSort((prev) => (prev === next.sort ? prev : next.sort));
             setPage(1);
             setMobileFiltersOpen(false);
         };
@@ -177,6 +266,8 @@ export default function CatalogPage() {
                 const url = new URL(`${getApiBase()}/public/products`);
                 url.searchParams.set("page", String(page));
                 url.searchParams.set("limit", String(limit));
+                url.searchParams.set("grouped", "true");
+                url.searchParams.set("sort", sort);
 
                 if (search.trim()) {
                     url.searchParams.set("q", search.trim());
@@ -186,6 +277,15 @@ export default function CatalogPage() {
                 }
                 if (selectedBrand) {
                     url.searchParams.set("brand", selectedBrand);
+                }
+                if (selectedMinPrice) {
+                    url.searchParams.set("minPrice", selectedMinPrice);
+                }
+                if (selectedMaxPrice) {
+                    url.searchParams.set("maxPrice", selectedMaxPrice);
+                }
+                if (inStockOnly) {
+                    url.searchParams.set("inStock", "true");
                 }
 
                 const response = await fetch(url.toString(), {
@@ -224,7 +324,7 @@ export default function CatalogPage() {
             active = false;
             controller.abort();
         };
-    }, [limit, page, search, selectedBrand, selectedCategory]);
+    }, [inStockOnly, limit, page, search, selectedBrand, selectedCategory, selectedMaxPrice, selectedMinPrice, sort]);
 
     const selectedCategoryEntry = useMemo(() => findCategory(categories, selectedCategory), [categories, selectedCategory]);
     const selectedBrandEntry = useMemo(() => findBrand(brands, selectedBrand), [brands, selectedBrand]);
@@ -251,34 +351,72 @@ export default function CatalogPage() {
     }, [categories]);
 
     const catalogProducts = useMemo(() => {
-        return products.map((product, index) => {
+        const mapVariation = (variation) => {
+            const variationData = variation?.data || {};
+            return {
+                id: variation.id,
+                sku: variation.sku || variation.erp_id,
+                name: variation.name,
+                variationName: getVariationName(variation),
+                variant: getVariationName(variation),
+                desc:
+                    variation.short_description ||
+                    variationData.short_description ||
+                    variationData.shortDescription ||
+                    variation.description ||
+                    "",
+                price: Number(variation.price || 0),
+                oldPrice: variationData.old_price ? Number(variationData.old_price) : null,
+                image: getProductImage(variation),
+                alt: variationData.image_alt || variation.name || "Producto",
+                stock: variation.stock,
+                isWholesaleItem: Boolean(variation?.pricing?.segment && variation.pricing.segment !== "retail"),
+                isRoot: variation.is_root === true,
+            };
+        };
+
+        return products.map((product) => {
             const data = product.data || {};
-            const rawImages = Array.isArray(data.images) ? data.images : [];
-            const rawFirst = rawImages[0];
-            const image =
-                data.image ||
-                data.image_url ||
-                (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
-                FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+            const variations = Array.isArray(product?.variations) ? product.variations.map(mapVariation) : [];
+            const prices = variations.length ? variations.map((item) => Number(item.price || 0)) : [Number(product.price || 0)];
+            const stockLevels = variations.length ? variations.map((item) => Number(item.stock || 0)) : [Number(product.stock || 0)];
 
             return {
                 id: product.id,
                 sku: product.sku || product.erp_id,
                 name: product.name,
-                desc: product.description || data.short_description || "",
-                price: isWholesale ? Number(product.price_wholesale || product.price) : Number(product.price || 0),
-                oldPrice: isWholesale ? null : (data.old_price ? Number(data.old_price) : null),
+                desc:
+                    product.short_description ||
+                    data.short_description ||
+                    data.shortDescription ||
+                    product.description ||
+                    "",
+                price: Number(product.price || 0),
+                minPrice: prices.length ? Math.min(...prices) : Number(product.price || 0),
+                maxPrice: prices.length ? Math.max(...prices) : Number(product.price || 0),
+                oldPrice: data.old_price ? Number(data.old_price) : null,
                 tag: data.tag || null,
-                image,
+                image: getProductImage(product),
                 alt: data.image_alt || product.name || "Producto",
-                stock: product.stock,
-                isWholesaleItem: isWholesale && !!product.price_wholesale,
+                stock: stockLevels.reduce((total, current) => total + current, 0),
+                isWholesaleItem: Boolean(product?.pricing?.segment && product.pricing.segment !== "retail"),
+                variationGroup: product.variation_group,
+                variationGroupLabel: product.variation_group_label || data.variant_group_label || data.collection || null,
+                variationCount: Number(product.variation_count || variations.length || 1),
+                grouped: Boolean(product.grouped) && variations.length > 1,
+                variations,
             };
         });
-    }, [isWholesale, products]);
+    }, [products]);
 
     const totalPages = Math.max(1, Math.ceil(totalItems / limit));
-    const activeFilterCount = [selectedCategory, selectedBrand].filter(Boolean).length;
+    const activeFilterCount = [
+        selectedCategory,
+        selectedBrand,
+        selectedMinPrice,
+        selectedMaxPrice,
+        inStockOnly ? "stock" : null,
+    ].filter(Boolean).length;
 
     const applyFilters = useCallback(
         (next = {}) => {
@@ -288,18 +426,51 @@ export default function CatalogPage() {
             const nextBrand = Object.prototype.hasOwnProperty.call(next, "brand")
                 ? normalizeFilterValue(next.brand)
                 : selectedBrand;
+            const nextMinPrice = Object.prototype.hasOwnProperty.call(next, "minPrice")
+                ? normalizePriceFilterValue(next.minPrice)
+                : selectedMinPrice;
+            const nextMaxPrice = Object.prototype.hasOwnProperty.call(next, "maxPrice")
+                ? normalizePriceFilterValue(next.maxPrice)
+                : selectedMaxPrice;
+            const nextInStock = Object.prototype.hasOwnProperty.call(next, "inStock")
+                ? Boolean(next.inStock)
+                : inStockOnly;
+            const nextSort = Object.prototype.hasOwnProperty.call(next, "sort")
+                ? normalizeSortValue(next.sort)
+                : sort;
+            const nextMinNumber = Number(nextMinPrice);
+            const nextMaxNumber = Number(nextMaxPrice);
+            const normalizedMinPrice =
+                nextMinPrice && nextMaxPrice && Number.isFinite(nextMinNumber) && Number.isFinite(nextMaxNumber) && nextMinNumber > nextMaxNumber
+                    ? String(nextMaxNumber)
+                    : nextMinPrice;
+            const normalizedMaxPrice =
+                nextMinPrice && nextMaxPrice && Number.isFinite(nextMinNumber) && Number.isFinite(nextMaxNumber) && nextMinNumber > nextMaxNumber
+                    ? String(nextMinNumber)
+                    : nextMaxPrice;
 
             setSelectedCategory(nextCategory);
             setSelectedBrand(nextBrand);
+            setSelectedMinPrice(normalizedMinPrice);
+            setSelectedMaxPrice(normalizedMaxPrice);
+            setInStockOnly(nextInStock);
+            setSort(nextSort);
             setPage(1);
             setMobileFiltersOpen(false);
-            navigate(buildCatalogHref({ category: nextCategory, brand: nextBrand }));
+            navigate(buildCatalogHref({
+                category: nextCategory,
+                brand: nextBrand,
+                minPrice: normalizedMinPrice,
+                maxPrice: normalizedMaxPrice,
+                inStock: nextInStock,
+                sort: nextSort,
+            }));
         },
-        [selectedBrand, selectedCategory]
+        [inStockOnly, selectedBrand, selectedCategory, selectedMaxPrice, selectedMinPrice, sort]
     );
 
     const resetFilters = useCallback(() => {
-        applyFilters({ category: null, brand: null });
+        applyFilters({ category: null, brand: null, minPrice: "", maxPrice: "", inStock: false, sort: DEFAULT_SORT });
     }, [applyFilters]);
 
     const chips = useMemo(() => {
@@ -310,8 +481,18 @@ export default function CatalogPage() {
         if (selectedBrandEntry) {
             next.push({ id: "brand", label: selectedBrandEntry.name, clear: () => applyFilters({ brand: null }) });
         }
+        if (selectedMinPrice || selectedMaxPrice) {
+            next.push({
+                id: "price",
+                label: `Precio ${selectedMinPrice ? `desde ${selectedMinPrice}` : ""}${selectedMinPrice && selectedMaxPrice ? " " : ""}${selectedMaxPrice ? `hasta ${selectedMaxPrice}` : ""}`.trim(),
+                clear: () => applyFilters({ minPrice: "", maxPrice: "" }),
+            });
+        }
+        if (inStockOnly) {
+            next.push({ id: "stock", label: "Solo con stock", clear: () => applyFilters({ inStock: false }) });
+        }
         return next;
-    }, [applyFilters, selectedBrandEntry, selectedCategoryEntry]);
+    }, [applyFilters, inStockOnly, selectedBrandEntry, selectedCategoryEntry, selectedMaxPrice, selectedMinPrice]);
 
     const quickCategories = useMemo(() => categoryTree.slice(0, 4), [categoryTree]);
     const quickBrands = useMemo(() => brands.slice(0, 4), [brands]);
@@ -327,7 +508,7 @@ export default function CatalogPage() {
             return `Resultados para "${search.trim()}"`;
         }
         if (selectedCategoryEntry && selectedBrandEntry) {
-            return `${selectedCategoryEntry.name} · ${selectedBrandEntry.name}`;
+            return `${selectedCategoryEntry.name} / ${selectedBrandEntry.name}`;
         }
         if (selectedCategoryEntry) {
             return `Explora ${selectedCategoryEntry.name}`;
@@ -335,12 +516,15 @@ export default function CatalogPage() {
         if (selectedBrandEntry) {
             return `Productos de ${selectedBrandEntry.name}`;
         }
+        if (selectedMinPrice || selectedMaxPrice || inStockOnly) {
+            return "Resultados refinados por rango de precio, disponibilidad y taxonomias comerciales.";
+        }
         return "Coleccion profesional para obras y reformas.";
-    }, [search, selectedBrandEntry, selectedCategoryEntry]);
+    }, [inStockOnly, search, selectedBrandEntry, selectedCategoryEntry, selectedMaxPrice, selectedMinPrice]);
 
     return (
         <StoreLayout>
-            <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-6 md:px-6 lg:pt-8 xl:px-10">
+            <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-6 md:px-6 lg:pt-8 xl:px-10" style={CATALOG_STYLES.shell}>
                 {mobileFiltersOpen ? (
                     <div
                         className="fixed inset-0 z-40 bg-black/45 lg:hidden"
@@ -349,8 +533,8 @@ export default function CatalogPage() {
                     />
                 ) : null}
 
-                <section className="rounded-[28px] border border-[#e5e1de] bg-white/95 p-5 shadow-sm dark:border-[#3d2f21] dark:bg-[#120c08]/95 md:p-8">
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-[#8a7560]">
+                <section className="rounded-[28px] border p-5 shadow-sm md:p-8" style={CATALOG_STYLES.panel}>
+                    <div className="flex flex-wrap items-center gap-2 text-sm" style={CATALOG_STYLES.muted}>
                         <button type="button" className="transition-colors hover:text-primary" onClick={() => navigate("/")}>Inicio</button>
                         <span>/</span>
                         <button type="button" className="transition-colors hover:text-primary" onClick={resetFilters}>Catalogo</button>
@@ -371,7 +555,7 @@ export default function CatalogPage() {
                                 <h1 className="text-3xl font-black tracking-tight text-[#181411] dark:text-white md:text-4xl">
                                     {selectedCategoryEntry?.name || selectedBrandEntry?.name || "Todos los productos"}
                                 </h1>
-                                <p className="max-w-2xl text-sm leading-6 text-[#8a7560] md:text-base">{resultsSummary}</p>
+                                <p className="max-w-2xl text-sm leading-6 md:text-base" style={CATALOG_STYLES.muted}>{resultsSummary}</p>
                             </div>
                         </div>
 
@@ -379,7 +563,8 @@ export default function CatalogPage() {
                             <button
                                 type="button"
                                 onClick={() => setMobileFiltersOpen(true)}
-                                className="inline-flex items-center gap-2 rounded-xl border border-[#d9d1ca] px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white lg:hidden"
+                                className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white lg:hidden"
+                                style={CATALOG_STYLES.border}
                             >
                                 <FilterIcon className="size-4" />
                                 {activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
@@ -387,7 +572,8 @@ export default function CatalogPage() {
                             <button
                                 type="button"
                                 onClick={resetFilters}
-                                className="inline-flex items-center gap-2 rounded-xl bg-[#f5f2f0] px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:bg-primary hover:text-white dark:bg-[#21160e] dark:text-white"
+                                className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:bg-primary hover:text-white dark:text-white"
+                                style={CATALOG_STYLES.surface}
                             >
                                 <ResetIcon className="size-4" />
                                 Limpiar filtros
@@ -415,7 +601,8 @@ export default function CatalogPage() {
                                         key={`quick-category-${category.id}`}
                                         type="button"
                                         onClick={() => applyFilters({ category: category.id })}
-                                        className="rounded-full border border-[#ded7d0] px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                                        className="rounded-full border px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white"
+                                        style={CATALOG_STYLES.border}
                                     >
                                         {category.name}
                                     </button>
@@ -425,7 +612,8 @@ export default function CatalogPage() {
                                         key={`quick-brand-${brand.id}`}
                                         type="button"
                                         onClick={() => applyFilters({ brand: brand.id })}
-                                        className="rounded-full border border-[#ded7d0] px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                                        className="rounded-full border px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white"
+                                        style={CATALOG_STYLES.border}
                                     >
                                         {brand.name}
                                     </button>
@@ -442,22 +630,32 @@ export default function CatalogPage() {
                             brands={brands}
                             selectedCategory={selectedCategory}
                             selectedBrand={selectedBrand}
+                            selectedMinPrice={selectedMinPrice}
+                            selectedMaxPrice={selectedMaxPrice}
+                            inStockOnly={inStockOnly}
+                            sort={sort}
                             onSelectCategory={(value) => applyFilters({ category: value })}
                             onSelectBrand={(value) => applyFilters({ brand: value })}
+                            onApplyAdvanced={(values) => applyFilters(values)}
                             onReset={resetFilters}
                         />
                     </aside>
 
                     {mobileFiltersOpen ? (
-                        <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-sm overflow-y-auto bg-white p-4 shadow-2xl dark:bg-[#120c08] lg:hidden">
+                        <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-sm overflow-y-auto p-4 shadow-2xl lg:hidden" style={CATALOG_STYLES.panel}>
                             <CatalogFilters
                                 mobile
                                 categoryTree={categoryTree}
                                 brands={brands}
                                 selectedCategory={selectedCategory}
                                 selectedBrand={selectedBrand}
+                                selectedMinPrice={selectedMinPrice}
+                                selectedMaxPrice={selectedMaxPrice}
+                                inStockOnly={inStockOnly}
+                                sort={sort}
                                 onSelectCategory={(value) => applyFilters({ category: value })}
                                 onSelectBrand={(value) => applyFilters({ brand: value })}
+                                onApplyAdvanced={(values) => applyFilters(values)}
                                 onReset={resetFilters}
                                 onClose={() => setMobileFiltersOpen(false)}
                             />
@@ -465,24 +663,24 @@ export default function CatalogPage() {
                     ) : null}
 
                     <section className="mt-6 min-w-0 lg:mt-0">
-                        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#e5e1de] bg-[#fcfbfa] px-4 py-4 dark:border-[#3d2f21] dark:bg-[#17100b] sm:flex-row sm:items-center sm:justify-between">
+                        <div className="mb-5 flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between" style={CATALOG_STYLES.surface}>
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8a7560]">Resultados</p>
+                                <p className="text-xs font-bold uppercase tracking-[0.14em]" style={CATALOG_STYLES.muted}>Resultados</p>
                                 <h2 className="mt-1 text-lg font-bold text-[#181411] dark:text-white">
-                                    {totalItems === 1 ? "1 producto" : `${totalItems} productos`}
+                                    {totalItems === 1 ? "1 raiz o producto" : `${totalItems} raices o productos`}
                                 </h2>
                             </div>
-                            <p className="text-sm text-[#8a7560]">
+                            <p className="text-sm" style={CATALOG_STYLES.muted}>
                                 {activeFilterCount > 0
-                                    ? "Filtra por categoria y marca, o limpia para volver al catalogo completo."
-                                    : "Usa el buscador, categorias y marcas para encontrar mas rapido lo que necesitas."}
+                                    ? "Filtra por categoria, marca, rango de precios, stock y orden para acotar mejor la grilla."
+                                    : "Usa el buscador, categorias, marcas y orden para encontrar mas rapido lo que necesitas."}
                             </p>
                         </div>
 
                         {loading ? (
                             <StoreSkeleton variant="catalog" />
                         ) : catalogProducts.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-[#e5e1de] px-6 py-14 text-center text-[#8a7560] dark:border-[#3d2f21]">
+                            <div className="rounded-2xl border border-dashed px-6 py-14 text-center" style={{ ...CATALOG_STYLES.border, ...CATALOG_STYLES.muted }}>
                                 <p className="text-lg font-bold text-[#181411] dark:text-white">No encontramos productos para esta busqueda.</p>
                                 <p className="mt-2 text-sm">Prueba con otra categoria, otra marca o limpia los filtros activos.</p>
                             </div>
@@ -519,7 +717,7 @@ export default function CatalogPage() {
                                     if (!nearCurrent) {
                                         if (pageNumber === page - 2 || pageNumber === page + 2) {
                                             return (
-                                                <span key={`ellipsis-${pageNumber}`} className="px-2 text-sm font-bold text-[#8a7560]">
+                                                <span key={`ellipsis-${pageNumber}`} className="px-2 text-sm font-bold" style={CATALOG_STYLES.muted}>
                                                     ...
                                                 </span>
                                             );
@@ -562,24 +760,74 @@ function CatalogFilters({
     brands,
     selectedCategory,
     selectedBrand,
+    selectedMinPrice,
+    selectedMaxPrice,
+    inStockOnly,
+    sort,
     onSelectCategory,
     onSelectBrand,
+    onApplyAdvanced,
     onReset,
     mobile = false,
     onClose,
 }) {
+    const [draftMinPrice, setDraftMinPrice] = useState(selectedMinPrice || "");
+    const [draftMaxPrice, setDraftMaxPrice] = useState(selectedMaxPrice || "");
+    const [draftInStockOnly, setDraftInStockOnly] = useState(Boolean(inStockOnly));
+    const [draftSort, setDraftSort] = useState(normalizeSortValue(sort));
+    const [expandedCategories, setExpandedCategories] = useState(() => {
+        const next = {};
+        categoryTree.forEach((category) => {
+            const childActive = category.children.some((child) => selectedCategory === child.id || selectedCategory === child.slug);
+            next[category.id] = Boolean(childActive || selectedCategory === category.id || selectedCategory === category.slug);
+        });
+        return next;
+    });
+
+    useEffect(() => {
+        setDraftMinPrice(selectedMinPrice || "");
+    }, [selectedMinPrice]);
+
+    useEffect(() => {
+        setDraftMaxPrice(selectedMaxPrice || "");
+    }, [selectedMaxPrice]);
+
+    useEffect(() => {
+        setDraftInStockOnly(Boolean(inStockOnly));
+    }, [inStockOnly]);
+
+    useEffect(() => {
+        setDraftSort(normalizeSortValue(sort));
+    }, [sort]);
+
+    useEffect(() => {
+        setExpandedCategories((prev) => {
+            const next = {};
+            categoryTree.forEach((category) => {
+                const childActive = category.children.some((child) => selectedCategory === child.id || selectedCategory === child.slug);
+                if (typeof prev[category.id] === "boolean") {
+                    next[category.id] = prev[category.id] || childActive;
+                } else {
+                    next[category.id] = Boolean(childActive || selectedCategory === category.id || selectedCategory === category.slug);
+                }
+            });
+            return next;
+        });
+    }, [categoryTree, selectedCategory]);
+
     return (
-        <div className={`rounded-[24px] border border-[#e5e1de] bg-white p-5 shadow-sm dark:border-[#3d2f21] dark:bg-[#120c08] ${mobile ? "min-h-full" : "sticky top-24"}`}>
+        <div className={`rounded-[24px] border p-5 shadow-sm ${mobile ? "min-h-full" : "sticky top-24"}`} style={CATALOG_STYLES.panel}>
             <div className="flex items-center justify-between gap-3">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8a7560]">Explorar</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em]" style={CATALOG_STYLES.muted}>Explorar</p>
                     <h2 className="mt-1 text-xl font-black text-[#181411] dark:text-white">Filtros</h2>
                 </div>
                 {mobile ? (
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-full border border-[#ded7d0] p-2 text-[#181411] dark:border-[#3d2f21] dark:text-white"
+                        className="rounded-full border p-2 text-[#181411] dark:text-white"
+                        style={CATALOG_STYLES.border}
                         aria-label="Cerrar filtros"
                     >
                         <CloseIcon className="size-4" />
@@ -590,7 +838,8 @@ function CatalogFilters({
             <button
                 type="button"
                 onClick={onReset}
-                className="mt-5 flex w-full items-center justify-between rounded-2xl border border-[#ded7d0] px-4 py-3 text-left text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                className="mt-5 flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white"
+                style={CATALOG_STYLES.border}
             >
                 <span>Catalogo completo</span>
                 <ResetIcon className="size-4" />
@@ -599,7 +848,7 @@ function CatalogFilters({
             <div className="mt-6 space-y-6">
                 <section>
                     <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#8a7560]">Categorias</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-[0.12em]" style={CATALOG_STYLES.muted}>Categorias</h3>
                         {selectedCategory ? (
                             <button
                                 type="button"
@@ -614,22 +863,45 @@ function CatalogFilters({
                         {categoryTree.length ? (
                             categoryTree.map((category) => {
                                 const parentActive = selectedCategory === category.id || selectedCategory === category.slug;
+                                const hasChildren = category.children.length > 0;
+                                const expanded = expandedCategories[category.id] ?? false;
                                 return (
-                                    <div key={`category-${category.id}`} className="rounded-2xl border border-[#f0ebe7] p-3 dark:border-[#24170f]">
-                                        <button
-                                            type="button"
-                                            onClick={() => onSelectCategory(category.id)}
-                                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors ${
-                                                parentActive
-                                                    ? "bg-primary text-white"
-                                                    : "text-[#181411] hover:bg-[#f5f2f0] dark:text-white dark:hover:bg-[#21160e]"
-                                            }`}
-                                        >
-                                            <span>{category.name}</span>
-                                            <ChevronRightIcon className="size-4" />
-                                        </button>
-                                        {category.children.length ? (
-                                            <div className="mt-2 space-y-1 border-l border-[#ece5df] pl-3 dark:border-[#2f2118]">
+                                    <div key={`category-${category.id}`} className="rounded-2xl border p-3" style={CATALOG_STYLES.surface}>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => onSelectCategory(category.id)}
+                                                className={`flex min-w-0 flex-1 items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors ${
+                                                    parentActive
+                                                        ? "bg-primary text-white"
+                                                        : "text-[#181411] hover:bg-[#f5f2f0] dark:text-white dark:hover:bg-[#21160e]"
+                                                }`}
+                                            >
+                                                <span className="truncate">{category.name}</span>
+                                            </button>
+                                            {hasChildren ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setExpandedCategories((prev) => ({
+                                                            ...prev,
+                                                            [category.id]: !expanded,
+                                                        }))
+                                                    }
+                                                    className={`inline-flex size-10 items-center justify-center rounded-xl border transition-colors ${
+                                                        expanded
+                                                            ? "border-primary bg-primary/10 text-primary"
+                                                            : "text-[#6f5f50] hover:border-primary hover:text-primary dark:text-[#d6c4b4]"
+                                                    }`}
+                                                    style={expanded ? undefined : { ...CATALOG_STYLES.border, ...CATALOG_STYLES.muted }}
+                                                    aria-label={expanded ? `Ocultar subcategorias de ${category.name}` : `Mostrar subcategorias de ${category.name}`}
+                                                >
+                                                    <ChevronRightIcon className={`size-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                        {hasChildren && expanded ? (
+                                            <div className="mt-2 space-y-1 border-l pl-3" style={CATALOG_STYLES.border}>
                                                 {category.children.map((child) => {
                                                     const childActive = selectedCategory === child.id || selectedCategory === child.slug;
                                                     return (
@@ -642,6 +914,7 @@ function CatalogFilters({
                                                                     ? "bg-primary/12 font-bold text-primary"
                                                                     : "text-[#6f5f50] hover:bg-[#f7f4f1] hover:text-[#181411] dark:text-[#d6c4b4] dark:hover:bg-[#1d140d] dark:hover:text-white"
                                                             }`}
+                                                            style={childActive ? undefined : CATALOG_STYLES.muted}
                                                         >
                                                             <span>{child.name}</span>
                                                             <ChevronRightIcon className="size-4" />
@@ -654,14 +927,125 @@ function CatalogFilters({
                                 );
                             })
                         ) : (
-                            <p className="text-sm text-[#8a7560]">No hay categorias disponibles.</p>
+                            <p className="text-sm" style={CATALOG_STYLES.muted}>No hay categorias disponibles.</p>
                         )}
                     </div>
                 </section>
 
                 <section>
                     <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#8a7560]">Marcas</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-[0.12em]" style={CATALOG_STYLES.muted}>Precio</h3>
+                        {(draftMinPrice || draftMaxPrice) ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setDraftMinPrice("");
+                                    setDraftMaxPrice("");
+                                    onApplyAdvanced?.({ minPrice: "", maxPrice: "" });
+                                }}
+                                className="text-xs font-bold text-primary"
+                            >
+                                Limpiar
+                            </button>
+                        ) : null}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <label className="space-y-1">
+                            <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={CATALOG_STYLES.muted}>Minimo</span>
+                            <input
+                                type="number"
+                                min="0"
+                                inputMode="numeric"
+                                value={draftMinPrice}
+                                onChange={(event) => setDraftMinPrice(normalizePriceFilterValue(event.target.value))}
+                                placeholder="0"
+                                className="w-full rounded-xl border px-3 py-2.5 text-sm text-[#181411] outline-none transition-colors focus:border-primary dark:text-white"
+                                style={CATALOG_STYLES.card}
+                            />
+                        </label>
+                        <label className="space-y-1">
+                            <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={CATALOG_STYLES.muted}>Maximo</span>
+                            <input
+                                type="number"
+                                min="0"
+                                inputMode="numeric"
+                                value={draftMaxPrice}
+                                onChange={(event) => setDraftMaxPrice(normalizePriceFilterValue(event.target.value))}
+                                placeholder="999999"
+                                className="w-full rounded-xl border px-3 py-2.5 text-sm text-[#181411] outline-none transition-colors focus:border-primary dark:text-white"
+                                style={CATALOG_STYLES.card}
+                            />
+                        </label>
+                    </div>
+                </section>
+
+                <section>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-bold uppercase tracking-[0.12em]" style={CATALOG_STYLES.muted}>Disponibilidad</h3>
+                    </div>
+                    <label className="flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold text-[#181411] dark:text-white" style={CATALOG_STYLES.surface}>
+                        <input
+                            type="checkbox"
+                            checked={draftInStockOnly}
+                            onChange={(event) => setDraftInStockOnly(event.target.checked)}
+                            className="size-4 rounded border-[#d9d1ca] text-primary focus:ring-primary"
+                        />
+                        <span>Solo productos con stock</span>
+                    </label>
+                </section>
+
+                <section>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-bold uppercase tracking-[0.12em]" style={CATALOG_STYLES.muted}>Orden</h3>
+                    </div>
+                    <select
+                        value={draftSort}
+                        onChange={(event) => setDraftSort(normalizeSortValue(event.target.value))}
+                        className="w-full rounded-xl border px-3 py-3 text-sm font-semibold text-[#181411] outline-none transition-colors focus:border-primary dark:text-white"
+                        style={CATALOG_STYLES.card}
+                    >
+                        {SORT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </section>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            onApplyAdvanced?.({
+                                minPrice: draftMinPrice,
+                                maxPrice: draftMaxPrice,
+                                inStock: draftInStockOnly,
+                                sort: draftSort,
+                            })
+                        }
+                        className="rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
+                    >
+                        Aplicar filtros
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setDraftMinPrice("");
+                            setDraftMaxPrice("");
+                            setDraftInStockOnly(false);
+                            setDraftSort(DEFAULT_SORT);
+                            onReset?.();
+                        }}
+                        className="rounded-2xl border px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white"
+                        style={CATALOG_STYLES.border}
+                    >
+                        Limpiar todo
+                    </button>
+                </div>
+
+                <section>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-bold uppercase tracking-[0.12em]" style={CATALOG_STYLES.muted}>Marcas</h3>
                         {selectedBrand ? (
                             <button
                                 type="button"
@@ -684,15 +1068,16 @@ function CatalogFilters({
                                         className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                                             active
                                                 ? "bg-primary text-white"
-                                                : "border border-[#ded7d0] text-[#181411] hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                                                : "border text-[#181411] hover:border-primary hover:text-primary dark:text-white"
                                         }`}
+                                        style={active ? undefined : CATALOG_STYLES.border}
                                     >
                                         {brand.name}
                                     </button>
                                 );
                             })
                         ) : (
-                            <p className="text-sm text-[#8a7560]">No hay marcas disponibles.</p>
+                            <p className="text-sm" style={CATALOG_STYLES.muted}>No hay marcas disponibles.</p>
                         )}
                     </div>
                 </section>
@@ -713,16 +1098,19 @@ function CatalogProductCard({
     onFavoriteChange,
 }) {
     const { addToCart, toggleFavorite, isFavorite } = useStore();
-    const { name, desc, price, oldPrice, tag, image, alt, stock } = product;
+    const [expanded, setExpanded] = useState(false);
+    const { name, desc, price, minPrice, maxPrice, oldPrice, tag, image, alt, stock, grouped, variationCount, variations, variationGroupLabel } = product;
     const favoriteActive = isFavorite(product.id);
     const inStock = isInStock(stock);
     const stockStatus = showStock ? getStockStatus(stock, lowStockThreshold) : null;
+    const hasVariations = grouped && Array.isArray(variations) && variations.length > 1;
+    const hasPriceRange = Number.isFinite(minPrice) && Number.isFinite(maxPrice) && minPrice !== maxPrice;
 
     const openProduct = () => navigate(`/product/${product.id}`);
 
     return (
-        <article className="group overflow-hidden rounded-[24px] border border-[#e5e1de] bg-white shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl dark:border-[#3d2f21] dark:bg-[#120c08]">
-            <div className="relative aspect-square cursor-pointer overflow-hidden bg-[#f5f2f0] dark:bg-[#21160e]" onClick={openProduct}>
+        <article className="group overflow-hidden rounded-[24px] border shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl" style={CATALOG_STYLES.card}>
+            <div className="relative aspect-square cursor-pointer overflow-hidden" style={CATALOG_STYLES.media} onClick={openProduct}>
                 <img
                     alt={name}
                     title={alt}
@@ -769,20 +1157,30 @@ function CatalogProductCard({
                 ) : null}
             </div>
 
-            <div className="flex flex-col gap-4 p-5">
+                <div className="flex flex-col gap-4 p-5">
                 <div className="space-y-2">
                     <button type="button" onClick={openProduct} className="text-left">
                         <h3 className="text-lg font-black leading-tight text-[#181411] transition-colors group-hover:text-primary dark:text-white">
                             {name}
                         </h3>
                     </button>
-                    <p className="line-clamp-2 text-sm leading-6 text-[#8a7560]">{desc || "Producto profesional listo para tu obra."}</p>
+                    <p className="line-clamp-2 text-sm leading-6" style={CATALOG_STYLES.muted}>{desc || "Producto profesional listo para tu obra."}</p>
                     {stockStatus ? (
                         <span
                             className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${stockStatus.bg} ${stockStatus.tone}`}
                         >
                             {stockStatus.label}
                         </span>
+                    ) : null}
+                    {hasVariations ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
+                                {variationCount} variaciones
+                            </span>
+                            {variationGroupLabel ? (
+                                <span className="text-[11px] font-semibold" style={CATALOG_STYLES.muted}>{variationGroupLabel}</span>
+                            ) : null}
+                        </div>
                     ) : null}
                 </div>
 
@@ -792,7 +1190,11 @@ function CatalogProductCard({
                             canViewPrices ? (
                                 <>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-2xl font-black text-primary">{formatCurrency(price, currency, locale)}</span>
+                                        <span className="text-2xl font-black text-primary">
+                                            {hasPriceRange
+                                                ? `Desde ${formatCurrency(minPrice, currency, locale)}`
+                                                : formatCurrency(price, currency, locale)}
+                                        </span>
                                         <span
                                             className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
                                                 product.isWholesaleItem
@@ -803,29 +1205,134 @@ function CatalogProductCard({
                                             {product.isWholesaleItem ? "Mayorista" : "Minorista"}
                                         </span>
                                     </div>
+                                    {hasPriceRange ? (
+                                        <span className="text-sm" style={CATALOG_STYLES.muted}>
+                                            Hasta {formatCurrency(maxPrice, currency, locale)}
+                                        </span>
+                                    ) : null}
                                     {oldPrice ? (
-                                        <span className="text-sm text-[#8a7560] line-through">{formatCurrency(oldPrice, currency, locale)}</span>
+                                        <span className="text-sm line-through" style={CATALOG_STYLES.muted}>{formatCurrency(oldPrice, currency, locale)}</span>
                                     ) : null}
                                 </>
                             ) : authLoading ? (
-                                <span className="text-sm text-[#8a7560]">Cargando precio...</span>
+                                <span className="text-sm" style={CATALOG_STYLES.muted}>Cargando precio...</span>
                             ) : (
                                 <PriceAccessPrompt compact />
                             )
                         ) : (
-                            <span className="text-sm text-[#8a7560]">Consultar precio</span>
+                            <span className="text-sm" style={CATALOG_STYLES.muted}>Consultar precio</span>
                         )}
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={() => addToCart(product, 1)}
-                        disabled={!inStock}
-                        className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        <CartPlusIcon className="size-5" />
-                    </button>
+                    {hasVariations ? (
+                        <button
+                            type="button"
+                            onClick={() => setExpanded((current) => !current)}
+                            className="inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-bold text-white transition-all hover:bg-primary"
+                            style={{ backgroundColor: "var(--color-accent, #181411)" }}
+                        >
+                            {expanded ? "Ocultar" : "Ver variantes"}
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => addToCart(product, 1)}
+                            disabled={!inStock}
+                            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <CartPlusIcon className="size-5" />
+                        </button>
+                    )}
                 </div>
+
+                {hasVariations && expanded ? (
+                    <div className="rounded-2xl border p-3" style={CATALOG_STYLES.surface}>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={CATALOG_STYLES.muted}>Variaciones</p>
+                                <p className="text-sm font-semibold text-[#181411] dark:text-white">
+                                    {variationGroupLabel || "Opciones disponibles"}
+                                </p>
+                            </div>
+                            <span className="text-[11px]" style={CATALOG_STYLES.muted}>{variationCount} opciones</span>
+                        </div>
+
+                        <div className="space-y-2">
+                            {variations.map((variation) => {
+                                const variationInStock = isInStock(variation.stock);
+                                const variationStockStatus = showStock ? getStockStatus(variation.stock, lowStockThreshold) : null;
+                                return (
+                                    <div
+                                        key={`variation-${variation.id}`}
+                                        className={`rounded-2xl border px-3 py-3 transition-colors ${
+                                            variation.isRoot
+                                                ? "border-primary/30 bg-primary/5"
+                                                : ""
+                                        }`}
+                                        style={variation.isRoot ? undefined : CATALOG_STYLES.card}
+                                    >
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                                        {variation.variationName}
+                                                    </p>
+                                                    {variation.isRoot ? (
+                                                        <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
+                                                            Raiz
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                {variation.sku ? (
+                                                    <p className="mt-1 text-[11px]" style={CATALOG_STYLES.muted}>SKU: {variation.sku}</p>
+                                                ) : null}
+                                                {variationStockStatus ? (
+                                                    <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${variationStockStatus.bg} ${variationStockStatus.tone}`}>
+                                                        {variationStockStatus.label}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+
+                                            <div className="flex flex-col items-start gap-2 sm:items-end">
+                                                {showPricesEnabled ? (
+                                                    canViewPrices ? (
+                                                        <span className="text-base font-black text-primary">
+                                                            {formatCurrency(variation.price, currency, locale)}
+                                                        </span>
+                                                    ) : authLoading ? (
+                                                        <span className="text-sm" style={CATALOG_STYLES.muted}>Cargando precio...</span>
+                                                    ) : (
+                                                        <PriceAccessPrompt compact />
+                                                    )
+                                                ) : (
+                                                    <span className="text-sm" style={CATALOG_STYLES.muted}>Consultar precio</span>
+                                                )}
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigate(`/product/${variation.id}`)}
+                                                        className="rounded-xl border px-3 py-2 text-xs font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white"
+                                                        style={CATALOG_STYLES.border}
+                                                    >
+                                                        Ver detalle
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => addToCart(variation, 1)}
+                                                        disabled={!variationInStock}
+                                                        className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        Agregar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </article>
     );
@@ -837,7 +1344,8 @@ function PaginationButton({ label, onClick, disabled }) {
             type="button"
             onClick={onClick}
             disabled={disabled}
-            className="rounded-xl border border-[#e5e1de] px-4 py-2 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3d2f21] dark:text-white"
+            className="rounded-xl border px-4 py-2 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 dark:text-white"
+            style={CATALOG_STYLES.border}
         >
             {label}
         </button>
@@ -914,3 +1422,4 @@ function CartPlusIcon({ className = "size-5" }) {
         </svg>
     );
 }
+

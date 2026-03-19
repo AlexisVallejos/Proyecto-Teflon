@@ -206,7 +206,18 @@ export default function ProductDetail() {
             id: product.id,
             sku: product.sku || product.erp_id,
             name: product.name || "Producto",
-            description: product.description || data.description || "",
+            shortDescription:
+                product.short_description ||
+                data.short_description ||
+                data.shortDescription ||
+                "",
+            longDescription:
+                product.long_description ||
+                data.long_description ||
+                data.longDescription ||
+                product.description ||
+                data.description ||
+                "",
             brand: product.brand || data.brand,
             stock: product.stock,
             image,
@@ -215,6 +226,7 @@ export default function ProductDetail() {
             price,
             oldPrice: !isWholesale && data.old_price ? Number(data.old_price) : null,
             isWholesaleItem: isWholesale && product.price_wholesale != null,
+            showSpecifications: product.show_specifications !== false && data.show_specifications !== false,
             extra: data,
         };
     }, [product, isWholesale]);
@@ -283,6 +295,17 @@ export default function ProductDetail() {
     const canBuy = view ? isInStock(view.stock) : false;
     const stockStatus = view && showStock ? getStockStatus(view.stock, lowStockThreshold) : null;
     const favoriteActive = view ? isFavorite(view.id) : false;
+    const specificationEntries = useMemo(() => {
+        const specs = view?.extra?.specifications;
+        if (!specs || typeof specs !== "object" || Array.isArray(specs)) return [];
+        return Object.entries(specs)
+            .map(([label, value]) => ({
+                label: String(label || "").trim(),
+                value: String(value ?? "").trim(),
+            }))
+            .filter((item) => item.label && item.value);
+    }, [view]);
+    const canShowSpecifications = Boolean(view?.showSpecifications && specificationEntries.length);
 
     const handleReviewSubmit = async (event) => {
         event.preventDefault();
@@ -538,6 +561,7 @@ export default function ProductDetail() {
                             <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-[#e5e1de] dark:border-[#3d2f21] px-6 pt-5">
                                 {[
                                     { id: "description", label: "Descripción" },
+                                    ...(canShowSpecifications ? [{ id: "specifications", label: "Especificaciones" }] : []),
                                     { id: "reviews", label: "Reseñas" },
                                 ].map((tab) => (
                                     <button
@@ -559,8 +583,37 @@ export default function ProductDetail() {
                                                 {view.name}
                                             </h3>
                                             <p className="text-sm text-[#8a7560] leading-relaxed whitespace-pre-line">
-                                                {view.description || "Sin descripción disponible."}
+                                                {view.longDescription || view.shortDescription || "Sin descripción disponible."}
                                             </p>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {activeTab === "specifications" && canShowSpecifications ? (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h3 className="text-xl font-black text-[#181411] dark:text-white mb-2">
+                                                Especificaciones técnicas
+                                            </h3>
+                                            <p className="text-sm text-[#8a7560]">
+                                                Detalle rápido del producto en formato de celdas.
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            {specificationEntries.map((item) => (
+                                                <div
+                                                    key={`spec-${item.label}`}
+                                                    className="rounded-2xl border border-[#e5e1de] bg-[#faf8f6] px-4 py-3 dark:border-[#3d2f21] dark:bg-[#120d08]"
+                                                >
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8a7560]">
+                                                        {item.label}
+                                                    </p>
+                                                    <p className="mt-2 text-sm font-semibold text-[#181411] dark:text-white">
+                                                        {item.value}
+                                                    </p>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 ) : null}
@@ -763,3 +816,4 @@ export default function ProductDetail() {
         </StoreLayout>
     );
 }
+
