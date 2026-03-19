@@ -3,6 +3,7 @@ import PageBuilder from '../../PageBuilder';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import { DEFAULT_ABOUT_SECTIONS, DEFAULT_HOME_SECTIONS } from '../../../data/defaultSections';
 import { cn } from '../../../utils/cn';
+import { PRODUCT_PLACEHOLDER_IMAGE } from '../../../utils/productImage';
 import {
     Eye,
     EyeSlash,
@@ -69,7 +70,7 @@ const buildPreviewProduct = (product = {}) => {
         sku: product?.sku || product?.erp_id || '',
         name: product?.name || 'Producto',
         price: Number(product?.price || 0),
-        image: image || 'https://via.placeholder.com/600x600?text=Producto',
+        image: image || PRODUCT_PLACEHOLDER_IMAGE,
         alt: product?.name || 'Producto',
         stock: Number(product?.stock ?? 0),
         is_featured: Boolean(product?.is_featured),

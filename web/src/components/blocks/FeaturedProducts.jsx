@@ -5,11 +5,13 @@ import { useAuth } from "../../context/AuthContext";
 import ProductCard from "../ProductCard";
 import { navigate } from "../../utils/navigation";
 import { formatCurrency } from "../../utils/format";
+import { getPriceAccessState } from "../../utils/priceVisibility";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 import FeaturedProductsModern from "./FeaturedProductsModern";
 import FeaturedProductsHighEnergy from "./FeaturedProductsHighEnergy";
 import FeaturedProductsLuxury from "./FeaturedProductsLuxury";
 import { normalizeFeaturedStyles, normalizeFeaturedVariant } from "../../data/featuredProductsTemplates";
+import { PRODUCT_PLACEHOLDER_IMAGE } from "../../utils/productImage";
 
 const resolveProductImage = (product = {}) => {
   if (typeof product.image === "string" && product.image) return product.image;
@@ -24,7 +26,7 @@ const resolveProductImage = (product = {}) => {
     if (typeof first === "string") return first;
     if (first && typeof first === "object") return first.url || first.src || "";
   }
-  return "https://via.placeholder.com/640x640?text=Producto";
+  return PRODUCT_PLACEHOLDER_IMAGE;
 };
 
 const isUuid = (value) =>
@@ -102,8 +104,7 @@ export default function FeaturedProducts({
   const { user, loading: authLoading } = useAuth();
   const currency = settings?.commerce?.currency || "ARS";
   const locale = settings?.commerce?.locale || "es-AR";
-  const showPricesEnabled = settings?.commerce?.show_prices !== false;
-  const canViewPrices = showPricesEnabled && !!user;
+  const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
   const showStock = settings?.commerce?.show_stock !== false;
   const lowStockThreshold = getLowStockThreshold(settings);
   const selectedVariant = normalizeFeaturedVariant(variant);

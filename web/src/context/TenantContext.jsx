@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS = {
     commerce: {
         currency: 'ARS',
         locale: 'es-AR',
+        price_visibility: 'authenticated',
         show_prices: true,
         show_stock: true,
         reviews_enabled: true,

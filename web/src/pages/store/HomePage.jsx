@@ -3,6 +3,7 @@ import PageBuilder from "../../components/PageBuilder";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { createPlaceholderImage } from "../../utils/productImage";
 
 import HeroSlider from "../../components/blocks/HeroSlider";
 import FeaturedProducts from "../../components/blocks/FeaturedProducts";
@@ -16,7 +17,7 @@ const buildFeaturedCard = (product, index, isWholesale = false) => {
         data.image ||
         data.image_url ||
         (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
-        "https://via.placeholder.com/400";
+        createPlaceholderImage({ label: "Producto", width: 400, height: 400 });
 
     const inStock = typeof product.stock === "number" ? product.stock > 0 : true;
     const badge = !inStock ? { text: "Sin stock", className: "bg-zinc-400" } : null;

@@ -6,6 +6,7 @@ import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
+import { getPriceAccessState } from "../../utils/priceVisibility";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
@@ -90,8 +91,7 @@ export default function CatalogPage() {
     const { isWholesale, user, loading: authLoading } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
-    const showPricesEnabled = settings?.commerce?.show_prices !== false;
-    const canViewPrices = showPricesEnabled && !!user;
+    const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
     const showStock = settings?.commerce?.show_stock !== false;
     const lowStockThreshold = getLowStockThreshold(settings);
 
@@ -327,7 +327,7 @@ export default function CatalogPage() {
             return `Resultados para "${search.trim()}"`;
         }
         if (selectedCategoryEntry && selectedBrandEntry) {
-            return `${selectedCategoryEntry.name} · ${selectedBrandEntry.name}`;
+            return `${selectedCategoryEntry.name} Â· ${selectedBrandEntry.name}`;
         }
         if (selectedCategoryEntry) {
             return `Explora ${selectedCategoryEntry.name}`;

@@ -61,6 +61,7 @@ export function useEditorState(user) {
             admin_panel: DEFAULT_ADMIN_PANEL_THEME,
         },
         commerce: {
+            price_visibility: 'authenticated',
             whatsapp_number: '',
             email: '',
             address: '',

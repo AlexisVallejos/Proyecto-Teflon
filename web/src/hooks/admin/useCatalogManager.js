@@ -88,10 +88,31 @@ const buildProductFormFromProduct = (product) => {
     };
 };
 
-const normalizeCategoryIds = (draft) =>
-    Array.from(
+const normalizeCategoryIds = (draft, availableCategories = []) => {
+    const rawIds = Array.from(
         new Set((Array.isArray(draft.category_ids) ? draft.category_ids : []).filter(Boolean))
     );
+    const validIds = new Set(
+        (Array.isArray(availableCategories) ? availableCategories : [])
+            .map((item) => String(item?.id || '').trim())
+            .filter(Boolean)
+    );
+
+    if (!validIds.size) {
+        return rawIds;
+    }
+
+    return rawIds.filter((id) => validIds.has(String(id).trim()));
+};
+
+const sanitizeDraftCategories = (draft, availableCategories = []) => {
+    const categoryIds = normalizeCategoryIds(draft, availableCategories);
+    return {
+        ...draft,
+        category_id: categoryIds[0] || '',
+        category_ids: categoryIds,
+    };
+};
 
 const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => ({
     id: productId,
@@ -158,8 +179,8 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
     const handleEditProduct = useCallback((product) => {
         if (!product?.id) return;
         setEditingProductId(product.id);
-        setProductDraft(buildProductFormFromProduct(product));
-    }, []);
+        setProductDraft(sanitizeDraftCategories(buildProductFormFromProduct(product), categories));
+    }, [categories]);
 
     const handleCancelEditProduct = useCallback(() => {
         resetProductForm();
@@ -175,7 +196,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             };
-            const categoryIds = normalizeCategoryIds(productDraft);
+            const categoryIds = normalizeCategoryIds(productDraft, categories);
             const payload = {
                 ...productDraft,
                 category_id: categoryIds[0] || '',
@@ -213,7 +234,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         } finally {
             setSaving(false);
         }
-    }, [addToast, productDraft, resetProductForm, setProducts]);
+    }, [addToast, categories, productDraft, resetProductForm, setProducts]);
 
     const handleUpdateProduct = useCallback(async () => {
         if (!editingProductId || !productDraft.name) return;
@@ -225,7 +246,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             };
-            const categoryIds = normalizeCategoryIds(productDraft);
+            const categoryIds = normalizeCategoryIds(productDraft, categories);
             const payload = {
                 ...productDraft,
                 category_id: categoryIds[0] || '',
@@ -271,7 +292,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         } finally {
             setSaving(false);
         }
-    }, [addToast, editingProductId, productDraft, resetProductForm, setProducts]);
+    }, [addToast, categories, editingProductId, productDraft, resetProductForm, setProducts]);
 
     const handleDeleteProduct = useCallback(async (id) => {
         if (!id) return;
@@ -356,6 +377,19 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
             });
             if (res.ok) {
                 setCategories((prev) => (Array.isArray(prev) ? prev.filter((item) => item.id !== categoryId) : prev));
+                setProductDraft((prev) => sanitizeDraftCategories({
+                    ...prev,
+                    category_ids: (Array.isArray(prev.category_ids) ? prev.category_ids : []).filter((id) => id !== categoryId),
+                    category_id: prev.category_id === categoryId ? '' : prev.category_id,
+                }, (Array.isArray(categories) ? categories : []).filter((item) => item.id !== categoryId)));
+                setProducts((prev) => prev.map((item) => {
+                    const currentIds = Array.isArray(item.category_ids) ? item.category_ids.filter((id) => id !== categoryId) : [];
+                    return {
+                        ...item,
+                        category_ids: currentIds,
+                        category_id: item.category_id === categoryId ? (currentIds[0] || '') : item.category_id,
+                    };
+                }));
                 addToast('Categoria eliminada', 'success');
             } else {
                 const payload = await res.json().catch(() => ({}));
@@ -371,7 +405,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         } finally {
             setCategoryDeletingId(null);
         }
-    }, [addToast, setCategories]);
+    }, [addToast, categories, setCategories, setProducts]);
 
     const handleCreateBrand = useCallback(async () => {
         const name = String(newBrandName || '').trim();

@@ -6,6 +6,9 @@ import { useTenant } from "../../context/TenantContext";
 import { useAuth } from "../../context/AuthContext";
 import { navigate } from "../../utils/navigation";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
+import PriceAccessPrompt from "../../components/PriceAccessPrompt";
+import { getPriceAccessState } from "../../utils/priceVisibility";
+import { createPlaceholderImage } from "../../utils/productImage";
 
 export default function CartPage() {
     const { cartItems, updateQty, removeItem, addToCart } = useStore();
@@ -13,7 +16,7 @@ export default function CartPage() {
     const { user, loading: authLoading } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
-    const showPrices = settings?.commerce?.show_prices !== false;
+    const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
     const [suggestedProducts, setSuggestedProducts] = useState([]);
     const [loadingSuggested, setLoadingSuggested] = useState(false);
 
@@ -60,7 +63,7 @@ export default function CartPage() {
                 data.image ||
                 data.image_url ||
                 (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
-                "https://via.placeholder.com/200";
+                createPlaceholderImage({ label: "Producto", width: 200, height: 200 });
             return {
                 id: product.id,
                 sku: product.sku || product.erp_id,
@@ -138,7 +141,9 @@ export default function CartPage() {
                                 onChangeQty={(v) => updateQty(it.id, v)}
                                 currency={currency}
                                 locale={locale}
-                                showPrices={showPrices}
+                                showPricesEnabled={showPricesEnabled}
+                                canViewPrices={canViewPrices}
+                                authLoading={authLoading}
                             />
                         ))}
 
@@ -163,7 +168,9 @@ export default function CartPage() {
                                             onAdd={() => addToCart(item)}
                                             currency={currency}
                                             locale={locale}
-                                            showPrices={showPrices}
+                                            showPricesEnabled={showPricesEnabled}
+                                            canViewPrices={canViewPrices}
+                                            authLoading={authLoading}
                                         />
                                     ))
                                 ) : (
@@ -179,29 +186,45 @@ export default function CartPage() {
                         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 sticky top-24">
                             <h2 className="text-xl font-bold mb-6">Resumen del pedido</h2>
 
-                            <div className="flex flex-col gap-4 mb-6">
-                                <Row
-                                    label="Subtotal"
-                                    value={formatCurrency(subtotal, currency, locale)}
-                                />
-                                <Row
-                                    label="Envio"
-                                    value={formatCurrency(shipping, currency, locale)}
-                                />
-                                <Row
-                                    label="Impuestos"
-                                    value={formatCurrency(tax, currency, locale)}
-                                />
-                            </div>
+                            {canViewPrices ? (
+                                <>
+                                    <div className="flex flex-col gap-4 mb-6">
+                                        <Row
+                                            label="Subtotal"
+                                            value={formatCurrency(subtotal, currency, locale)}
+                                        />
+                                        <Row
+                                            label="Envio"
+                                            value={formatCurrency(shipping, currency, locale)}
+                                        />
+                                        <Row
+                                            label="Impuestos"
+                                            value={formatCurrency(tax, currency, locale)}
+                                        />
+                                    </div>
 
-                            <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6 mb-8">
-                                <div className="flex justify-between items-end">
-                                    <span className="font-bold">Total</span>
-                                    <span className="text-3xl font-black text-primary">
-                                        {formatCurrency(total, currency, locale)}
-                                    </span>
+                                    <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6 mb-8">
+                                        <div className="flex justify-between items-end">
+                                            <span className="font-bold">Total</span>
+                                            <span className="text-3xl font-black text-primary">
+                                                {formatCurrency(total, currency, locale)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : showPricesEnabled ? (
+                                <div className="mb-8 rounded-xl border border-[#e6e0db] bg-[#f9f7f4] p-4">
+                                    {authLoading ? (
+                                        <p className="text-sm text-[#8a7560]">Cargando precios...</p>
+                                    ) : (
+                                        <PriceAccessPrompt align="center" />
+                                    )}
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="mb-8 rounded-xl border border-[#e6e0db] bg-[#f9f7f4] p-4 text-center text-sm text-[#8a7560]">
+                                    Los precios no estan visibles en esta tienda.
+                                </div>
+                            )}
 
                             {user ? (
                                 <button
@@ -245,7 +268,7 @@ export default function CartPage() {
                                     <div className="flex flex-col">
                                         <span className="text-xs font-bold">Envio gratis</span>
                                         <span className="text-[10px] text-zinc-500">
-                                            {freeShippingThreshold > 0
+                                            {canViewPrices && freeShippingThreshold > 0
                                                 ? freeShippingRemaining > 0
                                                     ? `Te faltan ${formatCurrency(
                                                         freeShippingRemaining,
@@ -253,7 +276,9 @@ export default function CartPage() {
                                                         locale
                                                     )} para envio gratis`
                                                     : "Ya calificas para envio gratis"
-                                                : "Beneficios en envios seleccionados"}
+                                                : showPricesEnabled && !canViewPrices
+                                                    ? "Inicia sesion para ver beneficios de envio"
+                                                    : "Beneficios en envios seleccionados"}
                                         </span>
                                     </div>
                                 </div>
@@ -285,7 +310,7 @@ function Row({ label, value }) {
     );
 }
 
-function CartItem({ item, onRemove, onDec, onInc, onChangeQty, currency, locale, showPrices }) {
+function CartItem({ item, onRemove, onDec, onInc, onChangeQty, currency, locale, showPricesEnabled, canViewPrices, authLoading }) {
     return (
         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 flex gap-6 relative group">
             <button
@@ -340,20 +365,26 @@ function CartItem({ item, onRemove, onDec, onInc, onChangeQty, currency, locale,
                         </button>
                     </div>
 
-                    {showPrices ? (
+                    {showPricesEnabled ? (
                         <div className="text-right">
-                            <span className="text-xl font-black text-black dark:text-white">
-                                {formatCurrency(item.price * item.qty, currency, locale)}
-                            </span>
+                            {canViewPrices ? (
+                                <span className="text-xl font-black text-black dark:text-white">
+                                    {formatCurrency(item.price * item.qty, currency, locale)}
+                                </span>
+                            ) : (
+                                <span className="text-xs text-[#8a7560]">
+                                    {authLoading ? "Cargando..." : "Inicia sesion para ver precio"}
+                                </span>
+                            )}
                         </div>
-                    ) : null}
+                    ) : <span className="text-xs text-[#8a7560]">Consultar precio</span>}
                 </div>
             </div>
         </div>
     );
 }
 
-function UpsellCard({ item, onAdd, currency, locale, showPrices }) {
+function UpsellCard({ item, onAdd, currency, locale, showPricesEnabled, canViewPrices, authLoading }) {
     return (
         <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center gap-4 group hover:border-primary transition-colors">
             <div className="size-16 bg-zinc-100 dark:bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
@@ -368,11 +399,19 @@ function UpsellCard({ item, onAdd, currency, locale, showPrices }) {
 
             <div className="flex flex-col flex-1">
                 <h4 className="text-sm font-bold">{item.name}</h4>
-                {showPrices ? (
-                    <span className="text-primary font-bold text-sm">
-                        {formatCurrency(item.price, currency, locale)}
-                    </span>
-                ) : null}
+                {showPricesEnabled ? (
+                    canViewPrices ? (
+                        <span className="text-primary font-bold text-sm">
+                            {formatCurrency(item.price, currency, locale)}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-[#8a7560]">
+                            {authLoading ? "Cargando..." : "Inicia sesion para ver precio"}
+                        </span>
+                    )
+                ) : (
+                    <span className="text-xs text-[#8a7560]">Consultar precio</span>
+                )}
             </div>
 
             <button

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { useAuth } from '../../context/AuthContext';
 const User = (props) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
@@ -23,6 +23,8 @@ import { useTenant } from '../../context/TenantContext';
 import { formatCurrency } from '../../utils/format';
 import { navigate } from '../../utils/navigation';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
+import { getPriceAccessState } from '../../utils/priceVisibility';
+import { createPlaceholderImage } from '../../utils/productImage';
 import {
     BILLING_DOCUMENT_OPTIONS,
     BILLING_VAT_OPTIONS,
@@ -226,7 +228,7 @@ export default function ProfilePage() {
     const { settings } = useTenant();
     const currency = settings?.commerce?.currency || 'ARS';
     const locale = settings?.commerce?.locale || 'es-AR';
-    const showPrices = settings?.commerce?.show_prices !== false;
+    const { canViewPrices: showPrices } = getPriceAccessState(settings, user);
     const defaultAddress = useMemo(() => ({
         fullName: '',
         line1: '',
@@ -1124,7 +1126,7 @@ export default function ProfilePage() {
                                                         className="w-full aspect-square bg-[#f5f2f0] dark:bg-[#2c2116] overflow-hidden"
                                                     >
                                                         <img
-                                                            src={item.image || "https://via.placeholder.com/300"}
+                                                            src={item.image || createPlaceholderImage({ label: 'Producto', width: 300, height: 300 })}
                                                             alt={item.alt || item.name}
                                                             className="w-full h-full object-cover"
                                                             loading="lazy"

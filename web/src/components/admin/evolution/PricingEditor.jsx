@@ -1,4 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
+import {
+    getPriceVisibilityMode,
+    PRICE_VISIBILITY,
+    PRICE_VISIBILITY_OPTIONS,
+} from '../../../utils/priceVisibility';
 
 const PRICE_ADJUSTMENTS_FALLBACK = {
     retail_percent: 0,
@@ -39,28 +44,38 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
     const categoryItems = Array.isArray(categories) ? categories : [];
 
     const priceAdjustments = settings?.commerce?.price_adjustments || PRICE_ADJUSTMENTS_FALLBACK;
+    const priceVisibilityMode = getPriceVisibilityMode(settings);
 
-    const updatePriceAdjustments = (patch) => {
+    const updateCommerce = (patch) => {
         setSettings((prev) => ({
             ...prev,
             commerce: {
                 ...prev.commerce,
-                price_adjustments: {
-                    ...(prev.commerce?.price_adjustments || {}),
-                    ...patch,
-                },
+                ...patch,
             },
         }));
     };
 
-    const toggleReviewsEnabled = () => {
-        setSettings((prev) => ({
-            ...prev,
-            commerce: {
-                ...prev.commerce,
-                reviews_enabled: prev.commerce?.reviews_enabled === false ? true : false,
+    const updatePriceAdjustments = (patch) => {
+        updateCommerce({
+            price_adjustments: {
+                ...(settings?.commerce?.price_adjustments || {}),
+                ...patch,
             },
-        }));
+        });
+    };
+
+    const toggleReviewsEnabled = () => {
+        updateCommerce({
+            reviews_enabled: settings?.commerce?.reviews_enabled === false,
+        });
+    };
+
+    const updatePriceVisibility = (mode) => {
+        updateCommerce({
+            price_visibility: mode,
+            show_prices: mode !== PRICE_VISIBILITY.HIDDEN,
+        });
     };
 
     return (
@@ -78,6 +93,32 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
                 >
                     {isSaving ? 'Guardando...' : 'Guardar ajustes'}
                 </button>
+            </div>
+            <div>
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">Visibilidad de precios</p>
+                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 md:grid-cols-3">
+                    {PRICE_VISIBILITY_OPTIONS.map((option) => {
+                        const selected = priceVisibilityMode === option.value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => updatePriceVisibility(option.value)}
+                                className={`rounded-2xl border p-4 text-left transition-all ${
+                                    selected
+                                        ? 'border-evolution-indigo/70 bg-evolution-indigo/15 shadow-[0_0_0_1px_rgba(99,102,241,0.35)]'
+                                        : 'border-white/10 bg-black/10 hover:border-white/25'
+                                }`}
+                            >
+                                <p className="text-sm font-bold text-white">{option.label}</p>
+                                <p className="mt-2 text-xs leading-5 text-zinc-400">{option.description}</p>
+                            </button>
+                        );
+                    })}
+                </div>
+                <p className="mt-3 text-xs text-zinc-500">
+                    Usa "Con inicio de sesion" para que solo clientes autenticados puedan ver precios.
+                </p>
             </div>
             <div>
                 <p className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">Ajustes por porcentaje</p>
@@ -187,7 +228,7 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
             </div>
 
             <div>
-                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">Reseñas</p>
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">ReseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±as</p>
                 <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-center justify-between gap-3">
                         <div>
@@ -202,7 +243,7 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
                                     ? 'border-evolution-indigo/70 bg-evolution-indigo'
                                     : 'border-white/20 bg-zinc-700'
                             }`}
-                            aria-label="Toggle reseñas"
+                            aria-label="Toggle reseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±as"
                         >
                             <span
                                 className={`block h-4 w-4 rounded-full bg-white transition-transform ${
@@ -370,10 +411,10 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
                                                 <div>
                                                     <p className="text-sm font-bold text-white">{offerItem.name}</p>
                                                     <p className="text-xs text-zinc-400">
-                                                        {offerItem.percent}% · {offerItem.enabled ? 'Activa' : 'Inactiva'} · etiqueta: {offerItem.label || 'Oferta'}
+                                                        {offerItem.percent}% ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {offerItem.enabled ? 'Activa' : 'Inactiva'} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· etiqueta: {offerItem.label || 'Oferta'}
                                                     </p>
                                                     <p className="text-xs text-zinc-500">
-                                                        Usuarios: {(offerItem.user_ids || []).length || 'Todos'} · Categorias: {(offerItem.category_ids || []).length || 'Todas'}
+                                                        Usuarios: {(offerItem.user_ids || []).length || 'Todos'} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Categorias: {(offerItem.category_ids || []).length || 'Todas'}
                                                     </p>
                                                     {categoryNames.length > 0 ? (
                                                         <p className="truncate text-xs text-zinc-500">

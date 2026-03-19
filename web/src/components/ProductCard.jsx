@@ -3,6 +3,7 @@ import { useStore } from "../context/StoreContext";
 import { useTenant } from "../context/TenantContext";
 import { useAuth } from "../context/AuthContext";
 import { formatCurrency } from "../utils/format";
+import { getPriceAccessState } from "../utils/priceVisibility";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../utils/stock";
 import PriceAccessPrompt from "./PriceAccessPrompt";
 
@@ -12,8 +13,7 @@ export default function ProductCard({ product }) {
   const { user, loading } = useAuth();
   const currency = settings?.commerce?.currency || "ARS";
   const locale = settings?.commerce?.locale || "es-AR";
-  const showPricesEnabled = settings?.commerce?.show_prices !== false;
-  const canViewPrices = showPricesEnabled && !!user;
+  const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
 
   const { id, sku, name, price, badge, image, alt, stock } = product;
   const showStock = settings?.commerce?.show_stock !== false;

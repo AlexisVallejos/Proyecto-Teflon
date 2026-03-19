@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
@@ -6,11 +6,13 @@ import { useAuth } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils/format";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
 import { navigate } from "../../utils/navigation";
+import { getPriceAccessState } from "../../utils/priceVisibility";
 import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/stock";
+import { createPlaceholderImage } from "../../utils/productImage";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
 
-const FALLBACK_IMAGE = "https://via.placeholder.com/900";
+const FALLBACK_IMAGE = createPlaceholderImage({ label: "Producto", width: 900, height: 900 });
 
 const getProductId = () => {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -25,8 +27,7 @@ export default function ProductDetail() {
 
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
-    const showPricesEnabled = settings?.commerce?.show_prices !== false;
-    const canViewPrices = showPricesEnabled && !!user;
+    const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
     const showStock = settings?.commerce?.show_stock !== false;
     const reviewsEnabledFromSettings = settings?.commerce?.reviews_enabled !== false;
     const lowStockThreshold = getLowStockThreshold(settings);
