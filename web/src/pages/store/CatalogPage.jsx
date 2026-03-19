@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
@@ -10,16 +10,78 @@ import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/sto
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
 
-const getCategoryFromUrl = () => {
-    const params = new URLSearchParams(window.location.search || "");
-    const raw = params.get("category");
-    return raw ? raw.trim() : null;
+const FALLBACK_IMAGES = [
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuBQfYj1LC2KxJbrFc3JaW30fWNfBzOogedTliYaUerOGoeN9U0yPBa1Ly6cy0ifOVDGxRUhn39rTwm0asqqAroPQHLpdkrk_InCtirUQjGAQLvthIiB6EbRD71XqIoNekpixuF5np0LnNX1TY1UFuOELn9k9yOF23KgFYf1gCkfGPYdqRsN1a1b37xx0ItWp_yRvOdkSXB6CKK-dwrUA-uIDgTyng5s8My5tUJf8uzoYo7ri3rjEb8vDaZsLXgEsjTyaUDUDLV5wrk",
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuBVydqb7G5A_PT5CeAhoUo5VF2YXn8B2Hx2Y7DXvOB4gcZRtfBQHFy3IXPSOyox8_pIRZ01SgjOZeoV9ydnJd4VX1MFyFby5IDfG7nwbc2nvES8jZnphd62afdnYbb6Iaf8EhHngYqYD6DaMh8Y7GWRUftLJ-ruDjZNpatP8hNSQbK7lpweqdguNtcjdh8H7Qh_N1McVphjwD3cKtffejU4Ws_7fNBO0ICFabsb2GdV_B21lIn06nqXxOYw8NB228co8N3wupZ7HDc",
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuClfnnmyLSA1sheGaWQ5qYtxE0FF5qt12jk3aemf83GNBih8DrAxP333h6xoVymK2lFU8U24cWhKMczFknhA-0Grlo6BouODj-zkSJYahGjgDFAhCvYq_CdPJ6qf8USI4qWjTdBKGuPmXK6thIxNiVzbevOytIAWSgcxSvo5yQd3peEKnUsUA5ipDJrAubSfTLPPqHtK_07CVE4c8pIjXYITA0N02MfWaQVtHo7zU7YyVY-xODc39GfPmw_pebT52VXD-UGu7QlFfg",
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuAkClqY_wDhmuGwKW6w359XUqENuKc8aFogvTgQ_FDq87gKL2BNINH2x9v9gOdB770HKriEtiFBPB3KwankIDLcCQIqUFhdosfhhsOV2F03ExDPdQw8T6RKvZ7-TkLtHx4lrgXoWojWLnxjLYsqoyw297omFCNExuUp8_titY2UjKXJfbqDnqzOSqON-o5ZdJL0juGNioWdiLRE_dD9vylviYWQqdwwnb37AekTF5_A6oeoh3_WpvFW0lqNEU953ZUCrwPQNCqBrCc",
+];
+
+const normalizeFilterValue = (value) => {
+    const raw = String(value || "").trim();
+    return raw || null;
 };
 
-const getBrandFromUrl = () => {
+const getFiltersFromUrl = () => {
     const params = new URLSearchParams(window.location.search || "");
-    const raw = params.get("brand");
-    return raw ? raw.trim() : null;
+    return {
+        category: normalizeFilterValue(params.get("category")),
+        brand: normalizeFilterValue(params.get("brand")),
+    };
+};
+
+const buildCatalogHref = ({ category, brand }) => {
+    const params = new URLSearchParams();
+    if (normalizeFilterValue(category)) {
+        params.set("category", normalizeFilterValue(category));
+    }
+    if (normalizeFilterValue(brand)) {
+        params.set("brand", normalizeFilterValue(brand));
+    }
+    const query = params.toString();
+    return query ? `/catalog?${query}` : "/catalog";
+};
+
+const normalizeCategory = (item) => {
+    if (!item || (!item.id && !item.slug && !item.name)) return null;
+    const name = String(item.name || item.slug || item.id).trim();
+    if (!name) return null;
+
+    return {
+        id: String(item.id || item.slug || name).trim(),
+        slug: String(item.slug || "").trim() || null,
+        name,
+        parentId: String(item.parent_id || "").trim() || null,
+        parentName: String(item.parent_name || "").trim() || null,
+    };
+};
+
+const normalizeBrand = (item) => {
+    if (typeof item === "string") {
+        const name = item.trim();
+        return name ? { id: name, name } : null;
+    }
+
+    if (!item) return null;
+    const name = String(item.name || item.id || "").trim();
+    if (!name) return null;
+
+    return {
+        id: String(item.id || name).trim(),
+        name,
+    };
+};
+
+const findCategory = (categories, value) => {
+    const normalized = normalizeFilterValue(value);
+    if (!normalized) return null;
+    return categories.find((item) => item.id === normalized || item.slug === normalized || item.name === normalized) || null;
+};
+
+const findBrand = (brands, value) => {
+    const normalized = normalizeFilterValue(value);
+    if (!normalized) return null;
+    return brands.find((item) => item.id === normalized || item.name === normalized) || null;
 };
 
 export default function CatalogPage() {
@@ -33,69 +95,76 @@ export default function CatalogPage() {
     const showStock = settings?.commerce?.show_stock !== false;
     const lowStockThreshold = getLowStockThreshold(settings);
 
+    const initialFilters = useMemo(() => getFiltersFromUrl(), []);
     const [page, setPage] = useState(1);
     const [categories, setCategories] = useState([]);
     const [brands, setBrands] = useState([]);
-
-    // Filters State
-    const [selectedCategory, setSelectedCategory] = useState(() => getCategoryFromUrl());
-    const [selectedBrand, setSelectedBrand] = useState(() => getBrandFromUrl());
-    const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
-
+    const [selectedCategory, setSelectedCategory] = useState(initialFilters.category);
+    const [selectedBrand, setSelectedBrand] = useState(initialFilters.brand);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
-    const [limit] = useState(24);
-
-    const fallbackImages = useMemo(
-        () => [
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuBQfYj1LC2KxJbrFc3JaW30fWNfBzOogedTliYaUerOGoeN9U0yPBa1Ly6cy0ifOVDGxRUhn39rTwm0asqqAroPQHLpdkrk_InCtirUQjGAQLvthIiB6EbRD71XqIoNekpixuF5np0LnNX1TY1UFuOELn9k9yOF23KgFYf1gCkfGPYdqRsN1a1b37xx0ItWp_yRvOdkSXB6CKK-dwrUA-uIDgTyng5s8My5tUJf8uzoYo7ri3rjEb8vDaZsLXgEsjTyaUDUDLV5wrk",
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuBVydqb7G5A_PT5CeAhoUo5VF2YXn8B2Hx2Y7DXvOB4gcZRtfBQHFy3IXPSOyox8_pIRZ01SgjOZeoV9ydnJd4VX1MFyFby5IDfG7nwbc2nvES8jZnphd62afdnYbb6Iaf8EhHngYqYD6DaMh8Y7GWRUftLJ-ruDjZNpatP8hNSQbK7lpweqdguNtcjdh8H7Qh_N1McVphjwD3cKtffejU4Ws_7fNBO0ICFabsb2GdV_B21lIn06nqXxOYw8NB228co8N3wupZ7HDc",
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuClfnnmyLSA1sheGaWQ5qYtxE0FF5qt12jk3aemf83GNBih8DrAxP333h6xoVymK2lFU8U24cWhKMczFknhA-0Grlo6BouODj-zkSJYahGjgDFAhCvYq_CdPJ6qf8USI4qWjTdBKGuPmXK6thIxNiVzbevOytIAWSgcxSvo5yQd3peEKnUsUA5ipDJrAubSfTLPPqHtK_07CVE4c8pIjXYITA0N02MfWaQVtHo7zU7YyVY-xODc39GfPmw_pebT52VXD-UGu7QlFfg",
-            "https://lh3.googleusercontent.com/aida-public/AB6AXuAkClqY_wDhmuGwKW6w359XUqENuKc8aFogvTgQ_FDq87gKL2BNINH2x9v9gOdB770HKriEtiFBPB3KwankIDLcCQIqUFhdosfhhsOV2F03ExDPdQw8T6RKvZ7-TkLtHx4lrgXoWojWLnxjLYsqoyw297omFCNExuUp8_titY2UjKXJfbqDnqzOSqON-o5ZdJL0juGNioWdiLRE_dD9vylviYWQqdwwnb37AekTF5_A6oeoh3_WpvFW0lqNEU953ZUCrwPQNCqBrCc",
-        ],
-        []
-    );
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+    const limit = 24;
 
     useEffect(() => {
         setPage(1);
     }, [search]);
 
     useEffect(() => {
-        const syncCategoryFromUrl = () => {
-            const nextCategory = getCategoryFromUrl();
-            const nextBrand = getBrandFromUrl();
-            setSelectedCategory((prev) => (prev === nextCategory ? prev : nextCategory));
-            setSelectedBrand((prev) => (prev === nextBrand ? prev : nextBrand));
+        const syncFiltersFromLocation = () => {
+            const next = getFiltersFromUrl();
+            setSelectedCategory((prev) => (prev === next.category ? prev : next.category));
+            setSelectedBrand((prev) => (prev === next.brand ? prev : next.brand));
             setPage(1);
+            setMobileFiltersOpen(false);
         };
 
-        window.addEventListener("navigate", syncCategoryFromUrl);
-        window.addEventListener("popstate", syncCategoryFromUrl);
-
-        syncCategoryFromUrl();
+        window.addEventListener("navigate", syncFiltersFromLocation);
+        window.addEventListener("popstate", syncFiltersFromLocation);
 
         return () => {
-            window.removeEventListener("navigate", syncCategoryFromUrl);
-            window.removeEventListener("popstate", syncCategoryFromUrl);
+            window.removeEventListener("navigate", syncFiltersFromLocation);
+            window.removeEventListener("popstate", syncFiltersFromLocation);
         };
     }, []);
 
-
     useEffect(() => {
-        const fetchMetadata = async () => {
+        let active = true;
+
+        const loadMetadata = async () => {
             try {
-                const [catsRes, brandsRes] = await Promise.all([
+                const [categoriesRes, brandsRes] = await Promise.all([
                     fetch(`${getApiBase()}/public/categories`, { headers: getTenantHeaders() }),
-                    fetch(`${getApiBase()}/public/brands`, { headers: getTenantHeaders() })
+                    fetch(`${getApiBase()}/public/brands`, { headers: getTenantHeaders() }),
                 ]);
-                if (catsRes.ok) setCategories(await catsRes.json());
-                if (brandsRes.ok) setBrands(await brandsRes.json());
-            } catch (err) {
-                console.error("No se pudieron cargar los metadatos", err);
+
+                if (active && categoriesRes.ok) {
+                    const categoriesData = await categoriesRes.json();
+                    const normalizedCategories = Array.isArray(categoriesData)
+                        ? categoriesData.map(normalizeCategory).filter(Boolean)
+                        : [];
+                    setCategories(normalizedCategories);
+                }
+
+                if (active && brandsRes.ok) {
+                    const brandsData = await brandsRes.json();
+                    const normalizedBrands = Array.isArray(brandsData)
+                        ? brandsData.map(normalizeBrand).filter(Boolean)
+                        : [];
+                    const uniqueBrands = [...new Map(normalizedBrands.map((item) => [item.id.toLowerCase(), item])).values()];
+                    setBrands(uniqueBrands);
+                }
+            } catch (error) {
+                console.error("No se pudieron cargar categorias y marcas", error);
             }
         };
-        fetchMetadata();
+
+        loadMetadata();
+
+        return () => {
+            active = false;
+        };
     }, []);
 
     useEffect(() => {
@@ -118,12 +187,6 @@ export default function CatalogPage() {
                 if (selectedBrand) {
                     url.searchParams.set("brand", selectedBrand);
                 }
-                if (priceRange.min > 0) {
-                    url.searchParams.set("minPrice", String(priceRange.min));
-                }
-                if (priceRange.max > 0) {
-                    url.searchParams.set("maxPrice", String(priceRange.max));
-                }
 
                 const response = await fetch(url.toString(), {
                     headers: { ...getTenantHeaders(), ...getAuthHeaders() },
@@ -131,17 +194,18 @@ export default function CatalogPage() {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Error al cargar el catálogo: ${response.status}`);
+                    throw new Error(`Error al cargar el catalogo: ${response.status}`);
                 }
 
                 const data = await response.json();
                 if (!active) return;
 
-                setProducts(Array.isArray(data.items) ? data.items : []);
-                setTotalItems(data.total || 0);
-            } catch (err) {
-                if (err.name !== "AbortError") {
-                    console.error("No se pudieron cargar los productos", err);
+                const items = Array.isArray(data.items) ? data.items : [];
+                setProducts(items);
+                setTotalItems(Number(data.total || items.length || 0));
+            } catch (error) {
+                if (error.name !== "AbortError") {
+                    console.error("No se pudieron cargar los productos", error);
                     if (active) {
                         setProducts([]);
                         setTotalItems(0);
@@ -160,7 +224,31 @@ export default function CatalogPage() {
             active = false;
             controller.abort();
         };
-    }, [page, search, selectedCategory, selectedBrand, priceRange, limit]);
+    }, [limit, page, search, selectedBrand, selectedCategory]);
+
+    const selectedCategoryEntry = useMemo(() => findCategory(categories, selectedCategory), [categories, selectedCategory]);
+    const selectedBrandEntry = useMemo(() => findBrand(brands, selectedBrand), [brands, selectedBrand]);
+
+    const categoryTree = useMemo(() => {
+        const byId = new Map();
+        categories.forEach((item) => {
+            byId.set(item.id, { ...item, children: [] });
+        });
+
+        const roots = [];
+        byId.forEach((item) => {
+            if (item.parentId && byId.has(item.parentId)) {
+                byId.get(item.parentId).children.push(item);
+            } else {
+                roots.push(item);
+            }
+        });
+
+        const sorter = (a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+        roots.sort(sorter);
+        roots.forEach((item) => item.children.sort(sorter));
+        return roots;
+    }, [categories]);
 
     const catalogProducts = useMemo(() => {
         return products.map((product, index) => {
@@ -171,7 +259,7 @@ export default function CatalogPage() {
                 data.image ||
                 data.image_url ||
                 (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
-                fallbackImages[index % fallbackImages.length];
+                FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
 
             return {
                 id: product.id,
@@ -187,396 +275,642 @@ export default function CatalogPage() {
                 isWholesaleItem: isWholesale && !!product.price_wholesale,
             };
         });
-    }, [products, fallbackImages, isWholesale]);
+    }, [isWholesale, products]);
 
-    const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        if (!q) return catalogProducts;
-        return catalogProducts.filter(
-            (p) =>
-                p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q)
-        );
-    }, [catalogProducts, search]);
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+    const activeFilterCount = [selectedCategory, selectedBrand].filter(Boolean).length;
 
-    const totalPages = Math.ceil(totalItems / limit) || 1;
+    const applyFilters = useCallback(
+        (next = {}) => {
+            const nextCategory = Object.prototype.hasOwnProperty.call(next, "category")
+                ? normalizeFilterValue(next.category)
+                : selectedCategory;
+            const nextBrand = Object.prototype.hasOwnProperty.call(next, "brand")
+                ? normalizeFilterValue(next.brand)
+                : selectedBrand;
 
-    const resetFilters = () => {
-        setSelectedCategory(null);
-        setSelectedBrand(null);
-        setPage(1);
-    };
+            setSelectedCategory(nextCategory);
+            setSelectedBrand(nextBrand);
+            setPage(1);
+            setMobileFiltersOpen(false);
+            navigate(buildCatalogHref({ category: nextCategory, brand: nextBrand }));
+        },
+        [selectedBrand, selectedCategory]
+    );
+
+    const resetFilters = useCallback(() => {
+        applyFilters({ category: null, brand: null });
+    }, [applyFilters]);
 
     const chips = useMemo(() => {
-        const list = [];
-        if (selectedCategory) {
-            const cat = categories.find(c => c.id === selectedCategory || c.name === selectedCategory);
-            list.push({ id: 'cat', label: cat?.name || selectedCategory, type: 'category' });
+        const next = [];
+        if (selectedCategoryEntry) {
+            next.push({ id: "category", label: selectedCategoryEntry.name, clear: () => applyFilters({ category: null }) });
         }
-        if (selectedBrand) {
-            const br = brands.find(b => b.id === selectedBrand || b.name === selectedBrand);
-            list.push({ id: 'brand', label: br?.name || selectedBrand, type: 'brand' });
+        if (selectedBrandEntry) {
+            next.push({ id: "brand", label: selectedBrandEntry.name, clear: () => applyFilters({ brand: null }) });
         }
-        return list;
-    }, [selectedCategory, selectedBrand, categories, brands]);
+        return next;
+    }, [applyFilters, selectedBrandEntry, selectedCategoryEntry]);
 
-    const selectedCategoryName = useMemo(() => {
-        if (!selectedCategory) return null;
-        const cat = categories.find(c => c.id === selectedCategory || c.name === selectedCategory);
-        return cat?.name || selectedCategory;
-    }, [selectedCategory, categories]);
+    const quickCategories = useMemo(() => categoryTree.slice(0, 4), [categoryTree]);
+    const quickBrands = useMemo(() => brands.slice(0, 4), [brands]);
 
     const handleFavoriteChange = (_product, added) => {
         if (added) {
-            showToast("Producto añadido a favoritos");
+            showToast("Producto anadido a favoritos");
         }
     };
 
+    const resultsSummary = useMemo(() => {
+        if (search.trim()) {
+            return `Resultados para "${search.trim()}"`;
+        }
+        if (selectedCategoryEntry && selectedBrandEntry) {
+            return `${selectedCategoryEntry.name} � ${selectedBrandEntry.name}`;
+        }
+        if (selectedCategoryEntry) {
+            return `Explora ${selectedCategoryEntry.name}`;
+        }
+        if (selectedBrandEntry) {
+            return `Productos de ${selectedBrandEntry.name}`;
+        }
+        return "Coleccion profesional para obras y reformas.";
+    }, [search, selectedBrandEntry, selectedCategoryEntry]);
+
     return (
         <StoreLayout>
-            <main className="max-w-[1440px] mx-auto flex flex-col min-h-screen">
-                {/* Breadcrumbs & Category Title */}
-                <div className="px-10 pt-6">
-                    <div className="flex flex-wrap gap-2 py-2">
-                        <button
-                            type="button"
-                            onClick={() => navigate("/")}
-                            className="text-[#8a7560] text-sm font-medium leading-normal hover:text-primary transition-colors"
-                        >
-                            Inicio
-                        </button>
-                        <span className="text-[#8a7560] text-sm font-medium leading-normal">/</span>
-                        <button
-                            type="button"
-                            onClick={() => { setSelectedCategory(null); setPage(1); }}
-                            className="text-[#8a7560] text-sm font-medium leading-normal hover:text-primary transition-colors"
-                        >
-                            Catálogo
-                        </button>
-                        {selectedCategoryName ? (
+            <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-6 md:px-6 lg:pt-8 xl:px-10">
+                {mobileFiltersOpen ? (
+                    <div
+                        className="fixed inset-0 z-40 bg-black/45 lg:hidden"
+                        onClick={() => setMobileFiltersOpen(false)}
+                        aria-hidden="true"
+                    />
+                ) : null}
+
+                <section className="rounded-[28px] border border-[#e5e1de] bg-white/95 p-5 shadow-sm dark:border-[#3d2f21] dark:bg-[#120c08]/95 md:p-8">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-[#8a7560]">
+                        <button type="button" className="transition-colors hover:text-primary" onClick={() => navigate("/")}>Inicio</button>
+                        <span>/</span>
+                        <button type="button" className="transition-colors hover:text-primary" onClick={resetFilters}>Catalogo</button>
+                        {selectedCategoryEntry ? (
                             <>
-                                <span className="text-[#8a7560] text-sm font-medium leading-normal">/</span>
-                                <span className="text-[#181411] dark:text-white text-sm font-medium leading-normal">
-                                    {selectedCategoryName}
-                                </span>
+                                <span>/</span>
+                                <span className="text-[#181411] dark:text-white">{selectedCategoryEntry.name}</span>
                             </>
                         ) : null}
                     </div>
 
-                    <div className="flex flex-wrap justify-between items-end gap-3 py-4 border-b border-[#e5e1de] dark:border-[#3d2f21] mb-6">
-                        <div className="flex min-w-72 flex-col gap-1">
-                            <p className="text-[#181411] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">
-                                {selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Catálogo completo'}
-                            </p>
-                            <p className="text-[#8a7560] text-base font-normal leading-normal">
-                                {selectedCategory ? `Explorá nuestra selección de ${categories.find(c => c.id === selectedCategory)?.name}.` : 'Colección profesional para obras y reformas.'}
-                            </p>
+                    <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="max-w-3xl space-y-3">
+                            <span className="inline-flex w-fit items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-primary">
+                                Catalogo completo
+                            </span>
+                            <div className="space-y-2">
+                                <h1 className="text-3xl font-black tracking-tight text-[#181411] dark:text-white md:text-4xl">
+                                    {selectedCategoryEntry?.name || selectedBrandEntry?.name || "Todos los productos"}
+                                </h1>
+                                <p className="max-w-2xl text-sm leading-6 text-[#8a7560] md:text-base">{resultsSummary}</p>
+                            </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                             <button
-                                onClick={resetFilters}
-                                className="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-[#f5f2f0] dark:bg-[#2c2116] text-[#181411] dark:text-white text-sm font-bold gap-2 border border-transparent hover:border-primary/50 transition-all"
+                                type="button"
+                                onClick={() => setMobileFiltersOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-[#d9d1ca] px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white lg:hidden"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                                <span>Limpiar filtros</span>
+                                <FilterIcon className="size-4" />
+                                {activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={resetFilters}
+                                className="inline-flex items-center gap-2 rounded-xl bg-[#f5f2f0] px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:bg-primary hover:text-white dark:bg-[#21160e] dark:text-white"
+                            >
+                                <ResetIcon className="size-4" />
+                                Limpiar filtros
                             </button>
                         </div>
                     </div>
 
-                    {/* Chips / Quick Filters */}
-                    <div className="flex gap-3 pb-6 flex-wrap min-h-[44px]">
-                        {chips.map((c) => (
-                            <button
-                                key={c.id}
-                                onClick={() => {
-                                    if (c.type === 'category') setSelectedCategory(null);
-                                    if (c.type === 'brand') setSelectedBrand(null);
-                                    setPage(1);
-                                }}
-                                className="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-primary text-white px-4 animate-in fade-in zoom-in duration-200"
-                            >
-                                <p className="text-sm font-medium">{c.label}</p>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
-                        ))}
-
-                        {/* Default quick access if no filters */}
-                        {chips.length === 0 && (
-                            <div className="flex gap-2">
-                                {categories.slice(0, 3).map(cat => (
+                    <div className="mt-6 flex flex-wrap gap-2">
+                        {chips.length ? (
+                            chips.map((chip) => (
+                                <button
+                                    key={chip.id}
+                                    type="button"
+                                    onClick={chip.clear}
+                                    className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                                >
+                                    <span>{chip.label}</span>
+                                    <CloseIcon className="size-3.5" />
+                                </button>
+                            ))
+                        ) : (
+                            <>
+                                {quickCategories.map((category) => (
                                     <button
-                                        key={cat.id}
-                                        onClick={() => { setSelectedCategory(cat.id); setPage(1); }}
-                                        className="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-[#f5f2f0] dark:bg-[#2c2116] px-4 hover:bg-primary/10 transition-colors"
+                                        key={`quick-category-${category.id}`}
+                                        type="button"
+                                        onClick={() => applyFilters({ category: category.id })}
+                                        className="rounded-full border border-[#ded7d0] px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
                                     >
-                                        <p className="text-[#181411] dark:text-white text-sm font-medium">{cat.name}</p>
+                                        {category.name}
                                     </button>
+                                ))}
+                                {quickBrands.map((brand) => (
+                                    <button
+                                        key={`quick-brand-${brand.id}`}
+                                        type="button"
+                                        onClick={() => applyFilters({ brand: brand.id })}
+                                        className="rounded-full border border-[#ded7d0] px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                                    >
+                                        {brand.name}
+                                    </button>
+                                ))}
+                            </>
+                        )}
+                    </div>
+                </section>
+
+                <div className="mt-6 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8">
+                    <aside className="hidden lg:block">
+                        <CatalogFilters
+                            categoryTree={categoryTree}
+                            brands={brands}
+                            selectedCategory={selectedCategory}
+                            selectedBrand={selectedBrand}
+                            onSelectCategory={(value) => applyFilters({ category: value })}
+                            onSelectBrand={(value) => applyFilters({ brand: value })}
+                            onReset={resetFilters}
+                        />
+                    </aside>
+
+                    {mobileFiltersOpen ? (
+                        <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-sm overflow-y-auto bg-white p-4 shadow-2xl dark:bg-[#120c08] lg:hidden">
+                            <CatalogFilters
+                                mobile
+                                categoryTree={categoryTree}
+                                brands={brands}
+                                selectedCategory={selectedCategory}
+                                selectedBrand={selectedBrand}
+                                onSelectCategory={(value) => applyFilters({ category: value })}
+                                onSelectBrand={(value) => applyFilters({ brand: value })}
+                                onReset={resetFilters}
+                                onClose={() => setMobileFiltersOpen(false)}
+                            />
+                        </aside>
+                    ) : null}
+
+                    <section className="mt-6 min-w-0 lg:mt-0">
+                        <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#e5e1de] bg-[#fcfbfa] px-4 py-4 dark:border-[#3d2f21] dark:bg-[#17100b] sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8a7560]">Resultados</p>
+                                <h2 className="mt-1 text-lg font-bold text-[#181411] dark:text-white">
+                                    {totalItems === 1 ? "1 producto" : `${totalItems} productos`}
+                                </h2>
+                            </div>
+                            <p className="text-sm text-[#8a7560]">
+                                {activeFilterCount > 0
+                                    ? "Filtra por categoria y marca, o limpia para volver al catalogo completo."
+                                    : "Usa el buscador, categorias y marcas para encontrar mas rapido lo que necesitas."}
+                            </p>
+                        </div>
+
+                        {loading ? (
+                            <StoreSkeleton variant="catalog" />
+                        ) : catalogProducts.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-[#e5e1de] px-6 py-14 text-center text-[#8a7560] dark:border-[#3d2f21]">
+                                <p className="text-lg font-bold text-[#181411] dark:text-white">No encontramos productos para esta busqueda.</p>
+                                <p className="mt-2 text-sm">Prueba con otra categoria, otra marca o limpia los filtros activos.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                {catalogProducts.map((product) => (
+                                    <CatalogProductCard
+                                        key={product.id}
+                                        product={product}
+                                        showPricesEnabled={showPricesEnabled}
+                                        canViewPrices={canViewPrices}
+                                        authLoading={authLoading}
+                                        currency={currency}
+                                        locale={locale}
+                                        showStock={showStock}
+                                        lowStockThreshold={lowStockThreshold}
+                                        onFavoriteChange={handleFavoriteChange}
+                                    />
                                 ))}
                             </div>
                         )}
-                    </div>
-                </div>
 
-                <div className="flex flex-1 px-10 gap-8 pb-20">
-                    {/* Sidebar Navigation/Filters */}
-                    <aside className="w-64 shrink-0 flex flex-col gap-6">
-                        <div className="bg-white dark:bg-[#1a130c] p-6 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] shadow-sm">
-                            <div className="flex items-center justify-between mb-6">
-                                <h1 className="text-[#181411] dark:text-white text-lg font-bold">
-                                    Filtros
-                                </h1>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8a7560] cursor-pointer hover:text-primary"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
-                            </div>
-
-                            <div className="flex flex-col gap-3">
-                                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 mt-2">
-                                    Categorías
-                                </div>
-                                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar">
-                                    {categories.map(cat => (
-                                        <div
-                                            key={cat.id}
-                                            onClick={() => { setSelectedCategory(cat.id); setPage(1); }}
-                                            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${selectedCategory === cat.id ? 'bg-primary/10 text-primary font-bold' : 'text-[#181411] dark:text-white hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
-                                        >
-                                            <p className="text-sm">{cat.name}</p>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 mt-4">
-                                    Marcas
-                                </div>
-                                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar">
-                                    {brands.map(brand => (
-                                        <div
-                                            key={brand.id}
-                                            onClick={() => { setSelectedBrand(brand.id); setPage(1); }}
-                                            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${selectedBrand === brand.id ? 'bg-primary/10 text-primary font-bold' : 'text-[#181411] dark:text-white hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
-                                        >
-                                            <p className="text-sm">{brand.name}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="mt-8 pt-6 border-t border-[#e5e1de] dark:border-[#3d2f21]">
-                                <button
-                                    onClick={resetFilters}
-                                    className="w-full text-[#8a7560] text-xs font-medium text-center hover:text-primary transition-colors"
-                                >
-                                    Restablecer filtros
-                                </button>
-                            </div>
-                        </div>
-
-                        
-                    </aside>
-
-                    {/* Product Grid */}
-                    <div className="flex-1">
-                        {loading ? (
-                            <StoreSkeleton variant="catalog" />
-                        ) : (
-                            <>
-                                {filtered.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-[#e5e1de] dark:border-[#3d2f21] p-10 text-center text-[#8a7560]">
-                                        No encontramos productos para tu búsqueda.
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {filtered.map((p) => (
-                                            <CatalogProductCard
-                                                key={p.id}
-                                                product={p}
-                                                showPricesEnabled={showPricesEnabled}
-                                                canViewPrices={canViewPrices}
-                                                authLoading={authLoading}
-                                                currency={currency}
-                                                locale={locale}
-                                                showStock={showStock}
-                                                lowStockThreshold={lowStockThreshold}
-                                                onFavoriteChange={handleFavoriteChange}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="flex justify-center mt-12 gap-2">
-                                <button
-                                    onClick={() => setPage((n) => Math.max(1, n - 1))}
+                        {totalPages > 1 ? (
+                            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                                <PaginationButton
+                                    label="Anterior"
+                                    onClick={() => setPage((current) => Math.max(1, current - 1))}
                                     disabled={page === 1}
-                                    className="flex items-center justify-center rounded-lg size-10 border border-[#e5e1de] dark:border-[#3d2f21] hover:bg-white dark:hover:bg-[#1a130c] text-[#8a7560] disabled:opacity-30"
-                                    aria-label="Página anterior"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                                </button>
+                                />
 
-                                {Array.from({ length: totalPages }).map((_, i) => {
-                                    const n = i + 1;
-                                    // Only show current, 2 before, 2 after, and first/last
-                                    if (n === 1 || n === totalPages || (n >= page - 1 && n <= page + 1)) {
-                                        return (
-                                            <button
-                                                key={n}
-                                                onClick={() => setPage(n)}
-                                                className={
-                                                    n === page
-                                                        ? "flex items-center justify-center rounded-lg size-10 bg-primary text-white font-bold"
-                                                        : "flex items-center justify-center rounded-lg size-10 border border-[#e5e1de] dark:border-[#3d2f21] hover:bg-white dark:hover:bg-[#1a130c] text-[#181411] dark:text-white"
-                                                }
-                                            >
-                                                {n}
-                                            </button>
-                                        );
+                                {Array.from({ length: totalPages }).map((_, index) => {
+                                    const pageNumber = index + 1;
+                                    const nearCurrent = pageNumber === 1 || pageNumber === totalPages || (pageNumber >= page - 1 && pageNumber <= page + 1);
+                                    if (!nearCurrent) {
+                                        if (pageNumber === page - 2 || pageNumber === page + 2) {
+                                            return (
+                                                <span key={`ellipsis-${pageNumber}`} className="px-2 text-sm font-bold text-[#8a7560]">
+                                                    ...
+                                                </span>
+                                            );
+                                        }
+                                        return null;
                                     }
-                                    if (n === page - 2 || n === page + 2) {
-                                        return <span key={n} className="flex items-center justify-center size-10 text-[#8a7560]">...</span>;
-                                    }
-                                    return null;
+
+                                    return (
+                                        <button
+                                            key={`page-${pageNumber}`}
+                                            type="button"
+                                            onClick={() => setPage(pageNumber)}
+                                            className={`min-w-[42px] rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+                                                pageNumber === page
+                                                    ? "bg-primary text-white"
+                                                    : "border border-[#e5e1de] text-[#181411] hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                                            }`}
+                                        >
+                                            {pageNumber}
+                                        </button>
+                                    );
                                 })}
 
-                                <button
-                                    onClick={() => setPage((n) => Math.min(totalPages, n + 1))}
+                                <PaginationButton
+                                    label="Siguiente"
+                                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                                     disabled={page === totalPages}
-                                    className="flex items-center justify-center rounded-lg size-10 border border-[#e5e1de] dark:border-[#3d2f21] hover:bg-white dark:hover:bg-[#1a130c] text-[#8a7560] disabled:opacity-30"
-                                    aria-label="Página siguiente"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                                </button>
+                                />
                             </div>
-                        )}
-                    </div>
+                        ) : null}
+                    </section>
                 </div>
-            </main>
+            </div>
         </StoreLayout>
     );
 }
 
-function CatalogProductCard({ product, showPricesEnabled, canViewPrices, authLoading, currency, locale, showStock, lowStockThreshold, onFavoriteChange }) {
+function CatalogFilters({
+    categoryTree,
+    brands,
+    selectedCategory,
+    selectedBrand,
+    onSelectCategory,
+    onSelectBrand,
+    onReset,
+    mobile = false,
+    onClose,
+}) {
+    return (
+        <div className={`rounded-[24px] border border-[#e5e1de] bg-white p-5 shadow-sm dark:border-[#3d2f21] dark:bg-[#120c08] ${mobile ? "min-h-full" : "sticky top-24"}`}>
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8a7560]">Explorar</p>
+                    <h2 className="mt-1 text-xl font-black text-[#181411] dark:text-white">Filtros</h2>
+                </div>
+                {mobile ? (
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-full border border-[#ded7d0] p-2 text-[#181411] dark:border-[#3d2f21] dark:text-white"
+                        aria-label="Cerrar filtros"
+                    >
+                        <CloseIcon className="size-4" />
+                    </button>
+                ) : null}
+            </div>
+
+            <button
+                type="button"
+                onClick={onReset}
+                className="mt-5 flex w-full items-center justify-between rounded-2xl border border-[#ded7d0] px-4 py-3 text-left text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+            >
+                <span>Catalogo completo</span>
+                <ResetIcon className="size-4" />
+            </button>
+
+            <div className="mt-6 space-y-6">
+                <section>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#8a7560]">Categorias</h3>
+                        {selectedCategory ? (
+                            <button
+                                type="button"
+                                onClick={() => onSelectCategory(null)}
+                                className="text-xs font-bold text-primary"
+                            >
+                                Limpiar
+                            </button>
+                        ) : null}
+                    </div>
+                    <div className="space-y-3">
+                        {categoryTree.length ? (
+                            categoryTree.map((category) => {
+                                const parentActive = selectedCategory === category.id || selectedCategory === category.slug;
+                                return (
+                                    <div key={`category-${category.id}`} className="rounded-2xl border border-[#f0ebe7] p-3 dark:border-[#24170f]">
+                                        <button
+                                            type="button"
+                                            onClick={() => onSelectCategory(category.id)}
+                                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors ${
+                                                parentActive
+                                                    ? "bg-primary text-white"
+                                                    : "text-[#181411] hover:bg-[#f5f2f0] dark:text-white dark:hover:bg-[#21160e]"
+                                            }`}
+                                        >
+                                            <span>{category.name}</span>
+                                            <ChevronRightIcon className="size-4" />
+                                        </button>
+                                        {category.children.length ? (
+                                            <div className="mt-2 space-y-1 border-l border-[#ece5df] pl-3 dark:border-[#2f2118]">
+                                                {category.children.map((child) => {
+                                                    const childActive = selectedCategory === child.id || selectedCategory === child.slug;
+                                                    return (
+                                                        <button
+                                                            key={`category-child-${child.id}`}
+                                                            type="button"
+                                                            onClick={() => onSelectCategory(child.id)}
+                                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                                                childActive
+                                                                    ? "bg-primary/12 font-bold text-primary"
+                                                                    : "text-[#6f5f50] hover:bg-[#f7f4f1] hover:text-[#181411] dark:text-[#d6c4b4] dark:hover:bg-[#1d140d] dark:hover:text-white"
+                                                            }`}
+                                                        >
+                                                            <span>{child.name}</span>
+                                                            <ChevronRightIcon className="size-4" />
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <p className="text-sm text-[#8a7560]">No hay categorias disponibles.</p>
+                        )}
+                    </div>
+                </section>
+
+                <section>
+                    <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[#8a7560]">Marcas</h3>
+                        {selectedBrand ? (
+                            <button
+                                type="button"
+                                onClick={() => onSelectBrand(null)}
+                                className="text-xs font-bold text-primary"
+                            >
+                                Limpiar
+                            </button>
+                        ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {brands.length ? (
+                            brands.map((brand) => {
+                                const active = selectedBrand === brand.id || selectedBrand === brand.name;
+                                return (
+                                    <button
+                                        key={`brand-${brand.id}`}
+                                        type="button"
+                                        onClick={() => onSelectBrand(brand.id)}
+                                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                                            active
+                                                ? "bg-primary text-white"
+                                                : "border border-[#ded7d0] text-[#181411] hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                                        }`}
+                                    >
+                                        {brand.name}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <p className="text-sm text-[#8a7560]">No hay marcas disponibles.</p>
+                        )}
+                    </div>
+                </section>
+            </div>
+        </div>
+    );
+}
+
+function CatalogProductCard({
+    product,
+    showPricesEnabled,
+    canViewPrices,
+    authLoading,
+    currency,
+    locale,
+    showStock,
+    lowStockThreshold,
+    onFavoriteChange,
+}) {
     const { addToCart, toggleFavorite, isFavorite } = useStore();
     const { name, desc, price, oldPrice, tag, image, alt, stock } = product;
     const favoriteActive = isFavorite(product.id);
     const inStock = isInStock(stock);
     const stockStatus = showStock ? getStockStatus(stock, lowStockThreshold) : null;
 
-    const navigateToProduct = () => {
-        window.history.pushState({}, '', `/product/${product.id}`);
-        window.dispatchEvent(new Event('navigate'));
-    };
+    const openProduct = () => navigate(`/product/${product.id}`);
 
     return (
-        <div className="bg-white dark:bg-[#1a130c] rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] overflow-hidden group hover:shadow-xl transition-all duration-300">
-            <div
-                className="relative aspect-square overflow-hidden bg-[#f5f2f0] dark:bg-[#2c2116] cursor-pointer"
-                onClick={navigateToProduct}
-            >
+        <article className="group overflow-hidden rounded-[24px] border border-[#e5e1de] bg-white shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl dark:border-[#3d2f21] dark:bg-[#120c08]">
+            <div className="relative aspect-square cursor-pointer overflow-hidden bg-[#f5f2f0] dark:bg-[#21160e]" onClick={openProduct}>
                 <img
                     alt={name}
                     title={alt}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     src={image}
                     loading="lazy"
                 />
 
-                <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const next = !favoriteActive;
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            const nextValue = !favoriteActive;
                             toggleFavorite(product);
-                            if (onFavoriteChange) {
-                                onFavoriteChange(product, next);
-                            }
+                            onFavoriteChange?.(product, nextValue);
                         }}
-                        className={`p-2 rounded-full shadow-sm transition-all ${favoriteActive ? 'bg-primary text-white' : 'bg-white/90 text-[#181411] hover:bg-primary hover:text-white'}`}
+                        className={`rounded-full p-2 shadow-sm transition-colors ${
+                            favoriteActive
+                                ? "bg-primary text-white"
+                                : "bg-white/90 text-[#181411] hover:bg-primary hover:text-white"
+                        }`}
+                        aria-label="Agregar a favoritos"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={favoriteActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.72-8.72 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        <HeartIcon active={favoriteActive} className="size-4" />
                     </button>
                     <button
-                        onClick={(e) => { e.stopPropagation(); navigateToProduct(); }}
-                        className="bg-white/90 p-2 rounded-full shadow-sm text-[#181411] hover:bg-primary hover:text-white"
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            openProduct();
+                        }}
+                        className="rounded-full bg-white/90 p-2 text-[#181411] shadow-sm transition-colors hover:bg-primary hover:text-white"
+                        aria-label="Ver detalle"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        <EyeIcon className="size-4" />
                     </button>
                 </div>
 
                 {tag ? (
-                    String(tag).toLowerCase() === "new" || String(tag).toLowerCase() === "nuevo" ? (
-                        <div className="absolute top-3 left-3 bg-primary text-white px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase">
-                            Nuevo
-                        </div>
-                    ) : (
-                        <div className="absolute bottom-3 left-3 bg-white/90 px-2 py-1 rounded text-[10px] font-bold text-[#8a7560] tracking-wider uppercase">
-                            {tag}
-                        </div>
-                    )
+                    <span className="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white">
+                        {String(tag).toLowerCase() === "nuevo" || String(tag).toLowerCase() === "new" ? "Nuevo" : tag}
+                    </span>
                 ) : null}
             </div>
 
-            <div className="p-5 flex flex-col gap-3">
-                <div>
-                    <h3 className="text-[#181411] dark:text-white font-bold text-lg leading-tight mb-1">
-                        {name}
-                    </h3>
-                    <p className="text-[#8a7560] text-sm line-clamp-2">{desc}</p>
+            <div className="flex flex-col gap-4 p-5">
+                <div className="space-y-2">
+                    <button type="button" onClick={openProduct} className="text-left">
+                        <h3 className="text-lg font-black leading-tight text-[#181411] transition-colors group-hover:text-primary dark:text-white">
+                            {name}
+                        </h3>
+                    </button>
+                    <p className="line-clamp-2 text-sm leading-6 text-[#8a7560]">{desc || "Producto profesional listo para tu obra."}</p>
+                    {stockStatus ? (
+                        <span
+                            className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${stockStatus.bg} ${stockStatus.tone}`}
+                        >
+                            {stockStatus.label}
+                        </span>
+                    ) : null}
                 </div>
-                {stockStatus ? (
-                    <span
-                        className={`inline-flex items-center w-fit rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${stockStatus.bg} ${stockStatus.tone}`}
-                    >
-                        {stockStatus.label}
-                    </span>
-                ) : null}
 
-                <div className="flex items-center justify-between mt-2">
-                    <div className="flex flex-col">
+                <div className="flex items-end justify-between gap-4">
+                    <div className="min-w-0">
                         {showPricesEnabled ? (
                             canViewPrices ? (
-                            <>
-                                <span className="text-primary font-black text-xl">
-                                    {formatCurrency(price, currency, locale)}
-                                </span>
-                                {product.isWholesaleItem ? (
-                                    <span className="ml-2 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase">
-                                        Precio Mayorista
-                                    </span>
-                                ) : (
-                                    <span className="ml-2 text-[10px] bg-[#181411]/10 text-[#181411] dark:bg-white/10 dark:text-white px-1.5 py-0.5 rounded font-bold uppercase">
-                                        Precio Minorista
-                                    </span>
-                                )}
-                                {oldPrice ? (
-                                    <span className="text-[#8a7560] text-xs line-through">
-                                        {formatCurrency(oldPrice, currency, locale)}
-                                    </span>
-                                ) : null}
-                            </>
+                                <>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-2xl font-black text-primary">{formatCurrency(price, currency, locale)}</span>
+                                        <span
+                                            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                                                product.isWholesaleItem
+                                                    ? "bg-primary/10 text-primary"
+                                                    : "bg-[#181411]/10 text-[#181411] dark:bg-white/10 dark:text-white"
+                                            }`}
+                                        >
+                                            {product.isWholesaleItem ? "Mayorista" : "Minorista"}
+                                        </span>
+                                    </div>
+                                    {oldPrice ? (
+                                        <span className="text-sm text-[#8a7560] line-through">{formatCurrency(oldPrice, currency, locale)}</span>
+                                    ) : null}
+                                </>
                             ) : authLoading ? (
-                                <span className="text-[#8a7560] text-sm">Cargando precio...</span>
+                                <span className="text-sm text-[#8a7560]">Cargando precio...</span>
                             ) : (
                                 <PriceAccessPrompt compact />
                             )
                         ) : (
-                            <span className="text-[#8a7560] text-sm">Consultar precio</span>
+                            <span className="text-sm text-[#8a7560]">Consultar precio</span>
                         )}
                     </div>
 
                     <button
+                        type="button"
                         onClick={() => addToCart(product, 1)}
-                        className="bg-primary text-white p-2 rounded-lg hover:shadow-lg hover:shadow-primary/30 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                        aria-label="Agregar al carrito"
                         disabled={!inStock}
+                        className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><path d="M12 9h6"></path><path d="M15 6v6"></path></svg>
+                        <CartPlusIcon className="size-5" />
                     </button>
                 </div>
             </div>
-        </div>
+        </article>
     );
 }
 
+function PaginationButton({ label, onClick, disabled }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className="rounded-xl border border-[#e5e1de] px-4 py-2 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#3d2f21] dark:text-white"
+        >
+            {label}
+        </button>
+    );
+}
+
+function FilterIcon({ className = "size-4" }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14" />
+            <line x1="4" y1="10" x2="4" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12" y2="3" />
+            <line x1="20" y1="21" x2="20" y2="16" />
+            <line x1="20" y1="12" x2="20" y2="3" />
+            <line x1="1" y1="14" x2="7" y2="14" />
+            <line x1="9" y1="8" x2="15" y2="8" />
+            <line x1="17" y1="16" x2="23" y2="16" />
+        </svg>
+    );
+}
+
+function ResetIcon({ className = "size-4" }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+        </svg>
+    );
+}
+
+function CloseIcon({ className = "size-4" }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+    );
+}
+
+function ChevronRightIcon({ className = "size-4" }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+        </svg>
+    );
+}
+
+function HeartIcon({ active = false, className = "size-4" }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.72-8.72 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+    );
+}
+
+function EyeIcon({ className = "size-4" }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
+    );
+}
+
+function CartPlusIcon({ className = "size-5" }) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="21" r="1" />
+            <circle cx="20" cy="21" r="1" />
+            <path d="M1 1h4l2.68 13.39A2 2 0 0 0 9.64 16h9.72a2 2 0 0 0 1.96-1.61L23 6H6" />
+            <path d="M12 9h6" />
+            <path d="M15 6v6" />
+        </svg>
+    );
+}

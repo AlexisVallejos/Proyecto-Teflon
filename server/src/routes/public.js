@@ -292,10 +292,18 @@ publicRouter.get('/products', async (req, res, next) => {
       where += ` and p.price <= $${params.length}`;
     }
 
+    const filterParams = [...params];
     params.push(limit);
     const limitIndex = params.length;
     params.push(offset);
     const offsetIndex = params.length;
+
+    const countSql = [
+      'select count(distinct p.id) as total',
+      'from product_cache p',
+      'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
+      `where ${where}`,
+    ].join(' ');
 
     const sql = [
       'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
@@ -306,10 +314,20 @@ publicRouter.get('/products', async (req, res, next) => {
       `order by p.name asc limit $${limitIndex} offset $${offsetIndex}`,
     ].join(' ');
 
-    const productsRes = await pool.query(sql, params);
+    const [countRes, productsRes] = await Promise.all([
+      pool.query(countSql, filterParams),
+      pool.query(sql, params),
+    ]);
     const products = productsRes.rows.map((row) => mapProductRow(row, pricingContext));
+    const total = Number(countRes.rows[0]?.total || 0);
 
-    return res.json({ page, limit, items: products });
+    return res.json({
+      page,
+      limit,
+      total,
+      total_pages: total > 0 ? Math.ceil(total / limit) : 0,
+      items: products,
+    });
   } catch (err) {
     return next(err);
   }

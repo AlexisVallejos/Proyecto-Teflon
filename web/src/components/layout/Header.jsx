@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { isExternalPath, navigate, normalizeInternalPath } from "../../utils/navigation";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
 
-const DEFAULT_PLACEHOLDER = "Buscá tu producto";
+const DEFAULT_PLACEHOLDER = "Busca tu producto";
 const HIDDEN_TOPICS = new Set(["buscador de tapas", "donde comprar", "mis proyectos", "messi"]);
 
 const normalizeLabel = (value) =>
@@ -56,6 +56,21 @@ const ChevronDown = ({ className = "size-3" }) => (
   </svg>
 );
 
+const MenuIcon = ({ className = "size-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
+const CloseIcon = ({ className = "size-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
 function MenuAnchor({ href, label, active = false, external = false, className = "" }) {
   const finalClass = `inline-flex items-center gap-1 border-b-2 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
     active
@@ -101,6 +116,7 @@ export default function Header({
   const [activeRoute, setActiveRoute] = useState(() => `${window.location.pathname}${window.location.search || ""}${window.location.hash || ""}`);
   const [catalogCategories, setCatalogCategories] = useState([]);
   const [catalogBrands, setCatalogBrands] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const resolvedBrand = brandName || settings?.branding?.name || tenant?.name || "El Teflon";
   const logoUrl = settings?.branding?.logo_url;
@@ -119,6 +135,10 @@ export default function Header({
       window.removeEventListener("hashchange", handleLocationChange);
     };
   }, []);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [activeRoute]);
 
   useEffect(() => {
     let active = true;
@@ -146,6 +166,7 @@ export default function Header({
                 .map((item) => ({
                   id: item.id,
                   name: item.name,
+                  slug: item.slug || null,
                   parent_id: item.parent_id || null,
                   parent_name: item.parent_name || null,
                 }))
@@ -217,6 +238,11 @@ export default function Header({
     }
   };
 
+  const handleMobileNavigate = (href) => {
+    setMobileMenuOpen(false);
+    navigate(href);
+  };
+
   const whatsappRaw = settings?.branding?.footer?.socials?.whatsapp || settings?.commerce?.whatsapp_number || "";
   const whatsappCleaned = String(whatsappRaw).replace(/\D/g, "");
   const whatsappHref = whatsappCleaned ? `https://wa.me/${whatsappCleaned}` : null;
@@ -228,6 +254,7 @@ export default function Header({
     catalogCategories.forEach((item) => {
       byId.set(item.id, {
         id: item.id,
+        slug: item.slug || null,
         name: item.name,
         parent_id: item.parent_id || null,
         children: [],
@@ -250,20 +277,20 @@ export default function Header({
   }, [catalogCategories]);
 
   const categoryLinks = useMemo(() => {
-    const links = [];
+    const next = [];
     categoryTree.forEach((parent) => {
-      links.push({
+      next.push({
         label: parent.name,
         href: `/catalog?category=${encodeURIComponent(parent.id)}`,
       });
       parent.children.forEach((child) => {
-        links.push({
+        next.push({
           label: `${parent.name} / ${child.name}`,
           href: `/catalog?category=${encodeURIComponent(child.id)}`,
         });
       });
     });
-    return links;
+    return next;
   }, [categoryTree]);
 
   const brandLinks = catalogBrands.slice(0, 10).map((brand) => ({
@@ -285,21 +312,21 @@ export default function Header({
   const productsActive = activeRoute.startsWith("/catalog");
   const accountLabel = user ? "Mi cuenta" : "Ingresar";
 
-  const mobileQuickLinks = useMemo(() => {
-    const list = [
-      { label: "Productos", href: "/catalog", external: false },
-      ...categoryLinks.slice(0, 4),
-      ...brandLinks.slice(0, 4),
-      ...staticLinks,
-    ];
+  const mobilePrimaryLinks = useMemo(() => {
     const seen = new Set();
-    return list.filter((item) => {
+    const entries = [
+      { label: "Catalogo completo", href: "/catalog", external: false },
+      ...staticLinks,
+      ...extraLinks.map((item) => ({ label: item.label, href: item.href || "/", external: isExternalPath(item.href || "/") })),
+    ];
+
+    return entries.filter((item) => {
       const key = `${item.label}-${item.href}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-  }, [categoryLinks, brandLinks, staticLinks]);
+  }, [extraLinks, staticLinks]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-y border-[#dbe2ea] bg-white dark:border-[#3d2f21] dark:bg-[#120c08]">
@@ -403,6 +430,14 @@ export default function Header({
                 <UserIcon />
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((current) => !current)}
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:bg-[#1a130c]"
+              aria-label={mobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
+            >
+              {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+            </button>
           </div>
         </div>
 
@@ -518,37 +553,111 @@ export default function Header({
             })}
           </nav>
 
-          <div className="overflow-x-auto md:hidden">
-            <nav className="flex min-w-max items-center gap-5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#1f2937] dark:text-[#e7ddd3]">
-              {mobileQuickLinks.map((item) => {
-                const external = isExternalPath(item.href);
-                const normalizedTarget = external ? item.href : normalizeRoute(item.href);
-                const isActive = !external && normalizeRoute(activeRoute) === normalizedTarget;
-                return external ? (
-                  <a
-                    key={`mobile-${item.label}-${item.href}`}
-                    href={item.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937] dark:text-[#e7ddd3]"}
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <a
-                    key={`mobile-${item.label}-${item.href}`}
-                    href={item.href}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      navigate(item.href);
-                    }}
-                    className={isActive ? "text-[color:var(--color-primary,#0099e5)]" : "text-[#1f2937] dark:text-[#e7ddd3]"}
-                  >
-                    {item.label}
-                  </a>
-                );
-              })}
-            </nav>
+          <div className="lg:hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1f2937] dark:text-[#e7ddd3]">
+              <button type="button" onClick={() => handleMobileNavigate("/catalog")} className="text-left">
+                Catalogo
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen((current) => !current)}
+                className="inline-flex items-center gap-2 text-[color:var(--color-primary,#0099e5)]"
+              >
+                {mobileMenuOpen ? "Cerrar menu" : "Explorar menu"}
+                <ChevronDown className={`size-3 transition-transform ${mobileMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+
+            {mobileMenuOpen ? (
+              <div className="space-y-6 border-t border-[#e4e9ef] px-4 py-4 dark:border-[#3d2f21]">
+                <section className="space-y-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8a7560]">Accesos</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {mobilePrimaryLinks.map((item) => {
+                      if (item.external) {
+                        return (
+                          <a
+                            key={`mobile-primary-${item.label}-${item.href}`}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-xl border border-[#dbe2ea] px-4 py-3 text-sm font-semibold text-[#1f2937] dark:border-[#3d2f21] dark:text-[#e7ddd3]"
+                          >
+                            {item.label}
+                          </a>
+                        );
+                      }
+
+                      return (
+                        <button
+                          key={`mobile-primary-${item.label}-${item.href}`}
+                          type="button"
+                          onClick={() => handleMobileNavigate(item.href)}
+                          className="rounded-xl border border-[#dbe2ea] px-4 py-3 text-left text-sm font-semibold text-[#1f2937] dark:border-[#3d2f21] dark:text-[#e7ddd3]"
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="space-y-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8a7560]">Categorias</p>
+                  {categoryTree.length ? (
+                    <div className="space-y-3">
+                      {categoryTree.map((parent) => (
+                        <div key={`mobile-category-${parent.id}`} className="rounded-2xl border border-[#e6ecf2] p-3 dark:border-[#2c1f16]">
+                          <button
+                            type="button"
+                            onClick={() => handleMobileNavigate(`/catalog?category=${encodeURIComponent(parent.id)}`)}
+                            className="block w-full text-left text-sm font-bold text-[color:var(--color-primary,#0099e5)]"
+                          >
+                            {parent.name}
+                          </button>
+                          {parent.children.length ? (
+                            <div className="mt-2 space-y-2 border-l border-[#e6ecf2] pl-3 dark:border-[#2c1f16]">
+                              {parent.children.map((child) => (
+                                <button
+                                  key={`mobile-category-child-${child.id}`}
+                                  type="button"
+                                  onClick={() => handleMobileNavigate(`/catalog?category=${encodeURIComponent(child.id)}`)}
+                                  className="block w-full text-left text-sm text-[#4b5563] dark:text-[#cdbca9]"
+                                >
+                                  {child.name}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#8a7560]">No hay categorias disponibles.</p>
+                  )}
+                </section>
+
+                <section className="space-y-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8a7560]">Marcas</p>
+                  {brandLinks.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {brandLinks.map((item) => (
+                        <button
+                          key={`mobile-brand-${item.href}`}
+                          type="button"
+                          onClick={() => handleMobileNavigate(item.href)}
+                          className="rounded-full border border-[#dbe2ea] px-3 py-2 text-sm font-semibold text-[#1f2937] dark:border-[#3d2f21] dark:text-[#e7ddd3]"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#8a7560]">No hay marcas disponibles.</p>
+                  )}
+                </section>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
