@@ -13,6 +13,7 @@ import { cn } from '../../../utils/cn';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4';
 const codeClass = 'rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-200 font-mono break-all';
+const preClass = 'custom-scrollbar overflow-auto rounded-2xl border border-white/10 bg-black/30 p-4 text-[12px] leading-6 text-zinc-200';
 
 const CopyButton = ({ value, label = 'Copiar', className = '' }) => {
     const [copied, setCopied] = useState(false);
@@ -43,6 +44,20 @@ const CopyButton = ({ value, label = 'Copiar', className = '' }) => {
     );
 };
 
+const ActionButton = ({ onClick, disabled, children, className = '' }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+            'inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60',
+            className
+        )}
+    >
+        {children}
+    </button>
+);
+
 const EndpointRow = ({ label, url }) => (
     <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
         <div className="flex items-center justify-between gap-3">
@@ -53,8 +68,51 @@ const EndpointRow = ({ label, url }) => (
     </div>
 );
 
+const ResultPanel = ({ title, result }) => {
+    if (!result) return null;
+
+    return (
+        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">{title}</p>
+                <div className="flex items-center gap-2">
+                    <span
+                        className={cn(
+                            'rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider',
+                            result.ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
+                        )}
+                    >
+                        {result.ok ? 'OK' : 'Error'}
+                    </span>
+                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                        HTTP {result.status}
+                    </span>
+                </div>
+            </div>
+            <p className="text-[11px] text-zinc-500">Ultima prueba: {result.tested_at || 'sin fecha'}</p>
+            <pre className={preClass}>{JSON.stringify(result.payload, null, 2)}</pre>
+        </div>
+    );
+};
+
 const IntegrationsEditor = ({ manager }) => {
-    const { manifest, loading, rotatingToken, loadManifest, rotateToken } = manager;
+    const {
+        manifest,
+        loading,
+        rotatingToken,
+        pinging,
+        compatPinging,
+        syncingSample,
+        lastPingResult,
+        lastCompatibilityPingResult,
+        lastSyncResult,
+        lastSamplePayload,
+        loadManifest,
+        rotateToken,
+        testConnection,
+        testCompatibilityConnection,
+        syncSampleProduct,
+    } = manager;
 
     useEffect(() => {
         loadManifest().catch(() => {});
@@ -68,6 +126,40 @@ const IntegrationsEditor = ({ manager }) => {
         () => JSON.stringify(manifest?.compatibility?.sample_payload || {}, null, 2),
         [manifest]
     );
+    const lastSamplePayloadJson = useMemo(
+        () => JSON.stringify(lastSamplePayload || {}, null, 2),
+        [lastSamplePayload]
+    );
+    const powershellSnippet = useMemo(() => {
+        if (!manifest?.endpoints?.sync_products_url || !manifest?.auth?.token || !manifest?.tenant_id) return '';
+
+        return [
+            `$headers = @{`,
+            `  "x-api-key" = "${manifest.auth.token}"`,
+            `  "x-tenant-id" = "${manifest.tenant_id}"`,
+            `  "Content-Type" = "application/json"`,
+            `}`,
+            ``,
+            `$body = @'`,
+            samplePayload,
+            `'@`,
+            ``,
+            `Invoke-RestMethod -Method Post -Uri "${manifest.endpoints.sync_products_url}" -Headers $headers -Body $body`,
+        ].join('\n');
+    }, [manifest, samplePayload]);
+    const curlSnippet = useMemo(() => {
+        if (!manifest?.endpoints?.sync_products_url || !manifest?.auth?.token || !manifest?.tenant_id) return '';
+
+        const compactPayload = JSON.stringify(manifest?.schema?.sample_payload || {});
+        return [
+            'curl -X POST',
+            `  "${manifest.endpoints.sync_products_url}"`,
+            `  -H "x-api-key: ${manifest.auth.token}"`,
+            `  -H "x-tenant-id: ${manifest.tenant_id}"`,
+            '  -H "Content-Type: application/json"',
+            `  -d '${compactPayload}'`,
+        ].join('\n');
+    }, [manifest]);
 
     if (loading && !manifest) {
         return (
@@ -95,25 +187,26 @@ const IntegrationsEditor = ({ manager }) => {
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => loadManifest().catch(() => {})}
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-zinc-200 transition hover:bg-white/10"
-                    >
+                    <ActionButton onClick={() => loadManifest().catch(() => {})}>
                         <ArrowsClockwise size={14} weight="bold" />
                         Recargar
-                    </button>
-                    <button
-                        type="button"
+                    </ActionButton>
+                    <ActionButton
                         onClick={() => rotateToken('ERP Sync')}
                         disabled={rotatingToken}
-                        className="inline-flex items-center gap-2 rounded-lg bg-evolution-indigo px-3 py-2 text-xs font-bold text-white transition hover:bg-evolution-indigo/90 disabled:opacity-60"
+                        className="bg-evolution-indigo text-white hover:bg-evolution-indigo/90"
                     >
                         <Key size={14} weight="bold" />
                         {rotatingToken ? 'Regenerando...' : 'Regenerar token'}
-                    </button>
+                    </ActionButton>
                 </div>
             </div>
+
+            {manifest?.token_auto_created ? (
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                    No habia token de integracion para este tenant. El sistema genero uno automaticamente y ya esta listo para usar.
+                </div>
+            ) : null}
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <div className={cardClass}>
@@ -203,6 +296,78 @@ const IntegrationsEditor = ({ manager }) => {
 
                     <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-white">
                         El stock viaja dentro del mismo item de producto. No hace falta una URL separada de stock si el sistema ya puede enviar JSON de producto.
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                <div className={cardClass}>
+                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                        <CheckCircle size={16} weight="bold" />
+                        Pruebas rapidas desde admin
+                    </div>
+
+                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <p className="text-[12px] leading-6 text-zinc-300">
+                            Desde aca podes probar si el sistema de gestion va a poder conectarse y si el sync realmente inserta o actualiza productos.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            <ActionButton onClick={() => testConnection().catch(() => {})} disabled={pinging}>
+                                <Plug size={14} weight="bold" />
+                                {pinging ? 'Probando conexion...' : 'Probar conexion'}
+                            </ActionButton>
+                            <ActionButton onClick={() => testCompatibilityConnection().catch(() => {})} disabled={compatPinging}>
+                                <ShieldCheck size={14} weight="bold" />
+                                {compatPinging ? 'Probando compatibilidad...' : 'Probar compatibilidad'}
+                            </ActionButton>
+                            <ActionButton
+                                onClick={() => syncSampleProduct().catch(() => {})}
+                                disabled={syncingSample}
+                                className="bg-evolution-indigo text-white hover:bg-evolution-indigo/90"
+                            >
+                                <ArrowsClockwise size={14} weight="bold" />
+                                {syncingSample ? 'Sincronizando prueba...' : 'Sync producto demo'}
+                            </ActionButton>
+                        </div>
+                        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-white">
+                            La prueba de sync envia un producto demo con categoria `Sanitarios`. Si esa categoria no existe, el backend la crea automaticamente.
+                        </div>
+                    </div>
+
+                    <ResultPanel title="Resultado ping" result={lastPingResult} />
+                    <ResultPanel title="Resultado compatibilidad" result={lastCompatibilityPingResult} />
+                    {lastSamplePayload ? (
+                        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Payload enviado en la prueba</p>
+                                <CopyButton value={lastSamplePayloadJson} label="Copiar payload" />
+                            </div>
+                            <pre className={preClass}>{lastSamplePayloadJson}</pre>
+                        </div>
+                    ) : null}
+                    <ResultPanel title="Resultado sync demo" result={lastSyncResult} />
+                </div>
+
+                <div className={cardClass}>
+                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                        <Copy size={16} weight="bold" />
+                        Snippets listos
+                    </div>
+
+                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">PowerShell</p>
+                            <CopyButton value={powershellSnippet} label="Copiar PowerShell" />
+                        </div>
+                        <pre className={preClass}>{powershellSnippet || 'Cargando snippet...'}</pre>
+                    </div>
+
+                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">cURL</p>
+                            <CopyButton value={curlSnippet} label="Copiar cURL" />
+                        </div>
+                        <pre className={preClass}>{curlSnippet || 'Cargando snippet...'}</pre>
                     </div>
                 </div>
             </div>
