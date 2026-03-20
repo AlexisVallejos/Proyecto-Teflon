@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 
 import { cn } from '../../../utils/cn';
+import { getApiBase } from '../../../utils/api';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4';
 const codeClass = 'rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-200 font-mono break-all';
@@ -95,6 +96,23 @@ const ResultPanel = ({ title, result }) => {
     );
 };
 
+const DeploymentCheckRow = ({ label, value, ok }) => (
+    <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p>
+            <div className={codeClass}>{value || 'sin dato'}</div>
+        </div>
+        <span
+            className={cn(
+                'inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider',
+                ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
+            )}
+        >
+            {ok ? 'Correcto' : 'Revisar'}
+        </span>
+    </div>
+);
+
 const IntegrationsEditor = ({ manager }) => {
     const {
         manifest,
@@ -130,6 +148,53 @@ const IntegrationsEditor = ({ manager }) => {
         () => JSON.stringify(lastSamplePayload || {}, null, 2),
         [lastSamplePayload]
     );
+    const expectedFrontendOrigin = 'https://proyecto-teflon-web.vercel.app';
+    const expectedBackendOrigin = 'https://proyecto-teflon.onrender.com';
+    const currentFrontendOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    const configuredApiBase = getApiBase();
+    const manifestSyncUrl = manifest?.endpoints?.sync_products_url || '';
+    const manifestPingUrl = manifest?.endpoints?.ping_url || '';
+    const renderEnvSnippet = useMemo(
+        () => [
+            `PUBLIC_API_URL=${expectedBackendOrigin}`,
+            `INTEGRATIONS_PUBLIC_BASE_URL=${expectedBackendOrigin}`,
+            `CORS_ORIGIN=${expectedFrontendOrigin}`,
+        ].join('\n'),
+        []
+    );
+    const vercelEnvSnippet = useMemo(
+        () => [
+            `VITE_API_URL=${expectedBackendOrigin}`,
+            `VITE_TENANT_ID=${manifest?.tenant_id || import.meta.env.VITE_TENANT_ID || '636736e2-e135-44cd-ac5c-5d4ccb839a73'}`,
+        ].join('\n'),
+        [manifest]
+    );
+    const deploymentChecks = useMemo(
+        () => [
+            {
+                label: 'Frontend actual',
+                value: currentFrontendOrigin,
+                ok: currentFrontendOrigin === expectedFrontendOrigin,
+            },
+            {
+                label: 'API configurada en frontend',
+                value: configuredApiBase,
+                ok: configuredApiBase === expectedBackendOrigin,
+            },
+            {
+                label: 'Ping ERP publicado por backend',
+                value: manifestPingUrl,
+                ok: manifestPingUrl.startsWith(expectedBackendOrigin),
+            },
+            {
+                label: 'Sync ERP publicado por backend',
+                value: manifestSyncUrl,
+                ok: manifestSyncUrl.startsWith(expectedBackendOrigin),
+            },
+        ],
+        [configuredApiBase, currentFrontendOrigin, manifestPingUrl, manifestSyncUrl]
+    );
+    const hasDeploymentMismatch = deploymentChecks.some((check) => !check.ok);
     const powershellSnippet = useMemo(() => {
         if (!manifest?.endpoints?.sync_products_url || !manifest?.auth?.token || !manifest?.tenant_id) return '';
 
@@ -296,6 +361,54 @@ const IntegrationsEditor = ({ manager }) => {
 
                     <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-white">
                         El stock viaja dentro del mismo item de producto. No hace falta una URL separada de stock si el sistema ya puede enviar JSON de producto.
+                    </div>
+                </div>
+            </div>
+
+            <div className={cardClass}>
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+                    <ShieldCheck size={16} weight="bold" />
+                    Diagnostico de deployment
+                </div>
+
+                {hasDeploymentMismatch ? (
+                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-[12px] leading-6 text-rose-200">
+                        Hay una configuracion desalineada entre Vercel y Render. Si en alguna fila ves `localhost` o una URL distinta,
+                        las integraciones pueden fallar aunque el codigo este bien.
+                    </div>
+                ) : (
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-[12px] leading-6 text-emerald-200">
+                        El panel esta apuntando a las URLs productivas correctas: Vercel para frontend, Render para backend e integraciones.
+                        La persistencia sigue en Supabase via `DATABASE_URL` del backend.
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    {deploymentChecks.map((check) => (
+                        <DeploymentCheckRow
+                            key={check.label}
+                            label={check.label}
+                            value={check.value}
+                            ok={check.ok}
+                        />
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Render env esperado</p>
+                            <CopyButton value={renderEnvSnippet} label="Copiar Render env" />
+                        </div>
+                        <pre className={preClass}>{renderEnvSnippet}</pre>
+                    </div>
+
+                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Vercel env esperado</p>
+                            <CopyButton value={vercelEnvSnippet} label="Copiar Vercel env" />
+                        </div>
+                        <pre className={preClass}>{vercelEnvSnippet}</pre>
                     </div>
                 </div>
             </div>
