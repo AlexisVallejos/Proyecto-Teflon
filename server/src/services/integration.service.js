@@ -68,6 +68,33 @@ const firstBooleanAlias = (source, aliases = []) => {
   return null;
 };
 
+const slugify = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const splitCategoryTokens = (value) => {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => splitCategoryTokens(entry));
+  }
+
+  const normalized = String(value || '').trim();
+  if (!normalized) return [];
+
+  if (/[;,|]/.test(normalized)) {
+    return normalized
+      .split(/[;,|]/)
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean);
+  }
+
+  return [normalized];
+};
+
 const collectRawImages = (source) => {
   const rawCollections = [];
   const directImages = firstPresentValue(source, ['images', 'imagenes']);
@@ -101,26 +128,26 @@ const collectRawImages = (source) => {
   return rawCollections;
 };
 
-const normalizeCategoryIds = (raw, aliases = []) => {
+const normalizeCategoryRefs = (raw, aliases = []) => {
   const collected = [];
 
   aliases.forEach((key) => {
     const value = firstPresentValue(raw, [key]);
     if (Array.isArray(value)) {
       value.forEach((entry) => {
-        const normalized = String(entry || '').trim();
-        if (normalized) collected.push(normalized);
+        collected.push(...splitCategoryTokens(entry));
       });
       return;
     }
 
-    const normalized = String(value || '').trim();
-    if (normalized) {
-      collected.push(normalized);
-    }
+    collected.push(...splitCategoryTokens(value));
   });
 
-  return [...new Set(collected.filter((value) => isUuid(value)))];
+  const unique = [...new Set(collected.map((value) => String(value || '').trim()).filter(Boolean))];
+  return {
+    ids: unique.filter((value) => isUuid(value)),
+    labels: unique.filter((value) => !isUuid(value)),
+  };
 };
 
 const normalizeImageCollection = (images, fallbackAlt) => {
@@ -199,8 +226,7 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     'detalleAbreviado',
   ]);
   const brand = firstTextAlias(raw, ['brand', 'marca']);
-  const rawCategoryValue = firstTextAlias(raw, ['category', 'categoria', 'family', 'familia', 'rubro']);
-  const categoryIds = normalizeCategoryIds(raw, [
+  const normalizedCategories = normalizeCategoryRefs(raw, [
     'category_id',
     'categoryId',
     'category_ids',
@@ -221,7 +247,9 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     'category',
     'categoria',
   ]);
-  const sourceCategoryLabel = rawCategoryValue && !isUuid(rawCategoryValue) ? rawCategoryValue : null;
+  const categoryIds = normalizedCategories.ids;
+  const categoryLabels = normalizedCategories.labels;
+  const sourceCategoryLabel = categoryLabels[0] || null;
   const priceRetail = firstNumericAlias(raw, [
     'price_retail',
     'priceRetail',
@@ -278,11 +306,14 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     shortDescription,
     brand,
     categoryIds,
+    categoryLabels,
     sourceCategoryLabel,
     hasDescription: description !== null,
     hasShortDescription: shortDescription !== null,
     hasBrand: brand !== null,
     hasCategoryIds: categoryIds.length > 0,
+    hasCategoryLabels: categoryLabels.length > 0,
+    hasCategoryRefs: categoryIds.length > 0 || categoryLabels.length > 0,
     hasSourceCategoryLabel: sourceCategoryLabel !== null,
     hasPriceRetail: priceRetail != null,
     hasPriceWholesale: priceWholesale != null,
@@ -375,6 +406,118 @@ async function replaceProductCategories(client, { tenantId, productId, categoryI
       [productId, selectedCategoryIds]
     );
   }
+}
+
+async function resolveCategoryIdsForSync(client, { tenantId, categoryIds = [], categoryLabels = [] }) {
+  const normalizedIds = [...new Set((Array.isArray(categoryIds) ? categoryIds : []).filter((value) => isUuid(value)))];
+  const normalizedLabels = [...new Set((Array.isArray(categoryLabels) ? categoryLabels : []).map((value) => toTextOrNull(value)).filter(Boolean))];
+
+  if (normalizedIds.length) {
+    const validCategoriesRes = await client.query(
+      'select id from categories where tenant_id = $1 and id = any($2::uuid[])',
+      [tenantId, normalizedIds]
+    );
+
+    if (validCategoriesRes.rowCount !== normalizedIds.length) {
+      const error = new Error('invalid_category_ids');
+      error.status = 400;
+      error.code = 'invalid_category_ids';
+      throw error;
+    }
+  }
+
+  if (!normalizedLabels.length) {
+    return {
+      categoryIds: normalizedIds,
+      createdCount: 0,
+    };
+  }
+
+  const loweredLabels = normalizedLabels.map((value) => value.toLowerCase());
+  const slugs = normalizedLabels.map((value) => slugify(value)).filter(Boolean);
+  const existingRes = await client.query(
+    [
+      'select id, name, slug, erp_id',
+      'from categories',
+      'where tenant_id = $1',
+      'and (lower(name) = any($2::text[]) or slug = any($3::text[]) or coalesce(erp_id, \'\') = any($4::text[]))',
+    ].join(' '),
+    [tenantId, loweredLabels, slugs, normalizedLabels]
+  );
+
+  const matches = new Map();
+  existingRes.rows.forEach((row) => {
+    const nameKey = String(row.name || '').trim().toLowerCase();
+    const slugKey = String(row.slug || '').trim();
+    const erpKey = String(row.erp_id || '').trim();
+    if (nameKey) matches.set(nameKey, row.id);
+    if (slugKey) matches.set(slugKey, row.id);
+    if (erpKey) matches.set(erpKey, row.id);
+  });
+
+  const resolvedIds = [...normalizedIds];
+  let createdCount = 0;
+
+  for (const label of normalizedLabels) {
+    const labelKey = label.toLowerCase();
+    const labelSlug = slugify(label);
+    const existingId = matches.get(labelKey) || matches.get(labelSlug) || matches.get(label);
+    if (existingId) {
+      resolvedIds.push(existingId);
+      continue;
+    }
+
+    const baseSlug = labelSlug || `categoria-sync-${createdCount + 1}`;
+    let candidateSlug = baseSlug;
+    let createdId = null;
+
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const insertRes = await client.query(
+        [
+          'insert into categories (tenant_id, name, slug, data)',
+          'values ($1, $2, $3, $4::jsonb)',
+          'on conflict do nothing',
+          'returning id',
+        ].join(' '),
+        [
+          tenantId,
+          label,
+          candidateSlug,
+          JSON.stringify({ auto_created_by: 'integration_sync', source_category_label: label }),
+        ]
+      );
+
+      if (insertRes.rowCount) {
+        createdId = insertRes.rows[0].id;
+        createdCount += 1;
+        break;
+      }
+
+      const existingBySlugRes = await client.query(
+        'select id from categories where tenant_id = $1 and slug = $2 limit 1',
+        [tenantId, candidateSlug]
+      );
+
+      if (existingBySlugRes.rowCount) {
+        createdId = existingBySlugRes.rows[0].id;
+        break;
+      }
+
+      candidateSlug = `${baseSlug}-${attempt + 2}`;
+    }
+
+    if (createdId) {
+      resolvedIds.push(createdId);
+      matches.set(labelKey, createdId);
+      if (labelSlug) matches.set(labelSlug, createdId);
+      matches.set(label, createdId);
+    }
+  }
+
+  return {
+    categoryIds: [...new Set(resolvedIds)],
+    createdCount,
+  };
 }
 
 export async function ensureProductSyncSchema() {
@@ -472,6 +615,7 @@ export async function syncIntegrationProducts({
       total: 0,
       created: 0,
       updated: 0,
+      categories_created: 0,
     };
   }
 
@@ -507,9 +651,19 @@ export async function syncIntegrationProducts({
 
     let created = 0;
     let updated = 0;
+    let categoriesCreated = 0;
     const syncedAt = new Date();
 
     for (const item of normalizedItems) {
+      const categoryResolution = item.hasCategoryRefs
+        ? await resolveCategoryIdsForSync(client, {
+            tenantId,
+            categoryIds: item.categoryIds,
+            categoryLabels: item.categoryLabels,
+          })
+        : { categoryIds: [], createdCount: 0 };
+      categoriesCreated += categoryResolution.createdCount;
+
       const existing = existingByExternalId.get(item.externalId);
       if (!existing) {
         const productData = buildProductDataFromSync({
@@ -548,11 +702,11 @@ export async function syncIntegrationProducts({
         );
 
         const productId = insertRes.rows[0].id;
-        if (item.hasCategoryIds) {
+        if (categoryResolution.categoryIds.length) {
           await replaceProductCategories(client, {
             tenantId,
             productId,
-            categoryIds: item.categoryIds,
+            categoryIds: categoryResolution.categoryIds,
           });
         }
         await upsertSyncMetadata(client, {
@@ -632,11 +786,11 @@ export async function syncIntegrationProducts({
         ]
       );
 
-      if (allowEditorialSync && item.hasCategoryIds) {
+      if (allowEditorialSync && categoryResolution.categoryIds.length) {
         await replaceProductCategories(client, {
           tenantId,
           productId: existing.id,
-          categoryIds: item.categoryIds,
+          categoryIds: categoryResolution.categoryIds,
         });
       }
 
@@ -660,6 +814,7 @@ export async function syncIntegrationProducts({
       total: normalizedItems.length,
       created,
       updated,
+      categories_created: categoriesCreated,
     };
   } catch (err) {
     await client.query('ROLLBACK');

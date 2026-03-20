@@ -168,6 +168,19 @@ SET
 WITH seed AS (
   SELECT '636736e2-e135-44cd-ac5c-5d4ccb839a73'::uuid AS tenant_id
 )
+INSERT INTO api_tokens (tenant_id, name, token_hash, scope)
+SELECT tenant_id, 'ERP Sync Local', 'erp-sync-local-001', 'products:sync'
+FROM seed
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM api_tokens
+  WHERE tenant_id = (SELECT tenant_id FROM seed)
+    AND token_hash = 'erp-sync-local-001'
+);
+
+WITH seed AS (
+  SELECT '636736e2-e135-44cd-ac5c-5d4ccb839a73'::uuid AS tenant_id
+)
 INSERT INTO categories (tenant_id, name, slug, data)
 SELECT tenant_id, 'Productos', 'productos', '{}'::jsonb
 FROM seed

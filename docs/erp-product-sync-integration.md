@@ -19,6 +19,10 @@ Ejemplo local:
 
 `http://localhost:4000/api/v1/integrations/products/sync`
 
+Ejemplo productivo actual:
+
+`https://proyecto-teflon.onrender.com/api/v1/integrations/products/sync`
+
 Endpoint de prueba de conexion:
 
 `GET /api/v1/integrations/ping`
@@ -46,6 +50,11 @@ x-tenant-id: TU_TENANT_UUID
 Content-Type: application/json
 ```
 
+Nota:
+
+- si el token pertenece al tenant correcto, `x-tenant-id` puede omitirse
+- si igual se envia, debe coincidir con el tenant del token
+
 Tambien se acepta:
 
 ```http
@@ -72,8 +81,11 @@ Formas aceptadas:
 
 ## Datos de acceso de este tenant
 
+- `base_url`: `https://proyecto-teflon.onrender.com`
 - `tenant_id`: `636736e2-e135-44cd-ac5c-5d4ccb839a73`
 - `token`: `erp-sync-local-001`
+
+Si el tenant no tiene token generado, el panel admin lo crea automaticamente al abrir `Integraciones`.
 
 ## Prueba de conexion
 
@@ -151,7 +163,7 @@ Tambien se aceptan aliases como:
 - `codigo`, `codigo_propio`, `codigo_producto`
 - `titulo`, `detalle_ampliado`
 - `descripcion`, `texto_asociado`, `desc_ampliada`
-- `familia` si envia el UUID de categoria del ecommerce
+- `familia`, `category` o `categoria`
 - `precio`, `precio_venta`, `precio_iva`
 - `mayorista`, `precio_mayorista`
 - `disponibilidad`, `stock_actual`
@@ -160,7 +172,12 @@ Tambien se aceptan aliases como:
 
 Nota:
 
-- si el sistema envia `familia`, `category` o `categoria`, el valor debe ser el UUID real de la categoria en el ecommerce, no el nombre.
+- si el sistema envia `familia`, `category`, `categoria`, `category_id` o `category_ids`, puede mandar:
+  - UUID real de categoria
+  - slug de categoria
+  - `erp_id` de categoria
+  - nombre de categoria
+- si la categoria no existe y llega como texto, el backend la crea en forma plana para no frenar la sincronizacion
 
 ## Campos soportados por item
 
@@ -176,7 +193,7 @@ Campos recomendados:
 - `brand`: marca.
 - `description`: descripcion base.
 - `images`: array de URLs o imagenes.
-- `category_id` o `category_ids`: UUID o UUIDs de categorias ya creadas en el ecommerce.
+- `category_id` o `category_ids`: UUIDs, slugs, `erp_id` o nombres de categoria.
 
 Importante:
 
@@ -256,7 +273,8 @@ Actualizacion:
   "source_system": "sistema-gestion-av",
   "total": 1,
   "created": 0,
-  "updated": 1
+  "updated": 1,
+  "categories_created": 0
 }
 ```
 

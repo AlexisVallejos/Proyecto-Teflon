@@ -165,6 +165,28 @@ function createProductSyncTokenValue() {
   return `teflon_${crypto.randomBytes(24).toString('hex')}`;
 }
 
+async function ensureProductSyncToken(db, tenantId, tokenName = 'ERP Sync') {
+  const existing = await findLatestProductSyncToken(db, tenantId);
+  if (existing) {
+    return { tokenRecord: existing, autoCreated: false };
+  }
+
+  const tokenValue = createProductSyncTokenValue();
+  const insertRes = await db.query(
+    [
+      'insert into api_tokens (tenant_id, name, token_hash, scope)',
+      'values ($1, $2, $3, $4)',
+      'returning id, name, token_hash, scope, created_at',
+    ].join(' '),
+    [tenantId, tokenName, tokenValue, 'products:sync']
+  );
+
+  return {
+    tokenRecord: insertRes.rows[0],
+    autoCreated: true,
+  };
+}
+
 tenantRouter.get('/settings', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
@@ -186,13 +208,16 @@ tenantRouter.get('/integrations/product-sync', async (req, res, next) => {
   if (!tenantId) return;
 
   try {
-    const tokenRecord = await findLatestProductSyncToken(pool, tenantId);
+    const { tokenRecord, autoCreated } = await ensureProductSyncToken(pool, tenantId);
     const baseUrl = resolveServerBaseUrl(req);
-    return res.json(buildTenantIntegrationManifest({
-      baseUrl,
-      tenantId,
-      tokenRecord,
-    }));
+    return res.json({
+      ...buildTenantIntegrationManifest({
+        baseUrl,
+        tenantId,
+        tokenRecord,
+      }),
+      token_auto_created: autoCreated,
+    });
   } catch (err) {
     return next(err);
   }
@@ -225,11 +250,14 @@ tenantRouter.post('/integrations/product-sync/token/rotate', async (req, res, ne
     await client.query('COMMIT');
     const baseUrl = resolveServerBaseUrl(req);
 
-    return res.json(buildTenantIntegrationManifest({
-      baseUrl,
-      tenantId,
-      tokenRecord: insertRes.rows[0],
-    }));
+    return res.json({
+      ...buildTenantIntegrationManifest({
+        baseUrl,
+        tenantId,
+        tokenRecord: insertRes.rows[0],
+      }),
+      token_auto_created: false,
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     return next(err);
