@@ -43,6 +43,23 @@ const safePublicUrl = (domain) => {
     return `https://${value}`;
 };
 
+const resolveDomainErrorMessage = (errorCode, domainValue) => {
+    const domain = String(domainValue || '').trim();
+
+    switch (errorCode) {
+        case 'domain_required':
+            return 'Ingresa un dominio para conectar.';
+        case 'invalid_domain':
+            return domain ? `El dominio ${domain} no tiene un formato valido.` : 'El dominio ingresado no tiene un formato valido.';
+        case 'domain_in_use':
+            return domain ? `El dominio ${domain} ya esta vinculado a otra tienda.` : 'Ese dominio ya esta vinculado a otra tienda.';
+        case 'tenant_domain_connect_failed':
+            return 'No se pudo conectar el dominio.';
+        default:
+            return 'No se pudo conectar el dominio.';
+    }
+};
+
 const chipToneMap = {
     success: { backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.25)' },
     warning: { backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#fcd34d', borderColor: 'rgba(245, 158, 11, 0.25)' },
@@ -182,7 +199,7 @@ const DomainConnectModal = ({ open, onClose }) => {
             addToast('Dominio conectado como principal', 'success');
         } catch (err) {
             console.error('Failed to connect custom domain', err);
-            addToast('No se pudo conectar el dominio', 'error');
+            addToast(resolveDomainErrorMessage(err?.message, domain), 'error');
         } finally {
             setSaving(false);
         }
@@ -430,6 +447,11 @@ const DomainConnectModal = ({ open, onClose }) => {
                                     <div className="rounded-xl border p-3" style={surfaceStyle}>
                                         <p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Requisito DNS</p>
                                         <p className="mt-2 text-sm admin-text-primary">CNAME hacia {platformTarget}</p>
+                                        <p className="mt-2 text-xs leading-relaxed admin-text-muted">
+                                            Si vas a usar el dominio raiz, por ejemplo `alessitech.space`, tu proveedor DNS tiene que soportar
+                                            el equivalente a ALIAS/ANAME o la configuracion de apex que corresponda. Si no, usa `www.alessitech.space`
+                                            y redirige el dominio raiz.
+                                        </p>
                                     </div>
                                     <button
                                         type="button"
