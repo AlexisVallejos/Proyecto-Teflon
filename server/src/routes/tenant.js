@@ -73,6 +73,32 @@ function normalizeBrandName(value) {
   return String(value || '').trim();
 }
 
+function normalizeDomainInput(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/:\d+$/, '')
+    .replace(/\.$/, '');
+}
+
+function isValidDomain(value) {
+  const normalized = normalizeDomainInput(value);
+  if (!normalized) return false;
+  if (normalized === 'localhost') return true;
+  return /^(?=.{1,253}$)(?!-)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(normalized);
+}
+
+function normalizeSubdomainLabel(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/--+/g, '-');
+}
+
 function parseUuidArray(value) {
   const list = Array.isArray(value) ? value : [];
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -187,6 +213,164 @@ async function ensureProductSyncToken(db, tenantId, tokenName = 'ERP Sync') {
   };
 }
 
+async function listTenantDomains(db, tenantId) {
+  const result = await db.query(
+    [
+      'select domain, is_primary, created_at',
+      'from tenant_domains',
+      'where tenant_id = $1',
+      'order by is_primary desc, created_at asc, domain asc',
+    ].join(' '),
+    [tenantId]
+  );
+
+  return result.rows;
+}
+
+async function buildTenantDomainsPayload(db, tenantId) {
+  const tenantRes = await db.query(
+    [
+      'select t.name, ts.branding',
+      'from tenants t',
+      'left join tenant_settings ts on ts.tenant_id = t.id',
+      'where t.id = $1',
+      'limit 1',
+    ].join(' '),
+    [tenantId]
+  );
+
+  const tenant = tenantRes.rows[0] || {};
+  const brandingName = String(tenant?.branding?.name || tenant?.name || 'mi-tienda').trim();
+  const suggestedSubdomain = normalizeSubdomainLabel(slugify(brandingName) || 'mi-tienda');
+  const domains = await listTenantDomains(db, tenantId);
+  const primaryDomain = domains.find((item) => item.is_primary)?.domain || null;
+  const platformBaseDomain = String(process.env.PLATFORM_BASE_DOMAIN || '').trim().toLowerCase();
+  const platformCnameTarget = String(
+    process.env.PLATFORM_CNAME_TARGET ||
+    process.env.PUBLIC_STOREFRONT_HOST ||
+    'cname.vercel-dns.com'
+  ).trim();
+
+  return {
+    tenant_id: tenantId,
+    primary_domain: primaryDomain,
+    domains,
+    platform: {
+      enabled: Boolean(platformBaseDomain),
+      base_domain: platformBaseDomain || null,
+      cname_target: platformCnameTarget || null,
+      suggested_subdomain: suggestedSubdomain,
+      suggested_domain: platformBaseDomain ? `${suggestedSubdomain}.${platformBaseDomain}` : null,
+    },
+  };
+}
+
+async function upsertTenantDomain(db, tenantId, domain, { isPrimary = true } = {}) {
+  const normalizedDomain = normalizeDomainInput(domain);
+  if (!isValidDomain(normalizedDomain)) {
+    const error = new Error('invalid_domain');
+    error.status = 400;
+    error.code = 'invalid_domain';
+    throw error;
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existingDomainRes = await client.query(
+      'select tenant_id from tenant_domains where domain = $1 limit 1',
+      [normalizedDomain]
+    );
+
+    if (existingDomainRes.rowCount && existingDomainRes.rows[0].tenant_id !== tenantId) {
+      const error = new Error('domain_in_use');
+      error.status = 409;
+      error.code = 'domain_in_use';
+      throw error;
+    }
+
+    if (isPrimary) {
+      await client.query(
+        'update tenant_domains set is_primary = false where tenant_id = $1',
+        [tenantId]
+      );
+    }
+
+    if (existingDomainRes.rowCount) {
+      await client.query(
+        [
+          'update tenant_domains',
+          'set is_primary = $3',
+          'where tenant_id = $1 and domain = $2',
+        ].join(' '),
+        [tenantId, normalizedDomain, isPrimary]
+      );
+    } else {
+      await client.query(
+        'insert into tenant_domains (tenant_id, domain, is_primary) values ($1, $2, $3)',
+        [tenantId, normalizedDomain, isPrimary]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return buildTenantDomainsPayload(db, tenantId);
+}
+
+async function removeTenantDomain(db, tenantId, domain) {
+  const normalizedDomain = normalizeDomainInput(domain);
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    const currentRes = await client.query(
+      'select domain, is_primary from tenant_domains where tenant_id = $1 and domain = $2 limit 1',
+      [tenantId, normalizedDomain]
+    );
+
+    if (!currentRes.rowCount) {
+      const error = new Error('domain_not_found');
+      error.status = 404;
+      error.code = 'domain_not_found';
+      throw error;
+    }
+
+    await client.query(
+      'delete from tenant_domains where tenant_id = $1 and domain = $2',
+      [tenantId, normalizedDomain]
+    );
+
+    if (currentRes.rows[0].is_primary) {
+      await client.query(
+        [
+          'with next_domain as (',
+          'select domain from tenant_domains where tenant_id = $1 order by created_at asc, domain asc limit 1',
+          ')',
+          'update tenant_domains set is_primary = true',
+          'where tenant_id = $1 and domain = (select domain from next_domain)',
+        ].join(' '),
+        [tenantId]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return buildTenantDomainsPayload(db, tenantId);
+}
+
 tenantRouter.get('/settings', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
@@ -199,6 +383,84 @@ tenantRouter.get('/settings', async (req, res, next) => {
     const settings = result.rows[0] || { branding: {}, theme: {}, commerce: {} };
     return res.json({ tenant_id: tenantId, settings });
   } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.get('/domains', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    return res.json(await buildTenantDomainsPayload(pool, tenantId));
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/domains', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const domain = String(req.body?.domain || '').trim();
+    if (!domain) {
+      return res.status(400).json({ error: 'domain_required' });
+    }
+
+    const payload = await upsertTenantDomain(pool, tenantId, domain, {
+      isPrimary: parseBooleanInput(req.body?.is_primary, true),
+    });
+
+    return res.status(201).json(payload);
+  } catch (err) {
+    if (err?.status && err?.code) {
+      return res.status(err.status).json({ error: err.code });
+    }
+    return next(err);
+  }
+});
+
+tenantRouter.post('/domains/platform', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const platformBaseDomain = String(process.env.PLATFORM_BASE_DOMAIN || '').trim().toLowerCase();
+  if (!platformBaseDomain) {
+    return res.status(400).json({ error: 'platform_domain_not_configured' });
+  }
+
+  try {
+    const subdomain = normalizeSubdomainLabel(req.body?.subdomain || '');
+    if (!subdomain) {
+      return res.status(400).json({ error: 'subdomain_required' });
+    }
+
+    const fullDomain = `${subdomain}.${platformBaseDomain}`;
+    const payload = await upsertTenantDomain(pool, tenantId, fullDomain, {
+      isPrimary: parseBooleanInput(req.body?.is_primary, true),
+    });
+
+    return res.status(201).json(payload);
+  } catch (err) {
+    if (err?.status && err?.code) {
+      return res.status(err.status).json({ error: err.code });
+    }
+    return next(err);
+  }
+});
+
+tenantRouter.delete('/domains/:domain', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const payload = await removeTenantDomain(pool, tenantId, decodeURIComponent(req.params.domain || ''));
+    return res.json(payload);
+  } catch (err) {
+    if (err?.status && err?.code) {
+      return res.status(err.status).json({ error: err.code });
+    }
     return next(err);
   }
 });

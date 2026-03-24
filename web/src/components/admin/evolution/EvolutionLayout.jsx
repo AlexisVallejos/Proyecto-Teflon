@@ -20,6 +20,8 @@ const EvolutionLayout = ({
     usersManager,
     categories,
     brands,
+    notificationsManager,
+    searchItems,
 }) => {
     const adminTheme = getAdminPanelTheme(settings?.theme);
     const adminBranding = getAdminPanelBranding(settings?.branding);
@@ -31,7 +33,11 @@ const EvolutionLayout = ({
             <EvolutionSidebar branding={adminBranding} />
 
             {/* Column 2: Central Infinite Canvas */}
-            <EvolutionCanvas branding={adminBranding}>
+            <EvolutionCanvas
+                branding={adminBranding}
+                notificationsManager={notificationsManager}
+                searchItems={searchItems}
+            >
                 {children}
             </EvolutionCanvas>
 

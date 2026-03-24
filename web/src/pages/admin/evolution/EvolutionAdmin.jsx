@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import { useEditorState } from '../../../hooks/admin/useEditorState';
 import { useAuth } from '../../../context/AuthContext';
@@ -12,6 +12,7 @@ import UsersEditor from '../../../components/admin/evolution/UsersEditor';
 import PricingEditor from '../../../components/admin/evolution/PricingEditor';
 import CheckoutEditor from '../../../components/admin/evolution/CheckoutEditor';
 import IntegrationsEditor from '../../../components/admin/evolution/IntegrationsEditor';
+import NotificationsEditor from '../../../components/admin/evolution/NotificationsEditor';
 import TenantsEditor from '../../../components/admin/evolution/TenantsEditor';
 import AppearanceEditor from '../../../components/admin/evolution/AppearanceEditor';
 import MediaLibrary from '../../../components/admin/evolution/MediaLibrary';
@@ -22,6 +23,7 @@ import { useUsersManager } from '../../../hooks/admin/useUsersManager';
 import { useOffersManager } from '../../../hooks/admin/useOffersManager';
 import { useTenantsManager } from '../../../hooks/admin/useTenantsManager';
 import useIntegrationManager from '../../../hooks/admin/useIntegrationManager';
+import useNotificationsManager from '../../../hooks/admin/useNotificationsManager';
 import {
     ArrowUpRight,
     TrendUp,
@@ -151,6 +153,7 @@ const EvolutionAdmin = () => {
     const { addToast } = useToast();
     const {
         activeModule,
+        setActiveModule,
         selectionType,
         updateSelectionData,
         selectItem,
@@ -162,6 +165,7 @@ const EvolutionAdmin = () => {
     const offersManager = useOffersManager();
     const tenantsManager = useTenantsManager();
     const integrationManager = useIntegrationManager();
+    const notificationsManager = useNotificationsManager();
     const catalog = useCatalogManager({
         setProducts: editor.setProducts,
         categories: editor.categories,
@@ -203,6 +207,174 @@ const EvolutionAdmin = () => {
             tenantsManager.loadTenants();
         }
     }, [activeModule, tenantsManager.loadTenants]);
+
+    const searchItems = useMemo(() => {
+        const moduleItems = [
+            {
+                id: 'module-dashboard',
+                kind: 'module',
+                label: 'Dashboard',
+                description: 'Resumen general del panel',
+                keywords: 'inicio dashboard resumen panel',
+                onSelect: () => setActiveModule('dashboard'),
+            },
+            {
+                id: 'module-home',
+                kind: 'module',
+                label: 'Inicio',
+                description: 'Editar pagina principal',
+                keywords: 'home portada inicio',
+                onSelect: () => setActiveModule('home'),
+            },
+            {
+                id: 'module-catalog',
+                kind: 'module',
+                label: 'Catalogo',
+                description: 'Gestion de productos',
+                keywords: 'catalogo productos inventario',
+                onSelect: () => setActiveModule('catalog'),
+            },
+            {
+                id: 'module-categories',
+                kind: 'module',
+                label: 'Categorias y marcas',
+                description: 'Organiza categorias y marcas',
+                keywords: 'categorias marcas filtros',
+                onSelect: () => setActiveModule('categories'),
+            },
+            {
+                id: 'module-notifications',
+                kind: 'module',
+                label: 'Notificaciones',
+                description: 'Centro de aprobaciones y pagos pendientes',
+                keywords: 'notificaciones campana pendientes pagos aprobaciones',
+                onSelect: () => setActiveModule('notifications'),
+            },
+            {
+                id: 'module-users',
+                kind: 'module',
+                label: 'Usuarios',
+                description: 'Gestion de clientes y permisos',
+                keywords: 'usuarios clientes aprobacion mayorista',
+                onSelect: () => setActiveModule('users'),
+            },
+            {
+                id: 'module-checkout',
+                kind: 'module',
+                label: 'Checkout',
+                description: 'Cobros, envios y mensajes',
+                keywords: 'checkout pagos envios',
+                onSelect: () => setActiveModule('checkout'),
+            },
+            {
+                id: 'module-integrations',
+                kind: 'module',
+                label: 'Integraciones',
+                description: 'ERP, dominios y conectividad',
+                keywords: 'integraciones erp dominios',
+                onSelect: () => setActiveModule('integrations'),
+            },
+        ];
+
+        const productItems = (Array.isArray(editor.products) ? editor.products : []).map((product) => ({
+            id: `product-${product.id}`,
+            kind: 'product',
+            label: product.name || 'Producto',
+            description: `Producto${product.sku ? ` · SKU ${product.sku}` : ''}${product.brand ? ` · ${product.brand}` : ''}`,
+            keywords: `producto ${product.sku || ''} ${product.brand || ''}`,
+            onSelect: () => {
+                setActiveModule('catalog');
+                catalog.handleEditProduct(product);
+                setInspectorOpen(true);
+            },
+        }));
+
+        const categoryItems = (Array.isArray(editor.categories) ? editor.categories : []).map((category) => ({
+            id: `category-${category.id}`,
+            kind: 'category',
+            label: category.name || 'Categoria',
+            description: category.parent_id ? 'Subcategoria' : 'Categoria raiz',
+            keywords: `categoria ${category.slug || ''}`,
+            onSelect: () => {
+                setActiveModule('categories');
+                selectItem(category.id, 'category', category);
+                setInspectorOpen(true);
+            },
+        }));
+
+        const brandItems = (Array.isArray(editor.brands) ? editor.brands : []).map((brandName) => ({
+            id: `brand-${brandName}`,
+            kind: 'brand',
+            label: brandName,
+            description: 'Marca',
+            keywords: `marca ${brandName}`,
+            onSelect: () => {
+                setActiveModule('categories');
+                selectItem(`brand-${brandName}`, 'brand', { id: `brand-${brandName}`, name: brandName });
+                setInspectorOpen(true);
+            },
+        }));
+
+        const userItems = (Array.isArray(notificationsManager.allUsers) ? notificationsManager.allUsers : []).map((userItem) => ({
+            id: `user-${userItem.id}`,
+            kind: 'user',
+            label: userItem.email || 'Usuario',
+            description: `Usuario · ${userItem.role || 'retail'} · ${userItem.status || 'active'}`,
+            keywords: `usuario ${userItem.email || ''} ${userItem.role || ''} ${userItem.status || ''}`,
+            onSelect: () => {
+                setActiveModule('users');
+                usersManager.setSelectedUser(userItem);
+                setInspectorOpen(true);
+            },
+        }));
+
+        const paymentItems = notificationsManager.paymentApprovals.map((item) => ({
+            id: `payment-${item.orderId}`,
+            kind: 'payment',
+            label: item.title,
+            description: `${item.subtitle} · ${item.customerEmail || 'Sin email'}`,
+            keywords: `pago pedido ${item.customerEmail || ''} ${item.customerName || ''}`,
+            onSelect: () => setActiveModule('notifications'),
+        }));
+
+        const alertItems = notificationsManager.pendingUsers.map((item) => ({
+            id: `alert-user-${item.userId}`,
+            kind: 'notification',
+            label: item.title,
+            description: item.subtitle,
+            keywords: `notificacion pendiente usuario aprobacion ${item.email || ''}`,
+            onSelect: () => {
+                setActiveModule('users');
+                const selectedUser = (notificationsManager.allUsers || []).find((entry) => entry.id === item.userId);
+                if (selectedUser) {
+                    usersManager.setSelectedUser(selectedUser);
+                    setInspectorOpen(true);
+                }
+            },
+        }));
+
+        return [
+            ...moduleItems,
+            ...paymentItems,
+            ...alertItems,
+            ...userItems,
+            ...productItems,
+            ...categoryItems,
+            ...brandItems,
+        ];
+    }, [
+        catalog,
+        editor.brands,
+        editor.categories,
+        editor.products,
+        notificationsManager.allUsers,
+        notificationsManager.paymentApprovals,
+        notificationsManager.pendingUsers,
+        selectItem,
+        setActiveModule,
+        setInspectorOpen,
+        usersManager,
+    ]);
 
     const handleDataChange = (id, nextData) => {
         updateSelectionData(nextData);
@@ -355,6 +527,12 @@ const EvolutionAdmin = () => {
                         manager={integrationManager}
                     />
                 );
+            case 'notifications':
+                return (
+                    <NotificationsEditor
+                        manager={notificationsManager}
+                    />
+                );
             case 'tenants':
                 return <TenantsEditor manager={tenantsManager} />;
             case 'legacy':
@@ -418,6 +596,8 @@ const EvolutionAdmin = () => {
             usersManager={usersManager}
             categories={editor.categories}
             brands={editor.brands}
+            notificationsManager={notificationsManager}
+            searchItems={searchItems}
         >
             {renderContent()}
         </EvolutionLayout>

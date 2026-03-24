@@ -19,7 +19,7 @@ const EvolutionInspector = ({ onDataChange, onSave, isSaving, catalogContext, us
         activeModule,
     } = useEvolutionStore();
 
-    const hideFooterModules = ['catalog', 'categories', 'pricing', 'checkout', 'users', 'customers', 'tenants'];
+    const hideFooterModules = ['catalog', 'categories', 'pricing', 'checkout', 'users', 'customers', 'tenants', 'notifications'];
     const allowSaveWithoutSelectionModules = ['design_live', 'settings_live'];
     const isWideInspector = activeModule === 'catalog' || activeModule === 'users';
 
@@ -138,7 +138,7 @@ const EvolutionInspector = ({ onDataChange, onSave, isSaving, catalogContext, us
                             </div>
                         ) : null}
                     </>
-                ) : !['catalog', 'categories', 'pricing', 'checkout', 'users', 'customers', 'tenants'].includes(activeModule) ? (
+                ) : !['catalog', 'categories', 'pricing', 'checkout', 'users', 'customers', 'tenants', 'notifications'].includes(activeModule) ? (
                     <div className="flex flex-1 flex-col items-center justify-center space-y-4 py-20 text-center opacity-30">
                         <div
                             className="flex h-12 w-12 items-center justify-center rounded-2xl"

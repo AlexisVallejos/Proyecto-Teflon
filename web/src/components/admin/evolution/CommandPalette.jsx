@@ -10,6 +10,7 @@ import {
     Plus,
     Command as CommandIcon,
     Plug,
+    Bell,
 } from '@phosphor-icons/react';
 
 const CommandItem = ({ icon: Icon, label, onSelect, shortcut }) => (
@@ -110,6 +111,7 @@ const CommandPalette = ({ branding, onAddItem }) => {
                         <CommandItem icon={HouseLine} label="Dashboard" onSelect={() => runCommand(() => setActiveModule('dashboard'))} shortcut="G D" />
                         <CommandItem icon={Package} label="Catalogo de Productos" onSelect={() => runCommand(() => setActiveModule('catalog'))} shortcut="G C" />
                         <CommandItem icon={Tag} label="Categorias y Marcas" onSelect={() => runCommand(() => setActiveModule('categories'))} shortcut="G T" />
+                        <CommandItem icon={Bell} label="Notificaciones" onSelect={() => runCommand(() => setActiveModule('notifications'))} shortcut="G N" />
                         <CommandItem icon={Plug} label="Integraciones ERP" onSelect={() => runCommand(() => setActiveModule('integrations'))} shortcut="G I" />
                         <CommandItem icon={Users} label="Usuarios" onSelect={() => runCommand(() => setActiveModule('users'))} shortcut="G U" />
                     </Command.Group>
