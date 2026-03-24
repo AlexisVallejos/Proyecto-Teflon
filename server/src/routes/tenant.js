@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
+import { resolve4, resolveCname } from 'node:dns/promises';
 import { fileURLToPath } from 'url';
 import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
 import { getTenantOffers } from '../services/offers.js';
@@ -97,6 +98,164 @@ function normalizeSubdomainLabel(value) {
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/^-+|-+$/g, '')
     .replace(/--+/g, '-');
+}
+
+function getPlatformDomainConfig() {
+  const platformBaseDomain = String(process.env.PLATFORM_BASE_DOMAIN || '').trim().toLowerCase();
+  const platformCnameTarget = String(
+    process.env.PLATFORM_CNAME_TARGET ||
+    process.env.PUBLIC_STOREFRONT_HOST ||
+    'cname.vercel-dns.com'
+  ).trim().toLowerCase();
+  const platformApexIp = String(process.env.PLATFORM_APEX_IP || '76.76.21.21').trim();
+
+  return {
+    platformBaseDomain,
+    platformCnameTarget,
+    platformApexIp,
+  };
+}
+
+function inferDomainMode(domain, platformBaseDomain = '') {
+  const normalized = normalizeDomainInput(domain);
+  if (platformBaseDomain && normalized.endsWith(`.${platformBaseDomain}`)) return 'platform';
+  return normalized.split('.').length > 2 ? 'subdomain' : 'apex';
+}
+
+function buildDomainDnsPlan(domain, config) {
+  const normalizedDomain = normalizeDomainInput(domain);
+  const mode = inferDomainMode(normalizedDomain, config.platformBaseDomain);
+  const labels = normalizedDomain.split('.');
+  const rootDomain = labels.length > 2 ? labels.slice(-2).join('.') : normalizedDomain;
+  const hostLabel = labels.length > 2 ? labels.slice(0, -2).join('.') : '@';
+
+  if (mode === 'platform') {
+    return {
+      connection_type: 'platform',
+      mode,
+      root_domain: config.platformBaseDomain || normalizedDomain,
+      host_label: normalizedDomain.replace(`.${config.platformBaseDomain}`, ''),
+      required_records: [],
+      dns_hint: 'No requiere configuracion DNS manual. La plataforma publica y protege este subdominio.',
+    };
+  }
+
+  if (mode === 'subdomain') {
+    return {
+      connection_type: 'custom',
+      mode,
+      root_domain: rootDomain,
+      host_label: hostLabel,
+      required_records: [
+        {
+          type: 'CNAME',
+          host: hostLabel || normalizedDomain,
+          value: config.platformCnameTarget,
+          ttl: 'Auto',
+        },
+      ],
+      dns_hint: `Configura un CNAME para ${hostLabel || normalizedDomain} apuntando a ${config.platformCnameTarget}.`,
+    };
+  }
+
+  return {
+    connection_type: 'custom',
+    mode,
+    root_domain: normalizedDomain,
+    host_label: '@',
+    required_records: [
+      {
+        type: 'A',
+        host: '@',
+        value: config.platformApexIp,
+        ttl: 'Auto',
+      },
+      {
+        type: 'CNAME',
+        host: 'www',
+        value: config.platformCnameTarget,
+        ttl: 'Auto',
+      },
+    ],
+    dns_hint: `Apunta el dominio raiz a ${config.platformApexIp} y, si quieres usar www, agrega un CNAME hacia ${config.platformCnameTarget}.`,
+  };
+}
+
+async function resolveDnsWithFallback(resolveFn, domain) {
+  try {
+    const result = await Promise.race([
+      resolveFn(domain),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('dns_timeout')), 2500)),
+    ]);
+    return Array.isArray(result) ? result.map((item) => normalizeDomainInput(item)) : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+async function inspectDomainConnection(domain, config) {
+  const normalizedDomain = normalizeDomainInput(domain);
+  const plan = buildDomainDnsPlan(normalizedDomain, config);
+  const checkedAt = new Date().toISOString();
+
+  if (plan.connection_type === 'platform') {
+    return {
+      status: 'active',
+      label: 'Activo',
+      message: 'El subdominio pertenece a la plataforma y queda listo apenas se guarda.',
+      last_checked_at: checkedAt,
+      observed_records: {
+        a: [],
+        cname: [],
+      },
+    };
+  }
+
+  const [aRecords, cnameRecords] = await Promise.all([
+    resolveDnsWithFallback(resolve4, normalizedDomain),
+    resolveDnsWithFallback(resolveCname, normalizedDomain),
+  ]);
+
+  const matchesA = aRecords.includes(config.platformApexIp);
+  const matchesCname = cnameRecords.includes(config.platformCnameTarget);
+  const hasAnyRecord = aRecords.length > 0 || cnameRecords.length > 0;
+
+  if (matchesA || matchesCname) {
+    return {
+      status: 'active',
+      label: 'Activo',
+      message: 'El DNS ya apunta a la plataforma. Falta solo que Vercel termine de emitir SSL si todavia no aparece en vivo.',
+      last_checked_at: checkedAt,
+      observed_records: {
+        a: aRecords,
+        cname: cnameRecords,
+      },
+    };
+  }
+
+  if (hasAnyRecord) {
+    return {
+      status: 'attention',
+      label: 'Revisar',
+      message: 'Detectamos DNS publicados, pero no apuntan a los valores esperados para esta tienda.',
+      last_checked_at: checkedAt,
+      observed_records: {
+        a: aRecords,
+        cname: cnameRecords,
+      },
+    };
+  }
+
+  return {
+    status: 'dns_pending',
+    label: 'DNS pendiente',
+    message: plan.dns_hint,
+    last_checked_at: checkedAt,
+    observed_records: {
+      a: aRecords,
+      cname: cnameRecords,
+    },
+  };
 }
 
 function parseUuidArray(value) {
@@ -244,23 +403,41 @@ async function buildTenantDomainsPayload(db, tenantId) {
   const suggestedSubdomain = normalizeSubdomainLabel(slugify(brandingName) || 'mi-tienda');
   const domains = await listTenantDomains(db, tenantId);
   const primaryDomain = domains.find((item) => item.is_primary)?.domain || null;
-  const platformBaseDomain = String(process.env.PLATFORM_BASE_DOMAIN || '').trim().toLowerCase();
-  const platformCnameTarget = String(
-    process.env.PLATFORM_CNAME_TARGET ||
-    process.env.PUBLIC_STOREFRONT_HOST ||
-    'cname.vercel-dns.com'
-  ).trim();
+  const platformConfig = getPlatformDomainConfig();
+  const enrichedDomains = await Promise.all(
+    domains.map(async (item) => {
+      const plan = buildDomainDnsPlan(item.domain, platformConfig);
+      const verification = await inspectDomainConnection(item.domain, platformConfig);
+      return {
+        ...item,
+        ...plan,
+        verification,
+      };
+    })
+  );
+  const summary = enrichedDomains.reduce(
+    (acc, item) => {
+      acc.connected += 1;
+      if (item.verification?.status === 'active') acc.active += 1;
+      else if (item.verification?.status === 'attention') acc.attention += 1;
+      else acc.pending += 1;
+      return acc;
+    },
+    { connected: 0, active: 0, attention: 0, pending: 0 }
+  );
 
   return {
     tenant_id: tenantId,
     primary_domain: primaryDomain,
-    domains,
+    domains: enrichedDomains,
+    summary,
     platform: {
-      enabled: Boolean(platformBaseDomain),
-      base_domain: platformBaseDomain || null,
-      cname_target: platformCnameTarget || null,
+      enabled: Boolean(platformConfig.platformBaseDomain),
+      base_domain: platformConfig.platformBaseDomain || null,
+      cname_target: platformConfig.platformCnameTarget || null,
+      apex_ip: platformConfig.platformApexIp || null,
       suggested_subdomain: suggestedSubdomain,
-      suggested_domain: platformBaseDomain ? `${suggestedSubdomain}.${platformBaseDomain}` : null,
+      suggested_domain: platformConfig.platformBaseDomain ? `${suggestedSubdomain}.${platformConfig.platformBaseDomain}` : null,
     },
   };
 }
@@ -442,6 +619,44 @@ tenantRouter.post('/domains/platform', async (req, res, next) => {
     });
 
     return res.status(201).json(payload);
+  } catch (err) {
+    if (err?.status && err?.code) {
+      return res.status(err.status).json({ error: err.code });
+    }
+    return next(err);
+  }
+});
+
+tenantRouter.post('/domains/check', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const payload = await buildTenantDomainsPayload(pool, tenantId);
+    const requestedDomain = normalizeDomainInput(req.body?.domain || '');
+    if (!requestedDomain) {
+      return res.json(payload);
+    }
+
+    const target = payload.domains.find((item) => item.domain === requestedDomain) || null;
+    return res.json({
+      ...payload,
+      checked_domain: target,
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.patch('/domains/:domain/primary', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const payload = await upsertTenantDomain(pool, tenantId, decodeURIComponent(req.params.domain || ''), {
+      isPrimary: true,
+    });
+    return res.json(payload);
   } catch (err) {
     if (err?.status && err?.code) {
       return res.status(err.status).json({ error: err.code });
