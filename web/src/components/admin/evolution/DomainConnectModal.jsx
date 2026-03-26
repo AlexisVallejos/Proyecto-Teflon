@@ -22,7 +22,20 @@ const inputClass = 'admin-input-field w-full rounded-xl border px-3 py-2.5 text-
 const ghostButtonClass = 'admin-hover-surface inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium admin-text-primary transition-all disabled:cursor-not-allowed disabled:opacity-50';
 const panelStyle = { borderColor: 'var(--admin-border)' };
 const headerStyle = { borderColor: 'var(--admin-border-soft)' };
-const surfaceStyle = { backgroundColor: 'var(--admin-hover)', borderColor: 'var(--admin-border-soft)' };
+const surfaceStyle = {
+    backgroundColor: '#ffffff',
+    borderColor: 'rgba(15, 23, 42, 0.10)',
+    boxShadow: '0 18px 38px rgba(15, 23, 42, 0.06)',
+};
+const fieldStyle = {
+    backgroundColor: '#ffffff',
+    borderColor: 'rgba(15, 23, 42, 0.12)',
+    color: '#0f172a',
+};
+const whiteTextPrimary = { color: '#0f172a' };
+const whiteTextMuted = { color: '#475569' };
+const whiteTextLabel = { color: '#64748b' };
+const whiteStepBadgeStyle = { backgroundColor: '#111827', color: '#ffffff' };
 
 const chipToneMap = {
     success: { backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#6ee7b7', borderColor: 'rgba(16, 185, 129, 0.24)' },
@@ -138,12 +151,12 @@ const Chip = ({ label, tone = 'default' }) => (
 );
 
 const Card = ({ eyebrow, title, description, action, children }) => (
-    <section className="space-y-4 rounded-2xl border p-4" style={surfaceStyle}>
+    <section className="space-y-5 rounded-2xl border p-5" style={surfaceStyle}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-1">
                 {eyebrow ? <p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">{eyebrow}</p> : null}
-                {title ? <h3 className="text-lg font-semibold tracking-tight admin-text-primary">{title}</h3> : null}
-                {description ? <p className="text-sm leading-relaxed admin-text-muted">{description}</p> : null}
+                {title ? <h3 className="text-lg font-semibold tracking-tight" style={whiteTextPrimary}>{title}</h3> : null}
+                {description ? <p className="text-sm leading-relaxed" style={whiteTextMuted}>{description}</p> : null}
             </div>
             {action || null}
         </div>
@@ -152,11 +165,11 @@ const Card = ({ eyebrow, title, description, action, children }) => (
 );
 
 const Stat = ({ icon, label, value, helper, tone = 'default' }) => (
-    <div className="rounded-2xl border p-4" style={surfaceStyle}>
+    <div className="rounded-2xl border p-5" style={surfaceStyle}>
         <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">{label}</p>
-                <p className="break-words text-lg font-semibold admin-text-primary">{value}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>{label}</p>
+                <p className="break-words text-lg font-semibold" style={whiteTextPrimary}>{value}</p>
                 {helper ? <p className="text-xs leading-relaxed text-zinc-500">{helper}</p> : null}
             </div>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border" style={chipToneMap[tone] || chipToneMap.default}>{icon}</div>
@@ -167,9 +180,9 @@ const Stat = ({ icon, label, value, helper, tone = 'default' }) => (
 const Step = ({ step, title, description }) => (
     <div className="rounded-2xl border p-4" style={surfaceStyle}>
         <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black admin-text-primary" style={{ backgroundColor: 'var(--admin-panel-bg)' }}>{step}</div>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black" style={whiteStepBadgeStyle}>{step}</div>
             <div className="space-y-1">
-                <p className="text-sm font-semibold admin-text-primary">{title}</p>
+                <p className="text-sm font-semibold" style={whiteTextPrimary}>{title}</p>
                 <p className="text-xs leading-relaxed text-zinc-500">{description}</p>
             </div>
         </div>
@@ -179,10 +192,10 @@ const Step = ({ step, title, description }) => (
 const RecordRow = ({ record, onCopy }) => (
     <div className="flex flex-col gap-3 rounded-2xl border p-3 md:flex-row md:items-center md:justify-between" style={surfaceStyle}>
         <div className="grid flex-1 gap-3 md:grid-cols-[90px_minmax(120px,0.7fr)_minmax(0,1fr)_90px]">
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Tipo</p><p className="mt-1 text-sm font-semibold admin-text-primary">{record.type}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Host</p><p className="mt-1 break-all text-sm admin-text-primary">{record.host}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Valor</p><p className="mt-1 break-all text-sm admin-text-primary">{record.value}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">TTL</p><p className="mt-1 text-sm admin-text-primary">{record.ttl || 'Auto'}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Tipo</p><p className="mt-1 text-sm font-semibold" style={whiteTextPrimary}>{record.type}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Host</p><p className="mt-1 break-all text-sm" style={whiteTextPrimary}>{record.host}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Valor</p><p className="mt-1 break-all text-sm" style={whiteTextPrimary}>{record.value}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>TTL</p><p className="mt-1 text-sm" style={whiteTextPrimary}>{record.ttl || 'Auto'}</p></div>
         </div>
         <button type="button" onClick={() => onCopy(`${record.type} ${record.host} ${record.value}`)} className={ghostButtonClass} style={headerStyle}><Copy size={14} weight="bold" />Copiar</button>
     </div>
@@ -381,21 +394,21 @@ const DomainConnectModal = ({ open, onClose }) => {
 
                         <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
                             <Card eyebrow="Resumen" title="Como funciona" description="Conecta un dominio propio o reserva uno de la plataforma. Publicas DNS y verificas desde el mismo panel, igual que en Wix pero adaptado a Vercel + Render.">
-                                <div className="grid gap-3 md:grid-cols-4">
+                                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
                                     <Stat icon={<HouseLine size={18} weight="bold" />} label="Conectados" value={String(summary.connected || 0)} helper="Hosts asociados al tenant." tone="info" />
                                     <Stat icon={<ShieldCheck size={18} weight="bold" />} label="Activos" value={String(summary.active || 0)} helper="Listos para recibir trafico." tone="success" />
                                     <Stat icon={<WarningCircle size={18} weight="bold" />} label="Revisar" value={String(summary.attention || 0)} helper="DNS publicado con valores incorrectos." tone="warning" />
                                     <Stat icon={<CrownSimple size={18} weight="bold" />} label="Principal" value={currentPrimary} helper="Host publico por defecto." tone="default" />
                                 </div>
-                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
-                                    <div className="rounded-2xl border p-4" style={surfaceStyle}>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Storefront publico</p>
-                                        {currentStoreUrl ? <a href={currentStoreUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm font-semibold admin-text-primary transition hover:opacity-80">{currentStoreUrl}</a> : <p className="mt-2 text-sm font-semibold admin-text-primary">Todavia sin URL publica</p>}
-                                        <p className="mt-3 text-sm leading-relaxed admin-text-muted">Cuando el DNS apunte a Vercel y el estado salga activo, esta sera la URL publica de la tienda.</p>
+                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                                    <div className="rounded-2xl border p-5" style={surfaceStyle}>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Storefront publico</p>
+                                        {currentStoreUrl ? <a href={currentStoreUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm font-semibold transition hover:opacity-80" style={whiteTextPrimary}>{currentStoreUrl}</a> : <p className="mt-2 text-sm font-semibold" style={whiteTextPrimary}>Todavia sin URL publica</p>}
+                                        <p className="mt-3 text-sm leading-relaxed" style={whiteTextMuted}>Cuando el DNS apunte a Vercel y el estado salga activo, esta sera la URL publica de la tienda.</p>
                                     </div>
-                                    <div className="rounded-2xl border p-4" style={surfaceStyle}>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Admin actual</p>
-                                        <p className="mt-2 break-all text-sm font-semibold admin-text-primary">{typeof window !== 'undefined' ? window.location.origin : 'Sin origin'}</p>
+                                    <div className="rounded-2xl border p-5" style={surfaceStyle}>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Admin actual</p>
+                                        <p className="mt-2 break-all text-sm font-semibold" style={whiteTextPrimary}>{typeof window !== 'undefined' ? window.location.origin : 'Sin origin'}</p>
                                         <p className="mt-3 text-xs leading-relaxed text-zinc-500">El admin sigue viviendo en Vercel. El dominio conectado solo afecta la tienda publica.</p>
                                     </div>
                                 </div>
@@ -407,17 +420,17 @@ const DomainConnectModal = ({ open, onClose }) => {
                                         const publicUrl = safePublicUrl(item.domain);
                                         const verificationTone = getVerificationTone(item?.verification?.status);
                                         return (
-                                            <div key={item.domain} className="rounded-2xl border p-4" style={surfaceStyle}>
+                                            <div key={item.domain} className="rounded-2xl border p-5" style={surfaceStyle}>
                                                 <div className="flex flex-col gap-4">
                                                     <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                                                         <div className="min-w-0 space-y-3">
                                                             <div className="flex flex-wrap items-center gap-2">
-                                                                <p className="truncate text-base font-semibold admin-text-primary">{item.domain}</p>
+                                                                <p className="truncate text-base font-semibold" style={whiteTextPrimary}>{item.domain}</p>
                                                                 {item.is_primary ? <Chip label="Principal" tone="success" /> : null}
                                                                 <Chip label={item.connection_type === 'platform' ? 'Dominio de plataforma' : 'Dominio propio'} tone={item.connection_type === 'platform' ? 'info' : 'default'} />
                                                                 <Chip label={item?.verification?.label || 'Pendiente'} tone={verificationTone} />
                                                             </div>
-                                                            <p className="text-sm leading-relaxed admin-text-muted">{item?.verification?.message || item?.dns_hint || 'Sin diagnostico todavia.'}</p>
+                                                            <p className="text-sm leading-relaxed" style={whiteTextMuted}>{item?.verification?.message || item?.dns_hint || 'Sin diagnostico todavia.'}</p>
                                                             {item?.verification?.last_checked_at ? <p className="text-xs text-zinc-500">Ultima verificacion: {new Date(item.verification.last_checked_at).toLocaleString('es-AR')}</p> : null}
                                                         </div>
                                                         <div className="flex flex-wrap items-center gap-2">
@@ -427,12 +440,12 @@ const DomainConnectModal = ({ open, onClose }) => {
                                                             <button type="button" onClick={() => removeDomain(item.domain)} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50" style={chipToneMap.warning}><Trash size={14} weight="bold" />Quitar</button>
                                                         </div>
                                                     </div>
-                                                    {Array.isArray(item.required_records) && item.required_records.length ? <div className="space-y-2"><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">DNS esperado</p>{item.required_records.map((record) => <RecordRow key={`${item.domain}-${record.type}-${record.host}-${record.value}`} record={record} onCopy={(value) => copyText(value, 'Registro DNS copiado')} />)}</div> : <div className="rounded-2xl border p-3" style={surfaceStyle}><p className="text-sm admin-text-primary">Este dominio lo sirve directamente la plataforma y no necesita DNS manual.</p></div>}
-                                                    {(item?.verification?.observed_records?.a?.length || item?.verification?.observed_records?.cname?.length) ? <div className="rounded-2xl border p-3" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">DNS detectado</p><div className="mt-2 grid gap-2 md:grid-cols-2"><div><p className="text-xs font-semibold admin-text-primary">A</p><p className="mt-1 break-all text-xs text-zinc-500">{item.verification.observed_records.a.join(', ') || 'Sin registros A'}</p></div><div><p className="text-xs font-semibold admin-text-primary">CNAME</p><p className="mt-1 break-all text-xs text-zinc-500">{item.verification.observed_records.cname.join(', ') || 'Sin registros CNAME'}</p></div></div></div> : null}
+                                                    {Array.isArray(item.required_records) && item.required_records.length ? <div className="space-y-2"><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>DNS esperado</p>{item.required_records.map((record) => <RecordRow key={`${item.domain}-${record.type}-${record.host}-${record.value}`} record={record} onCopy={(value) => copyText(value, 'Registro DNS copiado')} />)}</div> : <div className="rounded-2xl border p-3" style={surfaceStyle}><p className="text-sm" style={whiteTextPrimary}>Este dominio lo sirve directamente la plataforma y no necesita DNS manual.</p></div>}
+                                                    {(item?.verification?.observed_records?.a?.length || item?.verification?.observed_records?.cname?.length) ? <div className="rounded-2xl border p-3" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>DNS detectado</p><div className="mt-2 grid gap-2 md:grid-cols-2"><div><p className="text-xs font-semibold" style={whiteTextPrimary}>A</p><p className="mt-1 break-all text-xs text-zinc-500">{item.verification.observed_records.a.join(', ') || 'Sin registros A'}</p></div><div><p className="text-xs font-semibold" style={whiteTextPrimary}>CNAME</p><p className="mt-1 break-all text-xs text-zinc-500">{item.verification.observed_records.cname.join(', ') || 'Sin registros CNAME'}</p></div></div></div> : null}
                                                 </div>
                                             </div>
                                         );
-                                    }) : <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border px-5 py-10 text-center" style={surfaceStyle}><Globe size={28} weight="bold" className="admin-text-muted" /><p className="text-base font-semibold admin-text-primary">Todavia no hay dominios conectados</p><p className="max-w-xl text-sm leading-relaxed admin-text-muted">Puedes conectar un dominio que ya tengas o reservar un subdominio de la plataforma, igual que en Wix.</p></div>}
+                                    }) : <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border px-5 py-10 text-center" style={surfaceStyle}><Globe size={28} weight="bold" style={whiteTextLabel} /><p className="text-base font-semibold" style={whiteTextPrimary}>Todavia no hay dominios conectados</p><p className="max-w-xl text-sm leading-relaxed" style={whiteTextMuted}>Puedes conectar un dominio que ya tengas o reservar un subdominio de la plataforma, igual que en Wix.</p></div>}
                                 </div>
                             </Card>
                         </div>
@@ -446,15 +459,15 @@ const DomainConnectModal = ({ open, onClose }) => {
                         <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
                             <Card eyebrow="Opcion 1" title="Conectar un dominio que ya tienes" description="Escribe el dominio del cliente. El panel te dice exactamente que DNS publicar y despues verifica si ya quedo apuntando a Vercel.">
                                 <div className="space-y-3">
-                                    <div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Dominio del cliente</label><input className={inputClass} style={headerStyle} placeholder="alessitech.space o www.alessitech.space" value={customDomain} onChange={(event) => setCustomDomain(event.target.value)} /></div>
-                                    {draftDomainPlan ? <div className="space-y-3 rounded-2xl border p-4" style={surfaceStyle}><div className="flex flex-wrap items-center gap-2"><Chip label={draftDomainPlan.mode === 'apex' ? 'Dominio raiz' : draftDomainPlan.mode === 'subdomain' ? 'Subdominio' : 'Plataforma'} tone="info" /><Chip label={draftDomainPlan.connection_type === 'custom' ? 'Dominio propio' : 'Plataforma'} /></div><p className="text-sm leading-relaxed admin-text-primary">{draftDomainPlan.dns_hint}</p>{draftDomainPlan.required_records?.length ? <div className="space-y-2">{draftDomainPlan.required_records.map((record) => <RecordRow key={`draft-${record.type}-${record.host}-${record.value}`} record={record} onCopy={(value) => copyText(value, 'Registro DNS copiado')} />)}</div> : null}</div> : <div className="rounded-2xl border p-4" style={surfaceStyle}><p className="text-sm admin-text-primary">Escribe el dominio para ver la configuracion DNS recomendada.</p></div>}
+                                    <div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Dominio del cliente</label><input className={inputClass} style={fieldStyle} placeholder="alessitech.space o www.alessitech.space" value={customDomain} onChange={(event) => setCustomDomain(event.target.value)} /></div>
+                                    {draftDomainPlan ? <div className="space-y-3 rounded-2xl border p-5" style={surfaceStyle}><div className="flex flex-wrap items-center gap-2"><Chip label={draftDomainPlan.mode === 'apex' ? 'Dominio raiz' : draftDomainPlan.mode === 'subdomain' ? 'Subdominio' : 'Plataforma'} tone="info" /><Chip label={draftDomainPlan.connection_type === 'custom' ? 'Dominio propio' : 'Plataforma'} /></div><p className="text-sm leading-relaxed" style={whiteTextPrimary}>{draftDomainPlan.dns_hint}</p>{draftDomainPlan.required_records?.length ? <div className="space-y-2">{draftDomainPlan.required_records.map((record) => <RecordRow key={`draft-${record.type}-${record.host}-${record.value}`} record={record} onCopy={(value) => copyText(value, 'Registro DNS copiado')} />)}</div> : null}</div> : <div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-sm" style={whiteTextPrimary}>Escribe el dominio para ver la configuracion DNS recomendada.</p></div>}
                                     <button type="button" onClick={submitCustomDomain} disabled={saving} className="admin-accent-button flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle size={16} weight="bold" />{saving ? 'Guardando dominio...' : 'Conectar dominio propio'}</button>
                                 </div>
                             </Card>
 
                             <Card eyebrow="Opcion 2" title="Usar un dominio de la plataforma" description="Si el cliente todavia no compro un dominio, puedes dejarlo publicado con un subdominio propio de la plataforma, igual que Wix.">
                                 <div className="space-y-3">
-                                    {platform?.enabled ? <><div className="rounded-2xl border p-4" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Base de plataforma</p><p className="mt-2 text-sm font-semibold admin-text-primary">{platform.base_domain}</p><p className="mt-2 text-xs leading-relaxed text-zinc-500">El subdominio se publica sin DNS manual porque ya pertenece al dominio gestionado por la plataforma.</p></div><div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Subdominio</label><input className={inputClass} style={headerStyle} placeholder={platform?.suggested_subdomain || 'mi-tienda'} value={platformSubdomain} onChange={(event) => setPlatformSubdomain(event.target.value)} /></div><div className="rounded-2xl border p-4" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em] admin-text-muted">Vista previa</p><p className="mt-2 break-all text-sm font-semibold admin-text-primary">{platformPreview || 'Escribe un subdominio para ver la URL'}</p></div><button type="button" onClick={submitPlatformDomain} disabled={saving} className={cn(ghostButtonClass, 'w-full')} style={headerStyle}><Link size={16} weight="bold" />{saving ? 'Reservando subdominio...' : 'Reservar subdominio de plataforma'}</button></> : <div className="rounded-2xl border p-4" style={chipToneMap.warning}><div className="flex items-start gap-3"><WarningCircle size={18} weight="bold" className="mt-0.5" /><div className="space-y-1"><p className="text-sm font-semibold">Falta configurar la base de dominios de la plataforma</p><p className="text-xs leading-relaxed">Define `PLATFORM_BASE_DOMAIN` en Render para habilitar el modo de subdominio gestionado.</p></div></div></div>}
+                                    {platform?.enabled ? <><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Base de plataforma</p><p className="mt-2 text-sm font-semibold" style={whiteTextPrimary}>{platform.base_domain}</p><p className="mt-2 text-xs leading-relaxed text-zinc-500">El subdominio se publica sin DNS manual porque ya pertenece al dominio gestionado por la plataforma.</p></div><div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Subdominio</label><input className={inputClass} style={fieldStyle} placeholder={platform?.suggested_subdomain || 'mi-tienda'} value={platformSubdomain} onChange={(event) => setPlatformSubdomain(event.target.value)} /></div><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Vista previa</p><p className="mt-2 break-all text-sm font-semibold" style={whiteTextPrimary}>{platformPreview || 'Escribe un subdominio para ver la URL'}</p></div><button type="button" onClick={submitPlatformDomain} disabled={saving} className={cn(ghostButtonClass, 'w-full')} style={headerStyle}><Link size={16} weight="bold" />{saving ? 'Reservando subdominio...' : 'Reservar subdominio de plataforma'}</button></> : <div className="rounded-2xl border p-4" style={chipToneMap.warning}><div className="flex items-start gap-3"><WarningCircle size={18} weight="bold" className="mt-0.5" /><div className="space-y-1"><p className="text-sm font-semibold">Falta configurar la base de dominios de la plataforma</p><p className="text-xs leading-relaxed">Define `PLATFORM_BASE_DOMAIN` en Render para habilitar el modo de subdominio gestionado.</p></div></div></div>}
                                 </div>
                             </Card>
 

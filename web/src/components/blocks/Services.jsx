@@ -77,12 +77,12 @@ function ServiceCard({ icon, title, text, description, styles = {} }) {
 }
 
 export default function Services({
-  title = "Servicios profesionales",
-  subtitle = "Además de productos, brindamos el soporte que necesitás para que tus proyectos salgan bien.",
+  title = "Te acompanamos en cada compra",
+  subtitle = "Asesoria, entrega y soporte para que elijas con confianza.",
   items = [
-    { icon: "support_agent", title: "Asesoramiento experto", text: "Nuestro equipo técnico te ayuda a elegir los materiales correctos para cada obra." },
-    { icon: "local_shipping", title: "Envío rápido", text: "Entrega local en el día en Mar del Plata y envíos a todo el país." },
-    { icon: "construction", title: "Soporte técnico", text: "Guías de instalación y asistencia postventa para nuestras griferías premium." }
+    { icon: "support_agent", title: "Asesoramiento experto", text: "Te ayudamos a elegir la opcion correcta segun tu obra o renovacion." },
+    { icon: "local_shipping", title: "Entrega coordinada", text: "Retiro en sucursal o envio segun la cobertura disponible para tu zona." },
+    { icon: "shield", title: "Compra con respaldo", text: "Atencion clara y seguimiento para una experiencia de compra mas simple." }
   ],
   styles = {}
 }) {
@@ -144,3 +144,4 @@ export default function Services({
     </section>
   );
 }
+

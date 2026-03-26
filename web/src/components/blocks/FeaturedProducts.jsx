@@ -93,7 +93,7 @@ function ClassicFeaturedProducts({
 export default function FeaturedProducts({
   products,
   title = "Productos destacados",
-  subtitle = "Lo mas elegido en sanitarios y ferreteria.",
+  subtitle = "Lo mas elegido para renovar banos, cocinas y espacios de uso diario.",
   ctaLabel = "Todos los Productos",
   ctaLink = "/catalog",
   styles = {},

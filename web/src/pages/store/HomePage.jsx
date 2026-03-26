@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { createPlaceholderImage } from "../../utils/productImage";
 
 import HeroSlider from "../../components/blocks/HeroSlider";
+import BrandMarquee from "../../components/blocks/BrandMarquee";
 import FeaturedProducts from "../../components/blocks/FeaturedProducts";
 import Services from "../../components/blocks/Services";
 
@@ -103,6 +104,9 @@ export default function HomePage() {
                 ) : (
                     <>
                         <HeroSlider />
+                        <section id="marcas">
+                            <BrandMarquee />
+                        </section>
                         {featuredLoaded && featuredProducts.length > 0 ? (
                             <section id="ofertas">
                                 <FeaturedProducts products={featuredProducts} />

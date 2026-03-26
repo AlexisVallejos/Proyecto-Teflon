@@ -29,6 +29,12 @@ import {
     normalizeFeaturedStyles,
     normalizeFeaturedVariant,
 } from '../../../data/featuredProductsTemplates';
+import {
+    BRAND_MARQUEE_SPEED_OPTIONS,
+    getDefaultBrandMarqueeProps,
+    normalizeBrandMarqueeItems,
+    normalizeBrandMarqueeSpeed,
+} from '../../../data/brandMarqueeDefaults';
 
 const selectFieldClass =
     'admin-input-field w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all duration-200';
@@ -84,6 +90,11 @@ const ABOUT_VALUES_ICON_OPTIONS = [
 ];
 
 const panelClass = 'space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4';
+
+const createBrandMarqueeItemId = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `brand-marquee-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const normalizeColorInputValue = (value, fallback = '#000000') => {
     if (typeof value !== 'string') return fallback;
@@ -311,6 +322,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
     };
 
     const isHeroBlock = block.type === 'HeroSlider';
+    const isBrandMarqueeBlock = block.type === 'BrandMarquee';
     const isFeaturedBlock = block.type === 'FeaturedProducts';
     const isServicesBlock = block.type === 'Services';
     const isAboutHeroBlock = block.type === 'AboutHero';
@@ -332,6 +344,12 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
     const heroColorFields = HERO_COLOR_FIELDS[heroVariant] || [];
     const featuredColorFields = FEATURED_COLOR_FIELDS[featuredVariant] || [];
     const featuredStyles = normalizeFeaturedStyles(featuredVariant, block.props?.styles);
+    const brandMarqueeDefaults = useMemo(() => getDefaultBrandMarqueeProps(), []);
+    const brandMarqueeItems = useMemo(
+        () => normalizeBrandMarqueeItems(block.props?.items),
+        [block.props?.items]
+    );
+    const brandMarqueeSpeed = normalizeBrandMarqueeSpeed(block.props?.speed || brandMarqueeDefaults.speed);
 
     const handleHeroVariantChange = (nextVariantRaw) => {
         const currentProps = block.props || {};
@@ -858,6 +876,204 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                         <ColorField label="Texto box" value={block.props?.styles?.cardTextColor} defaultColor="#6b7280" onChange={(value) => handleStyleChange('cardTextColor', value)} />
                         <ColorField label="Icono" value={block.props?.styles?.iconColor} defaultColor="#111111" onChange={(value) => handleStyleChange('iconColor', value)} />
                         <ColorField label="Fondo icono" value={block.props?.styles?.iconBackgroundColor} defaultColor="#f3f4f6" onChange={(value) => handleStyleChange('iconBackgroundColor', value)} />
+                    </div>
+                </div>
+            </>
+        );
+    };
+
+    const renderBrandMarqueeEditor = () => {
+        const setBrandItems = (nextItems) => {
+            mergeProps({ items: nextItems });
+        };
+
+        const addBrandItem = () => {
+            setBrandItems([
+                ...brandMarqueeItems,
+                {
+                    id: createBrandMarqueeItemId(),
+                    name: 'Nueva marca',
+                    image: '',
+                    link: '',
+                },
+            ]);
+        };
+
+        const updateBrandItem = (index, patch) => {
+            setBrandItems(
+                brandMarqueeItems.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, ...patch } : item
+                )
+            );
+        };
+
+        const removeBrandItem = (index) => {
+            if (brandMarqueeItems.length <= 1) return;
+            setBrandItems(brandMarqueeItems.filter((_, itemIndex) => itemIndex !== index));
+        };
+
+        return (
+            <>
+                <div className={panelClass}>
+                    <SectionHeading icon={Baseline}>Encabezado de marcas</SectionHeading>
+                    <div className="space-y-4">
+                        <EvolutionInput
+                            label="Etiqueta superior"
+                            value={block.props?.eyebrow ?? brandMarqueeDefaults.eyebrow}
+                            onChange={(event) => handlePropChange('eyebrow', event.target.value)}
+                            placeholder="Ej: Nuestras marcas aliadas"
+                        />
+                        <EvolutionInput
+                            label="Titulo opcional"
+                            value={block.props?.title ?? brandMarqueeDefaults.title}
+                            onChange={(event) => handlePropChange('title', event.target.value)}
+                            placeholder="Dejalo vacio si queres solo la etiqueta"
+                        />
+                        <EvolutionInput
+                            label="Subtitulo opcional"
+                            value={block.props?.subtitle ?? brandMarqueeDefaults.subtitle}
+                            onChange={(event) => handlePropChange('subtitle', event.target.value)}
+                            placeholder="Texto extra debajo de la etiqueta"
+                            multiline
+                        />
+                        <div className="space-y-1.5">
+                            <label className="pl-1 text-[10px] font-bold uppercase text-zinc-600">Velocidad</label>
+                            <select
+                                value={brandMarqueeSpeed}
+                                onChange={(event) => handlePropChange('speed', event.target.value)}
+                                className={selectFieldClass}
+                            >
+                                {BRAND_MARQUEE_SPEED_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value} className="bg-zinc-900">
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div className={panelClass}>
+                    <div className="flex items-center justify-between gap-3">
+                        <SectionHeading icon={Stack}>Marcas del carrusel</SectionHeading>
+                        <button
+                            type="button"
+                            onClick={addBrandItem}
+                            className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-[11px] font-bold text-zinc-300 transition-colors hover:text-white"
+                        >
+                            <Plus size={12} weight="bold" />
+                            Agregar marca
+                        </button>
+                    </div>
+                    <div className="space-y-3">
+                        {brandMarqueeItems.map((item, index) => (
+                            <div key={item.id || `brand-item-${index}`} className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">
+                                        Marca {index + 1}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeBrandItem(index)}
+                                        disabled={brandMarqueeItems.length <= 1}
+                                        className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-300 disabled:opacity-40"
+                                    >
+                                        <Trash size={12} weight="bold" />
+                                        Eliminar
+                                    </button>
+                                </div>
+
+                                <EvolutionInput
+                                    label="Nombre"
+                                    value={item?.name || ''}
+                                    onChange={(event) => updateBrandItem(index, { name: event.target.value })}
+                                    placeholder="Ej: Roca"
+                                />
+                                <EvolutionInput
+                                    label="URL del logo"
+                                    value={item?.image || ''}
+                                    onChange={(event) => updateBrandItem(index, { image: event.target.value })}
+                                    placeholder="https://..."
+                                />
+                                <EvolutionInput
+                                    label="Link opcional"
+                                    value={item?.link || ''}
+                                    onChange={(event) => updateBrandItem(index, { link: event.target.value })}
+                                    placeholder="https://sitio-de-la-marca.com"
+                                />
+
+                                <div className="flex items-center gap-2">
+                                    <UploadButton
+                                        busy={uploadingTarget === `brand-marquee-${index}`}
+                                        label="Subir logo"
+                                        onChange={(event) =>
+                                            handleImageUpload(`brand-marquee-${index}`, event, (value) =>
+                                                updateBrandItem(index, { image: value })
+                                            )
+                                        }
+                                    />
+                                    {item?.image ? (
+                                        <div className="flex h-14 w-20 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white p-2">
+                                            <img src={item.image} alt={item.name || 'Marca'} className="max-h-full w-full object-contain" />
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className={panelClass}>
+                    <SectionHeading icon={Palette}>Colores del bloque</SectionHeading>
+                    <div className="grid grid-cols-1 gap-2">
+                        <ColorField
+                            label="Fondo seccion"
+                            value={block.props?.styles?.backgroundColor}
+                            defaultColor={brandMarqueeDefaults.styles.backgroundColor}
+                            onChange={(value) => handleStyleChange('backgroundColor', value)}
+                        />
+                        <ColorField
+                            label="Fondo panel"
+                            value={block.props?.styles?.panelBackgroundColor}
+                            defaultColor={brandMarqueeDefaults.styles.panelBackgroundColor}
+                            onChange={(value) => handleStyleChange('panelBackgroundColor', value)}
+                        />
+                        <ColorField
+                            label="Titulo"
+                            value={block.props?.styles?.titleColor}
+                            defaultColor={brandMarqueeDefaults.styles.titleColor}
+                            onChange={(value) => handleStyleChange('titleColor', value)}
+                        />
+                        <ColorField
+                            label="Subtitulo"
+                            value={block.props?.styles?.subtitleColor}
+                            defaultColor={brandMarqueeDefaults.styles.subtitleColor}
+                            onChange={(value) => handleStyleChange('subtitleColor', value)}
+                        />
+                        <ColorField
+                            label="Badge fondo"
+                            value={block.props?.styles?.badgeBackgroundColor}
+                            defaultColor={brandMarqueeDefaults.styles.badgeBackgroundColor}
+                            onChange={(value) => handleStyleChange('badgeBackgroundColor', value)}
+                        />
+                        <ColorField
+                            label="Badge texto"
+                            value={block.props?.styles?.badgeTextColor}
+                            defaultColor={brandMarqueeDefaults.styles.badgeTextColor}
+                            onChange={(value) => handleStyleChange('badgeTextColor', value)}
+                        />
+                        <ColorField
+                            label="Card logo"
+                            value={block.props?.styles?.cardBackgroundColor}
+                            defaultColor={brandMarqueeDefaults.styles.cardBackgroundColor}
+                            onChange={(value) => handleStyleChange('cardBackgroundColor', value)}
+                        />
+                        <ColorField
+                            label="Borde logo"
+                            value={block.props?.styles?.cardBorderColor}
+                            defaultColor={brandMarqueeDefaults.styles.cardBorderColor}
+                            onChange={(value) => handleStyleChange('cardBorderColor', value)}
+                        />
                     </div>
                 </div>
             </>
@@ -1507,6 +1723,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
         if (isHeroBlock) {
             return isHeroClassic ? renderHeroClassicEditor() : renderHeroSlidesEditor();
         }
+        if (isBrandMarqueeBlock) return renderBrandMarqueeEditor();
         if (isFeaturedBlock) return renderFeaturedEditor();
         if (isServicesBlock) return renderServicesEditor();
         if (isAboutHeroBlock) return renderAboutHeroEditor();

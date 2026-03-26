@@ -1,5 +1,6 @@
 import React from 'react';
 import HeroSlider from './blocks/HeroSlider';
+import BrandMarquee from './blocks/BrandMarquee';
 import FeaturedProducts from './blocks/FeaturedProducts';
 import Services from './blocks/Services';
 import AboutHero from './blocks/AboutHero';
@@ -11,6 +12,7 @@ import AboutCTA from './blocks/AboutCTA';
 
 const COMPONENT_MAP = {
     HeroSlider,
+    BrandMarquee,
     FeaturedProducts,
     Services,
     AboutHero,
@@ -23,6 +25,7 @@ const COMPONENT_MAP = {
 
 const ANCHOR_MAP = {
     FeaturedProducts: 'ofertas',
+    BrandMarquee: 'marcas',
     Services: 'sobre-nosotros',
 };
 

@@ -175,8 +175,9 @@ adminRouter.post('/tenants/:id/provision', async (req, res, next) => {
 
     const sections = [
       { type: 'HeroSlider', sort_order: 1 },
-      { type: 'FeaturedProducts', sort_order: 2 },
-      { type: 'Services', sort_order: 3 },
+      { type: 'BrandMarquee', sort_order: 2 },
+      { type: 'FeaturedProducts', sort_order: 3 },
+      { type: 'Services', sort_order: 4 },
     ];
 
     for (const state of ['published', 'draft']) {

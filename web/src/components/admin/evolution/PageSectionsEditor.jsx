@@ -16,6 +16,7 @@ import {
 
 const HOME_SECTION_TYPES = [
     { type: 'HeroSlider', label: 'Hero Slider' },
+    { type: 'BrandMarquee', label: 'Marcas en movimiento' },
     { type: 'FeaturedProducts', label: 'Productos Destacados' },
     { type: 'Services', label: 'Servicios / Beneficios' },
 ];

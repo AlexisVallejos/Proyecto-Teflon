@@ -227,15 +227,19 @@ WITH home_page AS (
 INSERT INTO page_sections (page_id, state, type, enabled, sort_order, props)
 SELECT id, 'published', 'HeroSlider', true, 1, '{}'::jsonb FROM home_page
 UNION ALL
-SELECT id, 'published', 'FeaturedProducts', true, 2, '{}'::jsonb FROM home_page
+SELECT id, 'published', 'BrandMarquee', true, 2, '{}'::jsonb FROM home_page
 UNION ALL
-SELECT id, 'published', 'Services', true, 3, '{}'::jsonb FROM home_page
+SELECT id, 'published', 'FeaturedProducts', true, 3, '{}'::jsonb FROM home_page
+UNION ALL
+SELECT id, 'published', 'Services', true, 4, '{}'::jsonb FROM home_page
 UNION ALL
 SELECT id, 'draft', 'HeroSlider', true, 1, '{}'::jsonb FROM home_page
 UNION ALL
-SELECT id, 'draft', 'FeaturedProducts', true, 2, '{}'::jsonb FROM home_page
+SELECT id, 'draft', 'BrandMarquee', true, 2, '{}'::jsonb FROM home_page
 UNION ALL
-SELECT id, 'draft', 'Services', true, 3, '{}'::jsonb FROM home_page;
+SELECT id, 'draft', 'FeaturedProducts', true, 3, '{}'::jsonb FROM home_page
+UNION ALL
+SELECT id, 'draft', 'Services', true, 4, '{}'::jsonb FROM home_page;
 
 WITH seed AS (
   SELECT '636736e2-e135-44cd-ac5c-5d4ccb839a73'::uuid AS tenant_id

@@ -1,3 +1,5 @@
+import { getDefaultBrandMarqueeProps } from './brandMarqueeDefaults';
+
 export const DEFAULT_HOME_SECTIONS = [
     {
         id: 'home-hero',
@@ -5,13 +7,19 @@ export const DEFAULT_HOME_SECTIONS = [
         enabled: true,
         props: {
             variant: 'classic',
-            title: 'Nuevo lanzamiento',
-            subtitle: 'Presenta tu propuesta principal con un mensaje claro y adaptable a cualquier rubro.',
-            tag: 'Novedad',
-            primaryButton: { label: 'Ver mas', link: '/catalog' },
-            secondaryButton: { label: 'Ver catalogo', link: '/catalog' },
+            title: 'Sanitarios y griferia para cada proyecto',
+            subtitle: 'Productos pensados para renovar tu bano con calidad, diseno y stock real.',
+            tag: 'Coleccion destacada',
+            primaryButton: { label: 'Ver catalogo', link: '/catalog' },
+            secondaryButton: { label: 'Conocer la marca', link: '/about' },
             styles: { alignment: 'center', overlayOpacity: '0.6' },
         },
+    },
+    {
+        id: 'home-brands',
+        type: 'BrandMarquee',
+        enabled: true,
+        props: getDefaultBrandMarqueeProps(),
     },
     {
         id: 'home-featured',
@@ -19,9 +27,9 @@ export const DEFAULT_HOME_SECTIONS = [
         enabled: true,
         props: {
             variant: 'classic',
-            title: 'Destacados',
-            subtitle: 'Una seleccion pensada para mostrar lo mejor de tu marca.',
-            ctaLabel: 'Ver catalogo',
+            title: 'Productos destacados',
+            subtitle: 'Lo mas elegido para renovar banos, cocinas y espacios de uso diario.',
+            ctaLabel: 'Ver catalogo completo',
             ctaLink: '/catalog',
             styles: { alignment: 'items-end justify-between' },
         },
@@ -31,11 +39,12 @@ export const DEFAULT_HOME_SECTIONS = [
         type: 'Services',
         enabled: true,
         props: {
-            title: 'Nuestros servicios',
-            subtitle: 'Beneficios que se adaptan a distintos modelos de negocio.',
+            title: 'Te acompanamos en cada compra',
+            subtitle: 'Asesoria, entrega y soporte para que elijas con confianza.',
             items: [
-                { icon: 'package', title: 'Entrega flexible', text: 'Opciones de envio y retiro segun tu operacion.' },
-                { icon: 'shield', title: 'Soporte confiable', text: 'Acompanamiento antes y despues de cada compra.' },
+                { icon: 'support_agent', title: 'Asesoramiento experto', text: 'Te ayudamos a elegir la opcion correcta segun tu obra o renovacion.' },
+                { icon: 'local_shipping', title: 'Entrega coordinada', text: 'Retiro en sucursal o envio segun la cobertura disponible para tu zona.' },
+                { icon: 'shield', title: 'Compra con respaldo', text: 'Atencion clara, seguimiento y soporte para una experiencia de compra mas simple.' },
             ],
         },
     },

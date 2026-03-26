@@ -91,6 +91,90 @@ async function sendVerificationEmail(email, code, recipientName = '') {
   return delivery;
 }
 
+async function getApprovalNotificationRecipient(tenantId) {
+  if (!tenantId) return null;
+
+  const tenantRes = await pool.query(
+    [
+      'select t.name, ts.branding, ts.commerce',
+      'from tenants t',
+      'left join tenant_settings ts on ts.tenant_id = t.id',
+      'where t.id = $1',
+      'limit 1',
+    ].join(' '),
+    [tenantId]
+  );
+
+  if (!tenantRes.rowCount) return null;
+
+  const row = tenantRes.rows[0] || {};
+  const branding = row.branding || {};
+  const commerce = row.commerce || {};
+  const email = normalizeEmailInput(commerce.order_notification_email || commerce.email || '');
+  if (!email) return null;
+
+  return {
+    email,
+    tenantName: normalizeDisplayName(branding.name || row.name || getEmailCompanyName()),
+  };
+}
+
+async function sendApprovalRequestedEmail({
+  tenantId,
+  applicantEmail,
+  applicantName = '',
+  applicantRole = 'retail',
+}) {
+  const recipient = await getApprovalNotificationRecipient(tenantId);
+  if (!recipient?.email) {
+    return { sent: false, provider: 'missing_notification_email' };
+  }
+
+  const companyName = recipient.tenantName || getEmailCompanyName();
+  const normalizedApplicantEmail = normalizeEmailInput(applicantEmail);
+  const safeApplicantName = normalizeDisplayName(applicantName);
+  const applicantLabel = safeApplicantName || normalizedApplicantEmail || 'Nuevo usuario';
+  const roleLabel = applicantRole === 'wholesale' ? 'Mayorista' : 'Minorista';
+  const subject = `Nuevo usuario pendiente de aprobacion en ${companyName}`;
+  const textBody = [
+    'Hola,',
+    '',
+    `Hay un nuevo usuario pendiente de aprobacion en ${companyName}.`,
+    '',
+    `Nombre: ${applicantLabel}`,
+    `Email: ${normalizedApplicantEmail}`,
+    `Perfil solicitado: ${roleLabel}`,
+    '',
+    'Puedes revisarlo desde el panel de administracion en la seccion Usuarios o Notificaciones.',
+    '',
+    `Admin: ${process.env.PUBLIC_ADMIN_URL || process.env.ADMIN_PANEL_URL || 'Panel en Vercel'}`,
+    '',
+    'Saludos,',
+    `Sistema ${companyName}`,
+  ].join('\n');
+
+  const htmlBody = [
+    '<p>Hola,</p>',
+    `<p>Hay un nuevo usuario pendiente de aprobacion en <strong>${companyName}</strong>.</p>`,
+    '<ul>',
+    `<li><strong>Nombre:</strong> ${applicantLabel}</li>`,
+    `<li><strong>Email:</strong> ${normalizedApplicantEmail}</li>`,
+    `<li><strong>Perfil solicitado:</strong> ${roleLabel}</li>`,
+    '</ul>',
+    '<p>Puedes revisarlo desde el panel de administracion en la seccion Usuarios o Notificaciones.</p>',
+    `<p><strong>Admin:</strong> ${process.env.PUBLIC_ADMIN_URL || process.env.ADMIN_PANEL_URL || 'Panel en Vercel'}</p>`,
+    `<p>Saludos,<br />Sistema ${companyName}</p>`,
+  ].join('');
+
+  return sendSmtpEmail({
+    to: recipient.email,
+    subject,
+    text: textBody,
+    html: htmlBody,
+    logPrefix: 'pending-approval-notification',
+  });
+}
+
 async function issueEmailVerificationCode(userId, email, recipientName = '') {
   await ensureEmailVerificationSchema();
   const normalizedEmail = normalizeEmailInput(email);
@@ -277,6 +361,16 @@ async function handleSignup(req, res, next) {
       [user.id, tenant_id, assignedRole, membershipStatus]
     );
     const verification = await issueEmailVerificationCode(user.id, user.email, name);
+    try {
+      await sendApprovalRequestedEmail({
+        tenantId: tenant_id,
+        applicantEmail: user.email,
+        applicantName: name,
+        applicantRole: assignedRole,
+      });
+    } catch (notificationError) {
+      console.error('[pending-approval-notification] No se pudo notificar al admin', notificationError);
+    }
     return res.status(201).json({
       requires_approval: true,
       requires_email_verification: true,
