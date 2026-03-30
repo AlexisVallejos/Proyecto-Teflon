@@ -99,21 +99,50 @@ const PageSectionsEditor = ({
         [products]
     );
 
+    const handleUpdateOffset = (sectionId, type, name, x, y) => {
+        setSections((prev) =>
+            prev.map((s) => {
+                if (s.id !== sectionId) return s;
+                const fieldX = type === 'part' ? `${name}OffsetX` : 'buttonsOffsetX';
+                const fieldY = type === 'part' ? `${name}OffsetY` : 'buttonsOffsetY';
+                return {
+                    ...s,
+                    props: {
+                        ...(s.props || {}),
+                        styles: {
+                            ...(s.props?.styles || {}),
+                            [fieldX]: x,
+                            [fieldY]: y,
+                        },
+                    },
+                };
+            })
+        );
+    };
+
     const previewSections = useMemo(
         () =>
             (Array.isArray(sections) ? sections : [])
                 .filter((section) => section?.enabled !== false)
-                .map((section) => (
-                    section?.type === 'FeaturedProducts'
-                        ? {
-                            ...section,
-                            props: {
-                                ...(section.props || {}),
-                                products: featuredPreviewProducts,
+                .map((section) => {
+                    const baseProps = section.props || {};
+                    const isFeaturedProducts = section.type === 'FeaturedProducts';
+
+                    return {
+                        ...section,
+                        props: {
+                            ...baseProps,
+                            ...(isFeaturedProducts ? { products: featuredPreviewProducts } : {}),
+                            editor: {
+                                enabled: true,
+                                onTextPartOffsetChange: (partName, x, y) =>
+                                    handleUpdateOffset(section.id, 'part', partName, x, y),
+                                onButtonsOffsetChange: (x, y) =>
+                                    handleUpdateOffset(section.id, 'buttons', null, x, y),
                             },
-                        }
-                        : section
-                )),
+                        },
+                    };
+                }),
         [featuredPreviewProducts, sections]
     );
 
@@ -170,8 +199,8 @@ const PageSectionsEditor = ({
     };
 
     return (
-        <div className="grid h-full grid-cols-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-            <aside className="overflow-auto rounded-2xl border border-white/10 bg-zinc-dark/50 p-4 custom-scrollbar">
+        <div className="grid h-full grid-cols-1 gap-2 md:gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+            <aside className="overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-zinc-dark/50 p-2 md:p-4 custom-scrollbar">
                 <div className="mb-4 flex items-center justify-between gap-2">
                     <div>
                         <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
@@ -295,7 +324,7 @@ const PageSectionsEditor = ({
                 </div>
             </aside>
 
-            <section className="overflow-auto rounded-2xl border border-white/10 bg-white custom-scrollbar">
+            <section className="overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-white custom-scrollbar p-2 md:p-0 max-h-[50vh] lg:max-h-full">
                 <PageBuilder sections={previewSections} />
             </section>
         </div>

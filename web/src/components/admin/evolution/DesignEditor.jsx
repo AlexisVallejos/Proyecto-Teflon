@@ -80,7 +80,7 @@ const DesignEditor = ({ pageSections, settings, onReorder }) => {
     return (
         <div className="h-full flex flex-col space-y-6">
             {/* Design Controls Bar */}
-            <div className="flex items-center justify-between bg-zinc-dark/40 p-2 rounded-xl border border-white/5 backdrop-blur-sm sticky top-0 z-30">
+            <div className="fixed bottom-0 left-0 right-0 md:sticky md:top-0 flex items-center justify-between bg-zinc-900/95 md:bg-zinc-dark/40 p-3 md:p-2 rounded-t-2xl md:rounded-xl border-t md:border border-white/10 md:border-white/5 backdrop-blur-lg z-50">
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => setViewMode('desktop')}
@@ -122,10 +122,10 @@ const DesignEditor = ({ pageSections, settings, onReorder }) => {
             </div>
 
             {/* The "Infinite Canvas" Viewport or Structure View */}
-            <div className="flex-1 flex flex-col items-center p-2">
+            <div className="flex-1 flex flex-col items-center p-0 md:p-2 mb-20 md:mb-0">
                 {!showPreview ? (
-                    <div className="w-full max-w-2xl bg-zinc-dark/20 border border-white/5 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500">
-                        <div className="p-6 border-b border-white/5 bg-white/5">
+                    <div className="w-full max-w-2xl bg-zinc-dark/20 border-0 md:border border-white/5 rounded-none md:rounded-3xl overflow-hidden shadow-none md:shadow-2xl animate-in zoom-in-95 duration-500">
+                        <div className="p-4 md:p-6 border-b border-white/5 bg-white/5">
                             <h3 className="text-sm font-bold text-white uppercase tracking-widest">Estructura de la Página</h3>
                             <p className="text-[10px] text-zinc-500 mt-1 font-medium">Arrastra para reordenar los bloques de contenido</p>
                         </div>

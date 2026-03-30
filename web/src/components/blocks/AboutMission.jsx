@@ -36,10 +36,10 @@ export default function AboutMission({
     const mutedColor = styles.mutedColor || '#6b7280';
 
     return (
-        <section className="py-24" style={{ backgroundColor }}>
+        <section className="py-12 lg:py-24" style={{ backgroundColor }}>
             <div className="max-w-7xl mx-auto px-4">
-                <div className="grid lg:grid-cols-2 gap-16 items-center">
-                    <div className="space-y-8">
+                <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+                    <div className="space-y-6 lg:space-y-8">
                         <div>
                             <h3 className="font-bold uppercase tracking-widest text-sm mb-2" style={{ color: accentColor }}>
                                 {eyebrow}
@@ -76,7 +76,7 @@ export default function AboutMission({
                         <img
                             src={image}
                             alt={imageAlt}
-                            className="relative rounded-lg shadow-2xl w-full h-[500px] object-cover"
+                            className="relative rounded-lg shadow-2xl w-full h-[300px] lg:h-[500px] object-cover"
                         />
                     </div>
                 </div>

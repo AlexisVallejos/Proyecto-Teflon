@@ -40,6 +40,7 @@ const buildFeaturedCard = (product, index, isWholesale = false) => {
             product.description ||
             "",
         price: isWholesale ? Number(product.price_wholesale || product.price) : Number(product.price || 0),
+        originalPrice: isWholesale && !!product.price_wholesale ? Number(product.price || 0) : null,
         badge: isWholesale && !!product.price_wholesale ? { text: "Mayorista", className: "bg-primary" } : badge,
         image,
         alt: data.image_alt || product.name || "Producto",

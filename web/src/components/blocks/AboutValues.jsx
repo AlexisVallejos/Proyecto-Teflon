@@ -49,10 +49,10 @@ export default function AboutValues({
     const mutedColor = styles.mutedColor || '#6b7280';
 
     return (
-        <section className="py-24" style={{ backgroundColor }}>
+        <section className="py-12 lg:py-24" style={{ backgroundColor }}>
             <div className="max-w-7xl mx-auto px-4">
-                <div className="text-center mb-16">
-                    <h2 className="text-4xl font-black tracking-tight mb-4" style={{ color: textColor }}>
+                <div className="text-center mb-10 lg:mb-16">
+                    <h2 className="text-3xl lg:text-4xl font-black tracking-tight mb-4" style={{ color: textColor }}>
                         {title}
                     </h2>
                     <div className="h-1.5 w-24 mx-auto rounded-full" style={{ backgroundColor: accentColor }}></div>
@@ -61,7 +61,7 @@ export default function AboutValues({
                     {items.map((item, idx) => (
                         <div
                             key={idx}
-                            className="p-10 rounded-xl border border-slate-200/80 hover:border-primary/50 transition-colors group"
+                            className="p-6 lg:p-10 rounded-xl border border-slate-200/80 hover:border-primary/50 transition-colors group"
                             style={{ backgroundColor: cardBackground }}
                         >
                             <div className="p-4 rounded-full w-fit mb-6 transition-transform group-hover:scale-110" style={{ backgroundColor: 'rgba(0,0,0,0.04)', color: accentColor }}>

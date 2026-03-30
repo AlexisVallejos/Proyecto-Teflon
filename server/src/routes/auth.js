@@ -92,7 +92,9 @@ async function sendVerificationEmail(email, code, recipientName = '') {
 }
 
 async function getApprovalNotificationRecipient(tenantId) {
-  if (!tenantId) return null;
+  const fallbackEmail = normalizeEmailInput(process.env.ADMIN_EMAIL || process.env.SMTP_USER || '');
+
+  if (!tenantId) return { email: fallbackEmail, tenantName: getEmailCompanyName() };
 
   const tenantRes = await pool.query(
     [
@@ -105,16 +107,15 @@ async function getApprovalNotificationRecipient(tenantId) {
     [tenantId]
   );
 
-  if (!tenantRes.rowCount) return null;
+  if (!tenantRes.rowCount) return { email: fallbackEmail, tenantName: getEmailCompanyName() };
 
   const row = tenantRes.rows[0] || {};
   const branding = row.branding || {};
   const commerce = row.commerce || {};
-  const email = normalizeEmailInput(commerce.order_notification_email || commerce.email || '');
-  if (!email) return null;
+  const email = normalizeEmailInput(commerce.order_notification_email || commerce.email || fallbackEmail);
 
   return {
-    email,
+    email: email || fallbackEmail,
     tenantName: normalizeDisplayName(branding.name || row.name || getEmailCompanyName()),
   };
 }
@@ -361,16 +362,6 @@ async function handleSignup(req, res, next) {
       [user.id, tenant_id, assignedRole, membershipStatus]
     );
     const verification = await issueEmailVerificationCode(user.id, user.email, name);
-    try {
-      await sendApprovalRequestedEmail({
-        tenantId: tenant_id,
-        applicantEmail: user.email,
-        applicantName: name,
-        applicantRole: assignedRole,
-      });
-    } catch (notificationError) {
-      console.error('[pending-approval-notification] No se pudo notificar al admin', notificationError);
-    }
     return res.status(201).json({
       requires_approval: true,
       requires_email_verification: true,
@@ -449,6 +440,24 @@ authRouter.post('/verify-email', async (req, res, next) => {
       'update users set email_verified_at = now(), requires_email_verification = false where id = $1',
       [user.id]
     );
+
+    // Notify admin ONLY after email is verified
+    try {
+      const membershipRes = await pool.query(
+        'select tenant_id, role from user_tenants where user_id = $1 limit 1',
+        [user.id]
+      );
+      const membership = membershipRes.rows[0];
+      if (membership) {
+        await sendApprovalRequestedEmail({
+          tenantId: membership.tenant_id,
+          applicantEmail: user.email,
+          applicantRole: membership.role,
+        });
+      }
+    } catch (notificationError) {
+      console.error('[pending-approval-notification] No se pudo notificar al admin tras verificacion', notificationError);
+    }
 
     return res.json({ ok: true, verified: true, pending_approval: true });
   } catch (err) {

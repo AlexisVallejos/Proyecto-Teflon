@@ -1,7 +1,10 @@
 import React, { useRef } from 'react';
+import AboutSplitImage from './AboutSplitImage';
+import AboutTimeline from './AboutTimeline';
+import AboutVideoFocus from './AboutVideoFocus';
 import { navigate } from '../../utils/navigation';
 
-export default function AboutHero({
+function ClassicAboutHero({
     tagline = 'Desde 2014',
     title = 'Nuestra historia',
     description = 'Excelencia en soluciones sanitarias premium para hogares y proyectos profesionales.',
@@ -203,4 +206,12 @@ export default function AboutHero({
             </div>
         </section>
     );
+}
+
+export default function AboutHero(props) {
+    const variant = props.variant || 'classic';
+    if (variant === 'split_image') return <AboutSplitImage {...props} />;
+    if (variant === 'timeline') return <AboutTimeline {...props} />;
+    if (variant === 'video_focus') return <AboutVideoFocus {...props} />;
+    return <ClassicAboutHero {...props} />;
 }

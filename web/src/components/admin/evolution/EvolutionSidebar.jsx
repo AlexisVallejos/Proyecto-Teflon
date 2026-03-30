@@ -81,104 +81,123 @@ const EvolutionSidebar = ({ branding }) => {
     const panelLogo = branding?.logo_url || '';
 
     return (
-        <aside
-            className={cn(
-                'admin-sidebar-surface flex h-screen flex-col border-r transition-all duration-300 ease-in-out',
-                isSidebarCollapsed ? 'w-[58px]' : 'w-[240px]'
-            )}
-        >
-            <div className="flex items-center justify-between p-4">
-                {!isSidebarCollapsed ? (
-                    <div className="flex min-w-0 items-center gap-3">
+        <>
+            <aside
+                className={cn(
+                    'admin-sidebar-surface hidden md:flex h-screen flex-col border-r transition-all duration-300 ease-in-out shrink-0',
+                    isSidebarCollapsed ? 'w-[58px]' : 'w-[240px]'
+                )}
+            >
+                <div className="flex items-center justify-between p-4">
+                    {!isSidebarCollapsed ? (
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div
+                                style={{
+                                    backgroundColor: panelLogo ? 'rgba(255,255,255,0.96)' : 'var(--admin-accent)',
+                                    color: 'var(--admin-accent-contrast)',
+                                    boxShadow: '0 0 24px var(--admin-shadow)',
+                                }}
+                                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl"
+                            >
+                                {panelLogo ? (
+                                    <img src={panelLogo} alt={panelTitle} className="h-8 w-8 object-contain" />
+                                ) : (
+                                    <span className="text-sm font-black">{panelInitial}</span>
+                                )}
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                                <p className="truncate text-[11px] font-bold uppercase tracking-[0.22em] admin-accent-text">
+                                    {companyName}
+                                </p>
+                                <p className="truncate text-sm font-semibold admin-text-primary">{panelTitle}</p>
+                            </div>
+                        </div>
+                    ) : (
                         <div
                             style={{
                                 backgroundColor: panelLogo ? 'rgba(255,255,255,0.96)' : 'var(--admin-accent)',
                                 color: 'var(--admin-accent-contrast)',
                                 boxShadow: '0 0 24px var(--admin-shadow)',
                             }}
-                            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl"
+                            className="mx-auto flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
                         >
                             {panelLogo ? (
-                                <img src={panelLogo} alt={panelTitle} className="h-8 w-8 object-contain" />
+                                <img src={panelLogo} alt={panelTitle} className="h-7 w-7 object-contain" />
                             ) : (
                                 <span className="text-sm font-black">{panelInitial}</span>
                             )}
                         </div>
-                        <div className="min-w-0 space-y-0.5">
-                            <p className="truncate text-[11px] font-bold uppercase tracking-[0.22em] admin-accent-text">
-                                {companyName}
-                            </p>
-                            <p className="truncate text-sm font-semibold admin-text-primary">{panelTitle}</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div
-                        style={{
-                            backgroundColor: panelLogo ? 'rgba(255,255,255,0.96)' : 'var(--admin-accent)',
-                            color: 'var(--admin-accent-contrast)',
-                            boxShadow: '0 0 24px var(--admin-shadow)',
-                        }}
-                        className="mx-auto flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
-                    >
-                        {panelLogo ? (
-                            <img src={panelLogo} alt={panelTitle} className="h-7 w-7 object-contain" />
-                        ) : (
-                            <span className="text-sm font-black">{panelInitial}</span>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <div className="flex-1 space-y-1 px-3">
-                {modules.map((module) => (
-                    <SidebarItem
-                        key={module.id}
-                        icon={module.icon}
-                        label={module.label}
-                        active={activeModule === module.id}
-                        onClick={() => setActiveModule(module.id)}
-                        collapsed={isSidebarCollapsed}
-                    />
-                ))}
-            </div>
-
-            <div className="space-y-1 border-t p-3" style={{ borderColor: 'var(--admin-border)' }}>
-                <button
-                    className="admin-hover-surface flex w-full items-center rounded-lg p-3 admin-text-muted group"
-                    onClick={() => {}}
-                >
-                    <Command size={20} weight="regular" />
-                    {!isSidebarCollapsed ? (
-                        <div className="ml-3 flex flex-1 items-center justify-between">
-                            <span className="text-sm font-medium">Comandos</span>
-                            <span
-                                style={{
-                                    backgroundColor: 'var(--admin-hover)',
-                                    borderColor: 'var(--admin-border)',
-                                }}
-                                className="rounded border px-1.5 py-0.5 text-[10px] text-zinc-400"
-                            >
-                                Ctrl+K
-                            </span>
-                        </div>
-                    ) : null}
-                </button>
-
-                <button
-                    onClick={toggleSidebar}
-                    className="admin-hover-surface flex w-full items-center rounded-lg p-3 admin-text-muted"
-                >
-                    {isSidebarCollapsed ? (
-                        <CaretRight size={20} className="mx-auto" />
-                    ) : (
-                        <div className="flex items-center">
-                            <CaretLeft size={20} />
-                            <span className="ml-3 text-sm">Contraer</span>
-                        </div>
                     )}
-                </button>
-            </div>
-        </aside>
+                </div>
+
+                <div className="flex-1 space-y-1 px-3">
+                    {modules.map((module) => (
+                        <SidebarItem
+                            key={module.id}
+                            icon={module.icon}
+                            label={module.label}
+                            active={activeModule === module.id}
+                            onClick={() => setActiveModule(module.id)}
+                            collapsed={isSidebarCollapsed}
+                        />
+                    ))}
+                </div>
+
+                <div className="space-y-1 border-t p-3" style={{ borderColor: 'var(--admin-border)' }}>
+                    <button
+                        className="admin-hover-surface flex w-full items-center rounded-lg p-3 admin-text-muted group"
+                        onClick={() => { }}
+                    >
+                        <Command size={20} weight="regular" />
+                        {!isSidebarCollapsed ? (
+                            <div className="ml-3 flex flex-1 items-center justify-between">
+                                <span className="text-sm font-medium">Comandos</span>
+                                <span
+                                    style={{
+                                        backgroundColor: 'var(--admin-hover)',
+                                        borderColor: 'var(--admin-border)',
+                                    }}
+                                    className="rounded border px-1.5 py-0.5 text-[10px] text-zinc-400"
+                                >
+                                    Ctrl+K
+                                </span>
+                            </div>
+                        ) : null}
+                    </button>
+
+                    <button
+                        onClick={toggleSidebar}
+                        className="admin-hover-surface flex w-full items-center rounded-lg p-3 admin-text-muted"
+                    >
+                        {isSidebarCollapsed ? (
+                            <CaretRight size={20} className="mx-auto" />
+                        ) : (
+                            <div className="flex items-center">
+                                <CaretLeft size={20} />
+                                <span className="ml-3 text-sm">Contraer</span>
+                            </div>
+                        )}
+                    </button>
+                </div>
+            </aside>
+
+            {/* Mobile Bottom Navigation */}
+            <nav className="md:hidden admin-sidebar-surface border-t flex items-center overflow-x-auto snap-x px-2 pb-safe pt-1 w-full shrink-0 z-50 hide-scrollbar order-last">
+                {modules.map((module) => (
+                    <button
+                        key={module.id}
+                        onClick={() => setActiveModule(module.id)}
+                        className={cn(
+                            'flex flex-col items-center justify-center p-2 rounded-lg shrink-0 snap-center min-w-[72px] transition-colors',
+                            activeModule === module.id ? 'admin-accent-text bg-[var(--admin-accent-soft)]' : 'admin-text-muted hover:bg-white/5'
+                        )}
+                    >
+                        <module.icon size={22} weight={activeModule === module.id ? 'fill' : 'regular'} />
+                        <span className="text-[10px] whitespace-nowrap overflow-hidden text-ellipsis mt-1">{module.label}</span>
+                    </button>
+                ))}
+            </nav>
+        </>
     );
 };
 

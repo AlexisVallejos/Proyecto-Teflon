@@ -19,9 +19,9 @@ export default function AboutCTA({
     };
 
     return (
-        <section className="py-24 text-center px-4" style={{ backgroundColor }}>
+        <section className="py-16 md:py-24 text-center px-4" style={{ backgroundColor }}>
             <div className="max-w-3xl mx-auto">
-                <h2 className="text-4xl font-black mb-8" style={{ color: textColor }}>{title}</h2>
+                <h2 className="text-3xl md:text-4xl font-black mb-8" style={{ color: textColor }}>{title}</h2>
                 <div className="flex flex-wrap justify-center gap-6">
                     {primaryLink?.label ? (
                         <a

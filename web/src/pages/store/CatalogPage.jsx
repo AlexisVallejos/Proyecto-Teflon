@@ -533,6 +533,21 @@ export default function CatalogPage() {
                     />
                 ) : null}
 
+                {/* FAB Flotante para Filtros en Móvil */}
+                <button
+                    type="button"
+                    onClick={() => setMobileFiltersOpen(true)}
+                    className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-[#181411] px-5 font-bold text-white shadow-2xl transition-transform hover:scale-105 active:scale-95 lg:hidden"
+                >
+                    <FilterIcon className="size-5" />
+                    <span>Filtros</span>
+                    {activeFilterCount > 0 ? (
+                        <span className="ml-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] text-white">
+                            {activeFilterCount}
+                        </span>
+                    ) : null}
+                </button>
+
                 <section className="rounded-[28px] border p-5 shadow-sm md:p-8" style={CATALOG_STYLES.panel}>
                     <div className="flex flex-wrap items-center gap-2 text-sm" style={CATALOG_STYLES.muted}>
                         <button type="button" className="transition-colors hover:text-primary" onClick={() => navigate("/")}>Inicio</button>
@@ -730,11 +745,10 @@ export default function CatalogPage() {
                                             key={`page-${pageNumber}`}
                                             type="button"
                                             onClick={() => setPage(pageNumber)}
-                                            className={`min-w-[42px] rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
-                                                pageNumber === page
+                                            className={`min-w-[42px] rounded-xl px-4 py-2 text-sm font-bold transition-colors ${pageNumber === page
                                                     ? "bg-primary text-white"
                                                     : "border border-[#e5e1de] text-[#181411] hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
-                                            }`}
+                                                }`}
                                         >
                                             {pageNumber}
                                         </button>
@@ -871,11 +885,10 @@ function CatalogFilters({
                                             <button
                                                 type="button"
                                                 onClick={() => onSelectCategory(category.id)}
-                                                className={`flex min-w-0 flex-1 items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors ${
-                                                    parentActive
+                                                className={`flex min-w-0 flex-1 items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors ${parentActive
                                                         ? "bg-primary text-white"
                                                         : "text-[#181411] hover:bg-[#f5f2f0] dark:text-white dark:hover:bg-[#21160e]"
-                                                }`}
+                                                    }`}
                                             >
                                                 <span className="truncate">{category.name}</span>
                                             </button>
@@ -888,11 +901,10 @@ function CatalogFilters({
                                                             [category.id]: !expanded,
                                                         }))
                                                     }
-                                                    className={`inline-flex size-10 items-center justify-center rounded-xl border transition-colors ${
-                                                        expanded
+                                                    className={`inline-flex size-10 items-center justify-center rounded-xl border transition-colors ${expanded
                                                             ? "border-primary bg-primary/10 text-primary"
                                                             : "text-[#6f5f50] hover:border-primary hover:text-primary dark:text-[#d6c4b4]"
-                                                    }`}
+                                                        }`}
                                                     style={expanded ? undefined : { ...CATALOG_STYLES.border, ...CATALOG_STYLES.muted }}
                                                     aria-label={expanded ? `Ocultar subcategorias de ${category.name}` : `Mostrar subcategorias de ${category.name}`}
                                                 >
@@ -909,11 +921,10 @@ function CatalogFilters({
                                                             key={`category-child-${child.id}`}
                                                             type="button"
                                                             onClick={() => onSelectCategory(child.id)}
-                                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                                                                childActive
+                                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${childActive
                                                                     ? "bg-primary/12 font-bold text-primary"
                                                                     : "text-[#6f5f50] hover:bg-[#f7f4f1] hover:text-[#181411] dark:text-[#d6c4b4] dark:hover:bg-[#1d140d] dark:hover:text-white"
-                                                            }`}
+                                                                }`}
                                                             style={childActive ? undefined : CATALOG_STYLES.muted}
                                                         >
                                                             <span>{child.name}</span>
@@ -1065,11 +1076,10 @@ function CatalogFilters({
                                         key={`brand-${brand.id}`}
                                         type="button"
                                         onClick={() => onSelectBrand(brand.id)}
-                                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                                            active
+                                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
                                                 ? "bg-primary text-white"
                                                 : "border text-[#181411] hover:border-primary hover:text-primary dark:text-white"
-                                        }`}
+                                            }`}
                                         style={active ? undefined : CATALOG_STYLES.border}
                                     >
                                         {brand.name}
@@ -1128,11 +1138,10 @@ function CatalogProductCard({
                             toggleFavorite(product);
                             onFavoriteChange?.(product, nextValue);
                         }}
-                        className={`rounded-full p-2 shadow-sm transition-colors ${
-                            favoriteActive
+                        className={`rounded-full p-2 shadow-sm transition-colors ${favoriteActive
                                 ? "bg-primary text-white"
                                 : "bg-white/90 text-[#181411] hover:bg-primary hover:text-white"
-                        }`}
+                            }`}
                         aria-label="Agregar a favoritos"
                     >
                         <HeartIcon active={favoriteActive} className="size-4" />
@@ -1157,7 +1166,7 @@ function CatalogProductCard({
                 ) : null}
             </div>
 
-                <div className="flex flex-col gap-4 p-5">
+            <div className="flex flex-col gap-4 p-5">
                 <div className="space-y-2">
                     <button type="button" onClick={openProduct} className="text-left">
                         <h3 className="text-lg font-black leading-tight text-[#181411] transition-colors group-hover:text-primary dark:text-white">
@@ -1184,11 +1193,14 @@ function CatalogProductCard({
                     ) : null}
                 </div>
 
-                <div className="flex items-end justify-between gap-4">
-                    <div className="min-w-0">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mt-auto">
+                    <div className="min-w-0 flex flex-col">
                         {showPricesEnabled ? (
                             canViewPrices ? (
                                 <>
+                                    {oldPrice ? (
+                                        <span className="text-sm font-semibold text-slate-400 line-through mb-1">{formatCurrency(oldPrice, currency, locale)}</span>
+                                    ) : null}
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-2xl font-black text-primary">
                                             {hasPriceRange
@@ -1196,11 +1208,10 @@ function CatalogProductCard({
                                                 : formatCurrency(price, currency, locale)}
                                         </span>
                                         <span
-                                            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
-                                                product.isWholesaleItem
+                                            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${product.isWholesaleItem
                                                     ? "bg-primary/10 text-primary"
                                                     : "bg-[#181411]/10 text-[#181411] dark:bg-white/10 dark:text-white"
-                                            }`}
+                                                }`}
                                         >
                                             {product.isWholesaleItem ? "Mayorista" : "Minorista"}
                                         </span>
@@ -1209,9 +1220,6 @@ function CatalogProductCard({
                                         <span className="text-sm" style={CATALOG_STYLES.muted}>
                                             Hasta {formatCurrency(maxPrice, currency, locale)}
                                         </span>
-                                    ) : null}
-                                    {oldPrice ? (
-                                        <span className="text-sm line-through" style={CATALOG_STYLES.muted}>{formatCurrency(oldPrice, currency, locale)}</span>
                                     ) : null}
                                 </>
                             ) : authLoading ? (
@@ -1228,7 +1236,7 @@ function CatalogProductCard({
                         <button
                             type="button"
                             onClick={() => setExpanded((current) => !current)}
-                            className="inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-bold text-white transition-all hover:bg-primary"
+                            className="inline-flex h-12 md:h-11 w-full md:w-auto items-center justify-center rounded-xl px-4 text-base md:text-sm font-bold text-white transition-all hover:bg-primary"
                             style={{ backgroundColor: "var(--color-accent, #181411)" }}
                         >
                             {expanded ? "Ocultar" : "Ver variantes"}
@@ -1238,9 +1246,10 @@ function CatalogProductCard({
                             type="button"
                             onClick={() => addToCart(product, 1)}
                             disabled={!inStock}
-                            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-12 md:h-11 w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base md:text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <CartPlusIcon className="size-5" />
+                            <span className="md:hidden">Agregar al carrito</span>
                         </button>
                     )}
                 </div>
@@ -1264,11 +1273,10 @@ function CatalogProductCard({
                                 return (
                                     <div
                                         key={`variation-${variation.id}`}
-                                        className={`rounded-2xl border px-3 py-3 transition-colors ${
-                                            variation.isRoot
+                                        className={`rounded-2xl border px-3 py-3 transition-colors ${variation.isRoot
                                                 ? "border-primary/30 bg-primary/5"
                                                 : ""
-                                        }`}
+                                            }`}
                                         style={variation.isRoot ? undefined : CATALOG_STYLES.card}
                                     >
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -1,3 +1,10 @@
+export const BRAND_VARIANT_OPTIONS = [
+    { value: 'classic', label: 'Clasico (actual)' },
+    { value: 'glass', label: 'Cristal' },
+    { value: 'monochrome', label: 'Monocromatico' },
+    { value: 'grid_static', label: 'Grilla Estatica' },
+];
+
 export const BRAND_MARQUEE_SPEED_OPTIONS = [
     { value: 'static', label: 'Fija' },
     { value: 'slow', label: 'Lenta' },
@@ -63,6 +70,7 @@ export const getDefaultBrandMarqueeProps = () => ({
     title: '',
     subtitle: '',
     speed: 'medium',
+    primaryButton: { label: '', link: '' },
     items: getDefaultBrandMarqueeItems(),
     styles: {
         backgroundColor: 'rgba(249, 250, 251, 0.5)',

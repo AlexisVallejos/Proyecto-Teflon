@@ -10,6 +10,9 @@ import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/sto
 import FeaturedProductsModern from "./FeaturedProductsModern";
 import FeaturedProductsHighEnergy from "./FeaturedProductsHighEnergy";
 import FeaturedProductsLuxury from "./FeaturedProductsLuxury";
+import FeaturedProductsMasonry from "./FeaturedProductsMasonry";
+import FeaturedProductsSnap from "./FeaturedProductsSnap";
+import FeaturedProductsMinimal from "./FeaturedProductsMinimal";
 import { normalizeFeaturedStyles, normalizeFeaturedVariant } from "../../data/featuredProductsTemplates";
 import { PRODUCT_PLACEHOLDER_IMAGE } from "../../utils/productImage";
 
@@ -51,11 +54,11 @@ function ClassicFeaturedProducts({
   } = styles;
 
   return (
-    <section className={`px-4 py-12 md:px-10 ${sectionBg}`}>
+    <section className={`px-2 py-8 md:px-10 md:py-12 ${sectionBg}`}>
       <div className="mx-auto max-w-[1408px]">
-        <div className={`mb-8 flex px-4 ${alignment}`}>
+        <div className={`mb-4 md:mb-8 flex flex-col md:flex-row px-2 md:px-4 gap-2 md:gap-0 ${alignment}`}>
           <div>
-            <h2 className={`${titleSize} font-bold tracking-tight ${titleColor}`}>
+            <h2 className={`text-2xl md:${titleSize} font-bold tracking-tight ${titleColor}`}>
               {title}
             </h2>
             <p className={`${subtitleSize} mt-1 ${subtitleColor}`}>
@@ -75,7 +78,7 @@ function ClassicFeaturedProducts({
         </div>
 
         {products.length ? (
-          <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 p-2 md:grid-cols-4 md:gap-6 md:p-4">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
@@ -144,6 +147,7 @@ export default function FeaturedProducts({
         stock,
         stockStatus,
         displayPrice,
+        originalPrice: item?.originalPrice,
         badgeText: item?.badge?.text || (item?.is_featured ? "Destacado" : ""),
         cartPayload: {
           id: item?.id,
@@ -221,6 +225,16 @@ export default function FeaturedProducts({
         authLoading={authLoading}
       />
     );
+  }
+
+  if (selectedVariant === "masonry") {
+    return <FeaturedProductsMasonry products={variantProducts} title={title} subtitle={subtitle} ctaLabel={ctaLabel} ctaLink={ctaLink} styles={normalizeFeaturedStyles("masonry", styles)} onOpenProduct={openProduct} onAddToCart={addProductToCart} />;
+  }
+  if (selectedVariant === "snap") {
+    return <FeaturedProductsSnap products={variantProducts} title={title} subtitle={subtitle} ctaLabel={ctaLabel} ctaLink={ctaLink} styles={normalizeFeaturedStyles("snap", styles)} onOpenProduct={openProduct} onAddToCart={addProductToCart} />;
+  }
+  if (selectedVariant === "minimal") {
+    return <FeaturedProductsMinimal products={variantProducts} title={title} subtitle={subtitle} ctaLabel={ctaLabel} ctaLink={ctaLink} styles={normalizeFeaturedStyles("minimal", styles)} onOpenProduct={openProduct} onAddToCart={addProductToCart} />;
   }
 
   return (

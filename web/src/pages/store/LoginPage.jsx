@@ -104,7 +104,7 @@ export default function LoginPage() {
         setVerificationLoading(true);
         try {
             await verifyEmailCode(pendingVerificationEmail, verificationCode.trim());
-            setNotice('Email verificado correctamente. Inicia sesion nuevamente.');
+            setNotice('Email verificado. Tu cuenta quedo pendiente de aprobacion del administrador.');
             setPendingVerificationEmail('');
             setVerificationCode('');
         } catch (err) {

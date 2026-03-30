@@ -3,6 +3,9 @@ export const HERO_VARIANT_OPTIONS = [
     { value: 'fashion', label: 'Fashion' },
     { value: 'home_decor', label: 'Home Decor' },
     { value: 'sanitarios_industrial', label: 'Industrial Showcase' },
+    { value: 'gaming', label: 'Gaming Neon' },
+    { value: 'corporate', label: 'Corporate Clean' },
+    { value: 'sale_burst', label: 'Liquidación Burst' },
 ];
 
 export const HERO_COLOR_FIELDS = {
@@ -127,10 +130,17 @@ const SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES = [
     },
 ];
 
+const GAMING_DEFAULT_SLIDES = [{ label: 'Gaming', title: 'Level Up', subtitle: 'Next Gen', description: 'Gaming accessories', featured: '', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070', primaryButtonLabel: 'Shop Now', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
+const CORPORATE_DEFAULT_SLIDES = [{ label: 'Corporate', title: 'Elevate Business', subtitle: 'Enterprise solutions', description: 'Enterprise gear', featured: '', image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069', primaryButtonLabel: 'Contact Us', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
+const SALE_BURST_DEFAULT_SLIDES = [{ label: 'Limited Offer', title: 'MEGA SALE', subtitle: '50% OFF', description: 'Clearance sale', featured: '', image: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=2070', primaryButtonLabel: 'SHOP', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
+
 const SLIDE_DEFAULTS_BY_VARIANT = {
     fashion: FASHION_DEFAULT_SLIDES,
     home_decor: HOME_DECOR_DEFAULT_SLIDES,
     sanitarios_industrial: SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES,
+    gaming: GAMING_DEFAULT_SLIDES,
+    corporate: CORPORATE_DEFAULT_SLIDES,
+    sale_burst: SALE_BURST_DEFAULT_SLIDES,
 };
 
 const STYLE_DEFAULTS_BY_VARIANT = {
@@ -178,6 +188,9 @@ const STYLE_DEFAULTS_BY_VARIANT = {
         dotActiveColor: '#f97316',
         dotInactiveColor: '#d4d4d8',
     },
+    gaming: { titleColor: '#ffffff', overlayOpacity: '0.9', overlayColor: '#0f0c29' },
+    corporate: {},
+    sale_burst: {},
 };
 
 const EMPTY_SLIDE = {

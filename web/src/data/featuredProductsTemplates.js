@@ -3,6 +3,9 @@ export const FEATURED_VARIANT_OPTIONS = [
     { value: 'modern', label: 'Grid moderno' },
     { value: 'high_energy', label: 'Grid alta energia' },
     { value: 'luxury', label: 'Grid luxury' },
+    { value: 'masonry', label: 'Masonry Asimétrico' },
+    { value: 'snap', label: 'Carrusel Snap' },
+    { value: 'minimal', label: 'Lista Minimalista' },
 ];
 
 export const FEATURED_COLOR_FIELDS = {
@@ -73,6 +76,9 @@ const STYLE_DEFAULTS_BY_VARIANT = {
         buttonTextColor: '#ffffff',
         borderColor: '#e2e8f0',
     },
+    masonry: {},
+    snap: {},
+    minimal: {},
 };
 
 export const normalizeFeaturedVariant = (variant) =>

@@ -11,6 +11,8 @@ import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/sto
 import { createPlaceholderImage } from "../../utils/productImage";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
+import ProductDetailMinimal from "./ProductDetailMinimal";
+import ProductDetailImmersive from "./ProductDetailImmersive";
 
 const FALLBACK_IMAGE = createPlaceholderImage({ label: "Producto", width: 900, height: 900 });
 
@@ -118,7 +120,7 @@ export default function ProductDetail() {
 
     useEffect(() => {
         let active = true;
-        if (!productId) return () => {};
+        if (!productId) return () => { };
 
         const loadReviews = async () => {
             setReviewsLoading(true);
@@ -155,7 +157,7 @@ export default function ProductDetail() {
 
     useEffect(() => {
         let active = true;
-        if (!productId) return () => {};
+        if (!productId) return () => { };
 
         const loadRelated = async () => {
             setRelatedLoading(true);
@@ -390,6 +392,19 @@ export default function ProductDetail() {
         }, safeQty);
     };
 
+    const layoutProps = {
+        view, loading, error, images, activeImage, setActiveImage, qty, setQty, addToCart,
+        handleAdd, relatedCards, relatedLoading, reviews, reviewsLoading, reviewsError,
+        reviewsEnabled, reviewSubmitting, reviewForm, setReviewForm, handleReviewSubmit,
+        formatReviewDate, renderRatingStars, favoriteActive, toggleFavorite,
+        canBuy, stockStatus, showPricesEnabled, canViewPrices, authLoading, currency, locale,
+        activeTab, setActiveTab, canShowSpecifications, specificationEntries, isInStock, user
+    };
+
+    const template = settings?.commerce?.product_detail_template || "classic";
+    if (template === "minimal") return <ProductDetailMinimal {...layoutProps} />;
+    if (template === "immersive") return <ProductDetailImmersive {...layoutProps} />;
+
     return (
         <StoreLayout>
             <main className="max-w-[1400px] mx-auto w-full px-4 md:px-10 py-10">
@@ -419,8 +434,8 @@ export default function ProductDetail() {
                     </div>
                 ) : (
                     <div className="space-y-10">
-                        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-10">
-                            <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-start">
+                            <div className="flex flex-col gap-4 md:sticky md:top-24">
                                 <div className="rounded-3xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] p-4">
                                     <div className="aspect-[4/3] w-full rounded-2xl bg-[#f5f2f0] dark:bg-[#2c2116] overflow-hidden">
                                         <img
@@ -432,13 +447,13 @@ export default function ProductDetail() {
                                     </div>
                                 </div>
                                 {images.length > 1 ? (
-                                    <div className="grid grid-cols-4 gap-3">
+                                    <div className="flex overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 gap-3 pb-2 sm:pb-0 hide-scrollbar">
                                         {images.slice(0, 4).map((img, index) => (
                                             <button
                                                 key={img.url}
                                                 type="button"
                                                 onClick={() => setActiveImage(index)}
-                                                className={`rounded-xl border p-1 bg-white dark:bg-[#1a130c] transition-colors ${index === activeImage ? 'border-primary' : 'border-[#e5e1de] dark:border-[#3d2f21] hover:border-primary/60'}`}
+                                                className={`snap-start shrink-0 w-[22%] sm:w-auto rounded-xl border p-1 bg-white dark:bg-[#1a130c] transition-colors ${index === activeImage ? 'border-primary' : 'border-[#e5e1de] dark:border-[#3d2f21] hover:border-primary/60'}`}
                                             >
                                                 <div className="aspect-square rounded-lg overflow-hidden bg-[#f5f2f0] dark:bg-[#2c2116]">
                                                     <img src={img.url} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -480,25 +495,23 @@ export default function ProductDetail() {
                                     <p className="text-[11px] font-bold uppercase tracking-widest text-[#8a7560]">Precio</p>
                                     {showPricesEnabled ? (
                                         canViewPrices ? (
-                                        <div className="flex items-end gap-3">
-                                            <span className="text-3xl font-black text-[#181411] dark:text-white">
-                                                {formatCurrency(view.price, currency, locale)}
-                                            </span>
-                                            {view.oldPrice ? (
-                                                <span className="text-sm text-[#8a7560] line-through">
-                                                    {formatCurrency(view.oldPrice, currency, locale)}
-                                                </span>
-                                            ) : null}
-                                            {view.isWholesaleItem ? (
-                                                <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded font-bold uppercase">
-                                                    Mayorista
-                                                </span>
-                                            ) : (
-                                                <span className="text-[10px] bg-[#181411]/10 text-[#181411] dark:bg-white/10 dark:text-white px-2 py-1 rounded font-bold uppercase">
-                                                    Minorista
-                                                </span>
-                                            )}
-                                        </div>
+                                            <div className="flex flex-col gap-1">
+                                                {view.oldPrice ? (
+                                                    <p className="text-sm font-semibold text-slate-400 line-through">
+                                                        Precio Lista: {formatCurrency(view.oldPrice, currency, locale)}
+                                                    </p>
+                                                ) : null}
+                                                <div className="flex items-end gap-3 mt-1">
+                                                    {view.isWholesaleItem ? (
+                                                        <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-sm font-bold uppercase tracking-wide">
+                                                            Tu Precio (B2B)
+                                                        </span>
+                                                    ) : null}
+                                                    <span className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
+                                                        {formatCurrency(view.price, currency, locale)}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         ) : authLoading ? (
                                             <p className="text-[#8a7560]">Cargando precio...</p>
                                         ) : (
@@ -778,16 +791,16 @@ export default function ProductDetail() {
                                                 </div>
                                                 {showPricesEnabled ? (
                                                     canViewPrices ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-primary font-black text-base">
-                                                            {formatCurrency(item.price, currency, locale)}
-                                                        </span>
-                                                        {item.isWholesaleItem ? (
-                                                            <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase">
-                                                                Mayorista
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-primary font-black text-base">
+                                                                {formatCurrency(item.price, currency, locale)}
                                                             </span>
-                                                        ) : null}
-                                                    </div>
+                                                            {item.isWholesaleItem ? (
+                                                                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase">
+                                                                    Mayorista
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
                                                     ) : authLoading ? (
                                                         <span className="text-[#8a7560] text-xs">Cargando precio...</span>
                                                     ) : (

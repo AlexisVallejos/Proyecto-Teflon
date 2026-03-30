@@ -3,6 +3,9 @@ import { navigate } from "../../utils/navigation";
 import FashionHeroSlider from "./FashionHeroSlider";
 import HomeDecorHeroSlider from "./HomeDecorHeroSlider";
 import SanitariosIndustrialHeroSlider from "./SanitariosIndustrialHeroSlider";
+import HeroGamingSlider from "./HeroGamingSlider";
+import HeroCorporateSlider from "./HeroCorporateSlider";
+import HeroSaleBurstSlider from "./HeroSaleBurstSlider";
 import { normalizeHeroSlides, normalizeHeroStyles, normalizeHeroVariant } from "../../data/heroSliderTemplates";
 
 function ClassicHeroSlider({
@@ -128,16 +131,8 @@ function ClassicHeroSlider({
     if (!editorEnabled || !dragRef.current) return;
     event.preventDefault();
     const current = dragRef.current;
-    const nextX = clamp(
-      current.baseX + (event.clientX - current.startClientX),
-      -current.limitX,
-      current.limitX
-    );
-    const nextY = clamp(
-      current.baseY + (event.clientY - current.startClientY),
-      -current.limitY,
-      current.limitY
-    );
+    const nextX = current.baseX + (event.clientX - current.startClientX);
+    const nextY = current.baseY + (event.clientY - current.startClientY);
 
     if (current.target.startsWith("part:")) {
       const partName = current.target.replace("part:", "");
@@ -162,11 +157,11 @@ function ClassicHeroSlider({
   };
 
   return (
-    <section className="px-4 py-8 md:px-10">
+    <section className="px-2 py-4 md:px-10 md:py-8">
       <div className="mx-auto max-w-[1408px]">
-        <div className="relative overflow-hidden rounded-xl bg-background-dark">
+        <div className="relative overflow-hidden rounded-lg md:rounded-xl bg-background-dark">
           <div
-            className={`flex min-h-[520px] flex-col justify-center gap-6 bg-cover bg-center bg-no-repeat px-16 py-12 ${getAlignmentClass(alignment)}`}
+            className={`flex h-[50dvh] md:h-[70dvh] flex-col justify-center gap-4 md:gap-6 bg-cover bg-center bg-no-repeat px-4 py-8 sm:px-8 md:px-16 md:py-12 ${getAlignmentClass(alignment)}`}
             style={{
               backgroundImage:
                 `linear-gradient(90deg, ${toRgba(resolvedOverlayColor, overlayOpacityNumber)} 0%, ${toRgba(resolvedOverlayColor, 0.2)} 100%), url("${image}")`,
@@ -175,7 +170,7 @@ function ClassicHeroSlider({
             aria-label={title}
           >
             <div
-              className={`max-w-2xl space-y-4 flex flex-col ${getAlignmentClass(alignment)}`}
+              className={`max-w-[90%] md:max-w-2xl space-y-3 md:space-y-4 flex flex-col ${getAlignmentClass(alignment)}`}
               style={{
                 transform: `translate(${heroTextOffsetX}px, ${heroTextOffsetY}px)`,
               }}
@@ -312,6 +307,10 @@ export default function HeroSlider(props) {
       />
     );
   }
+
+  if (variant === "gaming") return <HeroGamingSlider slides={normalizeHeroSlides("gaming", props?.slides)} styles={normalizeHeroStyles("gaming", props?.styles)} editor={props?.editor} />;
+  if (variant === "corporate") return <HeroCorporateSlider slides={normalizeHeroSlides("corporate", props?.slides)} styles={normalizeHeroStyles("corporate", props?.styles)} editor={props?.editor} />;
+  if (variant === "sale_burst") return <HeroSaleBurstSlider slides={normalizeHeroSlides("sale_burst", props?.slides)} styles={normalizeHeroStyles("sale_burst", props?.styles)} editor={props?.editor} />;
 
   return <ClassicHeroSlider {...props} />;
 }

@@ -936,6 +936,30 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                             placeholder="Texto extra debajo de la etiqueta"
                             multiline
                         />
+                        <div className="grid grid-cols-2 gap-3 pb-2 border-b border-white/5">
+                            <EvolutionInput
+                                label="Boton: texto"
+                                value={block.props?.primaryButton?.label || ''}
+                                onChange={(event) =>
+                                    handlePropChange('primaryButton', {
+                                        ...(block.props?.primaryButton || {}),
+                                        label: event.target.value,
+                                    })
+                                }
+                                placeholder="Ej: Ver mas"
+                            />
+                            <EvolutionInput
+                                label="Boton: link"
+                                value={block.props?.primaryButton?.link || ''}
+                                onChange={(event) =>
+                                    handlePropChange('primaryButton', {
+                                        ...(block.props?.primaryButton || {}),
+                                        link: event.target.value,
+                                    })
+                                }
+                                placeholder="/catalog"
+                            />
+                        </div>
                         <div className="space-y-1.5">
                             <label className="pl-1 text-[10px] font-bold uppercase text-zinc-600">Velocidad</label>
                             <select
@@ -1073,6 +1097,12 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                             value={block.props?.styles?.cardBorderColor}
                             defaultColor={brandMarqueeDefaults.styles.cardBorderColor}
                             onChange={(value) => handleStyleChange('cardBorderColor', value)}
+                        />
+                        <ColorField
+                            label="Color acento"
+                            value={block.props?.styles?.accentColor}
+                            defaultColor="var(--color-primary, #f97316)"
+                            onChange={(value) => handleStyleChange('accentColor', value)}
                         />
                     </div>
                 </div>

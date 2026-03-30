@@ -15,7 +15,7 @@ export default function ProductCard({ product }) {
   const locale = settings?.commerce?.locale || "es-AR";
   const { showPricesEnabled, canViewPrices } = getPriceAccessState(settings, user);
 
-  const { id, sku, name, price, badge, image, alt, stock } = product;
+  const { id, sku, name, price, badge, image, alt, stock, originalPrice } = product;
   const shortDescription =
     product?.shortDescription ||
     product?.short_description ||
@@ -80,9 +80,12 @@ export default function ProductCard({ product }) {
         ) : null}
         {showPricesEnabled ? (
           canViewPrices ? (
-          <p className="text-2xl font-black text-primary mt-1">
-            {formatCurrency(price, currency, locale)}
-          </p>
+            <div className="flex flex-col mt-1">
+              {originalPrice ? <p className="text-sm font-semibold text-slate-400 line-through">{formatCurrency(originalPrice, currency, locale)}</p> : null}
+              <p className="text-2xl font-black text-primary">
+                {formatCurrency(price, currency, locale)}
+              </p>
+            </div>
           ) : loading ? (
             <p className="text-sm text-[#8a7560] mt-1">Cargando precio...</p>
           ) : (
@@ -95,7 +98,7 @@ export default function ProductCard({ product }) {
         <button
           type="button"
           onClick={handleAdd}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#f5f2f0] dark:bg-[#3d2e21] py-2.5 font-bold hover:bg-primary hover:text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed dark:text-white"
+          className="mt-3 md:mt-4 flex w-full items-center justify-center gap-1.5 md:gap-2 rounded-lg bg-[#f5f2f0] dark:bg-[#3d2e21] py-4 md:py-2.5 text-base md:text-sm font-bold hover:bg-primary hover:text-white active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed dark:text-white"
           disabled={!inStock}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:text-white"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><path d="M12 9h6"></path><path d="M15 6v6"></path></svg>

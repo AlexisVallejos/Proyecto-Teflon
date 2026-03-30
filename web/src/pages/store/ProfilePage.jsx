@@ -607,30 +607,30 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            <nav className="space-y-1">
+                            <nav className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 lg:pb-0 lg:flex-col lg:space-y-1 hide-scrollbar -mx-5 px-5 lg:mx-0 lg:px-0 mt-4 lg:mt-0">
                                 <button
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'account' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'account' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('account')}
                                 >
                                     <User className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Mi cuenta</span>
                                 </button>
                                 <button
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'orders' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'orders' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('orders')}
                                 >
                                     <Package className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Historial de pedidos</span>
                                 </button>
                                 <button
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'addresses' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'addresses' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('addresses')}
                                 >
                                     <MapPin className="h-5 w-5 shrink-0" />
                                     <span className="text-sm">Direcciones</span>
                                 </button>
                                 <button
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'favorites' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'favorites' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('favorites')}
                                 >
                                     <Heart className="h-5 w-5 shrink-0" />
@@ -640,7 +640,7 @@ export default function ProfilePage() {
                                     ) : null}
                                 </button>
                                 <button
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${activeSection === 'security' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'security' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('security')}
                                 >
                                     <Shield className="h-5 w-5 shrink-0" />
@@ -735,7 +735,35 @@ export default function ProfilePage() {
                                                 Ver todo
                                             </button>
                                         </div>
-                                        <div className="overflow-x-auto">
+                                        <div className="grid grid-cols-1 gap-4 p-4 lg:hidden">
+                                            {visibleOrders.length ? (
+                                                visibleOrders.map((order) => {
+                                                    const statusLabel = order.status || 'Pendiente';
+                                                    return (
+                                                        <div key={order.id} className="border border-[#e5e1de] dark:border-[#3d2f21] rounded-xl p-4 flex flex-col gap-3">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="font-bold text-sm text-[#181411] dark:text-white">#{order.id}</span>
+                                                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${STATUS_STYLES[statusLabel] || STATUS_STYLES.Pendiente}`}>
+                                                                    {statusLabel}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between items-end">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-xs text-[#8a7560]">{formatOrderDate(order.createdAt)}</span>
+                                                                    <span className="font-black text-primary mt-1">
+                                                                        {order.total != null ? formatCurrency(order.total, order.currency || currency, order.locale || locale) : '-'}
+                                                                    </span>
+                                                                </div>
+                                                                <button type="button" onClick={() => handleViewOrder(order)} className="text-xs font-bold text-[#181411] dark:text-white underline decoration-2">Ver detalle</button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="text-center text-[#8a7560] text-sm py-4">No hay pedidos recientes.</div>
+                                            )}
+                                        </div>
+                                        <div className="hidden lg:block overflow-x-auto">
                                             <table className="w-full text-left min-w-[760px]">
                                                 <thead>
                                                     <tr className="bg-[#f5f2f0]/60 dark:bg-[#2d241c] text-xs font-bold text-[#8a7560] uppercase tracking-wider">
