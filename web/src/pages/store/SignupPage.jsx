@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate } from '../../utils/navigation';
@@ -151,11 +151,16 @@ function Step4({
     onBack,
     loading,
     resendLoading,
+    deliveryNotice,
 }) {
     return (
         <div className="space-y-4">
             <div className="rounded-lg border border-[#e5e1de] bg-[#faf7f4] p-3 text-sm text-[#5b4632]">
-                Te enviamos un codigo de verificacion a <span className="font-bold">{email}</span>.
+                {deliveryNotice || (
+                    <>
+                        Te enviamos un codigo de verificacion a <span className="font-bold">{email}</span>.
+                    </>
+                )}
             </div>
             <div>
                 <label className={labelClass}>Codigo de verificacion</label>
@@ -227,6 +232,8 @@ function mapSignupError(code) {
     const dictionary = {
         missing_fields: 'Completa los campos obligatorios.',
         user_exists: 'Ya existe una cuenta con ese email.',
+        verification_pending: 'Ese email ya inicio el registro. Te reenviamos el codigo para que completes la verificacion.',
+        pending_approval: 'Tu cuenta ya fue creada y esta pendiente de aprobacion del administrador.',
         invalid_tenant_id: 'Tenant invalido.',
         tenant_required: 'Falta configurar tenant para el registro.',
     };
@@ -245,6 +252,19 @@ function mapVerificationError(code) {
     return dictionary[code] || 'No se pudo verificar el email.';
 }
 
+function getVerificationDeliveryNotice(verification, email) {
+    if (!verification) return '';
+    if (verification.sent) {
+        return `Te enviamos un codigo de verificacion a ${email}.`;
+    }
+    if (verification.provider === 'smtp_error') {
+        return `No pudimos entregar el codigo por correo a ${email}. Revisa la configuracion SMTP o intenta reenviar el codigo.`;
+    }
+    if (verification.provider === 'log') {
+        return 'El correo no se pudo enviar porque SMTP no esta configurado. Revisa los logs del backend para recuperar el codigo o configura el mailer.';
+    }
+    return `No pudimos confirmar la entrega del codigo a ${email}. Intenta reenviar el codigo.`;
+}
 export default function SignupPage() {
     const { signup, verifyEmailCode, resendVerificationCode } = useAuth();
     const [step, setStep] = useState(1);
@@ -254,6 +274,7 @@ export default function SignupPage() {
     const [verificationCode, setVerificationCode] = useState('');
     const [verificationLoading, setVerificationLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
+    const [deliveryNotice, setDeliveryNotice] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -369,6 +390,7 @@ export default function SignupPage() {
             if (requiresVerification) {
                 setVerificationEmail(normalizedEmail);
                 setVerificationCode('');
+                setDeliveryNotice(getVerificationDeliveryNotice(data?.verification, normalizedEmail));
                 setStep(4);
                 return;
             }
@@ -377,7 +399,18 @@ export default function SignupPage() {
             sessionStorage.setItem('teflon_auth_notice', loginNotice);
             navigate('/login');
         } catch (err) {
-            setError(mapSignupError(String(err?.message || '')));
+            const errorCode = String(err?.message || '');
+            const payload = err?.payload || null;
+            if (payload?.requires_email_verification && errorCode === 'verification_pending') {
+                const normalizedEmail = formData.email.trim().toLowerCase();
+                setVerificationEmail(normalizedEmail);
+                setVerificationCode('');
+                setDeliveryNotice(getVerificationDeliveryNotice(payload?.verification, normalizedEmail));
+                setError(mapSignupError(errorCode));
+                setStep(4);
+                return;
+            }
+            setError(mapSignupError(errorCode));
         } finally {
             setLoading(false);
         }
@@ -418,7 +451,8 @@ export default function SignupPage() {
         setError('');
         setResendLoading(true);
         try {
-            await resendVerificationCode(verificationEmail);
+            const response = await resendVerificationCode(verificationEmail);
+            setDeliveryNotice(getVerificationDeliveryNotice(response?.verification, verificationEmail));
         } catch (err) {
             setError(mapVerificationError(String(err?.message || '')));
         } finally {
@@ -456,6 +490,7 @@ export default function SignupPage() {
                             onBack={() => setStep(3)}
                             loading={verificationLoading}
                             resendLoading={resendLoading}
+                            deliveryNotice={deliveryNotice}
                         />
                     )}
 
@@ -472,3 +507,4 @@ export default function SignupPage() {
         </StoreLayout>
     );
 }
+

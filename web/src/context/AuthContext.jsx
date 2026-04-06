@@ -120,7 +120,9 @@ export const AuthProvider = ({ children }) => {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Signup failed');
+            const signupError = new Error(error.error || 'Signup failed');
+            signupError.payload = error;
+            throw signupError;
         }
 
         const data = await response.json();

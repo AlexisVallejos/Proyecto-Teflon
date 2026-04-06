@@ -339,8 +339,52 @@ async function handleSignup(req, res, next) {
     const validRoles = ['retail', 'wholesale'];
     const assignedRole = validRoles.includes(role) ? role : 'retail';
 
-    const countRes = await pool.query('select count(*) from users where lower(email) = lower($1)', [normalizedEmail]);
-    if (parseInt(countRes.rows[0].count) > 0) {
+    const existingUserRes = await pool.query(
+      [
+        'select id, email, role, status, email_verified_at, requires_email_verification',
+        'from users where lower(email) = lower($1)',
+        'limit 1',
+      ].join(' '),
+      [normalizedEmail]
+    );
+
+    if (existingUserRes.rowCount) {
+      const existingUser = existingUserRes.rows[0];
+      const membershipRes = await pool.query(
+        'select tenant_id, role, status from user_tenants where user_id = $1 and tenant_id = $2 limit 1',
+        [existingUser.id, tenant_id]
+      );
+      const membership = membershipRes.rows[0] || null;
+
+      if (existingUser.requires_email_verification && !existingUser.email_verified_at) {
+        const verification = await issueEmailVerificationCode(existingUser.id, existingUser.email, name);
+        return res.status(409).json({
+          error: 'verification_pending',
+          requires_email_verification: true,
+          verification,
+          user: {
+            id: existingUser.id,
+            email: existingUser.email,
+            role: membership?.role || existingUser.role || assignedRole,
+            status: membership?.status || 'pending',
+            tenant_id,
+          },
+        });
+      }
+
+      if (membership?.status === 'pending') {
+        return res.status(409).json({
+          error: 'pending_approval',
+          user: {
+            id: existingUser.id,
+            email: existingUser.email,
+            role: membership.role || existingUser.role || assignedRole,
+            status: membership.status,
+            tenant_id,
+          },
+        });
+      }
+
       return res.status(409).json({ error: 'user_exists' });
     }
 

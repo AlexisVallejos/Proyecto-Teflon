@@ -3,6 +3,20 @@ import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate, normalizeInternalPath } from '../../utils/navigation';
 
+function getVerificationDeliveryNotice(verification, email) {
+    if (!verification) return `Te reenviamos un codigo a ${email}.`;
+    if (verification.sent) {
+        return `Te reenviamos un codigo a ${email}.`;
+    }
+    if (verification.provider === 'smtp_error') {
+        return `No pudimos entregar el codigo a ${email}. Revisa la configuracion SMTP o intenta de nuevo.`;
+    }
+    if (verification.provider === 'log') {
+        return 'El correo no se pudo enviar porque SMTP no esta configurado. Revisa los logs del backend para recuperar el codigo.';
+    }
+    return `No pudimos confirmar la entrega del codigo a ${email}.`;
+}
+
 export default function LoginPage() {
     const { login, verifyEmailCode, resendVerificationCode } = useAuth();
     const [email, setEmail] = useState('');
@@ -123,8 +137,8 @@ export default function LoginPage() {
         setError('');
         setResendLoading(true);
         try {
-            await resendVerificationCode(pendingVerificationEmail);
-            setNotice(`Te reenviamos un codigo a ${pendingVerificationEmail}.`);
+            const response = await resendVerificationCode(pendingVerificationEmail);
+            setNotice(getVerificationDeliveryNotice(response?.verification, pendingVerificationEmail));
         } catch (err) {
             setError(mapVerificationError(String(err?.message || '')));
         } finally {
