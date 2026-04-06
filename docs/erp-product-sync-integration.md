@@ -278,6 +278,67 @@ Actualizacion:
 }
 ```
 
+Lote mixto con altas, actualizaciones y errores:
+
+```json
+{
+  "ok": false,
+  "partial": true,
+  "tenant_id": "636736e2-e135-44cd-ac5c-5d4ccb839a73",
+  "source_system": "sistema-gestion-av",
+  "total": 3,
+  "created": 1,
+  "updated": 1,
+  "failed": 1,
+  "categories_created": 0,
+  "item_results": [
+    {
+      "index": 0,
+      "external_id": "PROD-1001",
+      "sku": "PROD-1001",
+      "name": "Notebook Lenovo 15",
+      "source_system": "sistema-gestion-av",
+      "ok": true,
+      "status": "created",
+      "action": "create",
+      "product_id": "UUID_PRODUCTO_CREADO",
+      "categories_created": 0
+    },
+    {
+      "index": 1,
+      "external_id": "PROD-0008",
+      "sku": "PROD-0008",
+      "name": "Producto existente",
+      "source_system": "sistema-gestion-av",
+      "ok": true,
+      "status": "updated",
+      "action": "update",
+      "product_id": "UUID_PRODUCTO_EXISTENTE",
+      "categories_created": 0
+    },
+    {
+      "index": 2,
+      "external_id": null,
+      "sku": "SIN-ID",
+      "name": "Producto incompleto",
+      "source_system": "sistema-gestion-av",
+      "ok": false,
+      "status": "error",
+      "action": "ignored",
+      "error": "external_id_required"
+    }
+  ]
+}
+```
+
+Notas:
+
+- el lote ya no se invalida completo por un item con error
+- cada posicion enviada vuelve en `item_results[index]`
+- `created`, `updated` y `failed` resumen el resultado del lote
+- si `ok = false` y `partial = true`, hubo mezcla de exitos y errores
+- si el sistema de gestion necesita registrar producto por producto, debe leer `item_results`
+
 ## Errores comunes
 
 `401 api_key_required`

@@ -147,10 +147,12 @@ Pedirle que registren:
 - cantidad de productos enviados
 - cantidad creados
 - cantidad actualizados
+- cantidad fallidos
 - errores devueltos por la API
+- el detalle por item usando `item_results`
 
 ## Texto listo para copiar y enviar
 
-Necesito que integren el sistema de gestion con mi ecommerce por API. La integracion debe leer productos desde su propia base de datos y consumir dos endpoints: `GET /api/v1/integrations/ping` para probar conexion y `POST /api/v1/integrations/products/sync` para sincronizar productos. No deben escribir directamente en la base del ecommerce. Cada producto debe enviarse con un identificador estable `external_id`, junto con `sku`, `name`, `price_retail`, `price_wholesale` si existe, `stock`, `is_active`, `brand`, `description`, `category_id` si aplica e `images` si tienen URLs. Para categorias pueden enviar UUID, slug, `erp_id` o nombre. Si la categoria no existe y llega como texto, el ecommerce la crea automaticamente. Tambien necesito que el sistema permita configurar `x-api-key`, `x-tenant-id` y `source_system`, y que guarde log de resultados y errores.
+Necesito que integren el sistema de gestion con mi ecommerce por API. La integracion debe leer productos desde su propia base de datos y consumir dos endpoints: `GET /api/v1/integrations/ping` para probar conexion y `POST /api/v1/integrations/products/sync` para sincronizar productos. No deben escribir directamente en la base del ecommerce. Cada producto debe enviarse con un identificador estable `external_id`, junto con `sku`, `name`, `price_retail`, `price_wholesale` si existe, `stock`, `is_active`, `brand`, `description`, `category_id` si aplica e `images` si tienen URLs. Para categorias pueden enviar UUID, slug, `erp_id` o nombre. Si la categoria no existe y llega como texto, el ecommerce la crea automaticamente. Tambien necesito que el sistema permita configurar `x-api-key`, `x-tenant-id` y `source_system`, y que guarde log de resultados y errores. La respuesta del sync devuelve `item_results`, por lo que deben registrar por separado que productos se crearon, cuales se actualizaron y cuales devolvieron error.
 
 Si el sistema no trabaja con headers custom y solo permite `Consumer Key` y `Consumer Secret`, puede usar la capa de compatibilidad del ecommerce con `GET /api/v1/integrations/gestion/ping` y `POST /api/v1/integrations/gestion/producto` o `POST /api/v1/integrations/gestion/productos`.

@@ -127,26 +127,6 @@ async function handleSyncProductsRequest(req, res, next, { defaultSourceSystem =
       return res.status(400).json({ error: 'products_array_required' });
     }
 
-    const invalidItems = items.reduce((acc, item, index) => {
-      if (!isPlainObject(item)) {
-        acc.push({ index, error: 'invalid_product_item' });
-        return acc;
-      }
-
-      const externalId = readExternalIdFromItem(item);
-      if (!externalId) {
-        acc.push({ index, error: 'external_id_required' });
-      }
-      return acc;
-    }, []);
-
-    if (invalidItems.length) {
-      return res.status(400).json({
-        error: 'invalid_products_payload',
-        details: invalidItems.slice(0, 25),
-      });
-    }
-
     const sourceSystem = String(
       normalizedBody?.source_system ||
       normalizedBody?.sourceSystem ||

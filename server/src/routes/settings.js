@@ -1,6 +1,11 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { resolveTenant } from '../middleware/tenant.js';
+import {
+  normalizeBranches,
+  normalizeShippingZones,
+  toNumber,
+} from '../services/shipping.js';
 
 export const settingsRouter = express.Router();
 export const settingsAdminRouter = express.Router();
@@ -10,11 +15,6 @@ settingsAdminRouter.use(resolveTenant);
 
 const ALLOWED_MODES = new Set(['whatsapp', 'transfer', 'both']);
 const ALLOWED_METHODS = new Set(['transfer', 'cash_on_pickup']);
-
-function toNumber(value, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 function normalizePaymentMethod(value) {
   const raw = String(value || '')
@@ -79,51 +79,13 @@ function toLegacyMode(methods = []) {
   return 'both';
 }
 
-function normalizeBranch(entry = {}, index = 0) {
-  const id = String(entry.id || '').trim() || `branch-${index + 1}`;
-  return {
-    id,
-    name: String(entry.name || '').trim(),
-    address: String(entry.address || '').trim(),
-    hours: String(entry.hours || '').trim(),
-    phone: String(entry.phone || '').trim(),
-    pickup_fee: toNumber(entry.pickup_fee, 0),
-    enabled: entry.enabled !== false,
-  };
-}
-
-function normalizeBranches(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry, index) => normalizeBranch(entry, index))
-    .filter((entry) => entry.id && entry.name);
-}
-
-function normalizeShippingZone(entry = {}, index = 0) {
-  const id = String(entry.id || '').trim() || `zone-${index + 1}`;
-  return {
-    id,
-    name: String(entry.name || '').trim() || `Zona ${index + 1}`,
-    description: String(entry.description || '').trim(),
-    price: toNumber(entry.price, 0),
-    enabled: entry.enabled !== false,
-  };
-}
-
-function normalizeShippingZones(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry, index) => normalizeShippingZone(entry, index))
-    .filter((entry) => entry.id && entry.name);
-}
-
 function normalizeCheckoutSettings(commerce = {}) {
   const methods = deriveMethodsFromLegacyMode(commerce);
   const mode = toLegacyMode(methods);
 
   const bankTransfer = commerce.bank_transfer || {};
-  const branches = normalizeBranches(commerce.branches);
-  let shippingZones = normalizeShippingZones(commerce.shipping_zones);
+  const branches = normalizeBranches(commerce.branches).filter((entry) => entry.name);
+  let shippingZones = normalizeShippingZones(commerce.shipping_zones).filter((entry) => entry.name);
   if (!shippingZones.length) {
     shippingZones = [
       {
@@ -132,6 +94,10 @@ function normalizeCheckoutSettings(commerce = {}) {
         description: 'Cobertura nacional',
         price: toNumber(commerce.shipping_flat, 0),
         enabled: true,
+        type: 'flat',
+        branch_id: null,
+        min_distance_km: 0,
+        max_distance_km: null,
       },
     ];
   }
@@ -183,9 +149,11 @@ function sanitizeCheckoutPayload(payload = {}) {
     payload.customer_order_processing_text != null ? String(payload.customer_order_processing_text).trim() : null;
   const bankTransfer = payload.bank_transfer || {};
   const shippingZones = Array.isArray(payload.shipping_zones)
-    ? normalizeShippingZones(payload.shipping_zones)
+    ? normalizeShippingZones(payload.shipping_zones).filter((entry) => entry.name)
     : null;
-  const branches = Array.isArray(payload.branches) ? normalizeBranches(payload.branches) : null;
+  const branches = Array.isArray(payload.branches)
+    ? normalizeBranches(payload.branches).filter((entry) => entry.name)
+    : null;
   const methods = Array.isArray(payload.enabled_methods)
     ? normalizeMethodsList(payload.enabled_methods)
     : null;

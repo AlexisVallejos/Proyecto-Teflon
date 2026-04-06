@@ -67,13 +67,47 @@ SELECT
     "email": "",
     "order_notification_email": "",
     "payment_methods": ["transfer", "cash_on_pickup"],
-    "default_delivery": "zone:arg-general",
+    "default_delivery": "distance:auto",
     "shipping_zones": [
       {
+        "id": "mdp-free",
+        "name": "Entrega sin cargo",
+        "description": "Hasta 5 km de la sucursal principal",
+        "price": 0,
+        "type": "distance",
+        "branch_id": "branch-mdq",
+        "min_distance_km": 0,
+        "max_distance_km": 5,
+        "enabled": true
+      },
+      {
+        "id": "mdp-mid",
+        "name": "Zona media",
+        "description": "De 5 a 10 km desde la sucursal principal",
+        "price": 3500,
+        "type": "distance",
+        "branch_id": "branch-mdq",
+        "min_distance_km": 5,
+        "max_distance_km": 10,
+        "enabled": true
+      },
+      {
+        "id": "mdp-extended",
+        "name": "Zona extendida",
+        "description": "De 10 a 20 km desde la sucursal principal",
+        "price": 6500,
+        "type": "distance",
+        "branch_id": "branch-mdq",
+        "min_distance_km": 10,
+        "max_distance_km": 20,
+        "enabled": true
+      },
+      {
         "id": "arg-general",
-        "name": "Argentina",
-        "description": "Cobertura nacional",
+        "name": "Envio nacional",
+        "description": "Cobertura nacional fuera del radio local",
         "price": 1500,
+        "type": "flat",
         "enabled": true
       }
     ],
@@ -85,6 +119,8 @@ SELECT
         "hours": "Lun a Sab 9:00-18:00",
         "phone": "",
         "pickup_fee": 0,
+        "latitude": -38.00548,
+        "longitude": -57.54261,
         "enabled": true
       }
     ],

@@ -15,6 +15,12 @@ import {
     hasBillingInfo,
     normalizeBillingInfo,
 } from "../../utils/billing";
+import {
+    DISTANCE_DELIVERY_KEY,
+    normalizeBranches,
+    normalizeShippingZones,
+    resolveDistanceQuote,
+} from "../../utils/shipping";
 
 const SUPPORTED_PAYMENT_METHODS = ["transfer", "cash_on_pickup"];
 const ORDER_CHANNEL_OPTIONS = [
@@ -58,6 +64,21 @@ const normalizeOrderChannel = (value) => {
     return ["whatsapp", "email"].includes(raw) ? raw : null;
 };
 
+const mapDistanceQuoteError = (code) => {
+    switch (String(code || "")) {
+        case "shipping_location_required":
+            return "Activa tu ubicacion para calcular el envio.";
+        case "delivery_out_of_range":
+            return "La direccion esta fuera del radio de entrega configurado.";
+        case "shipping_origin_not_configured":
+            return "La tienda todavia no configuro coordenadas para la sucursal de origen.";
+        case "distance_shipping_not_configured":
+            return "La tienda no tiene zonas por distancia configuradas.";
+        default:
+            return "No se pudo calcular el envio por ubicacion.";
+    }
+};
+
 export default function CheckoutPage() {
     const { cartItems, clearCart } = useStore();
     const { settings } = useTenant();
@@ -94,6 +115,9 @@ export default function CheckoutPage() {
         city: "",
         postalCode: "",
     });
+    const [deliveryLocation, setDeliveryLocation] = useState(null);
+    const [locatingDelivery, setLocatingDelivery] = useState(false);
+    const [deliveryQuoteError, setDeliveryQuoteError] = useState(null);
     const [billingInfo, setBillingInfo] = useState(EMPTY_BILLING_INFO);
     const [orderChannel, setOrderChannel] = useState("whatsapp");
     const shippingAutofillRef = useRef(false);
@@ -101,47 +125,36 @@ export default function CheckoutPage() {
         const fromSettings = Array.isArray(checkoutSettings?.shipping_zones) ? checkoutSettings.shipping_zones : [];
         const fromCommerce = Array.isArray(commerce?.shipping_zones) ? commerce.shipping_zones : [];
         const source = fromSettings.length ? fromSettings : fromCommerce;
-        const normalized = source
-            .map((zone, index) => ({
-                id: zone?.id || `zone-${index + 1}`,
-                name: zone?.name || `Zona ${index + 1}`,
-                description: zone?.description || "",
-                price: Number(zone?.price || 0),
-                enabled: zone?.enabled !== false,
-            }))
-            .filter((zone) => zone.enabled !== false);
-
-        if (normalized.length) return normalized;
-
-        return [{
-            id: "arg-general",
-            name: "Argentina",
-            description: "Cobertura nacional",
-            price: Number(commerce.shipping_flat || 0),
-            enabled: true,
-        }];
+        return normalizeShippingZones(source, commerce.shipping_flat || 0);
     }, [checkoutSettings, commerce]);
 
     const pickupBranches = useMemo(() => {
         const fromSettings = Array.isArray(checkoutSettings?.branches) ? checkoutSettings.branches : [];
         const fromCommerce = Array.isArray(commerce?.branches) ? commerce.branches : [];
         const source = fromSettings.length ? fromSettings : fromCommerce;
-        return source
-            .map((branch, index) => ({
-                id: branch?.id || `branch-${index + 1}`,
-                name: branch?.name || `Sucursal ${index + 1}`,
-                address: branch?.address || "",
-                hours: branch?.hours || "",
-                phone: branch?.phone || "",
-                pickup_fee: Number(branch?.pickup_fee || 0),
-                enabled: branch?.enabled !== false,
-            }))
-            .filter((branch) => branch.enabled !== false);
+        return normalizeBranches(source);
     }, [checkoutSettings, commerce]);
+
+    const distanceShippingZones = useMemo(
+        () => shippingZones.filter((zone) => zone.type === "distance"),
+        [shippingZones]
+    );
 
     const deliveryOptions = useMemo(() => {
         const options = [];
-        shippingZones.forEach((zone) => {
+        if (distanceShippingZones.length) {
+            options.push({
+                key: DISTANCE_DELIVERY_KEY,
+                type: "shipping",
+                title: "Envio segun tu ubicacion",
+                desc: "Calculamos el costo segun la distancia entre tu ubicacion y la sucursal.",
+                price: null,
+                dynamic: true,
+            });
+        }
+        shippingZones
+            .filter((zone) => zone.type !== "distance")
+            .forEach((zone) => {
             options.push({
                 key: `zone:${zone.id}`,
                 type: "shipping",
@@ -170,7 +183,7 @@ export default function CheckoutPage() {
             });
         }
         return options;
-    }, [shippingZones, pickupBranches, commerce]);
+    }, [shippingZones, distanceShippingZones, pickupBranches, commerce]);
 
     const [deliveryMethod, setDeliveryMethod] = useState(() => {
         const fallback = String(commerce.default_delivery || "zone:arg-general").trim();
@@ -184,6 +197,15 @@ export default function CheckoutPage() {
         const preferredOption = deliveryOptions.find((option) => option.key === preferred);
         setDeliveryMethod(preferredOption?.key || deliveryOptions[0]?.key || "zone:arg-general");
     }, [deliveryOptions, deliveryMethod, checkoutSettings]);
+
+    const distanceQuote = useMemo(() => {
+        if (deliveryMethod !== DISTANCE_DELIVERY_KEY || !deliveryLocation) return null;
+        return resolveDistanceQuote({
+            shippingZones,
+            branches: pickupBranches,
+            location: deliveryLocation,
+        });
+    }, [deliveryLocation, deliveryMethod, pickupBranches, shippingZones]);
 
     const bankTransfer = checkoutSettings?.bank_transfer || commerce.bank_transfer || {};
     const whatsappNumber = String(checkoutSettings?.whatsapp_number || commerce.whatsapp_number || "").replace(/\D/g, "");
@@ -249,6 +271,22 @@ export default function CheckoutPage() {
             setOrderChannel("email");
         }
     }, [orderChannel, whatsappNumber]);
+
+    useEffect(() => {
+        if (deliveryMethod !== DISTANCE_DELIVERY_KEY) {
+            setDeliveryQuoteError(null);
+            return;
+        }
+        if (!deliveryLocation) {
+            setDeliveryQuoteError(null);
+            return;
+        }
+        if (distanceQuote?.ok) {
+            setDeliveryQuoteError(null);
+            return;
+        }
+        setDeliveryQuoteError(mapDistanceQuoteError(distanceQuote?.error));
+    }, [deliveryLocation, deliveryMethod, distanceQuote]);
 
     const [orderSuccess, setOrderSuccess] = useState(null);
 
@@ -412,10 +450,40 @@ export default function CheckoutPage() {
         return items.reduce((acc, it) => acc + it.price * it.qty, 0);
     }, [items, validation]);
 
-    const selectedDeliveryOption = useMemo(
-        () => deliveryOptions.find((option) => option.key === deliveryMethod) || deliveryOptions[0] || null,
-        [deliveryOptions, deliveryMethod]
-    );
+    const selectedDeliveryOption = useMemo(() => {
+        if (deliveryMethod === DISTANCE_DELIVERY_KEY) {
+            if (distanceQuote?.ok) {
+                return {
+                    key: `zone:${distanceQuote.zone.id}`,
+                    type: "shipping",
+                    title: `Envio: ${distanceQuote.zone.name}`,
+                    desc:
+                        distanceQuote.zone.description ||
+                        `${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`,
+                    price: Number(distanceQuote.price || 0),
+                    branch_id: distanceQuote.branch?.id || null,
+                    shipping_zone_id: distanceQuote.zone.id,
+                    distance_km: distanceQuote.distance_km,
+                    dynamic: true,
+                };
+            }
+
+            return {
+                key: DISTANCE_DELIVERY_KEY,
+                type: "shipping",
+                title: "Envio segun tu ubicacion",
+                desc: "Comparte tu ubicacion para calcular el costo.",
+                price: 0,
+                branch_id: null,
+                shipping_zone_id: null,
+                distance_km: null,
+                dynamic: true,
+                pending_quote: true,
+            };
+        }
+
+        return deliveryOptions.find((option) => option.key === deliveryMethod) || deliveryOptions[0] || null;
+    }, [deliveryMethod, deliveryOptions, distanceQuote]);
     const isShippingDelivery = selectedDeliveryOption?.type !== "pickup";
     const displayCurrency = validation?.currency || currency;
     const taxRate = Number(checkoutSettings?.tax_rate ?? commerce.tax_rate ?? 0);
@@ -599,6 +667,36 @@ export default function CheckoutPage() {
         }
     };
 
+    const handleCalculateDeliveryByLocation = () => {
+        if (typeof navigator === "undefined" || !navigator.geolocation) {
+            setDeliveryQuoteError("Tu navegador no permite obtener la ubicacion.");
+            return;
+        }
+
+        setLocatingDelivery(true);
+        setDeliveryQuoteError(null);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setDeliveryLocation({
+                    latitude: Number(position.coords.latitude),
+                    longitude: Number(position.coords.longitude),
+                });
+                setLocatingDelivery(false);
+            },
+            (error) => {
+                console.error("No se pudo obtener la ubicacion", error);
+                setDeliveryQuoteError("No pudimos leer tu ubicacion. Revisa los permisos del navegador.");
+                setLocatingDelivery(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 12000,
+                maximumAge: 0,
+            }
+        );
+    };
+
     const handleCompletePurchase = async () => {
         if (!items.length) return;
         if (!user) {
@@ -627,6 +725,10 @@ export default function CheckoutPage() {
                 setCheckoutError("Completa direccion y ciudad para entrega a domicilio.");
                 return;
             }
+            if (deliveryMethod === DISTANCE_DELIVERY_KEY && !distanceQuote?.ok) {
+                setCheckoutError(mapDistanceQuoteError(distanceQuote?.error || "shipping_location_required"));
+                return;
+            }
         }
         if (hasOrderBillingInfo) {
             if (
@@ -645,6 +747,10 @@ export default function CheckoutPage() {
         setCheckoutError(null);
 
         try {
+            const resolvedDeliveryMethod =
+                deliveryMethod === DISTANCE_DELIVERY_KEY && distanceQuote?.ok
+                    ? `zone:${distanceQuote.zone.id}`
+                    : deliveryMethod;
             const customerPayload = {
                 ...customerInfo,
                 ...shippingInfo,
@@ -652,13 +758,25 @@ export default function CheckoutPage() {
                 phone: normalizedPhone,
                 email: normalizedEmail,
                 contact_channel: orderChannel,
-                delivery_method: deliveryMethod,
+                delivery_method: resolvedDeliveryMethod,
                 delivery_label: selectedDeliveryOption?.title || deliveryMethod,
                 delivery_type: selectedDeliveryOption?.type || "shipping",
-                shipping_zone_id: deliveryMethod.startsWith("zone:") ? deliveryMethod.replace("zone:", "") : undefined,
-                branch_id: deliveryMethod.startsWith("branch:") ? deliveryMethod.replace("branch:", "") : undefined,
+                shipping_zone_id: resolvedDeliveryMethod.startsWith("zone:") ? resolvedDeliveryMethod.replace("zone:", "") : undefined,
+                branch_id: resolvedDeliveryMethod.startsWith("branch:")
+                    ? resolvedDeliveryMethod.replace("branch:", "")
+                    : distanceQuote?.branch?.id || undefined,
                 payment_method: paymentMethod,
                 billing: normalizedBilling,
+                shipping_location: deliveryLocation && distanceQuote?.ok
+                    ? {
+                        latitude: deliveryLocation.latitude,
+                        longitude: deliveryLocation.longitude,
+                        distance_km: distanceQuote.distance_km,
+                        branch_id: distanceQuote.branch?.id || null,
+                        shipping_zone_id: distanceQuote.zone?.id || null,
+                        source: "browser_geolocation",
+                    }
+                    : undefined,
             };
 
             const response = await fetch(`${getApiBase()}/api/orders/submit`, {
@@ -714,7 +832,7 @@ export default function CheckoutPage() {
                 id: data.order?.id || data.order_id || data.id || `TMP-${Date.now()}`,
                 method: checkoutModeResolved,
                 paymentLabel,
-                deliveryMethod,
+                deliveryMethod: resolvedDeliveryMethod,
                 deliveryLabel: selectedDeliveryOption?.title || deliveryMethod,
                 status: resolvedStatus,
                 total: Number(totals.total ?? total),
@@ -1141,6 +1259,13 @@ export default function CheckoutPage() {
                                 <div className="pt-4 pb-2 space-y-3">
                                     {deliveryOptions.map((opt) => {
                                         const checked = deliveryMethod === opt.key;
+                                        const isDistanceOption = opt.key === DISTANCE_DELIVERY_KEY;
+                                        const optionDescription = isDistanceOption && distanceQuote?.ok
+                                            ? `${distanceQuote.zone?.name || "Zona"} · ${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`
+                                            : opt.desc;
+                                        const optionPrice = isDistanceOption && distanceQuote?.ok
+                                            ? Number(distanceQuote.price || 0)
+                                            : opt.price;
                                         return (
                                             <label
                                                 key={opt.key}
@@ -1161,17 +1286,59 @@ export default function CheckoutPage() {
                                                 <div className="ml-4">
                                                     <p className="font-bold">{opt.title}</p>
                                                     <p className="text-sm text-[#8a7560] dark:text-[#a59280]">
-                                                        {opt.desc}
+                                                        {optionDescription}
                                                     </p>
                                                 </div>
                                                 <span className="ml-auto font-bold">
-                                                    {opt.price === 0
+                                                    {optionPrice == null
+                                                        ? "Calcular"
+                                                        : optionPrice === 0
                                                         ? "Gratis"
-                                                        : formatCurrency(opt.price, displayCurrency, locale)}
+                                                        : formatCurrency(optionPrice, displayCurrency, locale)}
                                                 </span>
                                             </label>
                                         );
                                     })}
+
+                                    {deliveryMethod === DISTANCE_DELIVERY_KEY ? (
+                                        <div className="rounded-xl border border-[#e6e0db] bg-[#f8f6f4] p-4 dark:border-[#3d2e1f] dark:bg-[#241a12]">
+                                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                                        Calculo por ubicacion
+                                                    </p>
+                                                    <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
+                                                        Usamos tu ubicacion para calcular el envio segun la distancia al local.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCalculateDeliveryByLocation}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-primary/90 disabled:opacity-60"
+                                                    disabled={locatingDelivery}
+                                                >
+                                                    {locatingDelivery ? "Obteniendo ubicacion..." : "Usar mi ubicacion"}
+                                                </button>
+                                            </div>
+
+                                            {distanceQuote?.ok ? (
+                                                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                                    <p className="font-bold">
+                                                        {distanceQuote.zone?.name} · {distanceQuote.distance_km} km
+                                                    </p>
+                                                    <p className="mt-1">
+                                                        Sucursal: {distanceQuote.branch?.name || "Sucursal principal"} · Costo {distanceQuote.price === 0 ? "Gratis" : formatCurrency(distanceQuote.price, displayCurrency, locale)}
+                                                    </p>
+                                                </div>
+                                            ) : null}
+
+                                            {deliveryQuoteError ? (
+                                                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
+                                                    {deliveryQuoteError}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
 
                                     <div className="flex justify-between pt-2">
                                         <button
@@ -1369,7 +1536,14 @@ export default function CheckoutPage() {
                             {/* Totals */}
                             <div className="border-t border-[#e6e0db] dark:border-[#3d2e1f] pt-4 space-y-3">
                                 <Line label="Subtotal" value={formatCurrency(subtotal, displayCurrency, locale)} />
-                                <Line label="Envio" value={formatCurrency(shipping, displayCurrency, locale)} />
+                                <Line
+                                    label="Envio"
+                                    value={
+                                        deliveryMethod === DISTANCE_DELIVERY_KEY && !distanceQuote?.ok
+                                            ? "A calcular"
+                                            : formatCurrency(shipping, displayCurrency, locale)
+                                    }
+                                />
                                 <Line label="Impuestos" value={formatCurrency(iva, displayCurrency, locale)} />
                             </div>
 

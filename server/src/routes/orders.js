@@ -14,6 +14,12 @@ import {
   normalizeEmailInput,
   sendSmtpEmail,
 } from '../services/mailer.js';
+import {
+  normalizeBranches,
+  normalizeShippingZones,
+  resolveShippingAmount,
+  toNumber,
+} from '../services/shipping.js';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
@@ -70,11 +76,6 @@ const ALLOWED_STATUSES = new Set([
   'cancelled',
   'draft',
 ]);
-
-function toNumber(value, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 function normalizePaymentMethod(value) {
   const raw = String(value || '')
@@ -151,82 +152,6 @@ function resolveOrderChannel(settings = {}, requested = '') {
   }
   const hasWhatsapp = String(settings?.whatsapp_number || '').replace(/\D/g, '');
   return hasWhatsapp ? 'whatsapp' : 'email';
-}
-
-function normalizeShippingZones(settings = {}) {
-  const source = Array.isArray(settings.shipping_zones) ? settings.shipping_zones : [];
-  const parsed = source
-    .map((zone, index) => ({
-      id: String(zone?.id || '').trim() || `zone-${index + 1}`,
-      name: String(zone?.name || '').trim() || `Zona ${index + 1}`,
-      description: String(zone?.description || '').trim(),
-      price: toNumber(zone?.price, 0),
-      enabled: zone?.enabled !== false,
-    }))
-    .filter((zone) => zone.enabled !== false);
-
-  if (parsed.length) return parsed;
-
-  return [
-    {
-      id: 'arg-general',
-      name: 'Argentina',
-      description: 'Cobertura general',
-      price: toNumber(settings.shipping_flat, 0),
-      enabled: true,
-    },
-  ];
-}
-
-function normalizeBranches(settings = {}) {
-  const source = Array.isArray(settings.branches) ? settings.branches : [];
-  return source
-    .map((branch, index) => ({
-      id: String(branch?.id || '').trim() || `branch-${index + 1}`,
-      name: String(branch?.name || '').trim(),
-      address: String(branch?.address || '').trim(),
-      hours: String(branch?.hours || '').trim(),
-      phone: String(branch?.phone || '').trim(),
-      pickup_fee: toNumber(branch?.pickup_fee, 0),
-      enabled: branch?.enabled !== false,
-    }))
-    .filter((branch) => branch.enabled !== false && branch.id && branch.name);
-}
-
-function resolveShippingAmount(settings = {}, customer = {}) {
-  const deliveryRaw = String(customer?.delivery_method || customer?.deliveryMethod || '').trim();
-  const shippingZones = normalizeShippingZones(settings);
-  const branches = normalizeBranches(settings);
-
-  if (deliveryRaw.startsWith('zone:')) {
-    const zoneId = deliveryRaw.slice(5);
-    const zone = shippingZones.find((entry) => entry.id === zoneId);
-    if (zone) {
-      return { shipping: toNumber(zone.price, 0), shipping_zone_id: zone.id, branch_id: null };
-    }
-  }
-
-  if (deliveryRaw.startsWith('branch:')) {
-    const branchId = deliveryRaw.slice(7);
-    const branch = branches.find((entry) => entry.id === branchId);
-    if (branch) {
-      return { shipping: toNumber(branch.pickup_fee, 0), shipping_zone_id: null, branch_id: branch.id };
-    }
-  }
-
-  if (deliveryRaw === 'mdp' || deliveryRaw === 'necochea') {
-    return { shipping: 0, shipping_zone_id: null, branch_id: deliveryRaw };
-  }
-
-  if (deliveryRaw === 'home' && shippingZones.length) {
-    return { shipping: toNumber(shippingZones[0].price, 0), shipping_zone_id: shippingZones[0].id, branch_id: null };
-  }
-
-  return {
-    shipping: toNumber(shippingZones[0]?.price, toNumber(settings.shipping_flat, 0)),
-    shipping_zone_id: shippingZones[0]?.id || null,
-    branch_id: null,
-  };
 }
 
 function normalizeItems(items) {
@@ -1133,7 +1058,11 @@ ordersRouter.post('/submit', async (req, res, next) => {
     const taxRate = Number(commerce.tax_rate || 0);
     const customer = req.body.customer || {};
     const shippingInfo = resolveShippingAmount(commerce, customer);
-    const shipping = toNumber(shippingInfo.shipping, 0);
+    if (shippingInfo?.error) {
+      return res.status(400).json({ error: shippingInfo.error });
+    }
+
+    const shipping = toNumber(shippingInfo.amount, 0);
     const tax = (validation.subtotal + shipping) * taxRate;
     const total = validation.subtotal + shipping + tax;
 
@@ -1142,6 +1071,8 @@ ordersRouter.post('/submit', async (req, res, next) => {
       ...customer,
       shipping_zone_id: shippingInfo.shipping_zone_id,
       branch_id: shippingInfo.branch_id,
+      shipping_distance_km: shippingInfo.distance_km ?? null,
+      shipping_zone_type: shippingInfo.shipping_zone_type || null,
       payment_method: checkoutMode,
       contact_channel: contactChannel,
     };

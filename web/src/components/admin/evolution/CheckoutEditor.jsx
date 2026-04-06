@@ -1,4 +1,6 @@
-﻿import React from 'react';
+import React, { useState } from 'react';
+import BranchLocationPicker from './BranchLocationPicker';
+import ShippingZonesMapPreview from './ShippingZonesMapPreview';
 
 const CHECKOUT_METHOD_OPTIONS = [
     { key: 'transfer', label: 'Transferencia' },
@@ -18,6 +20,8 @@ const EMPTY_BRANCH = () => ({
     hours: '',
     phone: '',
     pickup_fee: 0,
+    latitude: '',
+    longitude: '',
     enabled: true,
 });
 
@@ -26,6 +30,10 @@ const EMPTY_SHIPPING_ZONE = () => ({
     name: '',
     description: '',
     price: 0,
+    type: 'flat',
+    branch_id: '',
+    min_distance_km: 0,
+    max_distance_km: '',
     enabled: true,
 });
 
@@ -36,6 +44,7 @@ const compactFieldClass =
     'w-full rounded-lg border border-white/25 bg-zinc-900/70 px-2.5 py-1.5 text-sm text-white placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-evolution-indigo focus:ring-2 focus:ring-evolution-indigo/30';
 
 const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
+    const [mapBranchIndex, setMapBranchIndex] = useState(null);
     const checkoutMethods = Array.isArray(settings?.commerce?.payment_methods)
         ? settings.commerce.payment_methods
         : ['transfer', 'cash_on_pickup'];
@@ -142,6 +151,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
     };
 
     const addBranch = () => {
+        setMapBranchIndex(branches.length);
         setSettings((prev) => ({
             ...prev,
             commerce: {
@@ -167,6 +177,11 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
     };
 
     const removeBranch = (index) => {
+        setMapBranchIndex((current) => {
+            if (current == null) return current;
+            if (current === index) return null;
+            return current > index ? current - 1 : current;
+        });
         setSettings((prev) => {
             const current = Array.isArray(prev.commerce?.branches) ? [...prev.commerce.branches] : [];
             if (!current[index]) return prev;
@@ -179,6 +194,10 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                 },
             };
         });
+    };
+
+    const toggleBranchMap = (index) => {
+        setMapBranchIndex((current) => (current === index ? null : index));
     };
 
     return (
@@ -363,9 +382,14 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             className={fieldClass}
                         >
                             <option value="" className="bg-zinc-900">Sin definir</option>
+                            {shippingZones.some((zone) => zone.type === 'distance') ? (
+                                <option value="distance:auto" className="bg-zinc-900">
+                                    Envio segun ubicacion
+                                </option>
+                            ) : null}
                             {shippingZones.map((zone) => (
                                 <option key={`zone-${zone.id}`} value={`zone:${zone.id}`} className="bg-zinc-900">
-                                    Zona: {zone.name}
+                                    {zone.type === 'distance' ? 'Distancia' : 'Zona'}: {zone.name}
                                 </option>
                             ))}
                             {branches.map((branch) => (
@@ -408,6 +432,34 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                     className={compactFieldClass}
                                 />
                             </div>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                <select
+                                    value={zone.type || 'flat'}
+                                    onChange={(e) => updateShippingZone(index, 'type', e.target.value)}
+                                    className={compactFieldClass}
+                                >
+                                    <option value="flat" className="bg-zinc-900">Zona fija</option>
+                                    <option value="distance" className="bg-zinc-900">Por distancia</option>
+                                </select>
+                                {zone.type === 'distance' ? (
+                                    <select
+                                        value={zone.branch_id || ''}
+                                        onChange={(e) => updateShippingZone(index, 'branch_id', e.target.value)}
+                                        className={compactFieldClass}
+                                    >
+                                        <option value="" className="bg-zinc-900">Sucursal origen</option>
+                                        {branches.map((branch) => (
+                                            <option key={branch.id} value={branch.id} className="bg-zinc-900">
+                                                {branch.name || branch.id}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-500">
+                                        El cliente elige esta zona directamente.
+                                    </div>
+                                )}
+                            </div>
                             <input
                                 type="text"
                                 value={zone.description || ''}
@@ -415,6 +467,28 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                 onChange={(e) => updateShippingZone(index, 'description', e.target.value)}
                                 className={compactFieldClass}
                             />
+                            {zone.type === 'distance' ? (
+                                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={zone.min_distance_km ?? 0}
+                                        placeholder="Desde km"
+                                        onChange={(e) => updateShippingZone(index, 'min_distance_km', Number(e.target.value || 0))}
+                                        className={compactFieldClass}
+                                    />
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        value={zone.max_distance_km ?? ''}
+                                        placeholder="Hasta km"
+                                        onChange={(e) => updateShippingZone(index, 'max_distance_km', e.target.value === '' ? '' : Number(e.target.value))}
+                                        className={compactFieldClass}
+                                    />
+                                </div>
+                            ) : null}
                             <div className="flex items-center justify-between">
                                 <label className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400">
                                     <input
@@ -435,6 +509,10 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         </div>
                     ))}
                 </div>
+                <p className="text-xs text-zinc-500">
+                    Las zonas por distancia usan la ubicacion del cliente y la sucursal origen para calcular el costo.
+                </p>
+                <ShippingZonesMapPreview branches={branches} shippingZones={shippingZones} />
             </div>
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -488,6 +566,46 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                     className={compactFieldClass}
                                 />
                             </div>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                <input
+                                    type="number"
+                                    step="0.000001"
+                                    value={branch.latitude ?? ''}
+                                    placeholder="Latitud"
+                                    onChange={(e) => updateBranch(index, 'latitude', e.target.value === '' ? '' : Number(e.target.value))}
+                                    className={compactFieldClass}
+                                />
+                                <input
+                                    type="number"
+                                    step="0.000001"
+                                    value={branch.longitude ?? ''}
+                                    placeholder="Longitud"
+                                    onChange={(e) => updateBranch(index, 'longitude', e.target.value === '' ? '' : Number(e.target.value))}
+                                    className={compactFieldClass}
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs text-zinc-500">
+                                    Usa OpenStreetMap para elegir la sucursal o deja las coordenadas manuales.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => toggleBranchMap(index)}
+                                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-200 transition-all hover:border-white/25 hover:bg-white/10"
+                                >
+                                    {mapBranchIndex === index ? 'Ocultar mapa' : 'Seleccionar en mapa'}
+                                </button>
+                            </div>
+                            {mapBranchIndex === index ? (
+                                <BranchLocationPicker
+                                    branch={branch}
+                                    onAddressChange={(value) => updateBranch(index, 'address', value)}
+                                    onCoordinatesChange={({ latitude, longitude }) => {
+                                        updateBranch(index, 'latitude', latitude);
+                                        updateBranch(index, 'longitude', longitude);
+                                    }}
+                                />
+                            ) : null}
                             <div className="flex items-center justify-between">
                                 <label className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400">
                                     <input
@@ -508,6 +626,9 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         </div>
                     ))}
                 </div>
+                <p className="text-xs text-zinc-500">
+                    Carga latitud y longitud para habilitar el calculo de envio por distancia desde esa sucursal. El selector usa OpenStreetMap y no requiere Google Cloud.
+                </p>
             </div>
 
             <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -548,3 +669,5 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
 };
 
 export default CheckoutEditor;
+
+

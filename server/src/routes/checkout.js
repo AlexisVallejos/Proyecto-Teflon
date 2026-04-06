@@ -4,6 +4,10 @@ import { pool } from '../db.js';
 import { normalizePriceAdjustments } from '../services/pricing.js';
 import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
 import {
+  resolveShippingAmount,
+  toNumber,
+} from '../services/shipping.js';
+import {
   applyOfferDiscount,
   getTenantOffers,
   resolveBestOfferForProduct,
@@ -14,11 +18,6 @@ export const checkoutRouter = express.Router();
 checkoutRouter.use(resolveTenant);
 
 const ALLOWED_METHODS = new Set(['transfer', 'cash_on_pickup']);
-
-function toNumber(value, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 function normalizePaymentMethod(value) {
   const raw = String(value || '')
@@ -64,61 +63,6 @@ function resolveCheckoutMethod(commerce = {}, requested = '') {
     return normalizedRequested;
   }
   return methods[0] || 'transfer';
-}
-
-function normalizeShippingZones(commerce = {}) {
-  const zones = Array.isArray(commerce.shipping_zones) ? commerce.shipping_zones : [];
-  const parsed = zones
-    .map((zone, index) => ({
-      id: String(zone?.id || '').trim() || `zone-${index + 1}`,
-      price: toNumber(zone?.price, 0),
-      enabled: zone?.enabled !== false,
-    }))
-    .filter((zone) => zone.enabled !== false);
-  if (parsed.length) return parsed;
-  return [{ id: 'arg-general', price: toNumber(commerce.shipping_flat, 0), enabled: true }];
-}
-
-function normalizeBranches(commerce = {}) {
-  const branches = Array.isArray(commerce.branches) ? commerce.branches : [];
-  return branches
-    .map((branch, index) => ({
-      id: String(branch?.id || '').trim() || `branch-${index + 1}`,
-      pickup_fee: toNumber(branch?.pickup_fee, 0),
-      enabled: branch?.enabled !== false,
-    }))
-    .filter((branch) => branch.enabled !== false);
-}
-
-function resolveShippingAmount(commerce = {}, customer = {}) {
-  const deliveryRaw = String(customer?.delivery_method || customer?.deliveryMethod || '').trim();
-  const shippingZones = normalizeShippingZones(commerce);
-  const branches = normalizeBranches(commerce);
-
-  if (deliveryRaw.startsWith('zone:')) {
-    const zoneId = deliveryRaw.slice(5);
-    const zone = shippingZones.find((entry) => entry.id === zoneId);
-    if (zone) {
-      return { amount: zone.price, shipping_zone_id: zone.id, branch_id: null };
-    }
-  }
-  if (deliveryRaw.startsWith('branch:')) {
-    const branchId = deliveryRaw.slice(7);
-    const branch = branches.find((entry) => entry.id === branchId);
-    if (branch) {
-      return { amount: branch.pickup_fee, shipping_zone_id: null, branch_id: branch.id };
-    }
-  }
-  if (deliveryRaw === 'mdp' || deliveryRaw === 'necochea') {
-    return { amount: 0, shipping_zone_id: null, branch_id: deliveryRaw };
-  }
-
-  const fallbackZone = shippingZones[0];
-  return {
-    amount: toNumber(fallbackZone?.price, toNumber(commerce.shipping_flat, 0)),
-    shipping_zone_id: fallbackZone?.id || null,
-    branch_id: null,
-  };
 }
 
 function normalizeItems(items) {
@@ -259,6 +203,10 @@ checkoutRouter.post('/create', async (req, res, next) => {
     const customer = req.body.customer || {};
     const shippingInfo = resolveShippingAmount(commerce, customer);
     const taxRate = Number(commerce.tax_rate || 0);
+    if (shippingInfo?.error) {
+      return res.status(400).json({ error: shippingInfo.error });
+    }
+
     const shipping = toNumber(shippingInfo.amount, 0);
     const tax = (validation.subtotal + shipping) * taxRate;
     const total = validation.subtotal + shipping + tax;
@@ -285,6 +233,8 @@ checkoutRouter.post('/create', async (req, res, next) => {
       payment_method: checkoutMode,
       shipping_zone_id: shippingInfo.shipping_zone_id,
       branch_id: shippingInfo.branch_id,
+      shipping_distance_km: shippingInfo.distance_km ?? null,
+      shipping_zone_type: shippingInfo.shipping_zone_type || null,
     };
 
     const orderRes = await client.query(

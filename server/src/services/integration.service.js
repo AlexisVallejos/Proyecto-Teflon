@@ -348,15 +348,13 @@ const buildProductDataFromSync = ({ existingData, item, allowEditorialSync }) =>
   return next;
 };
 
-const dedupeItemsByExternalId = (items) => {
-  const byExternalId = new Map();
-  for (const rawItem of Array.isArray(items) ? items : []) {
-    const normalized = normalizeSyncItem(rawItem);
-    if (!normalized.externalId) continue;
-    byExternalId.set(normalized.externalId, normalized);
-  }
-  return [...byExternalId.values()];
-};
+const buildSyncItemResultBase = ({ index, rawItem, item, sourceSystem }) => ({
+  index,
+  external_id: item?.externalId || toTextOrNull(rawItem?.external_id ?? rawItem?.externalId ?? rawItem?.id ?? rawItem?.sku) || null,
+  sku: item?.sku || toTextOrNull(rawItem?.sku ?? rawItem?.codigo ?? rawItem?.codigo_propio) || null,
+  name: item?.name || toTextOrNull(rawItem?.name ?? rawItem?.title ?? rawItem?.titulo) || null,
+  source_system: item?.sourceSystem || sourceSystem,
+});
 
 async function upsertSyncMetadata(client, { tenantId, productId, externalId, sourceSystem, lastSyncAt, rawPayload }) {
   await client.query(
@@ -600,14 +598,8 @@ export async function syncIntegrationProducts({
 }) {
   await ensureProductSyncSchema();
 
-  const normalizedItems = dedupeItemsByExternalId(
-    (Array.isArray(items) ? items : []).map((item) => ({
-      ...(isPlainObject(item) ? item : {}),
-      source_system: item?.source_system ?? item?.sourceSystem ?? sourceSystem,
-    }))
-  );
-
-  if (!normalizedItems.length) {
+  const sourceItems = Array.isArray(items) ? items : [];
+  if (!sourceItems.length) {
     return {
       ok: true,
       tenant_id: tenantId,
@@ -615,11 +607,33 @@ export async function syncIntegrationProducts({
       total: 0,
       created: 0,
       updated: 0,
+      failed: 0,
       categories_created: 0,
+      item_results: [],
     };
   }
 
-  const externalIds = normalizedItems.map((item) => item.externalId);
+  const normalizedEntries = sourceItems.map((rawItem, index) => {
+    if (!isPlainObject(rawItem)) {
+      return { index, rawItem, item: null };
+    }
+
+    return {
+      index,
+      rawItem,
+      item: normalizeSyncItem({
+        ...rawItem,
+        source_system: rawItem?.source_system ?? rawItem?.sourceSystem ?? sourceSystem,
+      }),
+    };
+  });
+
+  const externalIds = [...new Set(
+    normalizedEntries
+      .map((entry) => entry.item?.externalId)
+      .map((value) => toTextOrNull(value))
+      .filter(Boolean)
+  )];
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -651,170 +665,278 @@ export async function syncIntegrationProducts({
 
     let created = 0;
     let updated = 0;
+    let failed = 0;
     let categoriesCreated = 0;
     const syncedAt = new Date();
+    const itemResults = [];
 
-    for (const item of normalizedItems) {
-      const categoryResolution = item.hasCategoryRefs
-        ? await resolveCategoryIdsForSync(client, {
-            tenantId,
-            categoryIds: item.categoryIds,
-            categoryLabels: item.categoryLabels,
-          })
-        : { categoryIds: [], createdCount: 0 };
-      categoriesCreated += categoryResolution.createdCount;
+    for (const entry of normalizedEntries) {
+      const { index, rawItem, item } = entry;
+      const baseResult = buildSyncItemResultBase({
+        index,
+        rawItem: isPlainObject(rawItem) ? rawItem : {},
+        item,
+        sourceSystem,
+      });
 
-      const existing = existingByExternalId.get(item.externalId);
-      if (!existing) {
-        const productData = buildProductDataFromSync({
-          existingData: {},
-          item,
-          allowEditorialSync: true,
+      if (!isPlainObject(rawItem)) {
+        failed += 1;
+        itemResults.push({
+          ...baseResult,
+          ok: false,
+          status: 'error',
+          action: 'ignored',
+          error: 'invalid_product_item',
         });
-        const insertRes = await client.query(
+        continue;
+      }
+
+      if (!item?.externalId) {
+        failed += 1;
+        itemResults.push({
+          ...baseResult,
+          ok: false,
+          status: 'error',
+          action: 'ignored',
+          error: 'external_id_required',
+        });
+        continue;
+      }
+
+      const savepointName = `sync_item_${index + 1}`;
+      await client.query(`SAVEPOINT ${savepointName}`);
+
+      try {
+        const categoryResolution = item.hasCategoryRefs
+          ? await resolveCategoryIdsForSync(client, {
+              tenantId,
+              categoryIds: item.categoryIds,
+              categoryLabels: item.categoryLabels,
+            })
+          : { categoryIds: [], createdCount: 0 };
+
+        const existing = existingByExternalId.get(item.externalId);
+        if (!existing) {
+          const productData = buildProductDataFromSync({
+            existingData: {},
+            item,
+            allowEditorialSync: true,
+          });
+          const insertRes = await client.query(
+            [
+              'insert into product_cache (',
+              'tenant_id, erp_id, external_id, source_system, sku, name, description, price, price_wholesale, stock, brand, data,',
+              'is_active_source, is_visible_web, admin_locked, deleted_at, last_sync_at',
+              ') values (',
+              '$1, $2, $3, $4, $5, $6, $7, $8, $9, greatest($10, 0), $11, $12::jsonb, $13, $14, $15, $16, $17',
+              ') returning id',
+            ].join(' '),
+            [
+              tenantId,
+              item.externalId,
+              item.externalId,
+              item.sourceSystem,
+              item.sku,
+              item.name,
+              item.description,
+              item.hasPriceRetail ? item.priceRetail : 0,
+              item.hasPriceWholesale ? item.priceWholesale : (item.hasPriceRetail ? item.priceRetail : 0),
+              item.hasStock ? item.stock : 0,
+              item.brand,
+              JSON.stringify(productData),
+              item.hasIsActive ? item.isActiveSource : true,
+              true,
+              false,
+              item.deletedAt,
+              syncedAt,
+            ]
+          );
+
+          const productId = insertRes.rows[0].id;
+          if (categoryResolution.categoryIds.length) {
+            await replaceProductCategories(client, {
+              tenantId,
+              productId,
+              categoryIds: categoryResolution.categoryIds,
+            });
+          }
+          await upsertSyncMetadata(client, {
+            tenantId,
+            productId,
+            externalId: item.externalId,
+            sourceSystem: item.sourceSystem,
+            lastSyncAt: syncedAt,
+            rawPayload: item.rawPayload,
+          });
+
+          created += 1;
+          categoriesCreated += categoryResolution.createdCount;
+          const nextExisting = {
+            id: productId,
+            erp_id: item.externalId,
+            external_id: item.externalId,
+            sku: item.sku,
+            name: item.name,
+            description: item.description,
+            price: item.hasPriceRetail ? item.priceRetail : 0,
+            price_wholesale: item.hasPriceWholesale ? item.priceWholesale : (item.hasPriceRetail ? item.priceRetail : 0),
+            stock: item.hasStock ? item.stock : 0,
+            brand: item.brand,
+            data: productData,
+            status: item.deletedAt ? 'archived' : 'active',
+            admin_locked: false,
+            deleted_at: item.deletedAt,
+            is_active_source: item.hasIsActive ? item.isActiveSource : true,
+            metadata_external_id: item.externalId,
+          };
+          existingByExternalId.set(item.externalId, nextExisting);
+          await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+          itemResults.push({
+            ...baseResult,
+            ok: true,
+            status: 'created',
+            action: 'create',
+            product_id: productId,
+            categories_created: categoryResolution.createdCount,
+          });
+          continue;
+        }
+
+        const allowEditorialSync = existing.admin_locked !== true;
+        const nextPrice = item.hasPriceRetail ? item.priceRetail : Number(existing.price || 0);
+        const nextPriceWholesale = item.hasPriceWholesale
+          ? item.priceWholesale
+          : Number(existing.price_wholesale ?? nextPrice ?? 0);
+        const nextStock = item.hasStock ? item.stock : Number(existing.stock || 0);
+        const nextIsActiveSource = item.hasIsActive ? item.isActiveSource : existing.is_active_source !== false;
+        const nextName = allowEditorialSync ? item.name : existing.name;
+        const nextSku = allowEditorialSync ? item.sku : existing.sku;
+        const nextDescription = allowEditorialSync
+          ? (item.hasDescription ? item.description : existing.description)
+          : existing.description;
+        const nextBrand = allowEditorialSync
+          ? (item.hasBrand ? item.brand : existing.brand)
+          : existing.brand;
+        const nextDeletedAt = allowEditorialSync && !existing.deleted_at && item.deletedAt
+          ? item.deletedAt
+          : existing.deleted_at;
+        const nextData = buildProductDataFromSync({
+          existingData: existing.data,
+          item,
+          allowEditorialSync,
+        });
+
+        await client.query(
           [
-            'insert into product_cache (',
-            'tenant_id, erp_id, external_id, source_system, sku, name, description, price, price_wholesale, stock, brand, data,',
-            'is_active_source, is_visible_web, admin_locked, deleted_at, last_sync_at',
-            ') values (',
-            '$1, $2, $3, $4, $5, $6, $7, $8, $9, greatest($10, 0), $11, $12::jsonb, $13, $14, $15, $16, $17',
-            ') returning id',
+            'update product_cache',
+            'set erp_id = $3,',
+            'external_id = $4,',
+            'source_system = $5,',
+            'sku = $6,',
+            'name = $7,',
+            'description = $8,',
+            'price = $9,',
+            'price_wholesale = $10,',
+            'stock = greatest($11, 0),',
+            'brand = $12,',
+            'data = $13::jsonb,',
+            'is_active_source = $14,',
+            'deleted_at = $15,',
+            'last_sync_at = $16,',
+            'updated_at = now()',
+            'where tenant_id = $1 and id = $2',
           ].join(' '),
           [
             tenantId,
+            existing.id,
             item.externalId,
             item.externalId,
             item.sourceSystem,
-            item.sku,
-            item.name,
-            item.description,
-            item.hasPriceRetail ? item.priceRetail : 0,
-            item.hasPriceWholesale ? item.priceWholesale : (item.hasPriceRetail ? item.priceRetail : 0),
-            item.hasStock ? item.stock : 0,
-            item.brand,
-            JSON.stringify(productData),
-            item.hasIsActive ? item.isActiveSource : true,
-            true,
-            false,
-            item.deletedAt,
+            nextSku,
+            nextName,
+            nextDescription,
+            nextPrice,
+            nextPriceWholesale,
+            nextStock,
+            nextBrand,
+            JSON.stringify(nextData),
+            nextIsActiveSource,
+            nextDeletedAt,
             syncedAt,
           ]
         );
 
-        const productId = insertRes.rows[0].id;
-        if (categoryResolution.categoryIds.length) {
+        if (allowEditorialSync && categoryResolution.categoryIds.length) {
           await replaceProductCategories(client, {
             tenantId,
-            productId,
+            productId: existing.id,
             categoryIds: categoryResolution.categoryIds,
           });
         }
+
         await upsertSyncMetadata(client, {
           tenantId,
-          productId,
+          productId: existing.id,
           externalId: item.externalId,
           sourceSystem: item.sourceSystem,
           lastSyncAt: syncedAt,
           rawPayload: item.rawPayload,
         });
 
-        created += 1;
-        continue;
-      }
-
-      const allowEditorialSync = existing.admin_locked !== true;
-      const nextPrice = item.hasPriceRetail ? item.priceRetail : Number(existing.price || 0);
-      const nextPriceWholesale = item.hasPriceWholesale
-        ? item.priceWholesale
-        : Number(existing.price_wholesale ?? nextPrice ?? 0);
-      const nextStock = item.hasStock ? item.stock : Number(existing.stock || 0);
-      const nextIsActiveSource = item.hasIsActive ? item.isActiveSource : existing.is_active_source !== false;
-      const nextName = allowEditorialSync ? item.name : existing.name;
-      const nextSku = allowEditorialSync ? item.sku : existing.sku;
-      const nextDescription = allowEditorialSync
-        ? (item.hasDescription ? item.description : existing.description)
-        : existing.description;
-      const nextBrand = allowEditorialSync
-        ? (item.hasBrand ? item.brand : existing.brand)
-        : existing.brand;
-      const nextDeletedAt = allowEditorialSync && !existing.deleted_at && item.deletedAt
-        ? item.deletedAt
-        : existing.deleted_at;
-      const nextData = buildProductDataFromSync({
-        existingData: existing.data,
-        item,
-        allowEditorialSync,
-      });
-
-      await client.query(
-        [
-          'update product_cache',
-          'set erp_id = $3,',
-          'external_id = $4,',
-          'source_system = $5,',
-          'sku = $6,',
-          'name = $7,',
-          'description = $8,',
-          'price = $9,',
-          'price_wholesale = $10,',
-          'stock = greatest($11, 0),',
-          'brand = $12,',
-          'data = $13::jsonb,',
-          'is_active_source = $14,',
-          'deleted_at = $15,',
-          'last_sync_at = $16,',
-          'updated_at = now()',
-          'where tenant_id = $1 and id = $2',
-        ].join(' '),
-        [
-          tenantId,
-          existing.id,
-          item.externalId,
-          item.externalId,
-          item.sourceSystem,
-          nextSku,
-          nextName,
-          nextDescription,
-          nextPrice,
-          nextPriceWholesale,
-          nextStock,
-          nextBrand,
-          JSON.stringify(nextData),
-          nextIsActiveSource,
-          nextDeletedAt,
-          syncedAt,
-        ]
-      );
-
-      if (allowEditorialSync && categoryResolution.categoryIds.length) {
-        await replaceProductCategories(client, {
-          tenantId,
-          productId: existing.id,
-          categoryIds: categoryResolution.categoryIds,
+        updated += 1;
+        categoriesCreated += categoryResolution.createdCount;
+        existingByExternalId.set(item.externalId, {
+          ...existing,
+          erp_id: item.externalId,
+          external_id: item.externalId,
+          source_system: item.sourceSystem,
+          sku: nextSku,
+          name: nextName,
+          description: nextDescription,
+          price: nextPrice,
+          price_wholesale: nextPriceWholesale,
+          stock: nextStock,
+          brand: nextBrand,
+          data: nextData,
+          deleted_at: nextDeletedAt,
+          is_active_source: nextIsActiveSource,
+          metadata_external_id: item.externalId,
+        });
+        await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+        itemResults.push({
+          ...baseResult,
+          ok: true,
+          status: 'updated',
+          action: 'update',
+          product_id: existing.id,
+          categories_created: categoryResolution.createdCount,
+        });
+      } catch (err) {
+        await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+        await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+        failed += 1;
+        itemResults.push({
+          ...baseResult,
+          ok: false,
+          status: 'error',
+          action: existingByExternalId.has(item.externalId) ? 'update' : 'create',
+          error: err?.code || err?.message || 'sync_item_failed',
         });
       }
-
-      await upsertSyncMetadata(client, {
-        tenantId,
-        productId: existing.id,
-        externalId: item.externalId,
-        sourceSystem: item.sourceSystem,
-        lastSyncAt: syncedAt,
-        rawPayload: item.rawPayload,
-      });
-
-      updated += 1;
     }
 
     await client.query('COMMIT');
     return {
-      ok: true,
+      ok: failed === 0,
+      partial: failed > 0 && (created > 0 || updated > 0),
       tenant_id: tenantId,
       source_system: sourceSystem,
-      total: normalizedItems.length,
+      total: normalizedEntries.length,
       created,
       updated,
+      failed,
       categories_created: categoriesCreated,
+      item_results: itemResults,
     };
   } catch (err) {
     await client.query('ROLLBACK');
