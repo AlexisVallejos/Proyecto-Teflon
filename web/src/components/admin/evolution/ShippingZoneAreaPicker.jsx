@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ArrowsOutCardinal,
     MagnifyingGlass,
     MapTrifold,
     Trash,
@@ -192,6 +191,8 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
     const polygonLayerRef = useRef(null);
+    const cornerHandlesRef = useRef([]);
+    const centerHandleRef = useRef(null);
     const onChangeRef = useRef(onChange);
     const [status, setStatus] = useState('loading');
     const [query, setQuery] = useState(zone?.name || '');
@@ -210,20 +211,45 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
         onChangeRef.current = onChange;
     }, [onChange]);
 
-    const drawPolygon = useCallback((polygonPoints) => {
+    const clearInteractiveLayers = useCallback(() => {
         const map = mapRef.current;
-        const L = window.L;
-        if (!map || !L) return;
+        if (!map) return;
 
         if (polygonLayerRef.current) {
             map.removeLayer(polygonLayerRef.current);
             polygonLayerRef.current = null;
         }
 
-        if (!Array.isArray(polygonPoints) || polygonPoints.length < 3) return;
+        cornerHandlesRef.current.forEach((handle) => {
+            try {
+                map.removeLayer(handle);
+            } catch {}
+        });
+        cornerHandlesRef.current = [];
 
-        polygonLayerRef.current = L.polygon(
-            polygonPoints.map((point) => [point.lat, point.lng]),
+        if (centerHandleRef.current) {
+            try {
+                map.removeLayer(centerHandleRef.current);
+            } catch {}
+            centerHandleRef.current = null;
+        }
+    }, []);
+
+    const syncInteractiveBounds = useCallback((boundsObject, options = {}) => {
+        const map = mapRef.current;
+        const L = window.L;
+        if (!map || !L) return;
+
+        clearInteractiveLayers();
+
+        const normalizedBounds = normalizeBoundsObject(boundsObject);
+        if (!normalizedBounds) return;
+
+        polygonLayerRef.current = L.rectangle(
+            [
+                [normalizedBounds.south, normalizedBounds.west],
+                [normalizedBounds.north, normalizedBounds.east],
+            ],
             {
                 color: '#2563eb',
                 weight: 2,
@@ -232,11 +258,101 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
             },
         ).addTo(map);
 
-        map.fitBounds(polygonLayerRef.current.getBounds(), {
-            padding: [24, 24],
-            maxZoom: 15,
+        const corners = {
+            nw: [normalizedBounds.north, normalizedBounds.west],
+            ne: [normalizedBounds.north, normalizedBounds.east],
+            se: [normalizedBounds.south, normalizedBounds.east],
+            sw: [normalizedBounds.south, normalizedBounds.west],
+        };
+
+        const oppositeCornerKey = {
+            nw: 'se',
+            ne: 'sw',
+            se: 'nw',
+            sw: 'ne',
+        };
+
+        const createHandleIcon = (role, color, size) =>
+            L.divIcon({
+                className: '',
+                iconSize: [size, size],
+                iconAnchor: [size / 2, size / 2],
+                html: `<div style="width:${size}px;height:${size}px;border-radius:999px;background:${color};border:2px solid #ffffff;box-shadow:0 6px 18px rgba(15,23,42,0.18);"></div>`,
+            });
+
+        Object.entries(corners).forEach(([role, latLng]) => {
+            const marker = L.marker(latLng, {
+                draggable: true,
+                icon: createHandleIcon(role, '#2563eb', 14),
+            }).addTo(map);
+
+            marker.bindTooltip('Arrastra para agrandar o achicar', {
+                direction: 'top',
+                offset: [0, -8],
+            });
+
+            marker.on('dragend', (event) => {
+                const current = event.target.getLatLng();
+                const opposite = corners[oppositeCornerKey[role]];
+                const nextBounds = normalizeBoundsObject({
+                    south: Math.min(current.lat, opposite[0]),
+                    north: Math.max(current.lat, opposite[0]),
+                    west: Math.min(current.lng, opposite[1]),
+                    east: Math.max(current.lng, opposite[1]),
+                });
+
+                if (!nextBounds) return;
+
+                onChangeRef.current?.({
+                    polygon: polygonFromBoundsObject(nextBounds),
+                    coverage_mode: 'polygon',
+                });
+                setFeedback('Area actualizada. Puedes seguir moviendo o ajustando las esquinas.');
+            });
+
+            cornerHandlesRef.current.push(marker);
         });
-    }, []);
+
+        const center = centerFromBoundsObject(normalizedBounds);
+        centerHandleRef.current = L.marker([center.lat, center.lng], {
+            draggable: true,
+            icon: createHandleIcon('center', '#0f172a', 16),
+        }).addTo(map);
+
+        centerHandleRef.current.bindTooltip('Arrastra para mover toda el area', {
+            direction: 'top',
+            offset: [0, -8],
+        });
+
+        centerHandleRef.current.on('dragend', (event) => {
+            const nextCenter = event.target.getLatLng();
+            const currentCenter = centerFromBoundsObject(normalizedBounds);
+            const deltaLat = nextCenter.lat - currentCenter.lat;
+            const deltaLng = nextCenter.lng - currentCenter.lng;
+
+            const movedBounds = normalizeBoundsObject({
+                south: normalizedBounds.south + deltaLat,
+                north: normalizedBounds.north + deltaLat,
+                west: normalizedBounds.west + deltaLng,
+                east: normalizedBounds.east + deltaLng,
+            });
+
+            if (!movedBounds) return;
+
+            onChangeRef.current?.({
+                polygon: polygonFromBoundsObject(movedBounds),
+                coverage_mode: 'polygon',
+            });
+            setFeedback('Area movida. Ajusta las esquinas si necesitas un encuadre mas preciso.');
+        });
+
+        if (options.fit !== false) {
+            map.fitBounds(polygonLayerRef.current.getBounds(), {
+                padding: [24, 24],
+                maxZoom: 15,
+            });
+        }
+    }, [clearInteractiveLayers]);
 
     useEffect(() => {
         let cancelled = false;
@@ -258,10 +374,6 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
 
                 mapRef.current = map;
                 setStatus('ready');
-
-                if (polygon.length >= 3) {
-                    drawPolygon(polygon);
-                }
             } catch (error) {
                 console.error('Failed to load flat zone area picker', error);
                 if (!cancelled) {
@@ -275,17 +387,18 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
         return () => {
             cancelled = true;
             if (mapRef.current) {
+                clearInteractiveLayers();
                 mapRef.current.remove();
             }
             mapRef.current = null;
             polygonLayerRef.current = null;
         };
-    }, [drawPolygon]);
+    }, [clearInteractiveLayers]);
 
     useEffect(() => {
         if (status !== 'ready') return;
-        drawPolygon(polygon);
-    }, [drawPolygon, polygon, status]);
+        syncInteractiveBounds(polygonBounds(polygon), { fit: false });
+    }, [polygon, status, syncInteractiveBounds]);
 
     const applyPolygon = useCallback(
         (polygonPoints, nextFeedback) => {
@@ -455,6 +568,7 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
                             <p>1. Busca el barrio o sector.</p>
                             <p>2. Revisa el encuadre del mapa.</p>
                             <p>3. Guarda el area visible.</p>
+                            <p>4. Arrastra el centro para mover y las esquinas para agrandar.</p>
                         </GuideCard>
                     </div>
 
@@ -463,6 +577,13 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
                         <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-700 shadow-sm">
                             {hasPolygon ? 'Area activa' : 'Sin area cargada'}
                         </div>
+                        {hasPolygon ? (
+                            <div className="pointer-events-none absolute bottom-3 left-3 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[11px] text-slate-600 shadow-sm">
+                                Arrastra el punto central para mover toda el area.
+                                <br />
+                                Arrastra las esquinas para agrandar o reducir la cobertura.
+                            </div>
+                        ) : null}
                         {status !== 'ready' ? (
                             <div className="absolute inset-0 flex items-center justify-center bg-white/90 px-6 text-center text-sm text-slate-600">
                                 {status === 'loading'
