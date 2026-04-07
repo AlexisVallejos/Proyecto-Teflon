@@ -91,6 +91,19 @@ const mapDistanceQuoteError = (code) => {
     }
 };
 
+const getDistanceQuoteDescription = (quote) => {
+    if (!quote?.ok) return "Comparte tu ubicacion para cotizar";
+    if (quote.match_type === "polygon") {
+        return `Tu ubicacion coincide con ${quote.zone?.name || "la zona configurada"}.`;
+    }
+    const branchLabel = quote.branch?.name || "la sucursal mas cercana";
+    if (quote.pricing_mode === "per_km") {
+        const rateLabel = formatCurrency(Number(quote.price_per_km || 0), "ARS", "es-AR");
+        return `${quote.distance_km} km desde ${branchLabel} · ${rateLabel}/km`;
+    }
+    return `${quote.distance_km} km desde ${branchLabel}`;
+};
+
 export default function CheckoutPage() {
     const { cartItems, clearCart } = useStore();
     const { settings } = useTenant();
@@ -156,7 +169,7 @@ export default function CheckoutPage() {
                 key: DISTANCE_DELIVERY_KEY,
                 type: "shipping",
                 title: "Envio segun tu ubicacion",
-                desc: "Calculamos el costo segun tu ubicacion, priorizando zonas fijas y luego radios por sucursal.",
+                desc: "Calculamos el costo segun tu ubicacion, priorizando zonas fijas y luego la sucursal mas cercana.",
                 price: null,
                 dynamic: true,
             });
@@ -468,13 +481,14 @@ export default function CheckoutPage() {
                     title: `Envio: ${distanceQuote.zone.name}`,
                     desc:
                         distanceQuote.zone.description ||
-                        (distanceQuote.match_type === "polygon"
-                            ? `Tu ubicacion coincide con ${distanceQuote.zone.name}.`
-                            : `${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`),
+                        getDistanceQuoteDescription(distanceQuote),
                     price: Number(distanceQuote.price || 0),
                     branch_id: distanceQuote.branch?.id || null,
                     shipping_zone_id: distanceQuote.zone.id,
                     distance_km: distanceQuote.distance_km,
+                    pricing_mode: distanceQuote.pricing_mode || "fixed",
+                    price_per_km: Number(distanceQuote.price_per_km || 0),
+                    base_price: Number(distanceQuote.base_price || 0),
                     dynamic: true,
                 };
             }
@@ -533,9 +547,7 @@ export default function CheckoutPage() {
     const deliveryHeadline = selectedDeliveryOption?.title || "Entrega a definir";
     const deliverySupportingText = deliveryMethod === DISTANCE_DELIVERY_KEY
         ? distanceQuote?.ok
-            ? distanceQuote.match_type === "polygon"
-                ? "Zona fija detectada automaticamente"
-                : `${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`
+            ? getDistanceQuoteDescription(distanceQuote)
             : "Comparte tu ubicacion para cotizar"
         : selectedDeliveryOption?.desc || "Configuracion de entrega";
     const normalizedBilling = useMemo(() => normalizeBillingInfo(billingInfo), [billingInfo]);
@@ -1326,7 +1338,7 @@ export default function CheckoutPage() {
                                                     Cotizacion por ubicacion
                                                 </p>
                                                 <p className="text-xs text-zinc-400">
-                                                    Marca tu ubicacion en el mapa. Primero probamos zonas fijas como barrios o sectores. Si no coincide con ninguna, usamos los radios por distancia desde la sucursal.
+                                                    Marca tu ubicacion en el mapa. Primero probamos zonas fijas como barrios o sectores. Si no coincide con ninguna, buscamos la sucursal mas cercana y calculamos el flete segun la distancia.
                                                 </p>
                                             </div>
 
@@ -1355,10 +1367,18 @@ export default function CheckoutPage() {
                                                     <p className="mt-1">
                                                         {distanceQuote.match_type === "polygon"
                                                             ? "Zona fija detectada"
-                                                            : `Sucursal: ${distanceQuote.branch?.name || "Sucursal principal"}`}
+                                                            : `Sucursal mas cercana: ${distanceQuote.branch?.name || "Sucursal principal"}`}
                                                         {" · "}
                                                         Costo {distanceQuote.price === 0 ? "Gratis" : formatCurrency(distanceQuote.price, displayCurrency, locale)}
                                                     </p>
+                                                    {distanceQuote.match_type !== "polygon" && distanceQuote.pricing_mode === "per_km" ? (
+                                                        <p className="mt-1 text-xs opacity-80">
+                                                            {formatCurrency(Number(distanceQuote.price_per_km || 0), displayCurrency, locale)}/km
+                                                            {Number(distanceQuote.base_price || 0) > 0
+                                                                ? ` + base ${formatCurrency(Number(distanceQuote.base_price || 0), displayCurrency, locale)}`
+                                                                : ""}
+                                                        </p>
+                                                    ) : null}
                                                 </div>
                                             ) : null}
 

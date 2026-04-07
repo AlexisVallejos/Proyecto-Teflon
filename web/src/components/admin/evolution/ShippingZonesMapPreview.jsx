@@ -29,6 +29,17 @@ const statusLabels = {
 
 const formatMoney = (value) => `$${Number(value || 0).toLocaleString('es-AR')}`;
 const formatZonePrice = (value) => (Number(value || 0) <= 0 ? 'Gratis' : formatMoney(value));
+const formatDistanceZonePrice = (zone) => {
+    if (zone?.distance_pricing_mode === 'per_km') {
+        const base = Number(zone?.price || 0);
+        const rate = Number(zone?.price_per_km || 0);
+        if (base > 0) {
+            return `${formatMoney(base)} + ${formatMoney(rate)}/km`;
+        }
+        return `${formatMoney(rate)}/km`;
+    }
+    return formatZonePrice(zone?.price || 0);
+};
 
 const formatDistanceBand = (zone) => {
     const min = Number(zone.min_distance_km || 0);
@@ -124,7 +135,7 @@ const getZoneLabelDistanceKm = (zone) => {
 const getZoneLabelMarkup = (zone) => {
     const isFree = Number(zone.price || 0) <= 0;
     const accent = isFree ? 'rgba(15,23,42,0.18)' : `${zone.color}55`;
-    const priceText = zone.priceLabel || formatZonePrice(zone.price);
+    const priceText = zone.priceLabel || formatDistanceZonePrice(zone);
     const bandText = formatDistanceBand(zone);
     const zoneName = zone.name || 'Zona';
 
@@ -201,12 +212,12 @@ const DistanceZoneRow = ({ zone }) => (
                 </div>
             </div>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
-                {zone.priceLabel || formatZonePrice(zone.price)}
+                {zone.priceLabel || formatDistanceZonePrice(zone)}
             </span>
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
-                {zone.branch?.name || 'Sucursal'}
+                {zone.branch?.name || (zone.branch_id ? 'Sucursal' : 'Sucursal mas cercana')}
             </span>
             {zone.description ? (
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
@@ -311,8 +322,8 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
                 ...zone,
                 labelBearing: LABEL_BEARINGS[branchIndex % LABEL_BEARINGS.length],
                 labelDistanceKm: getZoneLabelDistanceKm(zone),
-                priceLabel: formatZonePrice(zone.price),
-            };
+                        priceLabel: formatDistanceZonePrice(zone),
+                    };
         });
     }, [distanceZones]);
 

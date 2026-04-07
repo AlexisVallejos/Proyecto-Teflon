@@ -5,6 +5,10 @@ export function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function roundMoney(value) {
+  return Number(toNumber(value, 0).toFixed(2));
+}
+
 function readText(value) {
   const normalized = String(value || '').trim();
   return normalized || null;
@@ -126,6 +130,10 @@ function normalizeDistanceValue(value) {
   return parsed;
 }
 
+function normalizeDistancePricingMode(value) {
+  return String(value || '').trim().toLowerCase() === 'per_km' ? 'per_km' : 'fixed';
+}
+
 export function normalizeBranch(entry = {}, index = 0) {
   const id = String(entry.id || '').trim() || `branch-${index + 1}`;
   return {
@@ -153,6 +161,14 @@ export function normalizeShippingZone(entry = {}, index = 0) {
   const type = String(entry.type || entry.pricing_mode || 'flat').trim().toLowerCase() === DISTANCE_ZONE_TYPE
     ? DISTANCE_ZONE_TYPE
     : 'flat';
+  const distancePricingMode = type === DISTANCE_ZONE_TYPE
+    ? normalizeDistancePricingMode(
+        entry.distance_pricing_mode ??
+        entry.distancePricingMode ??
+        entry.distance_pricing ??
+        entry.distancePricing
+      )
+    : 'fixed';
   const polygon = type === DISTANCE_ZONE_TYPE
     ? []
     : normalizeZonePolygon(
@@ -174,8 +190,10 @@ export function normalizeShippingZone(entry = {}, index = 0) {
     name: String(entry.name || '').trim() || `Zona ${index + 1}`,
     description: String(entry.description || '').trim(),
     price: toNumber(entry.price, 0),
+    price_per_km: type === DISTANCE_ZONE_TYPE ? Math.max(0, toNumber(entry.price_per_km ?? entry.pricePerKm, 0)) : 0,
     enabled: entry.enabled !== false,
     type,
+    distance_pricing_mode: distancePricingMode,
     branch_id: readText(entry.branch_id ?? entry.branchId ?? entry.origin_branch_id ?? entry.originBranchId),
     polygon,
     coverage_mode:
@@ -208,8 +226,10 @@ export function normalizeShippingZones(settings = {}) {
       name: 'Argentina',
       description: 'Cobertura nacional',
       price: toNumber(settings?.shipping_flat, 0),
+      price_per_km: 0,
       enabled: true,
       type: 'flat',
+      distance_pricing_mode: 'fixed',
       branch_id: null,
       polygon: [],
       coverage_mode: 'manual',
@@ -263,12 +283,56 @@ function haversineKm(from, to) {
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function findBranchForZone(zone, branches) {
-  if (!zone) return null;
-  if (zone.branch_id) {
-    return branches.find((branch) => branch.id === zone.branch_id) || null;
+function getEligibleBranches(branches = [], preferredBranchId = null, lockedBranchId = null) {
+  const withCoordinates = branches.filter((branch) => branch.latitude != null && branch.longitude != null);
+  if (lockedBranchId) {
+    return withCoordinates.filter((branch) => branch.id === lockedBranchId);
   }
-  return branches.find((branch) => branch.latitude != null && branch.longitude != null) || null;
+  if (preferredBranchId) {
+    const preferred = withCoordinates.filter((branch) => branch.id === preferredBranchId);
+    if (preferred.length) return preferred;
+  }
+  return withCoordinates;
+}
+
+function findNearestBranch(branches = [], location = null, options = {}) {
+  const eligibleBranches = getEligibleBranches(
+    branches,
+    readText(options.preferredBranchId),
+    readText(options.lockedBranchId)
+  );
+  if (!eligibleBranches.length) return null;
+  if (!location) {
+    return { branch: eligibleBranches[0], distanceKm: null };
+  }
+
+  return eligibleBranches
+    .map((branch) => ({
+      branch,
+      distanceKm: haversineKm(location, {
+        latitude: branch.latitude,
+        longitude: branch.longitude,
+      }),
+    }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)[0];
+}
+
+function findBranchForZone(zone, branches, location = null, preferredBranchId = null) {
+  if (!zone) return null;
+  const nearest = findNearestBranch(branches, location, {
+    preferredBranchId,
+    lockedBranchId: zone.branch_id,
+  });
+  return nearest?.branch || null;
+}
+
+function getDistanceZoneAmount(zone, distanceKm) {
+  const basePrice = toNumber(zone?.price, 0);
+  const pricePerKm = Math.max(0, toNumber(zone?.price_per_km, 0));
+  if (zone?.distance_pricing_mode === 'per_km') {
+    return roundMoney(basePrice + Math.max(0, toNumber(distanceKm, 0)) * pricePerKm);
+  }
+  return roundMoney(basePrice);
 }
 
 export function resolveFixedShippingQuote(settings = {}, customer = {}, options = {}) {
@@ -294,7 +358,7 @@ export function resolveFixedShippingQuote(settings = {}, customer = {}, options 
     .filter((zone) => pointInPolygon(location, zone.polygon))
     .map((zone) => ({
       zone,
-      branch: findBranchForZone(zone, branches),
+      branch: findBranchForZone(zone, branches, location, preferredBranchId),
       amount: toNumber(zone.price, 0),
       areaScore: polygonAreaScore(zone.polygon),
     }))
@@ -347,15 +411,16 @@ export function resolveDistanceShippingQuote(settings = {}, customer = {}, optio
 
   const matches = candidateZones
     .map((zone) => {
-      const branch = findBranchForZone(zone, branches);
-      if (!branch || branch.latitude == null || branch.longitude == null) {
+      const nearestBranch = findNearestBranch(branches, location, {
+        preferredBranchId,
+        lockedBranchId: zone.branch_id,
+      });
+      if (!nearestBranch?.branch) {
         return null;
       }
+      const branch = nearestBranch.branch;
 
-      const distanceKm = haversineKm(location, {
-        latitude: branch.latitude,
-        longitude: branch.longitude,
-      });
+      const distanceKm = nearestBranch.distanceKm;
 
       const withinMin = distanceKm >= Number(zone.min_distance_km || 0);
       const withinMax = zone.max_distance_km == null || distanceKm <= Number(zone.max_distance_km);
@@ -367,7 +432,10 @@ export function resolveDistanceShippingQuote(settings = {}, customer = {}, optio
         zone,
         branch,
         distance_km: Number(distanceKm.toFixed(2)),
-        amount: toNumber(zone.price, 0),
+        amount: getDistanceZoneAmount(zone, distanceKm),
+        pricing_mode: zone.distance_pricing_mode || 'fixed',
+        base_price: toNumber(zone.price, 0),
+        price_per_km: Math.max(0, toNumber(zone.price_per_km, 0)),
       };
     })
     .filter(Boolean)
@@ -380,8 +448,12 @@ export function resolveDistanceShippingQuote(settings = {}, customer = {}, optio
 
   if (!matches.length) {
     const hasConfiguredOrigins = candidateZones.some((zone) => {
-      const branch = findBranchForZone(zone, branches);
-      return branch && branch.latitude != null && branch.longitude != null;
+      return Boolean(
+        findNearestBranch(branches, location, {
+          preferredBranchId,
+          lockedBranchId: zone.branch_id,
+        })?.branch
+      );
     });
 
     if (!hasConfiguredOrigins) {
@@ -399,6 +471,9 @@ export function resolveDistanceShippingQuote(settings = {}, customer = {}, optio
     shipping_zone_type: best.zone.type,
     branch_id: best.branch.id,
     distance_km: best.distance_km,
+    pricing_mode: best.pricing_mode,
+    base_price: best.base_price,
+    price_per_km: best.price_per_km,
     zone: best.zone,
     branch: best.branch,
     location,
