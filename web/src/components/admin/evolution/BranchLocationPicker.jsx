@@ -3,7 +3,6 @@ import {
     ArrowSquareOut,
     Buildings,
     Crosshair,
-    GlobeHemisphereWest,
     MagnifyingGlass,
     MapPin,
     MapTrifold,
@@ -12,7 +11,7 @@ import {
 import { loadLeaflet } from '../../../utils/leafletLoader';
 import { cn } from '../../../utils/cn';
 
-const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
+const DEFAULT_CENTER = { lat: -38.0055, lng: -57.5426 };
 
 const inputClass =
     'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-evolution-indigo focus:ring-2 focus:ring-evolution-indigo/15';
@@ -392,9 +391,6 @@ const BranchLocationPicker = ({ branch, onCoordinatesChange, onAddressChange }) 
             ? `https://www.openstreetmap.org/?mlat=${selectedPosition.lat}&mlon=${selectedPosition.lng}#map=17/${selectedPosition.lat}/${selectedPosition.lng}`
             : '';
 
-    const providerLabel =
-        status === 'ready' ? 'OpenStreetMap + Nominatim' : 'OpenStreetMap';
-
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)]">
             <div className="border-b border-slate-200 bg-white px-4 py-4 md:px-5">
@@ -421,18 +417,12 @@ const BranchLocationPicker = ({ branch, onCoordinatesChange, onAddressChange }) 
                         </div>
                     </div>
 
-                    <div className="grid min-w-full grid-cols-1 gap-2 md:min-w-[360px] md:grid-cols-3">
+                    <div className="grid min-w-full grid-cols-1 gap-2 md:min-w-[280px] md:grid-cols-2">
                         <MetricCard
                             icon={Buildings}
                             label="Sucursal"
                             value={branch?.name || 'Sin nombre'}
                             accent="text-indigo-600"
-                        />
-                        <MetricCard
-                            icon={GlobeHemisphereWest}
-                            label="Proveedor"
-                            value={providerLabel}
-                            accent="text-emerald-600"
                         />
                         <MetricCard
                             icon={MapPin}

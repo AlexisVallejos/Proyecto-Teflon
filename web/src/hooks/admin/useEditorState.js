@@ -380,6 +380,8 @@ export function useEditorState(user) {
         }
     }, [loadAllData, refreshTenantSettings, settings]);
 
+    const saveShippingSettings = saveCheckoutSettings;
+
     // Derived State
     const categoryHierarchy = useMemo(() => {
         if (!Array.isArray(categories) || !categories.length) return [];
@@ -417,6 +419,7 @@ export function useEditorState(user) {
         setBrands,
         handleSaveAll,
         saveCheckoutSettings,
+        saveShippingSettings,
         refresh: loadAllData
     };
 }

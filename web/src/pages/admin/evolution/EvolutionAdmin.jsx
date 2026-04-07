@@ -11,6 +11,7 @@ import PageSectionsEditor from '../../../components/admin/evolution/PageSections
 import UsersEditor from '../../../components/admin/evolution/UsersEditor';
 import PricingEditor from '../../../components/admin/evolution/PricingEditor';
 import CheckoutEditor from '../../../components/admin/evolution/CheckoutEditor';
+import ShippingEditor from '../../../components/admin/evolution/ShippingEditor';
 import IntegrationsEditor from '../../../components/admin/evolution/IntegrationsEditor';
 import NotificationsEditor from '../../../components/admin/evolution/NotificationsEditor';
 import TenantsEditor from '../../../components/admin/evolution/TenantsEditor';
@@ -262,9 +263,17 @@ const EvolutionAdmin = () => {
                 id: 'module-checkout',
                 kind: 'module',
                 label: 'Checkout',
-                description: 'Cobros, envios y mensajes',
-                keywords: 'checkout pagos envios',
+                description: 'Cobros, mensajes e impuestos',
+                keywords: 'checkout pagos impuestos transferencia',
                 onSelect: () => setActiveModule('checkout'),
+            },
+            {
+                id: 'module-shipping',
+                kind: 'module',
+                label: 'Envios',
+                description: 'Zonas, radios y sucursales',
+                keywords: 'envios zonas sucursales delivery mapa',
+                onSelect: () => setActiveModule('shipping'),
             },
             {
                 id: 'module-integrations',
@@ -432,13 +441,13 @@ const EvolutionAdmin = () => {
 
     const handleSave = async () => {
         const result =
-            activeModule === 'checkout'
+            activeModule === 'checkout' || activeModule === 'shipping'
                 ? await editor.saveCheckoutSettings()
                 : await editor.handleSaveAll();
 
         if (result.success) {
-            if (activeModule === 'checkout') {
-                addToast('Checkout guardado', 'success');
+            if (activeModule === 'checkout' || activeModule === 'shipping') {
+                addToast(activeModule === 'shipping' ? 'Envios guardados' : 'Checkout guardado', 'success');
             } else {
                 addToast(result.published ? 'Cambios guardados y publicados' : 'Guardado como borrador', 'success');
             }
@@ -523,6 +532,15 @@ const EvolutionAdmin = () => {
             case 'checkout':
                 return (
                     <CheckoutEditor
+                        settings={editor.settings}
+                        setSettings={editor.setSettings}
+                        onSave={handleSave}
+                        isSaving={editor.saving}
+                    />
+                );
+            case 'shipping':
+                return (
+                    <ShippingEditor
                         settings={editor.settings}
                         setSettings={editor.setSettings}
                         onSave={handleSave}

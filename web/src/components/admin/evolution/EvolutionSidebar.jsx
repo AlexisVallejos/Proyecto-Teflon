@@ -12,6 +12,7 @@ import {
     Percent,
     Plug,
     Bell,
+    Truck,
 } from '@phosphor-icons/react';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import { cn } from '../../../utils/cn';
@@ -70,6 +71,7 @@ const EvolutionSidebar = ({ branding }) => {
         { id: 'categories', label: 'Categorias', icon: Tag },
         { id: 'pricing', label: 'Ofertas', icon: Percent },
         { id: 'checkout', label: 'Checkout', icon: CreditCard },
+        { id: 'shipping', label: 'Envios', icon: Truck },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },
         { id: 'integrations', label: 'Integraciones', icon: Plug },
         { id: 'users', label: 'Usuarios', icon: Users },

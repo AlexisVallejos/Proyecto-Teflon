@@ -37,6 +37,16 @@ const ORDER_CHANNEL_OPTIONS = [
     },
 ];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const checkoutFieldClass =
+    "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20";
+const checkoutNoteClass = "text-xs text-zinc-400";
+const checkoutCardClass =
+    "rounded-[28px] border border-white/10 bg-[#0d131c]/95 p-5 text-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.8)] backdrop-blur";
+const checkoutSoftCardClass = "rounded-2xl border border-white/10 bg-white/5 p-4";
+const checkoutGhostButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary/50 hover:bg-white/10";
+const checkoutPrimaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_45px_-24px_var(--color-primary)] transition hover:bg-primary/90 disabled:opacity-60";
 
 const normalizePaymentMethod = (value) => {
     const raw = String(value || "").trim().toLowerCase();
@@ -520,6 +530,14 @@ export default function CheckoutPage() {
         () => paymentOptions.find((opt) => opt.key === paymentMethod)?.label || "",
         [paymentOptions, paymentMethod]
     );
+    const deliveryHeadline = selectedDeliveryOption?.title || "Entrega a definir";
+    const deliverySupportingText = deliveryMethod === DISTANCE_DELIVERY_KEY
+        ? distanceQuote?.ok
+            ? distanceQuote.match_type === "polygon"
+                ? "Zona fija detectada automaticamente"
+                : `${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`
+            : "Comparte tu ubicacion para cotizar"
+        : selectedDeliveryOption?.desc || "Configuracion de entrega";
     const normalizedBilling = useMemo(() => normalizeBillingInfo(billingInfo), [billingInfo]);
     const hasOrderBillingInfo = useMemo(() => hasBillingInfo(normalizedBilling), [normalizedBilling]);
 
@@ -926,42 +944,73 @@ export default function CheckoutPage() {
 
     return (
         <StoreLayout>
-            <main className="max-w-[1280px] mx-auto w-full px-4 md:px-10 py-8">
+            <main className="max-w-[1400px] mx-auto w-full px-4 md:px-8 py-6 md:py-10">
                 {/* Breadcrumbs */}
-                <div className="flex flex-wrap gap-2 pb-4">
+                <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-zinc-500">
                     <button
-                        className="text-[#8a7560] text-sm font-medium hover:text-primary cursor-pointer"
+                        className="transition-colors hover:text-primary"
                         onClick={() => (window.location.hash = '#')}
                         type="button"
                     >
                         Inicio
                     </button>
-                    <span className="text-[#8a7560] text-sm font-medium">
+                    <span>
                         /
                     </span>
                     <button
-                        className="text-[#8a7560] text-sm font-medium hover:text-primary"
+                        className="transition-colors hover:text-primary"
                         onClick={() => (window.location.hash = '#cart')}
                         type="button"
                     >
                         Carrito
                     </button>
-                    <span className="text-[#8a7560] text-sm font-medium">
+                    <span>
                         /
                     </span>
-                    <span className="text-[#181411] dark:text-white text-sm font-medium">
+                    <span className="text-zinc-900">
                         Finalizar compra
                     </span>
                 </div>
 
                 {/* Heading */}
-                <div className="pb-8">
-                    <h1 className="text-[#181411] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">
-                        Finalizar compra
-                    </h1>
+                <div className="mb-8 overflow-hidden rounded-[32px] border border-white/10 bg-[#0d131c] px-5 py-6 text-white shadow-[0_28px_70px_-45px_rgba(15,23,42,0.6)] md:px-8 md:py-8">
+                    <div
+                        className="pointer-events-none absolute inset-x-0 top-0 h-0"
+                        aria-hidden="true"
+                    />
+                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+                        <div className="space-y-3">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-300">
+                                Checkout activo
+                            </div>
+                            <h1 className="text-4xl font-black leading-tight tracking-[-0.04em] text-white md:text-5xl">
+                                Finalizar compra
+                            </h1>
+                            <p className="max-w-2xl text-sm leading-6 text-zinc-300 md:text-base">
+                                Confirma tus datos, define la entrega y cierra el pedido en un flujo mas limpio y preciso.
+                            </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Entrega</p>
+                                <p className="mt-1 text-lg font-bold text-white">{deliveryHeadline}</p>
+                                <p className="mt-1 text-xs text-zinc-400">{deliverySupportingText}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Pago</p>
+                                <p className="mt-1 text-lg font-bold text-white">{paymentLabel || 'A definir'}</p>
+                                <p className="mt-1 text-xs text-zinc-400">{paymentSummary}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Total</p>
+                                <p className="mt-1 text-lg font-bold text-white">{formatCurrency(total, displayCurrency, locale)}</p>
+                                <p className="mt-1 text-xs text-zinc-400">{summaryItems.length} producto{summaryItems.length === 1 ? '' : 's'} en la orden</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-12">
+                <div className="flex flex-col gap-8 xl:flex-row">
                     {/* Left column */}
                     <div className="flex-1 flex flex-col gap-6">
                         {/* Step Progress */}
@@ -983,7 +1032,7 @@ export default function CheckoutPage() {
                                                 Nombre completo
                                             </label>
                                             <input
-                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                className={checkoutFieldClass}
                                                 placeholder="Tu nombre"
                                                 type="text"
                                                 value={customerInfo.fullName}
@@ -1000,7 +1049,7 @@ export default function CheckoutPage() {
                                                 Telefono
                                             </label>
                                             <input
-                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                className={checkoutFieldClass}
                                                 placeholder="+54 11..."
                                                 type="tel"
                                                 value={customerInfo.phone}
@@ -1017,7 +1066,7 @@ export default function CheckoutPage() {
                                                 Gmail o email
                                             </label>
                                             <input
-                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                className={checkoutFieldClass}
                                                 placeholder="tucorreo@gmail.com"
                                                 type="email"
                                                 value={customerInfo.email}
@@ -1037,7 +1086,7 @@ export default function CheckoutPage() {
                                                 Direccion completa
                                             </label>
                                             <input
-                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                className={checkoutFieldClass}
                                                 placeholder="Calle Falsa 123"
                                                 type="text"
                                                 value={shippingInfo.fullAddress}
@@ -1054,7 +1103,7 @@ export default function CheckoutPage() {
                                                 Ciudad
                                             </label>
                                             <input
-                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                className={checkoutFieldClass}
                                                 placeholder="Mar del Plata"
                                                 type="text"
                                                 value={shippingInfo.city}
@@ -1071,7 +1120,7 @@ export default function CheckoutPage() {
                                                 Codigo postal
                                             </label>
                                             <input
-                                                className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                className={checkoutFieldClass}
                                                 placeholder="7600"
                                                 type="text"
                                                 value={shippingInfo.postalCode}
@@ -1083,7 +1132,7 @@ export default function CheckoutPage() {
                                                 }
                                             />
                                         </div>
-                                        <div className="col-span-2 mt-2 pt-4 border-t border-[#e6e0db] dark:border-[#3d2e1f]">
+                                        <div className="col-span-2 mt-2 border-t border-white/10 pt-4">
                                             <div className="mb-3">
                                                 <p className="text-sm font-bold text-[#181411] dark:text-white">
                                                     Datos de facturacion
@@ -1098,7 +1147,7 @@ export default function CheckoutPage() {
                                                         Razon social
                                                     </label>
                                                     <input
-                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        className={checkoutFieldClass}
                                                         placeholder="Ej: Mi Empresa SRL"
                                                         type="text"
                                                         value={billingInfo.businessName}
@@ -1115,7 +1164,7 @@ export default function CheckoutPage() {
                                                         Direccion de facturacion
                                                     </label>
                                                     <input
-                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        className={checkoutFieldClass}
                                                         placeholder="Calle y numero"
                                                         type="text"
                                                         value={billingInfo.address}
@@ -1132,7 +1181,7 @@ export default function CheckoutPage() {
                                                         Localidad
                                                     </label>
                                                     <input
-                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        className={checkoutFieldClass}
                                                         placeholder="Mar del Plata"
                                                         type="text"
                                                         value={billingInfo.city}
@@ -1149,7 +1198,7 @@ export default function CheckoutPage() {
                                                         Tipo de IVA
                                                     </label>
                                                     <select
-                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        className={checkoutFieldClass}
                                                         value={billingInfo.vatType}
                                                         onChange={(e) =>
                                                             setBillingInfo((prev) => ({
@@ -1171,7 +1220,7 @@ export default function CheckoutPage() {
                                                         Tipo de documento
                                                     </label>
                                                     <select
-                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        className={checkoutFieldClass}
                                                         value={billingInfo.documentType}
                                                         onChange={(e) =>
                                                             setBillingInfo((prev) => ({
@@ -1192,7 +1241,7 @@ export default function CheckoutPage() {
                                                         Numero
                                                     </label>
                                                     <input
-                                                        className="w-full rounded-lg border-[#e6e0db] dark:border-[#3d2e1f] dark:bg-[#3d2e1f] focus:ring-primary focus:border-primary"
+                                                        className={checkoutFieldClass}
                                                         placeholder="20-12345678-9 / 12345678"
                                                         type="text"
                                                         value={billingInfo.documentNumber}
@@ -1209,10 +1258,7 @@ export default function CheckoutPage() {
                                     </div>
 
                                     <div className="flex justify-end">
-                                        <button
-                                            onClick={() => setOpenStep(2)}
-                                            className="px-4 h-10 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
-                                        >
+                                        <button onClick={() => setOpenStep(2)} className={checkoutPrimaryButtonClass}>
                                             Continuar
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                                         </button>
@@ -1245,8 +1291,8 @@ export default function CheckoutPage() {
                                                 className={[
                                                     "flex items-center p-4 rounded-lg cursor-pointer transition-colors border",
                                                     checked
-                                                        ? "border-primary bg-primary/5"
-                                                        : "border-[#e6e0db] dark:border-[#3d2e1f] hover:bg-background-light dark:hover:bg-[#3d2e1f]",
+                                                        ? "border-primary/40 bg-primary/10"
+                                                        : "border-white/10 bg-white/5 hover:border-primary/40 hover:bg-white/10",
                                                 ].join(" ")}
                                             >
                                                 <input
@@ -1274,12 +1320,12 @@ export default function CheckoutPage() {
                                     })}
 
                                     {deliveryMethod === DISTANCE_DELIVERY_KEY ? (
-                                        <div className="rounded-xl border border-[#e6e0db] bg-[#f8f6f4] p-4 dark:border-[#3d2e1f] dark:bg-[#241a12]">
+                                        <div className="rounded-[28px] border border-white/10 bg-[#0d131c]/95 p-4 text-white">
                                             <div className="space-y-1">
-                                                <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                                <p className="text-sm font-bold text-white">
                                                     Cotizacion por ubicacion
                                                 </p>
-                                                <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
+                                                <p className="text-xs text-zinc-400">
                                                     Marca tu ubicacion en el mapa. Primero probamos zonas fijas como barrios o sectores. Si no coincide con ninguna, usamos los radios por distancia desde la sucursal.
                                                 </p>
                                             </div>
@@ -1325,15 +1371,12 @@ export default function CheckoutPage() {
                                     ) : null}
 
                                     <div className="flex justify-between pt-2">
-                                        <button
-                                            onClick={() => setOpenStep(1)}
-                                            className="px-4 h-10 rounded-lg bg-background-light dark:bg-[#3d2e1f] border border-[#e6e0db] dark:border-[#3d2e1f] font-bold hover:border-primary/50 transition-colors"
-                                        >
+                                        <button onClick={() => setOpenStep(1)} className={checkoutGhostButtonClass}>
                                             Volver
                                         </button>
                                         <button
                                             onClick={() => setOpenStep(3)}
-                                            className="px-4 h-10 rounded-lg bg-primary text-white font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
+                                            className={checkoutPrimaryButtonClass}
                                         >
                                             Continuar
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
@@ -1369,7 +1412,7 @@ export default function CheckoutPage() {
                                         ))}
                                     </div>
 
-                                    <div className="rounded-lg border border-[#e6e0db] dark:border-[#3d2e1f] p-4 text-sm text-[#8a7560] dark:text-[#a59280]">
+                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
                                         {paymentSummary}
                                     </div>
 
@@ -1408,7 +1451,7 @@ export default function CheckoutPage() {
                                                 );
                                             })}
                                         </div>
-                                        <div className="rounded-lg border border-[#e6e0db] dark:border-[#3d2e1f] p-4 text-sm text-[#8a7560] dark:text-[#a59280]">
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-300">
                                             {orderChannel === "whatsapp"
                                                 ? "El pedido queda registrado y tambien intentaremos enviarte una copia por email."
                                                 : "El pedido queda registrado y la confirmacion principal llega a tu Gmail."}
@@ -1416,19 +1459,19 @@ export default function CheckoutPage() {
                                     </div>
 
                                     {paymentMethod === "transfer" ? (
-                                        <div className="rounded-lg border border-[#e6e0db] dark:border-[#3d2e1f] p-4 text-sm space-y-2">
-                                            <p className="font-bold text-[#181411] dark:text-white">Datos bancarios</p>
-                                            <p className="text-[#8a7560] dark:text-[#a59280]">
-                                                CBU: <span className="font-semibold text-[#181411] dark:text-white">{bankTransfer.cbu || "-"}</span>
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm space-y-2 text-zinc-300">
+                                            <p className="font-bold text-white">Datos bancarios</p>
+                                            <p>
+                                                CBU: <span className="font-semibold text-white">{bankTransfer.cbu || "-"}</span>
                                             </p>
-                                            <p className="text-[#8a7560] dark:text-[#a59280]">
-                                                Alias: <span className="font-semibold text-[#181411] dark:text-white">{bankTransfer.alias || "-"}</span>
+                                            <p>
+                                                Alias: <span className="font-semibold text-white">{bankTransfer.alias || "-"}</span>
                                             </p>
-                                            <p className="text-[#8a7560] dark:text-[#a59280]">
-                                                Banco: <span className="font-semibold text-[#181411] dark:text-white">{bankTransfer.bank || "-"}</span>
+                                            <p>
+                                                Banco: <span className="font-semibold text-white">{bankTransfer.bank || "-"}</span>
                                             </p>
-                                            <p className="text-[#8a7560] dark:text-[#a59280]">
-                                                Titular: <span className="font-semibold text-[#181411] dark:text-white">{bankTransfer.holder || "-"}</span>
+                                            <p>
+                                                Titular: <span className="font-semibold text-white">{bankTransfer.holder || "-"}</span>
                                             </p>
                                         </div>
                                     ) : null}
@@ -1471,12 +1514,12 @@ export default function CheckoutPage() {
                         </div>
 
                         {validationError ? (
-                            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+                            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
                                 {validationError}
                             </div>
                         ) : null}
                         {checkoutError ? (
-                            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm">
+                            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
                                 {checkoutError}
                             </div>
                         ) : null}
@@ -1484,14 +1527,15 @@ export default function CheckoutPage() {
 
                     {/* Right column */}
                     <div className="w-full lg:w-[400px]">
-                        <div className="sticky top-24 bg-white dark:bg-[#2c221a] rounded-xl border border-[#e6e0db] dark:border-[#3d2e1f] p-6 shadow-sm">
-                            <h3 className="text-lg font-bold mb-6">Resumen del pedido</h3>
+                        <div className="sticky top-24 rounded-[28px] border border-white/10 bg-[#0d131c]/95 p-6 text-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.8)] backdrop-blur">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">Resumen vivo</p>
+                            <h3 className="mt-1 text-2xl font-bold">Resumen del pedido</h3>
 
                             {/* Items */}
                             <div className="space-y-4 mb-6">
                                 {summaryItems.map((it) => (
-                                    <div key={it.id} className="flex gap-4">
-                                        <div className="size-16 rounded-lg bg-background-light dark:bg-[#3d2e1f] border border-[#e6e0db] dark:border-[#3d2e1f] overflow-hidden flex-shrink-0">
+                                    <div key={it.id} className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+                                        <div className="size-16 rounded-2xl border border-white/10 bg-black/20 overflow-hidden flex-shrink-0">
                                             <div
                                                 className="w-full h-full bg-center bg-no-repeat bg-cover"
                                                 style={{
@@ -1505,11 +1549,11 @@ export default function CheckoutPage() {
                                             />
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-sm font-bold line-clamp-1">{it.name}</p>
-                                            <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
+                                            <p className="text-sm font-semibold line-clamp-1 text-white">{it.name}</p>
+                                            <p className="text-xs text-zinc-400">
                                                 Cant.: {it.qty}
                                             </p>
-                                            <p className="text-sm font-bold mt-1">
+                                            <p className="text-sm font-bold mt-2 text-white">
                                                 {formatCurrency(it.price * it.qty, displayCurrency, locale)}
                                             </p>
                                         </div>
@@ -1518,7 +1562,7 @@ export default function CheckoutPage() {
                             </div>
 
                             {/* Totals */}
-                            <div className="border-t border-[#e6e0db] dark:border-[#3d2e1f] pt-4 space-y-3">
+                            <div className="border-t border-white/10 pt-4 space-y-3">
                                 <Line label="Subtotal" value={formatCurrency(subtotal, displayCurrency, locale)} />
                                 <Line
                                     label="Envio"
@@ -1531,23 +1575,23 @@ export default function CheckoutPage() {
                                 <Line label="Impuestos" value={formatCurrency(iva, displayCurrency, locale)} />
                             </div>
 
-                            <div className="mt-6 p-4 rounded-lg bg-[#181411] dark:bg-black text-white flex justify-between items-center">
-                                <span className="font-medium">Total</span>
-                                <span className="text-2xl font-black">
+                            <div className="mt-6 rounded-[24px] border border-primary/20 bg-primary/10 p-4 flex justify-between items-center">
+                                <span className="font-medium text-zinc-200">Total</span>
+                                <span className="text-3xl font-black text-white">
                                     {formatCurrency(total, displayCurrency, locale)}
                                 </span>
                             </div>
 
                             <button
                                 onClick={handleCompletePurchase}
-                                className="w-full mt-6 py-4 bg-primary text-white font-black text-lg rounded-lg shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center gap-3 disabled:opacity-60"
+                                className="w-full mt-6 py-4 bg-primary text-white font-black text-lg rounded-2xl shadow-[0_18px_48px_-28px_var(--color-primary)] hover:bg-primary/90 transition-all flex items-center justify-center gap-3 disabled:opacity-60"
                                 disabled={creating || !items.length || !!validationError}
                             >
                                 <span>{creating ? "Procesando..." : "Confirmar compra"}</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                             </button>
 
-                            <p className="text-[10px] text-center mt-4 text-[#8a7560] dark:text-[#a59280] uppercase tracking-wider">
+                            <p className="text-[10px] text-center mt-4 text-zinc-500 uppercase tracking-[0.22em]">
                                 Pedido seguro y validado por stock
                             </p>
                         </div>
@@ -1561,49 +1605,45 @@ export default function CheckoutPage() {
 /* ---------- UI components ---------- */
 
 function StepProgress({ openStep }) {
-    const active = (n) => (openStep === n ? "text-primary" : "text-[#8a7560] dark:text-[#a59280]");
+    const steps = [
+        { step: 1, title: "Identidad", description: "Contacto y facturacion" },
+        { step: 2, title: "Entrega", description: "Ubicacion y modalidad" },
+        { step: 3, title: "Pago", description: "Cobro y confirmacion" },
+    ];
 
     return (
-        <div className="grid grid-cols-[40px_1fr] gap-x-4 mb-4">
-            {/* 1 */}
-            <div className="flex flex-col items-center gap-1">
-                <div className={active(1)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                </div>
-                <div className="w-[1.5px] bg-primary h-12" />
-            </div>
-            <div className="flex flex-col pt-1 pb-4">
-                <p className="text-primary text-base font-bold">Envio y entrega</p>
-                <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                    Completa la direccion o elige retiro
-                </p>
-            </div>
-
-            {/* 2 */}
-            <div className="flex flex-col items-center gap-1">
-                <div className={active(2)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                </div>
-                <div className="w-[1.5px] bg-[#e6e0db] dark:bg-[#3d2e1f] h-12" />
-            </div>
-            <div className={`flex flex-col pt-1 pb-4 ${openStep >= 2 ? "" : "opacity-50"}`}>
-                <p className="text-[#181411] dark:text-white text-base font-medium">
-                    Metodo de pago
-                </p>
-                <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                    Selecciona como quieres pagar
-                </p>
-            </div>
-
-            {/* 3 */}
-            <div className="flex flex-col items-center gap-1">
-                <div className={active(3)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                </div>
-            </div>
-            <div className={`flex flex-col pt-1 ${openStep >= 3 ? "" : "opacity-50"}`}>
-                <p className="text-[#181411] dark:text-white text-base font-medium">Confirmacion</p>
-            </div>
+        <div className="grid gap-3 md:grid-cols-3">
+            {steps.map((item) => {
+                const isActive = openStep === item.step;
+                const isUnlocked = openStep >= item.step;
+                return (
+                    <div
+                        key={item.step}
+                        className={[
+                            "rounded-2xl border p-4 transition-all",
+                            isActive ? "border-primary/40 bg-primary/10" : "border-white/10 bg-[#0d131c]/95",
+                            !isUnlocked ? "opacity-70" : "",
+                        ].join(" ")}
+                    >
+                        <div className="flex items-start gap-4">
+                            <span
+                                className={[
+                                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border text-sm font-black",
+                                    isActive || isUnlocked
+                                        ? "border-primary/30 bg-primary text-white"
+                                        : "border-white/10 bg-white/5 text-zinc-400",
+                                ].join(" ")}
+                            >
+                                {item.step}
+                            </span>
+                            <div>
+                                <p className="text-sm font-semibold text-white">{item.title}</p>
+                                <p className="mt-1 text-xs text-zinc-400">{item.description}</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -1614,8 +1654,10 @@ function Accordion({ step, title, openStep, onOpen, children }) {
     return (
         <div
             className={[
-                "flex flex-col rounded-xl border bg-white dark:bg-[#2c221a] px-6 py-4 group",
-                "border-[#e6e0db] dark:border-[#3d2e1f]",
+                "flex flex-col rounded-[28px] border px-6 py-5 group transition-all",
+                isOpen
+                    ? "border-primary/30 bg-[#0d131c] text-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.8)]"
+                    : "border-white/10 bg-[#0d131c]/95 text-white shadow-[0_18px_48px_-38px_rgba(15,23,42,0.55)]",
             ].join(" ")}
         >
             <button
@@ -1624,22 +1666,18 @@ function Accordion({ step, title, openStep, onOpen, children }) {
                 className="flex w-full items-center justify-between gap-6 py-2"
             >
                 <div className="flex items-center gap-3">
-                    <span
-                        className={[
-                            "flex items-center justify-center size-6 rounded-full text-xs font-bold",
-                            step === 1 && isOpen
-                                ? "bg-primary text-white"
-                                : isOpen
-                                    ? "bg-primary text-white"
-                                    : "bg-gray-200 dark:bg-[#3d2e1f] text-[#181411] dark:text-white",
-                        ].join(" ")}
-                    >
+                    <span className={[
+                        "flex items-center justify-center size-8 rounded-2xl border text-xs font-bold",
+                        isOpen
+                            ? "border-primary/30 bg-primary text-white"
+                            : "border-white/10 bg-white/5 text-zinc-300",
+                    ].join(" ")}>
                         {step}
                     </span>
-                    <p className="text-[#181411] dark:text-white text-lg font-bold">{title}</p>
+                    <p className="text-white text-lg font-bold">{title}</p>
                 </div>
 
-                <div className={`text-[#181411] dark:text-white transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                <div className={`text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </div>
             </button>
@@ -1656,24 +1694,23 @@ function PayOption({ active, onClick, icon, label, description, highlight, disab
             onClick={onClick}
             disabled={disabled}
             className={[
-                "flex flex-col items-center justify-center p-4 rounded-lg transition-colors border",
+                "flex flex-col items-start justify-between gap-3 p-4 rounded-2xl transition-all border text-left",
                 active
-                    ? "border-primary bg-primary/5"
-                    : "border-[#e6e0db] dark:border-[#3d2e1f] hover:border-primary hover:bg-primary/5",
-                disabled ? "opacity-50 cursor-not-allowed hover:border-[#e6e0db] hover:bg-transparent" : "cursor-pointer",
+                    ? "border-primary/40 bg-primary/10"
+                    : "border-white/10 bg-white/5 hover:border-primary/40 hover:bg-white/10",
+                disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
             ].join(" ")}
         >
             <div
                 className={[
-                    "mb-2",
-                    highlight ? "text-primary" : active ? "text-primary" : "text-[#8a7560]",
+                    active || highlight ? "text-primary" : "text-zinc-300",
                 ].join(" ")}
             >
                 {icon}
             </div>
-            <p className="text-xs font-bold text-center">{label}</p>
+            <p className="text-sm font-semibold text-white">{label}</p>
             {description ? (
-                <p className="text-[10px] text-center text-[#8a7560] dark:text-[#a59280] mt-1">{description}</p>
+                <p className="text-xs text-zinc-400 mt-1">{description}</p>
             ) : null}
         </button>
     );
@@ -1682,10 +1719,12 @@ function PayOption({ active, onClick, icon, label, description, highlight, disab
 function Line({ label, value }) {
     return (
         <div className="flex justify-between text-sm">
-            <span className="text-[#8a7560] dark:text-[#a59280]">{label}</span>
-            <span className="font-medium">{value}</span>
+            <span className="text-zinc-400">{label}</span>
+            <span className="font-semibold text-white">{value}</span>
         </div>
     );
 }
+
+
 
 

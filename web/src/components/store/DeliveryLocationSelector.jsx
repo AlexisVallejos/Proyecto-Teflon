@@ -7,7 +7,7 @@ import {
 } from '@phosphor-icons/react';
 import { loadLeaflet } from '../../utils/leafletLoader';
 
-const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
+const DEFAULT_CENTER = { lat: -38.0055, lng: -57.5426 };
 
 const parseCoordinate = (value, min, max) => {
     const parsed = Number(value);
@@ -59,9 +59,9 @@ const reverseLookup = async (latitude, longitude) => {
 };
 
 const GuideBox = ({ title, children }) => (
-    <div className="rounded-lg border border-[#e6e0db] bg-[#f8f6f4] px-3 py-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#8a7560]">{title}</p>
-        <div className="mt-1.5 space-y-1 text-xs text-[#5d4b3d]">{children}</div>
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">{title}</p>
+        <div className="mt-2 space-y-1 text-xs text-zinc-300">{children}</div>
     </div>
 );
 
@@ -290,7 +290,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
     }, []);
 
     return (
-        <div className="space-y-3 rounded-xl border border-[#e6e0db] bg-white p-4">
+        <div className="space-y-4 rounded-[28px] border border-white/10 bg-[#0d131c]/95 p-5 text-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.8)] backdrop-blur">
             <div className="flex flex-col gap-3 md:flex-row">
                 <div className="relative flex-1">
                     <input
@@ -298,15 +298,15 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder="Ej: Guemes Mar del Plata o Cordoba 1843"
-                        className="w-full rounded-lg border border-[#d6cbc2] bg-white py-2.5 pl-10 pr-4 text-sm text-[#181411] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none transition-all duration-200 placeholder:text-zinc-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
-                    <MagnifyingGlass size={18} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a7560]" />
+                    <MagnifyingGlass size={18} weight="bold" className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
                 </div>
                 <button
                     type="button"
                     onClick={handleSearch}
                     disabled={searching}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d6cbc2] bg-white px-4 py-2.5 text-sm font-semibold text-[#181411] transition hover:border-primary hover:text-primary disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary/50 hover:bg-white/10 disabled:opacity-60"
                 >
                     {searching ? 'Buscando...' : 'Buscar'}
                 </button>
@@ -314,7 +314,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                     type="button"
                     onClick={handleUseCurrentLocation}
                     disabled={locating}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_45px_-24px_var(--color-primary)] transition hover:bg-primary/90 disabled:opacity-60"
                 >
                     <Crosshair size={16} weight="bold" />
                     {locating ? 'Ubicando...' : 'Usar mi ubicacion'}
@@ -322,7 +322,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                 <button
                     type="button"
                     onClick={handleClearAll}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d6cbc2] bg-white px-4 py-2.5 text-sm font-semibold text-[#181411] transition hover:border-primary hover:text-primary"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary/50 hover:bg-white/10"
                 >
                     <Trash size={16} weight="bold" />
                     Borrar todo
@@ -342,20 +342,20 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                 </GuideBox>
             </div>
 
-            <div className="relative overflow-hidden rounded-xl border border-[#e6e0db] bg-[#f8f6f4]">
+            <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[#090d13]">
                 <div ref={mapContainerRef} className="h-[280px] w-full" />
-                <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-[#e6e0db] bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-[#5d4b3d] shadow-sm">
+                <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-[#0d131c]/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-300 shadow-sm backdrop-blur">
                     {status === 'ready' ? 'Seleccion de ubicacion' : status === 'loading' ? 'Cargando mapa' : 'Error de mapa'}
                 </div>
                 {status !== 'ready' ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/90 px-6 text-center text-sm text-[#5d4b3d]">
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#0d131c]/92 px-6 text-center text-sm text-zinc-300">
                         {status === 'loading' ? 'Preparando OpenStreetMap.' : 'No se pudo cargar el mapa.'}
                     </div>
                 ) : null}
             </div>
 
             {results.length ? (
-                <div className="space-y-2 rounded-xl border border-[#e6e0db] bg-[#f8f6f4] p-3">
+                <div className="space-y-2 rounded-[26px] border border-white/10 bg-white/5 p-3">
                     {results.map((result) => (
                         <button
                             key={`${result.place_id}-${result.osm_id || result.display_name}`}
@@ -367,12 +367,12 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                                     address: result.display_name,
                                 })
                             }
-                            className="flex w-full items-start gap-3 rounded-lg border border-[#e6e0db] bg-white px-3 py-3 text-left transition hover:border-primary/40"
+                            className="flex w-full items-start gap-3 rounded-2xl border border-white/10 bg-[#111827] px-3 py-3 text-left transition hover:border-primary/40"
                         >
                             <MapPinLine size={18} weight="duotone" className="mt-0.5 text-primary" />
                             <div className="min-w-0">
-                                <p className="text-sm font-semibold text-[#181411]">{result.display_name}</p>
-                                <p className="mt-1 text-xs text-[#8a7560]">
+                                <p className="text-sm font-semibold text-white">{result.display_name}</p>
+                                <p className="mt-1 text-xs text-zinc-400">
                                     {result.type || result.class || 'direccion'}
                                 </p>
                             </div>
@@ -382,7 +382,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
             ) : null}
 
             {feedback ? (
-                <div className="rounded-lg border border-[#e6e0db] bg-[#f8f6f4] px-3 py-2 text-xs text-[#5d4b3d]">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-zinc-300">
                     {feedback}
                 </div>
             ) : null}

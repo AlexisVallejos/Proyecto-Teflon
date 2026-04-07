@@ -8,7 +8,7 @@ import { loadLeaflet } from '../../../utils/leafletLoader';
 import { cn } from '../../../utils/cn';
 import { hasZonePolygon } from '../../../utils/shipping';
 
-const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
+const DEFAULT_CENTER = { lat: -38.0055, lng: -57.5426 };
 const MIN_SPAN_DEGREES = 0.0025;
 
 const inputClass =

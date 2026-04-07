@@ -212,12 +212,6 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
                             {activeModule}
                         </h1>
                     </div>
-                    <div className="h-4 w-px" style={{ backgroundColor: 'var(--admin-border)' }} />
-                    <div className="flex items-center gap-2 text-[11px] font-mono admin-text-muted">
-                        <span>PANEL</span>
-                        <span>/</span>
-                        <span className="admin-text-primary">SESSION_ACTIVE</span>
-                    </div>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -444,3 +438,4 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
 };
 
 export default EvolutionCanvas;
+

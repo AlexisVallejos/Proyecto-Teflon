@@ -12,7 +12,7 @@ import { hasZonePolygon, normalizeBranches, normalizeShippingZones } from '../..
 
 const DISTANCE_COLORS = ['#4f46e5', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 const FIXED_COLORS = ['#2563eb', '#0f766e', '#b45309', '#be123c', '#7c3aed', '#0369a1'];
-const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
+const DEFAULT_CENTER = { lat: -38.0055, lng: -57.5426 };
 const LABEL_BEARINGS = [320, 18, 122, 220, 72, 170];
 
 const statusToneMap = {

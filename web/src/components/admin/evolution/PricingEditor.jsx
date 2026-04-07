@@ -228,7 +228,7 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
             </div>
 
             <div>
-                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">ReseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±as</p>
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">Reseñas</p>
                 <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-center justify-between gap-3">
                         <div>
@@ -243,7 +243,7 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
                                     ? 'border-evolution-indigo/70 bg-evolution-indigo'
                                     : 'border-white/20 bg-zinc-700'
                             }`}
-                            aria-label="Toggle reseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±as"
+                            aria-label="Toggle reseñas"
                         >
                             <span
                                 className={`block h-4 w-4 rounded-full bg-white transition-transform ${
@@ -411,10 +411,10 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
                                                 <div>
                                                     <p className="text-sm font-bold text-white">{offerItem.name}</p>
                                                     <p className="text-xs text-zinc-400">
-                                                        {offerItem.percent}% ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {offerItem.enabled ? 'Activa' : 'Inactiva'} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· etiqueta: {offerItem.label || 'Oferta'}
+                                                        {offerItem.percent}% · {offerItem.enabled ? 'Activa' : 'Inactiva'} · etiqueta: {offerItem.label || 'Oferta'}
                                                     </p>
                                                     <p className="text-xs text-zinc-500">
-                                                        Usuarios: {(offerItem.user_ids || []).length || 'Todos'} ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Categorias: {(offerItem.category_ids || []).length || 'Todas'}
+                                                        Usuarios: {(offerItem.user_ids || []).length || 'Todos'} · Categorías: {(offerItem.category_ids || []).length || 'Todas'}
                                                     </p>
                                                     {categoryNames.length > 0 ? (
                                                         <p className="truncate text-xs text-zinc-500">
