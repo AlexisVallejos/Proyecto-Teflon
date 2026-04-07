@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import BranchLocationPicker from './BranchLocationPicker';
 import ShippingZonesMapPreview from './ShippingZonesMapPreview';
+import ShippingZoneAreaPicker from './ShippingZoneAreaPicker';
+import { hasZonePolygon } from '../../../utils/shipping';
 
 const CHECKOUT_METHOD_OPTIONS = [
     { key: 'transfer', label: 'Transferencia' },
@@ -32,6 +34,8 @@ const EMPTY_SHIPPING_ZONE = () => ({
     price: 0,
     type: 'flat',
     branch_id: '',
+    polygon: [],
+    coverage_mode: 'manual',
     min_distance_km: 0,
     max_distance_km: '',
     enabled: true,
@@ -45,6 +49,7 @@ const compactFieldClass =
 
 const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const [mapBranchIndex, setMapBranchIndex] = useState(null);
+    const [mapZoneIndex, setMapZoneIndex] = useState(null);
     const checkoutMethods = Array.isArray(settings?.commerce?.payment_methods)
         ? settings.commerce.payment_methods
         : ['transfer', 'cash_on_pickup'];
@@ -104,6 +109,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
     };
 
     const addShippingZone = () => {
+        setMapZoneIndex(shippingZones.length);
         setSettings((prev) => ({
             ...prev,
             commerce: {
@@ -134,6 +140,11 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
     };
 
     const removeShippingZone = (index) => {
+        setMapZoneIndex((current) => {
+            if (current == null) return current;
+            if (current === index) return null;
+            return current > index ? current - 1 : current;
+        });
         setSettings((prev) => {
             const current = Array.isArray(prev.commerce?.shipping_zones)
                 ? [...prev.commerce.shipping_zones]
@@ -199,6 +210,14 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const toggleBranchMap = (index) => {
         setMapBranchIndex((current) => (current === index ? null : index));
     };
+
+    const toggleZoneMap = (index) => {
+        setMapZoneIndex((current) => (current === index ? null : index));
+    };
+
+    const automaticLocationZones = shippingZones.filter(
+        (zone) => zone.type === 'distance' || hasZonePolygon(zone),
+    );
 
     return (
         <div className="space-y-6 pb-10">
@@ -382,7 +401,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             className={fieldClass}
                         >
                             <option value="" className="bg-zinc-900">Sin definir</option>
-                            {shippingZones.some((zone) => zone.type === 'distance') ? (
+                            {automaticLocationZones.length ? (
                                 <option value="distance:auto" className="bg-zinc-900">
                                     Envio segun ubicacion
                                 </option>
@@ -455,8 +474,10 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                         ))}
                                     </select>
                                 ) : (
-                                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-500">
-                                        El cliente elige esta zona directamente.
+                                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-400">
+                                        {hasZonePolygon(zone)
+                                            ? 'Esta zona se cotiza por ubicacion del cliente.'
+                                            : 'Esta zona queda como seleccion manual hasta que le dibujes un area.'}
                                     </div>
                                 )}
                             </div>
@@ -488,7 +509,32 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                         className={compactFieldClass}
                                     />
                                 </div>
-                            ) : null}
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-xs text-zinc-500">
+                                            Busca un barrio o ajusta el mapa para que esta zona se cotice automaticamente por ubicacion.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleZoneMap(index)}
+                                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-zinc-200 transition-all hover:border-white/25 hover:bg-white/10"
+                                        >
+                                            {mapZoneIndex === index ? 'Ocultar area' : hasZonePolygon(zone) ? 'Editar area' : 'Definir area'}
+                                        </button>
+                                    </div>
+                                    {mapZoneIndex === index ? (
+                                        <ShippingZoneAreaPicker
+                                            zone={zone}
+                                            onChange={(patch) => {
+                                                Object.entries(patch || {}).forEach(([field, value]) => {
+                                                    updateShippingZone(index, field, value);
+                                                });
+                                            }}
+                                        />
+                                    ) : null}
+                                </div>
+                            )}
                             <div className="flex items-center justify-between">
                                 <label className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400">
                                     <input
@@ -510,7 +556,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                     ))}
                 </div>
                 <p className="text-xs text-zinc-500">
-                    Las zonas por distancia usan la ubicacion del cliente y la sucursal origen para calcular el costo.
+                    Las zonas por distancia usan la sucursal origen. Las zonas fijas pueden quedar manuales o mapear un area real para cotizar segun la ubicacion del cliente.
                 </p>
                 <ShippingZonesMapPreview branches={branches} shippingZones={shippingZones} />
             </div>

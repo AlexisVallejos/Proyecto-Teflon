@@ -17,6 +17,102 @@ const normalizeLongitude = (value) => {
     return parsed;
 };
 
+const normalizePolygonPoint = (value) => {
+    if (Array.isArray(value) && value.length >= 2) {
+        const latitude = normalizeLatitude(value[0]);
+        const longitude = normalizeLongitude(value[1]);
+        if (latitude == null || longitude == null) return null;
+        return { lat: latitude, lng: longitude };
+    }
+
+    if (!value || typeof value !== 'object') return null;
+
+    const latitude = normalizeLatitude(value.lat ?? value.latitude);
+    const longitude = normalizeLongitude(value.lng ?? value.longitude ?? value.lon);
+    if (latitude == null || longitude == null) return null;
+
+    return { lat: latitude, lng: longitude };
+};
+
+const normalizeZonePolygon = (value) => {
+    const list = Array.isArray(value) ? value : [];
+    const polygon = list.map(normalizePolygonPoint).filter(Boolean);
+    return polygon.length >= 3 ? polygon : [];
+};
+
+const polygonAreaScore = (polygon = []) => {
+    if (polygon.length < 3) return Number.POSITIVE_INFINITY;
+    let total = 0;
+    for (let index = 0; index < polygon.length; index += 1) {
+        const current = polygon[index];
+        const next = polygon[(index + 1) % polygon.length];
+        total += current.lng * next.lat - next.lng * current.lat;
+    }
+    return Math.abs(total / 2);
+};
+
+const pointInPolygon = (point, polygon = []) => {
+    if (!point || polygon.length < 3) return false;
+
+    const x = Number(point.longitude ?? point.lng);
+    const y = Number(point.latitude ?? point.lat);
+    let inside = false;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+        const xi = polygon[i].lng;
+        const yi = polygon[i].lat;
+        const xj = polygon[j].lng;
+        const yj = polygon[j].lat;
+
+        const intersects =
+            yi > y !== yj > y &&
+            x < ((xj - xi) * (y - yi)) / ((yj - yi) || Number.EPSILON) + xi;
+
+        if (intersects) inside = !inside;
+    }
+
+    return inside;
+};
+
+const getPolygonCentroid = (polygon = []) => {
+    if (polygon.length < 3) return null;
+
+    let area = 0;
+    let latitude = 0;
+    let longitude = 0;
+
+    for (let index = 0; index < polygon.length; index += 1) {
+        const current = polygon[index];
+        const next = polygon[(index + 1) % polygon.length];
+        const factor = current.lng * next.lat - next.lng * current.lat;
+        area += factor;
+        longitude += (current.lng + next.lng) * factor;
+        latitude += (current.lat + next.lat) * factor;
+    }
+
+    if (Math.abs(area) < Number.EPSILON) {
+        const average = polygon.reduce(
+            (acc, point) => ({
+                lat: acc.lat + point.lat,
+                lng: acc.lng + point.lng,
+            }),
+            { lat: 0, lng: 0 },
+        );
+        return {
+            lat: Number((average.lat / polygon.length).toFixed(6)),
+            lng: Number((average.lng / polygon.length).toFixed(6)),
+        };
+    }
+
+    const areaFactor = area * 0.5;
+    return {
+        lat: Number((latitude / (6 * areaFactor)).toFixed(6)),
+        lng: Number((longitude / (6 * areaFactor)).toFixed(6)),
+    };
+};
+
+export const hasZonePolygon = (zone = {}) => normalizeZonePolygon(zone?.polygon).length >= 3;
+
 export const normalizeBranches = (source = []) =>
     (Array.isArray(source) ? source : [])
         .map((branch, index) => ({
@@ -38,6 +134,15 @@ export const normalizeShippingZones = (source = [], shippingFlat = 0) => {
             const type = String(zone?.type || zone?.pricing_mode || 'flat').trim().toLowerCase() === 'distance'
                 ? 'distance'
                 : 'flat';
+            const polygon = type === 'distance'
+                ? []
+                : normalizeZonePolygon(
+                    zone?.polygon ??
+                    zone?.coverage_polygon ??
+                    zone?.coveragePolygon ??
+                    zone?.geometry?.polygon ??
+                    zone?.geometry?.coordinates,
+                );
 
             return {
                 id: zone?.id || `zone-${index + 1}`,
@@ -47,6 +152,14 @@ export const normalizeShippingZones = (source = [], shippingFlat = 0) => {
                 enabled: zone?.enabled !== false,
                 type,
                 branch_id: String(zone?.branch_id || zone?.branchId || '').trim() || null,
+                polygon,
+                coverage_mode:
+                    type === 'distance'
+                        ? 'distance'
+                        : polygon.length >= 3
+                            ? 'polygon'
+                            : 'manual',
+                centroid: polygon.length >= 3 ? getPolygonCentroid(polygon) : null,
                 min_distance_km: type === 'distance' ? Math.max(0, toNumber(zone?.min_distance_km ?? zone?.minDistanceKm, 0)) : 0,
                 max_distance_km: type === 'distance'
                     ? (() => {
@@ -70,6 +183,9 @@ export const normalizeShippingZones = (source = [], shippingFlat = 0) => {
             enabled: true,
             type: 'flat',
             branch_id: null,
+            polygon: [],
+            coverage_mode: 'manual',
+            centroid: null,
             min_distance_km: 0,
             max_distance_km: null,
         },
@@ -98,14 +214,63 @@ const findBranchForZone = (zone, branches) => {
     return branches.find((branch) => branch.latitude != null && branch.longitude != null) || null;
 };
 
+export const resolveFixedZoneQuote = ({ shippingZones = [], branches = [], location = null, preferredBranchId = null }) => {
+    if (location?.latitude == null || location?.longitude == null) {
+        return { error: 'shipping_location_required' };
+    }
+
+    const fixedZones = shippingZones
+        .filter((zone) => zone.type !== 'distance' && hasZonePolygon(zone))
+        .filter((zone) => !preferredBranchId || !zone.branch_id || zone.branch_id === preferredBranchId);
+
+    const matches = fixedZones
+        .filter((zone) => pointInPolygon(location, zone.polygon))
+        .map((zone) => ({
+            zone,
+            branch: findBranchForZone(zone, branches),
+            price: toNumber(zone.price, 0),
+            areaScore: polygonAreaScore(zone.polygon),
+        }))
+        .sort((a, b) => a.areaScore - b.areaScore);
+
+    if (!matches.length) {
+        return { error: 'delivery_out_of_range' };
+    }
+
+    const best = matches[0];
+    return {
+        ok: true,
+        zone: best.zone,
+        branch: best.branch,
+        distance_km: null,
+        price: best.price,
+        match_type: 'polygon',
+    };
+};
+
 export const resolveDistanceQuote = ({ shippingZones = [], branches = [], location = null, preferredBranchId = null }) => {
     if (location?.latitude == null || location?.longitude == null) {
         return { error: 'shipping_location_required' };
     }
 
+    const hasFixedLocationZones = shippingZones.some(
+        (zone) => zone.type !== 'distance' && hasZonePolygon(zone),
+    );
+
+    const fixedZoneQuote = resolveFixedZoneQuote({
+        shippingZones,
+        branches,
+        location,
+        preferredBranchId,
+    });
+
+    if (fixedZoneQuote?.ok) {
+        return fixedZoneQuote;
+    }
+
     const distanceZones = shippingZones.filter((zone) => zone.type === 'distance');
     if (!distanceZones.length) {
-        return { error: 'distance_shipping_not_configured' };
+        return { error: hasFixedLocationZones ? 'delivery_out_of_range' : 'location_shipping_not_configured' };
     }
 
     const candidateZones = preferredBranchId
@@ -156,5 +321,6 @@ export const resolveDistanceQuote = ({ shippingZones = [], branches = [], locati
         branch: best.branch,
         distance_km: best.distance_km,
         price: best.price,
+        match_type: 'distance',
     };
 };

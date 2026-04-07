@@ -8,9 +8,10 @@ import {
 } from '@phosphor-icons/react';
 import { cn } from '../../../utils/cn';
 import { loadLeaflet } from '../../../utils/leafletLoader';
-import { normalizeBranches, normalizeShippingZones } from '../../../utils/shipping';
+import { hasZonePolygon, normalizeBranches, normalizeShippingZones } from '../../../utils/shipping';
 
 const DISTANCE_COLORS = ['#4f46e5', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+const FIXED_COLORS = ['#2563eb', '#0f766e', '#b45309', '#be123c', '#7c3aed', '#0369a1'];
 const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
 const LABEL_BEARINGS = [320, 18, 122, 220, 72, 170];
 
@@ -36,6 +37,49 @@ const formatDistanceBand = (zone) => {
     }
     return `${min} a ${zone.max_distance_km} km`;
 };
+
+const getFlatZoneLabelMarkup = (zone) => `
+    <div style="
+        min-width: 88px;
+        max-width: 132px;
+        padding: 8px 10px;
+        border-radius: 14px;
+        border: 1px solid ${zone.color}44;
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 8px 20px rgba(15,23,42,0.08);
+        text-align: center;
+        color: #0f172a;
+    ">
+        <div style="
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 7px;
+            border-radius: 999px;
+            background: rgba(15,23,42,0.05);
+            color: #64748b;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        ">${zone.name || 'Zona'}</div>
+        <div style="
+            margin-top: 6px;
+            font-size: 16px;
+            line-height: 1;
+            font-weight: 800;
+            color: #0f172a;
+        ">${formatZonePrice(zone.price)}</div>
+        <div style="
+            margin-top: 4px;
+            font-size: 9px;
+            line-height: 1.25;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        ">zona fija</div>
+    </div>
+`;
 
 const offsetCoordinateByKm = (origin, distanceKm, bearingDeg) => {
     const earthRadiusKm = 6371;
@@ -178,11 +222,26 @@ const FlatZoneRow = ({ zone }) => (
         <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-900">{zone.name}</p>
-                <p className="text-xs text-slate-500">{zone.description || 'Cobertura fija manual.'}</p>
+                <p className="text-xs text-slate-500">
+                    {zone.description ||
+                        (hasZonePolygon(zone)
+                            ? 'Se cotiza automaticamente por ubicacion.'
+                            : 'Seleccion manual del cliente.')}
+                </p>
             </div>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
                 {formatZonePrice(zone.price)}
             </span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                {hasZonePolygon(zone) ? 'Area mapeada' : 'Sin area'}
+            </span>
+            {zone.branch_id ? (
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                    Con sucursal origen
+                </span>
+            ) : null}
         </div>
     </div>
 );
@@ -262,6 +321,22 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
         [normalizedZones],
     );
 
+    const mappedFlatZones = useMemo(
+        () =>
+            flatZones
+                .filter((zone) => hasZonePolygon(zone))
+                .map((zone, index) => ({
+                    ...zone,
+                    color: FIXED_COLORS[index % FIXED_COLORS.length],
+                })),
+        [flatZones],
+    );
+
+    const manualFlatZones = useMemo(
+        () => flatZones.filter((zone) => !hasZonePolygon(zone)),
+        [flatZones],
+    );
+
     const missingDistanceZones = useMemo(() => {
         const mappedIds = new Set(distanceZonesWithLabels.map((zone) => zone.id));
         return normalizedZones.filter(
@@ -322,6 +397,41 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
         layersRef.current = [];
 
         const bounds = [];
+
+        mappedFlatZones.forEach((zone) => {
+            const polygonLayer = L.polygon(
+                zone.polygon.map((point) => [point.lat, point.lng]),
+                {
+                    color: zone.color,
+                    weight: 2,
+                    fillColor: zone.color,
+                    fillOpacity: 0.12,
+                },
+            ).addTo(map);
+
+            polygonLayer.bindTooltip(`${zone.name} · ${formatZonePrice(zone.price)}`, {
+                direction: 'top',
+                offset: [0, -6],
+            });
+
+            layersRef.current.push(polygonLayer);
+            bounds.push(polygonLayer.getBounds().getNorthEast());
+            bounds.push(polygonLayer.getBounds().getSouthWest());
+
+            if (zone.centroid?.lat != null && zone.centroid?.lng != null) {
+                const labelMarker = L.marker([zone.centroid.lat, zone.centroid.lng], {
+                    interactive: false,
+                    icon: L.divIcon({
+                        className: 'shipping-zone-fixed-label',
+                        iconSize: null,
+                        html: getFlatZoneLabelMarkup(zone),
+                    }),
+                }).addTo(map);
+
+                layersRef.current.push(labelMarker);
+                bounds.push([zone.centroid.lat, zone.centroid.lng]);
+            }
+        });
 
         distanceZonesWithLabels.forEach((zone) => {
             const center = [zone.branch.latitude, zone.branch.longitude];
@@ -417,7 +527,7 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
         } else {
             map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 10);
         }
-    }, [distanceZonesWithLabels, mappableBranches]);
+    }, [distanceZonesWithLabels, mappedFlatZones, mappableBranches]);
 
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_-32px_rgba(15,23,42,0.28)]">
@@ -438,7 +548,7 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
                                 </span>
                             </div>
                             <p className="max-w-2xl text-sm text-slate-500">
-                                Visualiza el alcance de cada radio de entrega alrededor de las sucursales que ya tienen coordenadas.
+                                Visualiza radios por sucursal y zonas fijas dibujadas. Las zonas fijas mapeadas se cotizan automaticamente cuando la ubicacion del cliente cae dentro del area.
                             </p>
                         </div>
                     </div>
@@ -453,7 +563,7 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
                         <SummaryCard
                             icon={Package}
                             label="Zonas fijas"
-                            value={flatZones.length}
+                            value={mappedFlatZones.length ? `${mappedFlatZones.length}/${flatZones.length}` : flatZones.length}
                             toneClass="text-amber-600"
                         />
                         <SummaryCard
@@ -465,7 +575,7 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
                         <SummaryCard
                             icon={WarningCircle}
                             label="Pendientes"
-                            value={missingDistanceZones.length}
+                            value={missingDistanceZones.length + manualFlatZones.length}
                             toneClass="text-rose-600"
                         />
                     </div>
@@ -482,9 +592,9 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
                         </div>
 
                         <div className="pointer-events-none absolute bottom-3 left-3 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-xs text-slate-600 shadow-sm backdrop-blur">
-                            El anillo lleno marca hasta donde llega la banda.
+                            Las zonas azules rellenadas son areas fijas.
                             <br />
-                            La etiqueta muestra el precio final de cada banda.
+                            Los anillos muestran bandas por distancia desde cada sucursal.
                         </div>
 
                         {status !== 'ready' ? (
@@ -496,10 +606,11 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
                         ) : null}
                     </div>
 
-                    {missingDistanceZones.length ? (
+                    {missingDistanceZones.length || manualFlatZones.length ? (
                         <div className="rounded-2xl border border-rose-200 bg-white p-4 text-sm text-slate-700 shadow-[0_8px_24px_-20px_rgba(244,63,94,0.18)]">
-                            Hay {missingDistanceZones.length} zona{missingDistanceZones.length > 1 ? 's' : ''} por distancia que no se pueden dibujar todavia.
-                            Revisa si les falta una sucursal origen o si la sucursal no tiene coordenadas.
+                            Hay {missingDistanceZones.length + manualFlatZones.length} zona{missingDistanceZones.length + manualFlatZones.length > 1 ? 's' : ''} todavia sin representar del todo.
+                            {missingDistanceZones.length ? ' Revisa radios sin sucursal o sin coordenadas.' : ''}
+                            {manualFlatZones.length ? ' Las zonas fijas sin area siguen quedando como seleccion manual.' : ''}
                         </div>
                     ) : (
                         <div className="rounded-2xl border border-emerald-200 bg-white p-4 text-sm text-slate-700 shadow-[0_8px_24px_-20px_rgba(16,185,129,0.18)]">

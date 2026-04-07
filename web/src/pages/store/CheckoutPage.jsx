@@ -1,5 +1,6 @@
 ﻿import React, { useMemo, useRef, useState, useEffect } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
+import DeliveryLocationSelector from "../../components/store/DeliveryLocationSelector";
 import { formatCurrency } from "../../utils/format";
 import { useStore } from "../../context/StoreContext";
 import { useTenant } from "../../context/TenantContext";
@@ -69,11 +70,12 @@ const mapDistanceQuoteError = (code) => {
         case "shipping_location_required":
             return "Activa tu ubicacion para calcular el envio.";
         case "delivery_out_of_range":
-            return "La direccion esta fuera del radio de entrega configurado.";
+            return "La direccion esta fuera de las zonas de entrega configuradas.";
         case "shipping_origin_not_configured":
             return "La tienda todavia no configuro coordenadas para la sucursal de origen.";
         case "distance_shipping_not_configured":
-            return "La tienda no tiene zonas por distancia configuradas.";
+        case "location_shipping_not_configured":
+            return "La tienda no tiene zonas geograficas ni radios por distancia configurados.";
         default:
             return "No se pudo calcular el envio por ubicacion.";
     }
@@ -116,7 +118,6 @@ export default function CheckoutPage() {
         postalCode: "",
     });
     const [deliveryLocation, setDeliveryLocation] = useState(null);
-    const [locatingDelivery, setLocatingDelivery] = useState(false);
     const [deliveryQuoteError, setDeliveryQuoteError] = useState(null);
     const [billingInfo, setBillingInfo] = useState(EMPTY_BILLING_INFO);
     const [orderChannel, setOrderChannel] = useState("whatsapp");
@@ -135,19 +136,17 @@ export default function CheckoutPage() {
         return normalizeBranches(source);
     }, [checkoutSettings, commerce]);
 
-    const distanceShippingZones = useMemo(
-        () => shippingZones.filter((zone) => zone.type === "distance"),
-        [shippingZones]
-    );
-
     const deliveryOptions = useMemo(() => {
         const options = [];
-        if (distanceShippingZones.length) {
+        const automaticLocationZones = shippingZones.filter(
+            (zone) => zone.type === "distance" || (Array.isArray(zone.polygon) && zone.polygon.length >= 3),
+        );
+        if (automaticLocationZones.length) {
             options.push({
                 key: DISTANCE_DELIVERY_KEY,
                 type: "shipping",
                 title: "Envio segun tu ubicacion",
-                desc: "Calculamos el costo segun la distancia entre tu ubicacion y la sucursal.",
+                desc: "Calculamos el costo segun tu ubicacion, priorizando zonas fijas y luego radios por sucursal.",
                 price: null,
                 dynamic: true,
             });
@@ -183,7 +182,7 @@ export default function CheckoutPage() {
             });
         }
         return options;
-    }, [shippingZones, distanceShippingZones, pickupBranches, commerce]);
+    }, [shippingZones, pickupBranches, commerce]);
 
     const [deliveryMethod, setDeliveryMethod] = useState(() => {
         const fallback = String(commerce.default_delivery || "zone:arg-general").trim();
@@ -459,7 +458,9 @@ export default function CheckoutPage() {
                     title: `Envio: ${distanceQuote.zone.name}`,
                     desc:
                         distanceQuote.zone.description ||
-                        `${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`,
+                        (distanceQuote.match_type === "polygon"
+                            ? `Tu ubicacion coincide con ${distanceQuote.zone.name}.`
+                            : `${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`),
                     price: Number(distanceQuote.price || 0),
                     branch_id: distanceQuote.branch?.id || null,
                     shipping_zone_id: distanceQuote.zone.id,
@@ -472,7 +473,7 @@ export default function CheckoutPage() {
                 key: DISTANCE_DELIVERY_KEY,
                 type: "shipping",
                 title: "Envio segun tu ubicacion",
-                desc: "Comparte tu ubicacion para calcular el costo.",
+                desc: "Comparte tu ubicacion o marcala en el mapa para calcular el costo.",
                 price: 0,
                 branch_id: null,
                 shipping_zone_id: null,
@@ -667,36 +668,6 @@ export default function CheckoutPage() {
         }
     };
 
-    const handleCalculateDeliveryByLocation = () => {
-        if (typeof navigator === "undefined" || !navigator.geolocation) {
-            setDeliveryQuoteError("Tu navegador no permite obtener la ubicacion.");
-            return;
-        }
-
-        setLocatingDelivery(true);
-        setDeliveryQuoteError(null);
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setDeliveryLocation({
-                    latitude: Number(position.coords.latitude),
-                    longitude: Number(position.coords.longitude),
-                });
-                setLocatingDelivery(false);
-            },
-            (error) => {
-                console.error("No se pudo obtener la ubicacion", error);
-                setDeliveryQuoteError("No pudimos leer tu ubicacion. Revisa los permisos del navegador.");
-                setLocatingDelivery(false);
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 12000,
-                maximumAge: 0,
-            }
-        );
-    };
-
     const handleCompletePurchase = async () => {
         if (!items.length) return;
         if (!user) {
@@ -774,7 +745,7 @@ export default function CheckoutPage() {
                         distance_km: distanceQuote.distance_km,
                         branch_id: distanceQuote.branch?.id || null,
                         shipping_zone_id: distanceQuote.zone?.id || null,
-                        source: "browser_geolocation",
+                        source: "checkout_location_picker",
                     }
                     : undefined,
             };
@@ -1261,7 +1232,9 @@ export default function CheckoutPage() {
                                         const checked = deliveryMethod === opt.key;
                                         const isDistanceOption = opt.key === DISTANCE_DELIVERY_KEY;
                                         const optionDescription = isDistanceOption && distanceQuote?.ok
-                                            ? `${distanceQuote.zone?.name || "Zona"} · ${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`
+                                            ? distanceQuote.match_type === "polygon"
+                                                ? `${distanceQuote.zone?.name || "Zona"} · zona fija detectada por tu ubicacion`
+                                                : `${distanceQuote.zone?.name || "Zona"} · ${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`
                                             : opt.desc;
                                         const optionPrice = isDistanceOption && distanceQuote?.ok
                                             ? Number(distanceQuote.price || 0)
@@ -1302,32 +1275,43 @@ export default function CheckoutPage() {
 
                                     {deliveryMethod === DISTANCE_DELIVERY_KEY ? (
                                         <div className="rounded-xl border border-[#e6e0db] bg-[#f8f6f4] p-4 dark:border-[#3d2e1f] dark:bg-[#241a12]">
-                                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                                <div className="space-y-1">
-                                                    <p className="text-sm font-bold text-[#181411] dark:text-white">
-                                                        Calculo por ubicacion
-                                                    </p>
-                                                    <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
-                                                        Usamos tu ubicacion para calcular el envio segun la distancia al local.
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleCalculateDeliveryByLocation}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-primary/90 disabled:opacity-60"
-                                                    disabled={locatingDelivery}
-                                                >
-                                                    {locatingDelivery ? "Obteniendo ubicacion..." : "Usar mi ubicacion"}
-                                                </button>
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-bold text-[#181411] dark:text-white">
+                                                    Cotizacion por ubicacion
+                                                </p>
+                                                <p className="text-xs text-[#8a7560] dark:text-[#a59280]">
+                                                    Marca tu ubicacion en el mapa. Primero probamos zonas fijas como barrios o sectores. Si no coincide con ninguna, usamos los radios por distancia desde la sucursal.
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-4">
+                                                <DeliveryLocationSelector
+                                                    value={deliveryLocation}
+                                                    onChange={(nextLocation) => {
+                                                        setDeliveryLocation(nextLocation);
+                                                        setDeliveryQuoteError(null);
+                                                    }}
+                                                    onAddressDetected={(address) => {
+                                                        setShippingInfo((prev) => ({
+                                                            ...prev,
+                                                            fullAddress: prev.fullAddress || address,
+                                                        }));
+                                                    }}
+                                                />
                                             </div>
 
                                             {distanceQuote?.ok ? (
                                                 <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
                                                     <p className="font-bold">
-                                                        {distanceQuote.zone?.name} · {distanceQuote.distance_km} km
+                                                        {distanceQuote.zone?.name}
+                                                        {distanceQuote.distance_km != null ? ` · ${distanceQuote.distance_km} km` : ""}
                                                     </p>
                                                     <p className="mt-1">
-                                                        Sucursal: {distanceQuote.branch?.name || "Sucursal principal"} · Costo {distanceQuote.price === 0 ? "Gratis" : formatCurrency(distanceQuote.price, displayCurrency, locale)}
+                                                        {distanceQuote.match_type === "polygon"
+                                                            ? "Zona fija detectada"
+                                                            : `Sucursal: ${distanceQuote.branch?.name || "Sucursal principal"}`}
+                                                        {" · "}
+                                                        Costo {distanceQuote.price === 0 ? "Gratis" : formatCurrency(distanceQuote.price, displayCurrency, locale)}
                                                     </p>
                                                 </div>
                                             ) : null}

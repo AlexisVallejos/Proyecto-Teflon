@@ -431,9 +431,17 @@ const EvolutionAdmin = () => {
     };
 
     const handleSave = async () => {
-        const result = await editor.handleSaveAll();
+        const result =
+            activeModule === 'checkout'
+                ? await editor.saveCheckoutSettings()
+                : await editor.handleSaveAll();
+
         if (result.success) {
-            addToast(result.published ? 'Cambios guardados y publicados' : 'Guardado como borrador', 'success');
+            if (activeModule === 'checkout') {
+                addToast('Checkout guardado', 'success');
+            } else {
+                addToast(result.published ? 'Cambios guardados y publicados' : 'Guardado como borrador', 'success');
+            }
         } else {
             addToast('Error al guardar los cambios', 'error');
         }

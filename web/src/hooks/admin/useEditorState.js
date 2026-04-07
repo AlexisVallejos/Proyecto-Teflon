@@ -347,6 +347,39 @@ export function useEditorState(user) {
         }
     };
 
+    const saveCheckoutSettings = useCallback(async () => {
+        setSaving(true);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            const response = await fetch(`${getApiBase()}/api/admin/settings/checkout`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(settings?.commerce || {})
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                return { success: false, error: payload?.error || `checkout_save_${response.status}` };
+            }
+
+            await refreshTenantSettings();
+            await loadAllData();
+
+            return { success: true, published: false };
+        } catch (err) {
+            console.error('Checkout save failed', err);
+            return { success: false, error: err };
+        } finally {
+            setSaving(false);
+        }
+    }, [loadAllData, refreshTenantSettings, settings]);
+
     // Derived State
     const categoryHierarchy = useMemo(() => {
         if (!Array.isArray(categories) || !categories.length) return [];
@@ -383,6 +416,7 @@ export function useEditorState(user) {
         brands,
         setBrands,
         handleSaveAll,
+        saveCheckoutSettings,
         refresh: loadAllData
     };
 }
