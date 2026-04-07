@@ -439,14 +439,14 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                 <input
                                     type="text"
                                     value={zone.name || ''}
-                                    placeholder="Nombre de zona"
+                                    placeholder={zone.type === 'distance' ? 'Ej: Radio centro' : 'Ej: Guemes'}
                                     onChange={(e) => updateShippingZone(index, 'name', e.target.value)}
                                     className={compactFieldClass}
                                 />
                                 <input
                                     type="number"
                                     value={zone.price ?? 0}
-                                    placeholder="Costo"
+                                    placeholder={zone.type === 'distance' ? 'Ej: 3500' : 'Ej: 2500'}
                                     onChange={(e) => updateShippingZone(index, 'price', Number(e.target.value || 0))}
                                     className={compactFieldClass}
                                 />
@@ -484,7 +484,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             <input
                                 type="text"
                                 value={zone.description || ''}
-                                placeholder="Descripcion"
+                                placeholder={zone.type === 'distance' ? 'Ej: Entrega hasta 8 km desde la sucursal' : 'Ej: Entrega dentro de Guemes'}
                                 onChange={(e) => updateShippingZone(index, 'description', e.target.value)}
                                 className={compactFieldClass}
                             />
@@ -533,6 +533,9 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                             }}
                                         />
                                     ) : null}
+                                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-500">
+                                        Sugerencia: pon el nombre real del sector, por ejemplo `Guemes`, y una descripcion corta de cobertura.
+                                    </div>
                                 </div>
                             )}
                             <div className="flex items-center justify-between">

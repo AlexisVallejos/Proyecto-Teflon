@@ -3,6 +3,7 @@ import {
     Crosshair,
     MagnifyingGlass,
     MapPinLine,
+    Trash,
 } from '@phosphor-icons/react';
 import { loadLeaflet } from '../../utils/leafletLoader';
 
@@ -56,6 +57,13 @@ const reverseLookup = async (latitude, longitude) => {
 
     return response.json();
 };
+
+const GuideBox = ({ title, children }) => (
+    <div className="rounded-lg border border-[#e6e0db] bg-[#f8f6f4] px-3 py-3">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#8a7560]">{title}</p>
+        <div className="mt-1.5 space-y-1 text-xs text-[#5d4b3d]">{children}</div>
+    </div>
+);
 
 const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
     const mapContainerRef = useRef(null);
@@ -267,6 +275,20 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
         );
     }, [setLocation]);
 
+    const handleClearAll = useCallback(() => {
+        setQuery('');
+        setResults([]);
+        setFeedback('');
+        onChangeRef.current?.(null);
+
+        if (markerRef.current) {
+            markerRef.current.setLatLng([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]);
+        }
+        if (mapRef.current) {
+            mapRef.current.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 11);
+        }
+    }, []);
+
     return (
         <div className="space-y-3 rounded-xl border border-[#e6e0db] bg-white p-4">
             <div className="flex flex-col gap-3 md:flex-row">
@@ -275,7 +297,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                         type="text"
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
-                        placeholder="Busca tu direccion o barrio"
+                        placeholder="Ej: Guemes Mar del Plata o Cordoba 1843"
                         className="w-full rounded-lg border border-[#d6cbc2] bg-white py-2.5 pl-10 pr-4 text-sm text-[#181411] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                     <MagnifyingGlass size={18} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a7560]" />
@@ -297,6 +319,27 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                     <Crosshair size={16} weight="bold" />
                     {locating ? 'Ubicando...' : 'Usar mi ubicacion'}
                 </button>
+                <button
+                    type="button"
+                    onClick={handleClearAll}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d6cbc2] bg-white px-4 py-2.5 text-sm font-semibold text-[#181411] transition hover:border-primary hover:text-primary"
+                >
+                    <Trash size={16} weight="bold" />
+                    Borrar todo
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <GuideBox title="Que podes poner">
+                    <p>`Guemes Mar del Plata`</p>
+                    <p>`Cordoba 1843 Mar del Plata`</p>
+                    <p>`Usar mi ubicacion` para cotizar directo</p>
+                </GuideBox>
+                <GuideBox title="Como funciona">
+                    <p>1. Busca o marca tu punto en el mapa.</p>
+                    <p>2. El sistema valida si caes en una zona fija.</p>
+                    <p>3. Si no, calcula por distancia.</p>
+                </GuideBox>
             </div>
 
             <div className="relative overflow-hidden rounded-xl border border-[#e6e0db] bg-[#f8f6f4]">

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ArrowsOutCardinal,
     MagnifyingGlass,
     MapTrifold,
     Trash,
@@ -9,6 +10,7 @@ import { cn } from '../../../utils/cn';
 import { hasZonePolygon } from '../../../utils/shipping';
 
 const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
+const MIN_SPAN_DEGREES = 0.0025;
 
 const inputClass =
     'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-evolution-indigo focus:ring-2 focus:ring-evolution-indigo/15';
@@ -82,6 +84,55 @@ const polygonBounds = (polygon = []) => {
     };
 };
 
+const normalizeBoundsObject = (bounds = null) => {
+    if (!bounds) return null;
+
+    let south = parseCoordinate(bounds.south, -90, 90);
+    let north = parseCoordinate(bounds.north, -90, 90);
+    let west = parseCoordinate(bounds.west, -180, 180);
+    let east = parseCoordinate(bounds.east, -180, 180);
+
+    if ([south, north, west, east].some((value) => value == null)) return null;
+
+    if (south > north) [south, north] = [north, south];
+    if (west > east) [west, east] = [east, west];
+
+    if (north - south < MIN_SPAN_DEGREES) {
+        const center = (north + south) / 2;
+        south = center - MIN_SPAN_DEGREES / 2;
+        north = center + MIN_SPAN_DEGREES / 2;
+    }
+
+    if (east - west < MIN_SPAN_DEGREES) {
+        const center = (east + west) / 2;
+        west = center - MIN_SPAN_DEGREES / 2;
+        east = center + MIN_SPAN_DEGREES / 2;
+    }
+
+    return {
+        south: Number(south.toFixed(6)),
+        north: Number(north.toFixed(6)),
+        west: Number(west.toFixed(6)),
+        east: Number(east.toFixed(6)),
+    };
+};
+
+const polygonFromBoundsObject = (bounds) => {
+    const normalized = normalizeBoundsObject(bounds);
+    if (!normalized) return [];
+    return [
+        { lat: normalized.south, lng: normalized.west },
+        { lat: normalized.north, lng: normalized.west },
+        { lat: normalized.north, lng: normalized.east },
+        { lat: normalized.south, lng: normalized.east },
+    ];
+};
+
+const centerFromBoundsObject = (bounds) => ({
+    lat: Number(((bounds.north + bounds.south) / 2).toFixed(6)),
+    lng: Number(((bounds.east + bounds.west) / 2).toFixed(6)),
+});
+
 const searchNominatim = async (query) => {
     const url = new URL('https://nominatim.openstreetmap.org/search');
     url.searchParams.set('format', 'jsonv2');
@@ -130,6 +181,13 @@ const ResultRow = ({ result, onSelect }) => (
     </button>
 );
 
+const GuideCard = ({ title, children }) => (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.12)]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">{title}</p>
+        <div className="mt-2 space-y-1.5 text-sm text-slate-600">{children}</div>
+    </div>
+);
+
 const ShippingZoneAreaPicker = ({ zone, onChange }) => {
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
@@ -151,12 +209,6 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
     useEffect(() => {
         onChangeRef.current = onChange;
     }, [onChange]);
-
-    useEffect(() => {
-        if (!query && zone?.name) {
-            setQuery(zone.name);
-        }
-    }, [query, zone?.name]);
 
     const drawPolygon = useCallback((polygonPoints) => {
         const map = mapRef.current;
@@ -321,6 +373,17 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
         setSearchResults([]);
     }, []);
 
+    const clearAll = useCallback(() => {
+        clearPolygon();
+        setQuery('');
+        setSearchResults([]);
+        setFeedback('');
+
+        if (mapRef.current) {
+            mapRef.current.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 12);
+        }
+    }, [clearPolygon]);
+
     const polygonStats = useMemo(() => {
         const bounds = polygonBounds(polygon);
         if (!bounds) return null;
@@ -364,7 +427,7 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
                             type="text"
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
-                            placeholder="Ejemplo: Guemes Mar del Plata"
+                            placeholder="Ej: Guemes Mar del Plata"
                             className={inputClass}
                         />
                         <button
@@ -376,6 +439,23 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
                             <MagnifyingGlass size={16} weight="bold" />
                             {isSearching ? 'Buscando...' : 'Buscar zona'}
                         </button>
+                        <button type="button" onClick={clearAll} className={buttonClass}>
+                            <Trash size={16} weight="bold" />
+                            Borrar todo
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <GuideCard title="Que poner">
+                            <p>`Guemes Mar del Plata`</p>
+                            <p>`Centro Mar del Plata`</p>
+                            <p>`Los Troncos Mar del Plata`</p>
+                        </GuideCard>
+                        <GuideCard title="Flujo recomendado">
+                            <p>1. Busca el barrio o sector.</p>
+                            <p>2. Revisa el encuadre del mapa.</p>
+                            <p>3. Guarda el area visible.</p>
+                        </GuideCard>
                     </div>
 
                     <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_-20px_rgba(15,23,42,0.2)]">
@@ -418,7 +498,7 @@ const ShippingZoneAreaPicker = ({ zone, onChange }) => {
                             </button>
                             <button type="button" onClick={clearPolygon} className={buttonClass}>
                                 <Trash size={16} weight="bold" />
-                                Limpiar area
+                                Limpiar solo area
                             </button>
                         </div>
                     </div>
