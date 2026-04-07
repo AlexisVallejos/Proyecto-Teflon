@@ -5,6 +5,30 @@ let productSyncSchemaPromise = null;
 
 const DEFAULT_SOURCE_SYSTEM = 'erp';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DEFAULT_SYNC_OPERATION = 'upsert';
+const SYNC_OPERATION_ALIASES = {
+  create: 'create',
+  insert: 'create',
+  new: 'create',
+  alta: 'create',
+  update: 'update',
+  edit: 'update',
+  modify: 'update',
+  actualizar: 'update',
+  upsert: 'upsert',
+  sync: 'upsert',
+  sincronizar: 'upsert',
+};
+const UPDATE_REQUIRED_FIELDS = [
+  { key: 'sku', check: (item) => item?.hasSku === true },
+  { key: 'name', check: (item) => item?.hasName === true },
+  { key: 'price_retail', check: (item) => item?.hasPriceRetail === true },
+  { key: 'stock', check: (item) => item?.hasStock === true },
+  { key: 'is_active', check: (item) => item?.hasIsActive === true },
+  { key: 'brand', check: (item) => item?.hasBrand === true },
+  { key: 'description', check: (item) => item?.hasDescription === true },
+  { key: 'category', check: (item) => item?.hasCategoryRefs === true },
+];
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -20,6 +44,10 @@ const readNumeric = (value) => {
 
 const hasOwn = (source, key) => Object.prototype.hasOwnProperty.call(source || {}, key);
 const isUuid = (value) => UUID_REGEX.test(String(value || '').trim());
+const normalizeSyncOperation = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return SYNC_OPERATION_ALIASES[normalized] || DEFAULT_SYNC_OPERATION;
+};
 
 const readBoolean = (value) => {
   if (typeof value === 'boolean') return value;
@@ -200,12 +228,15 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     firstTextAlias(raw, ['source_system', 'sourceSystem', 'origin']) ||
     toTextOrNull(fallbackSourceSystem) ||
     DEFAULT_SOURCE_SYSTEM;
+  const operation = normalizeSyncOperation(firstPresentValue(raw, ['operation', 'action', 'mode', 'sync_mode', 'syncMode']));
+  const rawName = firstTextAlias(raw, ['name', 'title', 'titulo', 'detalle_ampliado', 'detalleAmpliado', 'product_name']);
+  const rawSku = firstTextAlias(raw, ['sku', 'codigo', 'codigo_propio', 'codigo_producto', 'product_code']);
   const name =
-    firstTextAlias(raw, ['name', 'title', 'titulo', 'detalle_ampliado', 'detalleAmpliado', 'product_name']) ||
+    rawName ||
     firstTextAlias(raw, ['sku', 'codigo', 'codigo_propio']) ||
     externalId ||
     'Producto sincronizado';
-  const sku = firstTextAlias(raw, ['sku', 'codigo', 'codigo_propio', 'codigo_producto', 'product_code']) || externalId;
+  const sku = rawSku || externalId;
   const description = firstTextAlias(raw, [
     'description',
     'descripcion',
@@ -300,6 +331,7 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
   return {
     externalId,
     sourceSystem,
+    operation,
     sku,
     name,
     description,
@@ -308,6 +340,8 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     categoryIds,
     categoryLabels,
     sourceCategoryLabel,
+    hasSku: rawSku !== null,
+    hasName: rawName !== null,
     hasDescription: description !== null,
     hasShortDescription: shortDescription !== null,
     hasBrand: brand !== null,
@@ -329,6 +363,11 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     rawPayload: raw,
   };
 };
+
+const getMissingUpdateFields = (item) =>
+  UPDATE_REQUIRED_FIELDS
+    .filter((field) => !field.check(item))
+    .map((field) => field.key);
 
 const buildProductDataFromSync = ({ existingData, item, allowEditorialSync }) => {
   const next = isPlainObject(existingData) ? { ...existingData } : {};
@@ -354,6 +393,7 @@ const buildSyncItemResultBase = ({ index, rawItem, item, sourceSystem }) => ({
   sku: item?.sku || toTextOrNull(rawItem?.sku ?? rawItem?.codigo ?? rawItem?.codigo_propio) || null,
   name: item?.name || toTextOrNull(rawItem?.name ?? rawItem?.title ?? rawItem?.titulo) || null,
   source_system: item?.sourceSystem || sourceSystem,
+  requested_operation: item?.operation || normalizeSyncOperation(rawItem?.operation ?? rawItem?.action ?? rawItem?.mode ?? rawItem?.sync_mode),
 });
 
 async function upsertSyncMetadata(client, { tenantId, productId, externalId, sourceSystem, lastSyncAt, rawPayload }) {
@@ -703,6 +743,48 @@ export async function syncIntegrationProducts({
         continue;
       }
 
+      const existing = existingByExternalId.get(item.externalId);
+      if (item.operation === 'create' && existing) {
+        failed += 1;
+        itemResults.push({
+          ...baseResult,
+          ok: false,
+          status: 'error',
+          action: 'create',
+          error: 'external_id_already_exists',
+          product_id: existing.id,
+        });
+        continue;
+      }
+
+      if (item.operation === 'update' && !existing) {
+        failed += 1;
+        itemResults.push({
+          ...baseResult,
+          ok: false,
+          status: 'error',
+          action: 'update',
+          error: 'product_not_found',
+        });
+        continue;
+      }
+
+      if (existing) {
+        const missingFields = getMissingUpdateFields(item);
+        if (missingFields.length) {
+          failed += 1;
+          itemResults.push({
+            ...baseResult,
+            ok: false,
+            status: 'error',
+            action: 'update',
+            error: 'update_payload_incomplete',
+            missing_fields: missingFields,
+          });
+          continue;
+        }
+      }
+
       const savepointName = `sync_item_${index + 1}`;
       await client.query(`SAVEPOINT ${savepointName}`);
 
@@ -715,7 +797,6 @@ export async function syncIntegrationProducts({
             })
           : { categoryIds: [], createdCount: 0 };
 
-        const existing = existingByExternalId.get(item.externalId);
         if (!existing) {
           const productData = buildProductDataFromSync({
             existingData: {},

@@ -200,6 +200,140 @@ Importante:
 - `stock` viaja dentro del mismo item de producto.
 - No hace falta una URL o endpoint separado para stock si el sistema ya arma el JSON de productos.
 
+## Contrato exacto para el proveedor
+
+### 1. Campo estrictamente obligatorio
+
+El unico campo estrictamente obligatorio por item es:
+
+- `external_id`
+
+Si falta, ese item vuelve con:
+
+```json
+{
+  "ok": false,
+  "status": "error",
+  "action": "ignored",
+  "error": "external_id_required"
+}
+```
+
+### 2. Campos opcionales con fallback
+
+Estos campos no frenan el item si faltan:
+
+- `sku`
+- `name`
+- `description`
+- `brand`
+- `price_retail`
+- `price_wholesale`
+- `stock`
+- `is_active`
+- `images`
+- `category_id` / `category_ids` / `category` / `familia`
+
+Comportamiento real del backend:
+
+- si falta `name`, intenta usar `sku`, luego `codigo`, luego `external_id`
+- si falta `price_retail`, usa `0` al crear y mantiene el precio actual al actualizar
+- si falta `price_wholesale`, usa el mayorista actual o el minorista
+- si falta `stock`, usa `0` al crear y mantiene el stock actual al actualizar
+- si falta `is_active`, asume `true` al crear y mantiene el estado actual al actualizar
+- si falta `description`, `brand` o `images`, no falla; solo no actualiza esos campos si no llegaron
+
+### 3. Regla create / update
+
+El proveedor no tiene que decidir si crea o actualiza. Solo tiene que enviar `external_id`.
+
+El ecommerce hace esto:
+
+- si no existe un producto con ese `external_id`, crea
+- si ya existe, actualiza
+
+La respuesta por item informa lo que paso:
+
+- `status: "created"` + `action: "create"`
+- `status: "updated"` + `action: "update"`
+- `status: "error"` + `action: "ignored" | "create" | "update"`
+
+### 3.1. Regla especial para updates
+
+Si el producto ya existe, el backend ahora exige update completo.
+
+En un item de update deben venir, ademas de `external_id`:
+
+- `sku`
+- `name`
+- `price_retail`
+- `stock`
+- `is_active`
+- `brand`
+- `description`
+- `category` o `category_id` / `category_ids` / `familia`
+
+Si falta cualquiera de esos campos, ese item no se actualiza y vuelve con:
+
+```json
+{
+  "ok": false,
+  "status": "error",
+  "action": "update",
+  "error": "update_payload_incomplete",
+  "missing_fields": [
+    "description",
+    "category"
+  ]
+}
+```
+
+Esto evita updates parciales silenciosos y obliga al sistema de gestion a enviar el producto completo.
+
+### 4. Regla de errores por lote
+
+La sincronizacion es parcial. Un item con error no invalida todo el lote.
+
+El proveedor debe leer siempre:
+
+- `created`
+- `updated`
+- `failed`
+- `item_results`
+
+`item_results[index]` corresponde a la misma posicion enviada en el array original.
+
+### 5. Errores por item que el proveedor debe registrar
+
+Errores concretos que hoy puede devolver cada item:
+
+- `invalid_product_item`
+- `external_id_required`
+- `update_payload_incomplete`
+- `invalid_category_ids`
+- `sync_item_failed`
+
+Tambien puede propagar `err.code` o `err.message` si una validacion interna falla de forma mas especifica.
+
+### 6. Recomendacion minima de implementacion
+
+El sistema de gestion deberia registrar por cada item:
+
+- `index`
+- `external_id`
+- `status`
+- `action`
+- `ok`
+- `product_id` si vino
+- `error` si vino
+
+Con eso ya puede dejar trazabilidad de:
+
+- producto creado
+- producto actualizado
+- producto rechazado
+- motivo exacto del rechazo
+
 ## Reglas de negocio
 
 - `external_id` debe ser unico por tenant y no debe cambiar con el tiempo.
@@ -318,14 +452,18 @@ Lote mixto con altas, actualizaciones y errores:
     },
     {
       "index": 2,
-      "external_id": null,
-      "sku": "SIN-ID",
+      "external_id": "PROD-0099",
+      "sku": "PROD-0099",
       "name": "Producto incompleto",
       "source_system": "sistema-gestion-av",
       "ok": false,
       "status": "error",
-      "action": "ignored",
-      "error": "external_id_required"
+      "action": "update",
+      "error": "update_payload_incomplete",
+      "missing_fields": [
+        "description",
+        "category"
+      ]
     }
   ]
 }
@@ -341,20 +479,56 @@ Notas:
 
 ## Errores comunes
 
+### Errores globales HTTP
+
+Estos errores frenan toda la request y no dependen de un producto puntual:
+
 `401 api_key_required`
-- falta token
+- falta `x-api-key` o `Authorization: Bearer`
 
 `403 invalid_api_key`
-- token invalido
+- el token no existe o ya no es valido
+
+`403 api_scope_required`
+- el token no tiene scope configurado
+
+`403 insufficient_api_scope`
+- el token existe, pero no tiene `products:sync`
+
+`400 tenant_required`
+- no se pudo resolver `tenant_id` desde el token ni desde el header
+
+`400 invalid_tenant_id`
+- el `tenant_id` enviado no tiene formato UUID valido
 
 `403 tenant_mismatch`
-- el `tenant_id` enviado no coincide con el token
+- el `x-tenant-id` enviado no coincide con el tenant del token
 
 `400 products_array_required`
-- el body no contiene `items` o `products`
+- el body no contiene `items`, `products`, `productos` o un item interpretable
 
-`400 invalid_products_payload`
-- falta `external_id` o hay items invalidos
+### Errores por item dentro de `item_results`
+
+Estos errores no frenan todo el lote. Solo marcan ese item como fallido:
+
+`invalid_product_item`
+- la posicion enviada no es un objeto JSON valido
+
+`external_id_required`
+- el item no trae identificador estable
+
+`update_payload_incomplete`
+- el item intenta actualizar un producto existente pero no trae todos los campos obligatorios del update
+- el backend devuelve tambien `missing_fields`
+
+`invalid_category_ids`
+- llegaron UUIDs de categoria que no existen para ese tenant
+
+### Como distinguir error global de error por item
+
+- si la respuesta HTTP es `4xx`, fallo la request completa
+- si la respuesta HTTP es `200` pero `failed > 0`, hubo error parcial
+- si `ok = false` y `partial = true`, hubo mezcla de items correctos e incorrectos
 
 ## Recomendacion de implementacion en el sistema de gestion
 
@@ -389,6 +563,16 @@ async function syncProducts(products) {
   if (!response.ok) {
     throw new Error(data.error || "sync_failed");
   }
+
+  for (const itemResult of data.item_results || []) {
+    if (itemResult.ok) {
+      console.log("SYNC OK", itemResult.external_id, itemResult.status, itemResult.product_id);
+      continue;
+    }
+
+    console.error("SYNC ERROR", itemResult.external_id, itemResult.error);
+  }
+
   return data;
 }
 ```
@@ -438,6 +622,8 @@ Luego cada fila debe transformarse a este formato:
 - No usar `name` como identificador.
 - No cambiar `external_id` para el mismo producto.
 - Preferir sync por lotes.
+- Registrar la respuesta completa del lote y tambien `item_results`.
+- Si el sistema quiere marcar estado por producto, debe usar `item_results[index]`.
 - Si hay imagenes, enviar URLs publicas o accesibles por el ecommerce.
 
 ## Texto corto para pasar al proveedor del sistema de gestion
