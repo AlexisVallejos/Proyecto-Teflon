@@ -67,6 +67,12 @@ function mapProductRow(row, pricingContext) {
   });
   const finalPrice = applyOfferDiscount(effective, bestOffer.percent);
   const data = row.data && typeof row.data === 'object' ? row.data : {};
+  const fallbackDescription =
+    data.long_description ||
+    data.longDescription ||
+    row.description ||
+    row.name ||
+    null;
   const specifications =
     data.specifications && typeof data.specifications === 'object' ? data.specifications : {};
   const rawVariationGroup = String(
@@ -101,16 +107,15 @@ function mapProductRow(row, pricingContext) {
     erp_id: row.erp_id,
     sku: row.sku,
     name: row.name,
-    description: row.description,
+    description: row.description || row.name || null,
     short_description:
       data.short_description ||
       data.shortDescription ||
-      null,
+      fallbackDescription,
     long_description:
       data.long_description ||
       data.longDescription ||
-      row.description ||
-      null,
+      fallbackDescription,
     show_specifications: data.show_specifications !== false,
     price: finalPrice,
     price_retail: retail,

@@ -163,7 +163,9 @@ Tambien se aceptan aliases como:
 - `codigo`, `codigo_propio`, `codigo_producto`
 - `titulo`, `detalle_ampliado`
 - `descripcion`, `texto_asociado`, `desc_ampliada`
+- `short_description`, `descripcion_corta`, `detalle_abreviado`
 - `familia`, `category` o `categoria`
+- `gran_familia`, `categoria_padre`, `category_path`
 - `precio`, `precio_venta`, `precio_iva`
 - `mayorista`, `precio_mayorista`
 - `disponibilidad`, `stock_actual`
@@ -178,6 +180,10 @@ Nota:
   - `erp_id` de categoria
   - nombre de categoria
 - si la categoria no existe y llega como texto, el backend la crea en forma plana para no frenar la sincronizacion
+- si en create no llega categoria, el backend asigna `Sin definir`
+- si en update no llega categoria, el backend conserva la categoria actual
+- si llega `Ninguno`, `Sin definir` o equivalente, se normaliza a `Sin definir`
+- si llega una jerarquia como `Categoria > Gran Familia > Familia`, el backend puede crear la estructura y asignar la hoja final
 
 ## Campos soportados por item
 
@@ -186,14 +192,17 @@ Campos recomendados:
 - `external_id`: identificador unico y estable del sistema de gestion. Obligatorio.
 - `sku`: codigo comercial del producto.
 - `name`: nombre del producto.
+- `short_description`: descripcion corta para catalogo y destacados.
 - `price_retail`: precio minorista.
 - `price_wholesale`: precio mayorista.
 - `stock`: stock disponible.
+- si llega decimal, se trunca a entero antes de guardar.
 - `is_active`: estado base en el sistema de gestion.
 - `brand`: marca.
 - `description`: descripcion base.
 - `images`: array de URLs o imagenes.
 - `category_id` o `category_ids`: UUIDs, slugs, `erp_id` o nombres de categoria.
+- `gran_familia`, `categoria_padre` o `category_path`: jerarquia opcional de categorias.
 
 Importante:
 
@@ -241,7 +250,11 @@ Comportamiento real del backend:
 - si falta `price_wholesale`, usa el mayorista actual o el minorista
 - si falta `stock`, usa `0` al crear y mantiene el stock actual al actualizar
 - si falta `is_active`, asume `true` al crear y mantiene el estado actual al actualizar
-- si falta `description`, `brand` o `images`, no falla; solo no actualiza esos campos si no llegaron
+- si falta `description`, `brand`, `images` o `category`, no falla; solo no actualiza esos campos si no llegaron
+- si falta `description`, la web puede mostrar el nombre como fallback
+- si falta `category` al crear, se asigna `Sin definir`
+- si `category` llega como `Ninguno` o equivalente, se asigna `Sin definir`
+- si llega `short_description`, se usa para catalogo y destacados
 
 ### 3. Regla create / update
 
@@ -260,35 +273,14 @@ La respuesta por item informa lo que paso:
 
 ### 3.1. Regla especial para updates
 
-Si el producto ya existe, el backend ahora exige update completo.
+El update es parcial y conserva datos existentes cuando un campo no viene en el item.
 
-En un item de update deben venir, ademas de `external_id`:
+Ejemplos:
 
-- `sku`
-- `name`
-- `price_retail`
-- `stock`
-- `is_active`
-- `brand`
-- `description`
-- `category` o `category_id` / `category_ids` / `familia`
-
-Si falta cualquiera de esos campos, ese item no se actualiza y vuelve con:
-
-```json
-{
-  "ok": false,
-  "status": "error",
-  "action": "update",
-  "error": "update_payload_incomplete",
-  "missing_fields": [
-    "description",
-    "category"
-  ]
-}
-```
-
-Esto evita updates parciales silenciosos y obliga al sistema de gestion a enviar el producto completo.
+- si no viene `category`, no se cambia la categoria actual
+- si no viene `brand`, no se pisa la marca actual
+- si no viene `description`, no se pisa la descripcion actual
+- si viene `category_path`, se puede reconstruir la jerarquia y asignar la hoja final
 
 ### 4. Regla de errores por lote
 
@@ -309,11 +301,11 @@ Errores concretos que hoy puede devolver cada item:
 
 - `invalid_product_item`
 - `external_id_required`
-- `update_payload_incomplete`
 - `invalid_category_ids`
+- `invalid_value_format`
+- `product_not_found`
+- `external_id_already_exists`
 - `sync_item_failed`
-
-Tambien puede propagar `err.code` o `err.message` si una validacion interna falla de forma mas especifica.
 
 ### 6. Recomendacion minima de implementacion
 
@@ -454,16 +446,12 @@ Lote mixto con altas, actualizaciones y errores:
       "index": 2,
       "external_id": "PROD-0099",
       "sku": "PROD-0099",
-      "name": "Producto incompleto",
+      "name": "Producto inexistente",
       "source_system": "sistema-gestion-av",
       "ok": false,
       "status": "error",
       "action": "update",
-      "error": "update_payload_incomplete",
-      "missing_fields": [
-        "description",
-        "category"
-      ]
+      "error": "product_not_found"
     }
   ]
 }
@@ -517,12 +505,18 @@ Estos errores no frenan todo el lote. Solo marcan ese item como fallido:
 `external_id_required`
 - el item no trae identificador estable
 
-`update_payload_incomplete`
-- el item intenta actualizar un producto existente pero no trae todos los campos obligatorios del update
-- el backend devuelve tambien `missing_fields`
-
 `invalid_category_ids`
 - llegaron UUIDs de categoria que no existen para ese tenant
+
+`invalid_value_format`
+- llego un valor con formato no valido
+- ejemplo tipico: stock decimal, identificador mal formateado o numero incompatible
+
+`product_not_found`
+- se envio `operation: "update"` para un `external_id` que no existe
+
+`external_id_already_exists`
+- se envio `operation: "create"` para un `external_id` que ya existe
 
 ### Como distinguir error global de error por item
 

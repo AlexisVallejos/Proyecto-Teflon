@@ -4,6 +4,7 @@ let productSyncSchemaReady = false;
 let productSyncSchemaPromise = null;
 
 const DEFAULT_SOURCE_SYSTEM = 'erp';
+const DEFAULT_UNCATEGORIZED_LABEL = 'Sin definir';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_SYNC_OPERATION = 'upsert';
 const SYNC_OPERATION_ALIASES = {
@@ -19,16 +20,20 @@ const SYNC_OPERATION_ALIASES = {
   sync: 'upsert',
   sincronizar: 'upsert',
 };
-const UPDATE_REQUIRED_FIELDS = [
-  { key: 'sku', check: (item) => item?.hasSku === true },
-  { key: 'name', check: (item) => item?.hasName === true },
-  { key: 'price_retail', check: (item) => item?.hasPriceRetail === true },
-  { key: 'stock', check: (item) => item?.hasStock === true },
-  { key: 'is_active', check: (item) => item?.hasIsActive === true },
-  { key: 'brand', check: (item) => item?.hasBrand === true },
-  { key: 'description', check: (item) => item?.hasDescription === true },
-  { key: 'category', check: (item) => item?.hasCategoryRefs === true },
-];
+const UNDEFINED_LIKE_TEXTS = new Set([
+  'ninguno',
+  'ninguna',
+  'sin definir',
+  'sin categoria',
+  'sin marca',
+  'no definido',
+  'no definida',
+  'n/a',
+  'na',
+  'null',
+  '-',
+  '--',
+]);
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -41,6 +46,13 @@ const readNumeric = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const normalizeComparableText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
 
 const hasOwn = (source, key) => Object.prototype.hasOwnProperty.call(source || {}, key);
 const isUuid = (value) => UUID_REGEX.test(String(value || '').trim());
@@ -60,6 +72,27 @@ const readBoolean = (value) => {
   return null;
 };
 
+const isUndefinedLikeText = (value) => UNDEFINED_LIKE_TEXTS.has(normalizeComparableText(value));
+
+const normalizeBrandValue = (value) => {
+  const normalized = toTextOrNull(value);
+  if (!normalized || isUndefinedLikeText(normalized)) return null;
+  return normalized;
+};
+
+const normalizeCategoryToken = (value) => {
+  const normalized = toTextOrNull(value);
+  if (!normalized) return null;
+  if (isUndefinedLikeText(normalized)) return DEFAULT_UNCATEGORIZED_LABEL;
+  return normalized;
+};
+
+const normalizeStockQuantity = (value) => {
+  const parsed = readNumeric(value);
+  if (parsed == null) return null;
+  return Math.trunc(parsed);
+};
+
 const firstPresentValue = (source, aliases = []) => {
   for (const key of aliases) {
     if (hasOwn(source, key)) {
@@ -68,6 +101,8 @@ const firstPresentValue = (source, aliases = []) => {
   }
   return undefined;
 };
+
+const hasAnyOwn = (source, aliases = []) => aliases.some((key) => hasOwn(source, key));
 
 const firstTextAlias = (source, aliases = []) => {
   for (const key of aliases) {
@@ -105,6 +140,8 @@ const slugify = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+const uniqueTextValues = (values = []) => [...new Set(values.map((value) => toTextOrNull(value)).filter(Boolean))];
+
 const splitCategoryTokens = (value) => {
   if (Array.isArray(value)) {
     return value.flatMap((entry) => splitCategoryTokens(entry));
@@ -116,6 +153,24 @@ const splitCategoryTokens = (value) => {
   if (/[;,|]/.test(normalized)) {
     return normalized
       .split(/[;,|]/)
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean);
+  }
+
+  return [normalized];
+};
+
+const splitCategoryPathTokens = (value) => {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => splitCategoryPathTokens(entry));
+  }
+
+  const normalized = String(value || '').trim();
+  if (!normalized) return [];
+
+  if (/[>\\/|]/.test(normalized)) {
+    return normalized
+      .split(/[>\\/|]/)
       .map((entry) => String(entry || '').trim())
       .filter(Boolean);
   }
@@ -171,11 +226,62 @@ const normalizeCategoryRefs = (raw, aliases = []) => {
     collected.push(...splitCategoryTokens(value));
   });
 
-  const unique = [...new Set(collected.map((value) => String(value || '').trim()).filter(Boolean))];
+  const unique = uniqueTextValues(collected.map((value) => normalizeCategoryToken(value)));
   return {
     ids: unique.filter((value) => isUuid(value)),
     labels: unique.filter((value) => !isUuid(value)),
   };
+};
+
+const normalizeCategoryHierarchy = (raw) => {
+  const explicitPath = firstPresentValue(raw, [
+    'category_path',
+    'categoryPath',
+    'categoria_path',
+    'categoriaPath',
+    'category_tree',
+    'categoryTree',
+    'category_hierarchy',
+    'categoryHierarchy',
+    'jerarquia_categoria',
+    'jerarquiaCategoria',
+  ]);
+
+  const explicitTokens = uniqueTextValues(
+    splitCategoryPathTokens(explicitPath).map((value) => normalizeCategoryToken(value))
+  );
+  if (explicitTokens.length > 1) {
+    return explicitTokens;
+  }
+
+  const inferredPath = uniqueTextValues([
+    normalizeCategoryToken(firstTextAlias(raw, [
+      'categoria_padre',
+      'categoriaPadre',
+      'categoria_raiz',
+      'categoriaRaiz',
+      'categoria_principal',
+      'categoriaPrincipal',
+      'root_category',
+      'rootCategory',
+      'parent_category',
+      'parentCategory',
+    ])),
+    normalizeCategoryToken(firstTextAlias(raw, [
+      'gran_familia',
+      'granFamilia',
+      'grand_family',
+      'grandFamily',
+      'group_category',
+      'groupCategory',
+      'subcategoria',
+      'sub_category',
+      'subcategory',
+    ])),
+    normalizeCategoryToken(firstTextAlias(raw, ['familia', 'family'])),
+  ]);
+
+  return inferredPath.length > 1 ? inferredPath : [];
 };
 
 const normalizeImageCollection = (images, fallbackAlt) => {
@@ -237,26 +343,32 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     externalId ||
     'Producto sincronizado';
   const sku = rawSku || externalId;
-  const description = firstTextAlias(raw, [
+  const descriptionAliases = [
     'description',
     'descripcion',
     'descripcion_ampliada',
     'descripcion_larga',
+    'long_description',
+    'longDescription',
     'desc_ampliada',
     'detalle_abreviado',
     'detalleAbreviado',
     'texto_asociado',
     'textoAsociado',
     'full_description',
-  ]);
-  const shortDescription = firstTextAlias(raw, [
+  ];
+  const shortDescriptionAliases = [
     'short_description',
+    'shortDescription',
     'descripcion_corta',
     'desc_corta',
     'detalle_abreviado',
     'detalleAbreviado',
-  ]);
-  const brand = firstTextAlias(raw, ['brand', 'marca']);
+  ];
+  const description = firstTextAlias(raw, descriptionAliases);
+  const shortDescription = firstTextAlias(raw, shortDescriptionAliases);
+  const brandAliases = ['brand', 'marca'];
+  const brand = normalizeBrandValue(firstTextAlias(raw, brandAliases));
   const normalizedCategories = normalizeCategoryRefs(raw, [
     'category_id',
     'categoryId',
@@ -278,9 +390,10 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     'category',
     'categoria',
   ]);
+  const categoryPathLabels = normalizeCategoryHierarchy(raw);
   const categoryIds = normalizedCategories.ids;
   const categoryLabels = normalizedCategories.labels;
-  const sourceCategoryLabel = categoryLabels[0] || null;
+  const sourceCategoryLabel = categoryLabels[0] || categoryPathLabels[categoryPathLabels.length - 1] || null;
   const priceRetail = firstNumericAlias(raw, [
     'price_retail',
     'priceRetail',
@@ -305,7 +418,7 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     'precio_03',
     'tarifa_3',
   ]);
-  const stock = firstNumericAlias(raw, [
+  const rawStock = firstNumericAlias(raw, [
     'stock',
     'inventory',
     'quantity',
@@ -314,6 +427,7 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     'existencia',
     'cantidad',
   ]);
+  const stock = rawStock != null ? normalizeStockQuantity(rawStock) : null;
 
   const rawIsActive = firstBooleanAlias(raw, ['is_active', 'isActive', 'active', 'activo']);
   const hasIsActive = rawIsActive != null;
@@ -339,15 +453,17 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     brand,
     categoryIds,
     categoryLabels,
+    categoryPathLabels,
     sourceCategoryLabel,
     hasSku: rawSku !== null,
     hasName: rawName !== null,
-    hasDescription: description !== null,
-    hasShortDescription: shortDescription !== null,
-    hasBrand: brand !== null,
+    hasDescription: hasAnyOwn(raw, descriptionAliases),
+    hasShortDescription: hasAnyOwn(raw, shortDescriptionAliases),
+    hasBrand: hasAnyOwn(raw, brandAliases),
     hasCategoryIds: categoryIds.length > 0,
     hasCategoryLabels: categoryLabels.length > 0,
     hasCategoryRefs: categoryIds.length > 0 || categoryLabels.length > 0,
+    hasCategoryPath: categoryPathLabels.length > 1,
     hasSourceCategoryLabel: sourceCategoryLabel !== null,
     hasPriceRetail: priceRetail != null,
     hasPriceWholesale: priceWholesale != null,
@@ -364,11 +480,6 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
   };
 };
 
-const getMissingUpdateFields = (item) =>
-  UPDATE_REQUIRED_FIELDS
-    .filter((field) => !field.check(item))
-    .map((field) => field.key);
-
 const buildProductDataFromSync = ({ existingData, item, allowEditorialSync }) => {
   const next = isPlainObject(existingData) ? { ...existingData } : {};
 
@@ -382,6 +493,10 @@ const buildProductDataFromSync = ({ existingData, item, allowEditorialSync }) =>
 
   if (allowEditorialSync && item.hasSourceCategoryLabel) {
     next.source_category = item.sourceCategoryLabel || null;
+  }
+
+  if (allowEditorialSync && item.hasCategoryPath) {
+    next.source_category_path = item.categoryPathLabels || [];
   }
 
   return next;
@@ -557,6 +672,127 @@ async function resolveCategoryIdsForSync(client, { tenantId, categoryIds = [], c
     createdCount,
   };
 }
+
+async function ensureCategoryPathForSync(client, { tenantId, categoryPathLabels = [] }) {
+  const normalizedPath = uniqueTextValues(
+    (Array.isArray(categoryPathLabels) ? categoryPathLabels : []).map((value) => normalizeCategoryToken(value))
+  );
+
+  if (!normalizedPath.length) {
+    return {
+      categoryId: null,
+      createdCount: 0,
+    };
+  }
+
+  let parentId = null;
+  let parentSlug = '';
+  let currentId = null;
+  let createdCount = 0;
+
+  for (const label of normalizedPath) {
+    const loweredLabel = label.toLowerCase();
+    const baseLabelSlug = slugify(label) || `categoria-sync-${createdCount + 1}`;
+    const findParams = parentId
+      ? [tenantId, loweredLabel, baseLabelSlug, label, parentId]
+      : [tenantId, loweredLabel, baseLabelSlug, label];
+    const existingRes = await client.query(
+      [
+        'select id, slug from categories',
+        'where tenant_id = $1',
+        'and (lower(name) = $2 or slug = $3 or coalesce(erp_id, \'\') = $4)',
+        parentId
+          ? "and nullif(data->>'parent_id', '') = $5"
+          : "and nullif(data->>'parent_id', '') is null",
+        'limit 1',
+      ].join(' '),
+      findParams
+    );
+
+    if (existingRes.rowCount) {
+      currentId = existingRes.rows[0].id;
+      parentId = currentId;
+      parentSlug = existingRes.rows[0].slug || baseLabelSlug;
+      continue;
+    }
+
+    const baseSlug = slugify(parentSlug ? `${parentSlug}-${label}` : label) || baseLabelSlug;
+    let candidateSlug = baseSlug;
+    let createdRow = null;
+
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const payloadData = parentId
+        ? { parent_id: parentId, auto_created_by: 'integration_sync', source_category_label: label }
+        : { auto_created_by: 'integration_sync', source_category_label: label };
+      const insertRes = await client.query(
+        [
+          'insert into categories (tenant_id, name, slug, data)',
+          'values ($1, $2, $3, $4::jsonb)',
+          'on conflict do nothing',
+          'returning id, slug',
+        ].join(' '),
+        [tenantId, label, candidateSlug, JSON.stringify(payloadData)]
+      );
+
+      if (insertRes.rowCount) {
+        createdRow = insertRes.rows[0];
+        createdCount += 1;
+        break;
+      }
+
+      const existingBySlugRes = await client.query(
+        'select id, slug from categories where tenant_id = $1 and slug = $2 limit 1',
+        [tenantId, candidateSlug]
+      );
+
+      if (existingBySlugRes.rowCount) {
+        createdRow = existingBySlugRes.rows[0];
+        break;
+      }
+
+      candidateSlug = `${baseSlug}-${attempt + 2}`;
+    }
+
+    if (!createdRow?.id) {
+      const error = new Error('category_path_resolution_failed');
+      error.code = 'category_path_resolution_failed';
+      throw error;
+    }
+
+    currentId = createdRow.id;
+    parentId = createdRow.id;
+    parentSlug = createdRow.slug || candidateSlug;
+  }
+
+  return {
+    categoryId: currentId,
+    createdCount,
+  };
+}
+
+const mapSyncItemError = (err) => {
+  const errorCode = String(err?.code || '').trim();
+
+  if (!errorCode && err?.message) {
+    return { error: err.message };
+  }
+
+  if (errorCode === '22P02') {
+    return {
+      error: 'invalid_value_format',
+      error_detail: 'Revisar formatos numericos o identificadores del item enviado.',
+    };
+  }
+
+  if (errorCode === '23502') {
+    return {
+      error: 'required_value_missing',
+      error_detail: 'Falta un dato requerido para persistir el item.',
+    };
+  }
+
+  return { error: errorCode || err?.message || 'sync_item_failed' };
+};
 
 export async function ensureProductSyncSchema() {
   if (productSyncSchemaReady) return;
@@ -769,33 +1005,46 @@ export async function syncIntegrationProducts({
         continue;
       }
 
-      if (existing) {
-        const missingFields = getMissingUpdateFields(item);
-        if (missingFields.length) {
-          failed += 1;
-          itemResults.push({
-            ...baseResult,
-            ok: false,
-            status: 'error',
-            action: 'update',
-            error: 'update_payload_incomplete',
-            missing_fields: missingFields,
-          });
-          continue;
-        }
-      }
-
       const savepointName = `sync_item_${index + 1}`;
       await client.query(`SAVEPOINT ${savepointName}`);
 
       try {
-        const categoryResolution = item.hasCategoryRefs
-          ? await resolveCategoryIdsForSync(client, {
+        const categoryLabelsForSync = [...item.categoryLabels];
+        const shouldAssignFallbackCategory =
+          !existing && !item.hasCategoryRefs && !item.hasCategoryPath;
+        if (shouldAssignFallbackCategory) {
+          categoryLabelsForSync.push(DEFAULT_UNCATEGORIZED_LABEL);
+        }
+
+        const categoryPathResolution = item.hasCategoryPath
+          ? await ensureCategoryPathForSync(client, {
               tenantId,
-              categoryIds: item.categoryIds,
-              categoryLabels: item.categoryLabels,
+              categoryPathLabels: item.categoryPathLabels,
             })
-          : { categoryIds: [], createdCount: 0 };
+          : { categoryId: null, createdCount: 0 };
+
+        const flatCategoryResolution =
+          item.hasCategoryRefs || shouldAssignFallbackCategory
+            ? await resolveCategoryIdsForSync(client, {
+                tenantId,
+                categoryIds: item.categoryIds,
+                categoryLabels: categoryLabelsForSync,
+              })
+            : { categoryIds: [], createdCount: 0 };
+
+        const categoryResolution = {
+          categoryIds: [
+            ...new Set(
+              [
+                ...flatCategoryResolution.categoryIds,
+                categoryPathResolution.categoryId,
+              ].filter(Boolean)
+            ),
+          ],
+          createdCount:
+            Number(flatCategoryResolution.createdCount || 0) +
+            Number(categoryPathResolution.createdCount || 0),
+        };
 
         if (!existing) {
           const productData = buildProductDataFromSync({
@@ -890,8 +1139,12 @@ export async function syncIntegrationProducts({
           : Number(existing.price_wholesale ?? nextPrice ?? 0);
         const nextStock = item.hasStock ? item.stock : Number(existing.stock || 0);
         const nextIsActiveSource = item.hasIsActive ? item.isActiveSource : existing.is_active_source !== false;
-        const nextName = allowEditorialSync ? item.name : existing.name;
-        const nextSku = allowEditorialSync ? item.sku : existing.sku;
+        const nextName = allowEditorialSync
+          ? (item.hasName ? item.name : existing.name)
+          : existing.name;
+        const nextSku = allowEditorialSync
+          ? (item.hasSku ? item.sku : existing.sku)
+          : existing.sku;
         const nextDescription = allowEditorialSync
           ? (item.hasDescription ? item.description : existing.description)
           : existing.description;
@@ -996,12 +1249,14 @@ export async function syncIntegrationProducts({
         await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
         await client.query(`RELEASE SAVEPOINT ${savepointName}`);
         failed += 1;
+        const mappedError = mapSyncItemError(err);
         itemResults.push({
           ...baseResult,
           ok: false,
           status: 'error',
-          action: existingByExternalId.has(item.externalId) ? 'update' : 'create',
-          error: err?.code || err?.message || 'sync_item_failed',
+          action: existing ? 'update' : 'create',
+          error: mappedError.error,
+          ...(mappedError.error_detail ? { error_detail: mappedError.error_detail } : {}),
         });
       }
     }

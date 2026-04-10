@@ -154,8 +154,10 @@ Ejemplos:
 
 - `codigo`, `codigo_propio`, `codigo_producto` como alias de identificador/SKU
 - `titulo`, `detalle_ampliado` como alias de nombre
-- `descripcion`, `texto_asociado`, `desc_ampliada` como alias de descripcion
+- `descripcion`, `texto_asociado`, `desc_ampliada` como alias de descripcion larga
+- `short_description`, `descripcion_corta`, `detalle_abreviado` como alias de descripcion corta
 - `familia`, `category`, `categoria`, `category_id`, `category_ids`
+- `gran_familia`, `categoria_padre`, `category_path` para jerarquia opcional
 - `precio`, `precio_venta`, `precio_iva`
 - `mayorista`, `precio_mayorista`
 - `disponibilidad`, `stock_actual`
@@ -194,6 +196,13 @@ En `category`, `categoria`, `familia`, `category_id` o `category_ids` se puede e
 
 Si la categoria no existe y llega como texto, el ecommerce la crea automaticamente en forma plana.
 
+Comportamiento adicional:
+
+- si en create no llega categoria, el ecommerce asigna `Sin definir`
+- si en update no llega categoria, el ecommerce conserva la categoria actual
+- si llega `Ninguno`, `Sin definir` o equivalente, se normaliza a la categoria `Sin definir`
+- si llega una jerarquia como `Categoria > Gran Familia > Familia`, el ecommerce puede crear la estructura y asignar el producto a la hoja final
+
 ## Campos obligatorios y regla de create/update
 
 ### Create
@@ -225,21 +234,16 @@ Si ese `external_id` ya existe, el item vuelve con:
 
 ### Update
 
-Si el `external_id` ya existe, el backend exige update completo.
+Si el `external_id` ya existe, el backend hace update parcial.
 
-Campos obligatorios para update:
+Eso significa:
 
-- `external_id`
-- `sku`
-- `name`
-- `price_retail`
-- `stock`
-- `is_active`
-- `brand`
-- `description`
-- `category` o `category_id` / `category_ids` / `familia`
-
-Si falta cualquiera de esos campos, ese item no se actualiza.
+- si un campo viene en el item, se actualiza
+- si un campo no viene, se conserva el valor actual en el ecommerce
+- si no se envia categoria, no se recategoriza el producto
+- si no se envia descripcion, la web puede caer al nombre para no dejar espacios vacios
+- si `brand` viene vacio, `Ninguno` o equivalente, se guarda como `null`
+- si `stock` llega decimal, el ecommerce lo normaliza a entero antes de guardar
 
 Si el proveedor quiere forzar update y evitar que un `external_id` inexistente se cree por error, puede enviar:
 
@@ -281,33 +285,22 @@ Request:
       "external_id": "PROD-NUEVO-001",
       "sku": "PROD-NUEVO-001",
       "name": "Producto nuevo",
+      "short_description": "Texto corto para catalogo",
       "price_retail": 15000,
       "stock": 10,
-      "is_active": true,
-      "brand": "Marca Demo",
-      "description": "Descripcion completa",
-      "category": "Sanitarios"
+      "is_active": true
     },
     {
       "operation": "update",
       "external_id": "PROD-EXISTENTE-001",
-      "sku": "PROD-EXISTENTE-001",
-      "name": "Producto existente actualizado",
       "price_retail": 17000,
       "stock": 8,
-      "is_active": true,
-      "brand": "Marca Demo",
-      "description": "Descripcion actualizada",
-      "category": "Sanitarios"
+      "description": "Descripcion actualizada"
     },
     {
       "operation": "update",
-      "external_id": "PROD-INVALIDO-001",
-      "sku": "PROD-INVALIDO-001",
-      "name": "Producto con error",
-      "price_retail": 19000,
-      "stock": 5,
-      "is_active": true
+      "external_id": "PROD-INEXISTENTE-001",
+      "price_retail": 19000
     }
   ]
 }
@@ -345,16 +338,11 @@ Respuesta esperada:
     {
       "index": 2,
       "requested_operation": "update",
-      "external_id": "PROD-INVALIDO-001",
+      "external_id": "PROD-INEXISTENTE-001",
       "ok": false,
       "status": "error",
       "action": "update",
-      "error": "update_payload_incomplete",
-      "missing_fields": [
-        "brand",
-        "description",
-        "category"
-      ]
+      "error": "product_not_found"
     }
   ]
 }
@@ -409,16 +397,12 @@ Ejemplo:
       "requested_operation": "update",
       "external_id": "PROD-0099",
       "sku": "PROD-0099",
-      "name": "Producto incompleto",
+      "name": "Producto inexistente",
       "source_system": "sistema-gestion-av",
       "ok": false,
       "status": "error",
       "action": "update",
-      "error": "update_payload_incomplete",
-      "missing_fields": [
-        "description",
-        "category"
-      ]
+      "error": "product_not_found"
     }
   ]
 }
@@ -463,8 +447,8 @@ Estos errores no frenan todo el lote. Solo fallan esos items:
 
 - `invalid_product_item`
 - `external_id_required`
-- `update_payload_incomplete`
 - `invalid_category_ids`
+- `invalid_value_format`
 - `product_not_found`
 - `external_id_already_exists`
 - `sync_item_failed`
@@ -474,10 +458,6 @@ Estos errores no frenan todo el lote. Solo fallan esos items:
 `external_id_required`
 - falta el identificador estable del producto
 
-`update_payload_incomplete`
-- el producto ya existia y el update vino incompleto
-- el backend devuelve tambien `missing_fields`
-
 `product_not_found`
 - se envio `operation: "update"` para un `external_id` que no existe
 
@@ -486,6 +466,10 @@ Estos errores no frenan todo el lote. Solo fallan esos items:
 
 `invalid_category_ids`
 - llegaron UUIDs de categoria que no existen para el tenant
+
+`invalid_value_format`
+- llego un valor con formato no valido
+- ejemplo tipico: stock decimal, identificador mal formateado o numero incompatible
 
 ## Recomendacion minima para el sistema de gestion
 
@@ -498,7 +482,6 @@ El proveedor deberia guardar por cada item:
 - `ok`
 - `product_id`
 - `error`
-- `missing_fields`
 
 Con eso puede registrar correctamente:
 
@@ -548,7 +531,7 @@ async function syncProducts(products) {
       continue;
     }
 
-    console.error("SYNC ERROR", itemResult.external_id, itemResult.error, itemResult.missing_fields || []);
+    console.error("SYNC ERROR", itemResult.external_id, itemResult.error, itemResult.error_detail || "");
   }
 
   return data;
@@ -557,4 +540,4 @@ async function syncProducts(products) {
 
 ## Resumen corto para el proveedor
 
-La integracion del ecommerce funciona por API HTTP. Deben consumir `GET /api/v1/integrations/ping` para probar conexion y `POST /api/v1/integrations/products/sync` para sincronizar productos. La logica por defecto es `upsert` por `external_id`: si no existe, crea; si existe, actualiza. Si necesitan control estricto, pueden enviar `operation: "create"` o `operation: "update"` por item. En create, el unico campo estrictamente obligatorio es `external_id`. En update, el item debe venir completo con `sku`, `name`, `price_retail`, `stock`, `is_active`, `brand`, `description` y `category`; si falta alguno, la API responde `update_payload_incomplete` con `missing_fields`. Si se fuerza `update` y el producto no existe, responde `product_not_found`. Si se fuerza `create` y el producto ya existe, responde `external_id_already_exists`. La respuesta del sync devuelve resultado por lote y por item en `item_results`, por lo que el sistema debe registrar por separado que productos se crearon, cuales se actualizaron y cuales devolvieron error.
+La integracion del ecommerce funciona por API HTTP. Deben consumir `GET /api/v1/integrations/ping` para probar conexion y `POST /api/v1/integrations/products/sync` para sincronizar productos. La logica por defecto es `upsert` por `external_id`: si no existe, crea; si existe, actualiza. Si necesitan control estricto, pueden enviar `operation: "create"` o `operation: "update"` por item. En create, el unico campo estrictamente obligatorio es `external_id`. En update, el comportamiento es parcial: si un campo no viene, el ecommerce conserva el valor actual. Si no llega categoria en create, se asigna `Sin definir`; si no llega categoria en update, no se modifica. `short_description` ya esta soportado para catalogo y destacados, y `category_path` / `gran_familia` / `categoria_padre` permiten crear jerarquia opcional. Si se fuerza `update` y el producto no existe, responde `product_not_found`. Si se fuerza `create` y el producto ya existe, responde `external_id_already_exists`. Si llega un formato invalido para un valor numerico o identificador, responde `invalid_value_format`. La respuesta del sync devuelve resultado por lote y por item en `item_results`, por lo que el sistema debe registrar por separado que productos se crearon, cuales se actualizaron y cuales devolvieron error.
