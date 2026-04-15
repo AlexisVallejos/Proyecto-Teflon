@@ -207,6 +207,15 @@ export default function CheckoutPage() {
         return options;
     }, [shippingZones, pickupBranches, commerce]);
 
+    const shippingDeliveryOptions = useMemo(
+        () => deliveryOptions.filter((option) => option.type === "shipping"),
+        [deliveryOptions],
+    );
+    const pickupDeliveryOptions = useMemo(
+        () => deliveryOptions.filter((option) => option.type === "pickup"),
+        [deliveryOptions],
+    );
+
     const [deliveryMethod, setDeliveryMethod] = useState(() => {
         const fallback = String(commerce.default_delivery || "zone:arg-general").trim();
         return fallback || "zone:arg-general";
@@ -219,6 +228,27 @@ export default function CheckoutPage() {
         const preferredOption = deliveryOptions.find((option) => option.key === preferred);
         setDeliveryMethod(preferredOption?.key || deliveryOptions[0]?.key || "zone:arg-general");
     }, [deliveryOptions, deliveryMethod, checkoutSettings]);
+
+    const selectedDeliveryGroup = useMemo(() => {
+        const selected = deliveryOptions.find((option) => option.key === deliveryMethod);
+        return selected?.type === "pickup" ? "pickup" : "shipping";
+    }, [deliveryMethod, deliveryOptions]);
+
+    const handleDeliveryGroupChange = (nextGroup) => {
+        if (nextGroup === "pickup") {
+            const nextPickup = pickupDeliveryOptions[0];
+            if (nextPickup) {
+                setDeliveryMethod(nextPickup.key);
+            }
+            return;
+        }
+        const nextShipping =
+            shippingDeliveryOptions.find((option) => option.key === DISTANCE_DELIVERY_KEY) ||
+            shippingDeliveryOptions[0];
+        if (nextShipping) {
+            setDeliveryMethod(nextShipping.key);
+        }
+    };
 
     const distanceQuote = useMemo(() => {
         if (deliveryMethod !== DISTANCE_DELIVERY_KEY || !deliveryLocation) return null;
@@ -500,7 +530,7 @@ export default function CheckoutPage() {
                 key: DISTANCE_DELIVERY_KEY,
                 type: "shipping",
                 title: "Envio segun tu ubicacion",
-                desc: "Comparte tu ubicacion o marcala en el mapa para calcular el costo.",
+                desc: "Comparte tu ubicacion para calcular el costo.",
                 price: 0,
                 branch_id: null,
                 shipping_zone_id: null,
@@ -1293,7 +1323,42 @@ export default function CheckoutPage() {
                                 onOpen={() => setOpenStep(2)}
                             >
                                 <div className="pt-4 pb-2 space-y-3">
-                                    {deliveryOptions.map((opt) => {
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeliveryGroupChange("shipping")}
+                                            className={[
+                                                "rounded-2xl border p-4 text-left transition-all",
+                                                selectedDeliveryGroup === "shipping"
+                                                    ? "border-primary/40 bg-primary/10"
+                                                    : "border-white/10 bg-white/5 hover:border-primary/30",
+                                            ].join(" ")}
+                                        >
+                                            <p className="text-sm font-bold text-white">Envío a domicilio</p>
+                                            <p className="mt-1 text-xs text-zinc-400">
+                                                Calculamos el costo por zona configurada en tu panel.
+                                            </p>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeliveryGroupChange("pickup")}
+                                            disabled={!pickupDeliveryOptions.length}
+                                            className={[
+                                                "rounded-2xl border p-4 text-left transition-all",
+                                                selectedDeliveryGroup === "pickup"
+                                                    ? "border-primary/40 bg-primary/10"
+                                                    : "border-white/10 bg-white/5 hover:border-primary/30",
+                                                !pickupDeliveryOptions.length ? "cursor-not-allowed opacity-60" : "",
+                                            ].join(" ")}
+                                        >
+                                            <p className="text-sm font-bold text-white">Retiro en local</p>
+                                            <p className="mt-1 text-xs text-zinc-400">
+                                                Retirá en sucursal y pagá según la modalidad de tu tienda.
+                                            </p>
+                                        </button>
+                                    </div>
+
+                                    {(selectedDeliveryGroup === "pickup" ? pickupDeliveryOptions : shippingDeliveryOptions).map((opt) => {
                                         const checked = deliveryMethod === opt.key;
                                         const isDistanceOption = opt.key === DISTANCE_DELIVERY_KEY;
                                         const optionDescription = isDistanceOption && distanceQuote?.ok
@@ -1345,7 +1410,7 @@ export default function CheckoutPage() {
                                                     Cotizacion por ubicacion
                                                 </p>
                                                 <p className="text-xs text-zinc-400">
-                                                    Marca tu ubicacion en el mapa. Primero probamos zonas fijas como barrios o sectores. Si no coincide con ninguna, buscamos la sucursal mas cercana y calculamos el flete segun la distancia.
+                                                    Compartí tu ubicación (o buscá tu dirección). Primero probamos zonas fijas. Si no coincide con ninguna, calculamos la distancia hasta la sucursal más cercana.
                                                 </p>
                                             </div>
 
@@ -1628,7 +1693,9 @@ export default function CheckoutPage() {
                                     value={
                                         deliveryMethod === DISTANCE_DELIVERY_KEY && !distanceQuote?.ok
                                             ? "A calcular"
-                                            : formatCurrency(shipping, displayCurrency, locale)
+                                            : selectedDeliveryOption?.type === "pickup"
+                                                ? "Retiro en local"
+                                                : formatCurrency(shipping, displayCurrency, locale)
                                     }
                                 />
                                 <Line label="Impuestos" value={formatCurrency(iva, displayCurrency, locale)} />
@@ -1783,7 +1850,4 @@ function Line({ label, value }) {
         </div>
     );
 }
-
-
-
 

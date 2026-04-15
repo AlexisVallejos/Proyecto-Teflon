@@ -1,13 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-    Crosshair,
-    MagnifyingGlass,
-    MapPinLine,
-    Trash,
-} from '@phosphor-icons/react';
-import { loadLeaflet } from '../../utils/leafletLoader';
-
-const DEFAULT_CENTER = { lat: -38.0055, lng: -57.5426 };
+import { Crosshair, MagnifyingGlass, MapPinLine, Trash } from '@phosphor-icons/react';
 
 const parseCoordinate = (value, min, max) => {
     const parsed = Number(value);
@@ -29,11 +21,7 @@ const searchNominatim = async (query) => {
             'Accept-Language': 'es-AR,es;q=0.9',
         },
     });
-
-    if (!response.ok) {
-        throw new Error(`nominatim_${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`nominatim_${response.status}`);
     const payload = await response.json();
     return Array.isArray(payload) ? payload : [];
 };
@@ -50,28 +38,13 @@ const reverseLookup = async (latitude, longitude) => {
             'Accept-Language': 'es-AR,es;q=0.9',
         },
     });
-
-    if (!response.ok) {
-        throw new Error(`reverse_${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`reverse_${response.status}`);
     return response.json();
 };
 
-const GuideBox = ({ title, children }) => (
-    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">{title}</p>
-        <div className="mt-2 space-y-1 text-xs text-zinc-300">{children}</div>
-    </div>
-);
-
 const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
-    const mapContainerRef = useRef(null);
-    const mapRef = useRef(null);
-    const markerRef = useRef(null);
     const onChangeRef = useRef(onChange);
     const onAddressDetectedRef = useRef(onAddressDetected);
-    const [status, setStatus] = useState('loading');
     const [query, setQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [results, setResults] = useState([]);
@@ -93,122 +66,40 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
         onAddressDetectedRef.current = onAddressDetected;
     }, [onAddressDetected]);
 
-    const setLocation = useCallback(
-        async ({ latitude, longitude, address = '' }) => {
-            const lat = Number(latitude);
-            const lng = Number(longitude);
-            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const setLocation = useCallback(async ({ latitude, longitude, address = '' }) => {
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-            const roundedLatitude = Number(lat.toFixed(6));
-            const roundedLongitude = Number(lng.toFixed(6));
+        const roundedLatitude = Number(lat.toFixed(6));
+        const roundedLongitude = Number(lng.toFixed(6));
+        onChangeRef.current?.({
+            latitude: roundedLatitude,
+            longitude: roundedLongitude,
+        });
 
-            onChangeRef.current?.({
-                latitude: roundedLatitude,
-                longitude: roundedLongitude,
-            });
+        if (address) {
+            setQuery(address);
+            onAddressDetectedRef.current?.(address);
+            setFeedback(`Ubicacion seleccionada en ${address}.`);
+            return;
+        }
 
-            if (mapRef.current) {
-                mapRef.current.setView([roundedLatitude, roundedLongitude], 16);
-            }
-
-            if (markerRef.current) {
-                markerRef.current.setLatLng([roundedLatitude, roundedLongitude]);
-            }
-
-            if (address) {
-                setQuery(address);
-                onAddressDetectedRef.current?.(address);
-                setFeedback(`Ubicacion seleccionada en ${address}.`);
+        try {
+            const payload = await reverseLookup(roundedLatitude, roundedLongitude);
+            const displayName = payload?.display_name || '';
+            if (displayName) {
+                setQuery(displayName);
+                onAddressDetectedRef.current?.(displayName);
+                setFeedback(`Ubicacion seleccionada en ${displayName}.`);
                 return;
             }
+        } catch (error) {
+            console.error('No se pudo resolver la direccion del cliente', error);
+        }
 
-            try {
-                const payload = await reverseLookup(roundedLatitude, roundedLongitude);
-                const displayName = payload?.display_name || '';
-                if (displayName) {
-                    setQuery(displayName);
-                    onAddressDetectedRef.current?.(displayName);
-                    setFeedback(`Ubicacion seleccionada en ${displayName}.`);
-                    return;
-                }
-            } catch (error) {
-                console.error('No se pudo resolver la direccion del cliente', error);
-            }
-
-            setFeedback(`Ubicacion seleccionada: ${roundedLatitude}, ${roundedLongitude}.`);
-        },
-        [],
-    );
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const bootMap = async () => {
-            try {
-                const L = await loadLeaflet();
-                if (cancelled || !mapContainerRef.current) return;
-
-                const map = L.map(mapContainerRef.current, {
-                    zoomControl: true,
-                    attributionControl: true,
-                }).setView(
-                    selectedPosition ? [selectedPosition.lat, selectedPosition.lng] : [DEFAULT_CENTER.lat, DEFAULT_CENTER.lng],
-                    selectedPosition ? 15 : 11,
-                );
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors',
-                    maxZoom: 19,
-                }).addTo(map);
-
-                const marker = L.marker(
-                    selectedPosition ? [selectedPosition.lat, selectedPosition.lng] : [DEFAULT_CENTER.lat, DEFAULT_CENTER.lng],
-                    { draggable: true },
-                ).addTo(map);
-
-                marker.on('dragend', async () => {
-                    const latLng = marker.getLatLng();
-                    await setLocation({
-                        latitude: latLng.lat,
-                        longitude: latLng.lng,
-                    });
-                });
-
-                map.on('click', async (event) => {
-                    await setLocation({
-                        latitude: event.latlng.lat,
-                        longitude: event.latlng.lng,
-                    });
-                });
-
-                mapRef.current = map;
-                markerRef.current = marker;
-                setStatus('ready');
-            } catch (error) {
-                console.error('No se pudo cargar el selector de ubicacion del checkout', error);
-                if (!cancelled) {
-                    setStatus('error');
-                }
-            }
-        };
-
-        bootMap();
-
-        return () => {
-            cancelled = true;
-            if (mapRef.current) {
-                mapRef.current.remove();
-            }
-            mapRef.current = null;
-            markerRef.current = null;
-        };
-    }, [setLocation]);
-
-    useEffect(() => {
-        if (!selectedPosition || !mapRef.current || !markerRef.current) return;
-        markerRef.current.setLatLng([selectedPosition.lat, selectedPosition.lng]);
-        mapRef.current.setView([selectedPosition.lat, selectedPosition.lng], Math.max(mapRef.current.getZoom(), 15));
-    }, [selectedPosition]);
+        setFeedback(`Ubicacion seleccionada: ${roundedLatitude}, ${roundedLongitude}.`);
+    }, []);
 
     const handleSearch = useCallback(async () => {
         const rawQuery = String(query || '').trim();
@@ -280,13 +171,6 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
         setResults([]);
         setFeedback('');
         onChangeRef.current?.(null);
-
-        if (markerRef.current) {
-            markerRef.current.setLatLng([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]);
-        }
-        if (mapRef.current) {
-            mapRef.current.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 11);
-        }
     }, []);
 
     return (
@@ -308,7 +192,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                     disabled={searching}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary/50 hover:bg-white/10 disabled:opacity-60"
                 >
-                    {searching ? 'Buscando...' : 'Buscar'}
+                    {searching ? 'Buscando...' : 'Buscar direccion'}
                 </button>
                 <button
                     type="button"
@@ -325,34 +209,19 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary/50 hover:bg-white/10"
                 >
                     <Trash size={16} weight="bold" />
-                    Borrar todo
+                    Borrar
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <GuideBox title="Que podes poner">
-                    <p>`Guemes Mar del Plata`</p>
-                    <p>`Cordoba 1843 Mar del Plata`</p>
-                    <p>`Usar mi ubicacion` para cotizar directo</p>
-                </GuideBox>
-                <GuideBox title="Como funciona">
-                    <p>1. Busca o marca tu punto en el mapa.</p>
-                    <p>2. El sistema valida si caes en una zona fija.</p>
-                    <p>3. Si no, calcula por distancia.</p>
-                </GuideBox>
-            </div>
-
-            <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[#090d13]">
-                <div ref={mapContainerRef} className="h-[280px] w-full" />
-                <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-white/10 bg-[#0d131c]/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-300 shadow-sm backdrop-blur">
-                    {status === 'ready' ? 'Seleccion de ubicacion' : status === 'loading' ? 'Cargando mapa' : 'Error de mapa'}
+            {selectedPosition ? (
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                    Ubicacion elegida: {selectedPosition.lat}, {selectedPosition.lng}
                 </div>
-                {status !== 'ready' ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-[#0d131c]/92 px-6 text-center text-sm text-zinc-300">
-                        {status === 'loading' ? 'Preparando OpenStreetMap.' : 'No se pudo cargar el mapa.'}
-                    </div>
-                ) : null}
-            </div>
+            ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-zinc-300">
+                    Elegí tu ubicación para calcular el envío según la zona configurada en el panel admin.
+                </div>
+            )}
 
             {results.length ? (
                 <div className="space-y-2 rounded-[26px] border border-white/10 bg-white/5 p-3">
@@ -372,9 +241,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                             <MapPinLine size={18} weight="duotone" className="mt-0.5 text-primary" />
                             <div className="min-w-0">
                                 <p className="text-sm font-semibold text-white">{result.display_name}</p>
-                                <p className="mt-1 text-xs text-zinc-400">
-                                    {result.type || result.class || 'direccion'}
-                                </p>
+                                <p className="mt-1 text-xs text-zinc-400">{result.type || result.class || 'direccion'}</p>
                             </div>
                         </button>
                     ))}
