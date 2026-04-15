@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/skill-reminder.js",
+            "timeout": 5,
+            "statusMessage": "Checking Superpowers skills..."
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /c/Users/10/Documents/GitHub/Proyecto-Teflon/web/src/components/admin/evolution/*.jsx)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(grep -r \"res\\\\.status\" /c/Users/10/Documents/GitHub/Proyecto-Teflon/server/src/routes/*.js)",
+      "Bash(grep -A 5 \"finally {\" /c/Users/10/Documents/GitHub/Proyecto-Teflon/server/src/routes/*.js)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/CLAUDE.md\")",
+      "Bash(curl -s \"https://api.github.com/repos/obra/superpowers/contents/\")",
+      "Bash(python3 -c \"import sys,json; items=json.load\\(sys.stdin\\); [print\\(f\\\\\"{i['type']:6} {i['name']}\\\\\"\\) for i in items]\")",
+      "Bash(python -c \"import sys,json; items=json.load\\(sys.stdin\\); [print\\(f\\\\\"{i['type']:6} {i['name']}\\\\\"\\) for i in items]\")",
+      "Bash(node -e \"let d=''; process.stdin.on\\('data',c=>d+=c\\); process.stdin.on\\('end',\\(\\)=>{ JSON.parse\\(d\\).forEach\\(i=>console.log\\(i.type.padEnd\\(6\\)+' '+i.name\\)\\); }\\);\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/.claude/INSTALL.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/docs/README.claude.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/AGENTS.md\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/.claude-plugin/plugin.json\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/obra/superpowers/main/.claude-plugin/marketplace.json\")",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/CLAUDE.md)",
+      "Bash(curl -s https://api.github.com/repos/obra/superpowers/contents/skills)",
+      "Bash(curl -s https://api.github.com/repos/obra/superpowers/contents/commands)",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/executing-plans/SKILL.md)",
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md)"
+    ]
+  }
+}

@@ -326,13 +326,22 @@ function findBranchForZone(zone, branches, location = null, preferredBranchId = 
   return nearest?.branch || null;
 }
 
-function getDistanceZoneAmount(zone, distanceKm) {
-  const basePrice = toNumber(zone?.price, 0);
+function getShippingBreakdown({ zone = null, distanceKm = null, pricingMode = 'fixed', fallbackAmount = null }) {
+  const zoneAmount = roundMoney(Math.max(0, toNumber(zone?.price, 0)));
+  const distance = Math.max(0, toNumber(distanceKm, 0));
   const pricePerKm = Math.max(0, toNumber(zone?.price_per_km, 0));
-  if (zone?.distance_pricing_mode === 'per_km') {
-    return roundMoney(basePrice + Math.max(0, toNumber(distanceKm, 0)) * pricePerKm);
-  }
-  return roundMoney(basePrice);
+  const freightAmount =
+    pricingMode === 'per_km'
+      ? roundMoney(distance * pricePerKm)
+      : 0;
+  const computedFinal = roundMoney(zoneAmount + freightAmount);
+  const finalAmount = fallbackAmount == null ? computedFinal : roundMoney(Math.max(0, toNumber(fallbackAmount, 0)));
+
+  return {
+    zone_amount: zoneAmount,
+    freight_amount: freightAmount,
+    final_price: finalAmount,
+  };
 }
 
 export function resolveFixedShippingQuote(settings = {}, customer = {}, options = {}) {
@@ -359,7 +368,10 @@ export function resolveFixedShippingQuote(settings = {}, customer = {}, options 
     .map((zone) => ({
       zone,
       branch: findBranchForZone(zone, branches, location, preferredBranchId),
-      amount: toNumber(zone.price, 0),
+      ...getShippingBreakdown({
+        zone,
+        pricingMode: 'fixed',
+      }),
       areaScore: polygonAreaScore(zone.polygon),
     }))
     .sort((a, b) => a.areaScore - b.areaScore);
@@ -371,11 +383,14 @@ export function resolveFixedShippingQuote(settings = {}, customer = {}, options 
   const best = matches[0];
   return {
     ok: true,
-    amount: best.amount,
+    amount: best.final_price,
     shipping_zone_id: best.zone.id,
     shipping_zone_type: best.zone.type,
     branch_id: best.branch?.id || null,
     distance_km: null,
+    zone_amount: best.zone_amount,
+    freight_amount: best.freight_amount,
+    final_price: best.final_price,
     zone: best.zone,
     branch: best.branch || null,
     location,
@@ -432,10 +447,14 @@ export function resolveDistanceShippingQuote(settings = {}, customer = {}, optio
         zone,
         branch,
         distance_km: Number(distanceKm.toFixed(2)),
-        amount: getDistanceZoneAmount(zone, distanceKm),
         pricing_mode: zone.distance_pricing_mode || 'fixed',
         base_price: toNumber(zone.price, 0),
         price_per_km: Math.max(0, toNumber(zone.price_per_km, 0)),
+        ...getShippingBreakdown({
+          zone,
+          distanceKm,
+          pricingMode: zone.distance_pricing_mode || 'fixed',
+        }),
       };
     })
     .filter(Boolean)
@@ -466,7 +485,7 @@ export function resolveDistanceShippingQuote(settings = {}, customer = {}, optio
   const best = matches[0];
   return {
     ok: true,
-    amount: best.amount,
+    amount: best.final_price,
     shipping_zone_id: best.zone.id,
     shipping_zone_type: best.zone.type,
     branch_id: best.branch.id,
@@ -474,6 +493,9 @@ export function resolveDistanceShippingQuote(settings = {}, customer = {}, optio
     pricing_mode: best.pricing_mode,
     base_price: best.base_price,
     price_per_km: best.price_per_km,
+    zone_amount: best.zone_amount,
+    freight_amount: best.freight_amount,
+    final_price: best.final_price,
     zone: best.zone,
     branch: best.branch,
     location,
@@ -501,13 +523,20 @@ export function resolveShippingAmount(settings = {}, customer = {}) {
           preferredBranchId: zone.branch_id,
         });
       }
+      const breakdown = getShippingBreakdown({
+        zone,
+        pricingMode: 'fixed',
+      });
       return {
         ok: true,
-        amount: zone.price,
+        amount: breakdown.final_price,
         shipping_zone_id: zone.id,
         shipping_zone_type: zone.type,
         branch_id: null,
         distance_km: null,
+        zone_amount: breakdown.zone_amount,
+        freight_amount: breakdown.freight_amount,
+        final_price: breakdown.final_price,
       };
     }
   }
@@ -516,13 +545,17 @@ export function resolveShippingAmount(settings = {}, customer = {}) {
     const branchId = deliveryRaw.slice(7);
     const branch = branches.find((entry) => entry.id === branchId);
     if (branch) {
+      const amount = toNumber(branch.pickup_fee, 0);
       return {
         ok: true,
-        amount: branch.pickup_fee,
+        amount,
         shipping_zone_id: null,
         shipping_zone_type: 'pickup',
         branch_id: branch.id,
         distance_km: null,
+        zone_amount: amount,
+        freight_amount: 0,
+        final_price: amount,
       };
     }
   }
@@ -535,6 +568,9 @@ export function resolveShippingAmount(settings = {}, customer = {}) {
       shipping_zone_type: 'pickup',
       branch_id: deliveryRaw,
       distance_km: null,
+      zone_amount: 0,
+      freight_amount: 0,
+      final_price: 0,
     };
   }
 
@@ -545,12 +581,16 @@ export function resolveShippingAmount(settings = {}, customer = {}) {
     });
   }
 
+  const fallbackAmount = toNumber(fallbackZone?.price, toNumber(settings?.shipping_flat, 0));
   return {
     ok: true,
-    amount: toNumber(fallbackZone?.price, toNumber(settings?.shipping_flat, 0)),
+    amount: fallbackAmount,
     shipping_zone_id: fallbackZone?.id || null,
     shipping_zone_type: fallbackZone?.type || 'flat',
     branch_id: null,
     distance_km: null,
+    zone_amount: fallbackAmount,
+    freight_amount: 0,
+    final_price: fallbackAmount,
   };
 }

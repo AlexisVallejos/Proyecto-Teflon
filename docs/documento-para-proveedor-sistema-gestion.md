@@ -131,13 +131,18 @@ Formas aceptadas:
       "external_id": "PROD-1001",
       "sku": "PROD-1001",
       "name": "Producto",
+      "short_description": "Texto corto para catalogo",
       "price_retail": 1000,
       "price_wholesale": 900,
+      "price_1": 1000,
+      "price_2": 900,
+      "price_3": 850,
       "stock": 20,
       "is_active": true,
       "brand": "Marca",
       "description": "Descripcion",
       "category_id": "UUID_O_NOMBRE_DE_CATEGORIA",
+      "category_path": "Categoria > Gran Familia > Familia",
       "images": [
         "https://dominio-del-sistema.com/imagenes/prod-1001.jpg"
       ]
@@ -158,6 +163,7 @@ Ejemplos:
 - `short_description`, `descripcion_corta`, `detalle_abreviado` como alias de descripcion corta
 - `familia`, `category`, `categoria`, `category_id`, `category_ids`
 - `gran_familia`, `categoria_padre`, `category_path` para jerarquia opcional
+- `price_1` hasta `price_10`, `precio_1` hasta `precio_10`, `tarifa_1` hasta `tarifa_10`
 - `precio`, `precio_venta`, `precio_iva`
 - `mayorista`, `precio_mayorista`
 - `disponibilidad`, `stock_actual`
@@ -202,6 +208,22 @@ Comportamiento adicional:
 - si en update no llega categoria, el ecommerce conserva la categoria actual
 - si llega `Ninguno`, `Sin definir` o equivalente, se normaliza a la categoria `Sin definir`
 - si llega una jerarquia como `Categoria > Gran Familia > Familia`, el ecommerce puede crear la estructura y asignar el producto a la hoja final
+
+## Regla de precios multiples
+
+La API ahora acepta hasta `10` tarifas libres por producto:
+
+- `price_1` hasta `price_10`
+- tambien acepta aliases `precio_1` hasta `precio_10` y `tarifa_1` hasta `tarifa_10`
+
+Compatibilidad actual:
+
+- `price_retail` sigue existiendo y puede convivir con `price_1`
+- `price_wholesale` sigue existiendo y puede convivir con `price_2`
+- si no llega `price_retail`, el ecommerce puede derivarlo desde `price_1`
+- si no llega `price_wholesale`, el ecommerce puede derivarlo desde `price_2`
+
+El ecommerce guarda todas las tarifas sincronizadas para usarlas despues desde panel, reglas comerciales o listas de precios.
 
 ## Campos obligatorios y regla de create/update
 
@@ -470,6 +492,10 @@ Estos errores no frenan todo el lote. Solo fallan esos items:
 `invalid_value_format`
 - llego un valor con formato no valido
 - ejemplo tipico: stock decimal, identificador mal formateado o numero incompatible
+- cuando es posible, la API devuelve tambien:
+  - `error_field`
+  - `error_value`
+  - `error_detail`
 
 ## Recomendacion minima para el sistema de gestion
 

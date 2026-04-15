@@ -282,6 +282,56 @@ function parseBooleanInput(value, fallback = false) {
   return fallback;
 }
 
+function normalizeStoredPriceTiers(data, priceRetail, priceWholesale) {
+  const raw = data?.price_tiers && typeof data.price_tiers === 'object' ? data.price_tiers : {};
+  const tiers = [];
+
+  for (let slot = 1; slot <= 10; slot += 1) {
+    const key = `price_${slot}`;
+    const parsed = Number(raw[key]);
+    if (Number.isFinite(parsed)) {
+      tiers.push({ slot, key, value: parsed });
+    }
+  }
+
+  if (!tiers.some((entry) => entry.slot === 1) && Number.isFinite(Number(priceRetail))) {
+    tiers.unshift({ slot: 1, key: 'price_1', value: Number(priceRetail) });
+  }
+
+  if (!tiers.some((entry) => entry.slot === 2) && Number.isFinite(Number(priceWholesale)) && Number(priceWholesale) > 0) {
+    tiers.push({ slot: 2, key: 'price_2', value: Number(priceWholesale) });
+  }
+
+  return tiers
+    .sort((a, b) => a.slot - b.slot)
+    .filter((entry, index, list) => list.findIndex((candidate) => candidate.slot === entry.slot) === index);
+}
+
+function mapTenantProductRecord(row) {
+  const data = row?.data && typeof row.data === 'object' ? row.data : {};
+  const fallbackDescription =
+    data.long_description ||
+    data.longDescription ||
+    row?.description ||
+    row?.name ||
+    null;
+
+  return {
+    ...row,
+    short_description:
+      data.short_description ||
+      data.shortDescription ||
+      fallbackDescription,
+    long_description:
+      data.long_description ||
+      data.longDescription ||
+      fallbackDescription,
+    price_tiers: normalizeStoredPriceTiers(data, row?.price, row?.price_wholesale),
+    source_category: data.source_category || null,
+    source_category_path: Array.isArray(data.source_category_path) ? data.source_category_path : [],
+  };
+}
+
 async function fetchTenantProductRow(db, tenantId, productId) {
   const result = await db.query(
     [
@@ -302,7 +352,7 @@ async function fetchTenantProductRow(db, tenantId, productId) {
     [tenantId, productId]
   );
 
-  return result.rows[0] || null;
+  return result.rows[0] ? mapTenantProductRecord(result.rows[0]) : null;
 }
 
 async function upsertTenantCommerce(tenantId, commerce) {
@@ -1264,7 +1314,7 @@ tenantRouter.get('/products', async (req, res, next) => {
       ].join(' '),
       [tenantId]
     );
-    return res.json({ items: result.rows });
+    return res.json({ items: result.rows.map(mapTenantProductRecord) });
   } catch (err) {
     return next(err);
   }

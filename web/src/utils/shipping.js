@@ -263,13 +263,21 @@ const findBranchForZone = (zone, branches, location = null, preferredBranchId = 
         lockedBranchId: zone?.branch_id || null,
     })?.branch || null;
 
-const getDistanceZonePrice = (zone, distanceKm) => {
-    const basePrice = toNumber(zone?.price, 0);
+const getShippingBreakdown = ({ zone, distanceKm = null, pricingMode = 'fixed' }) => {
+    const zoneAmount = roundMoney(Math.max(0, toNumber(zone?.price, 0)));
+    const distance = Math.max(0, toNumber(distanceKm, 0));
     const pricePerKm = Math.max(0, toNumber(zone?.price_per_km, 0));
-    if (zone?.distance_pricing_mode === 'per_km') {
-        return roundMoney(basePrice + Math.max(0, toNumber(distanceKm, 0)) * pricePerKm);
-    }
-    return roundMoney(basePrice);
+    const freightAmount =
+        pricingMode === 'per_km'
+            ? roundMoney(distance * pricePerKm)
+            : 0;
+    const finalPrice = roundMoney(zoneAmount + freightAmount);
+
+    return {
+        zone_amount: zoneAmount,
+        freight_amount: freightAmount,
+        final_price: finalPrice,
+    };
 };
 
 export const resolveFixedZoneQuote = ({ shippingZones = [], branches = [], location = null, preferredBranchId = null }) => {
@@ -296,12 +304,20 @@ export const resolveFixedZoneQuote = ({ shippingZones = [], branches = [], locat
     }
 
     const best = matches[0];
+    const breakdown = getShippingBreakdown({
+        zone: best.zone,
+        pricingMode: 'fixed',
+    });
+
     return {
         ok: true,
         zone: best.zone,
         branch: best.branch,
         distance_km: null,
-        price: best.price,
+        price: breakdown.final_price,
+        zone_amount: breakdown.zone_amount,
+        freight_amount: breakdown.freight_amount,
+        final_price: breakdown.final_price,
         match_type: 'polygon',
     };
 };
@@ -356,10 +372,14 @@ export const resolveDistanceQuote = ({ shippingZones = [], branches = [], locati
                 zone,
                 branch,
                 distance_km: Number(distanceKm.toFixed(2)),
-                price: getDistanceZonePrice(zone, distanceKm),
                 pricing_mode: zone.distance_pricing_mode || 'fixed',
                 base_price: toNumber(zone.price, 0),
                 price_per_km: Math.max(0, toNumber(zone.price_per_km, 0)),
+                ...getShippingBreakdown({
+                    zone,
+                    distanceKm,
+                    pricingMode: zone.distance_pricing_mode || 'fixed',
+                }),
             };
         })
         .filter(Boolean)
@@ -390,10 +410,13 @@ export const resolveDistanceQuote = ({ shippingZones = [], branches = [], locati
         zone: best.zone,
         branch: best.branch,
         distance_km: best.distance_km,
-        price: best.price,
+        price: best.final_price,
         pricing_mode: best.pricing_mode,
         base_price: best.base_price,
         price_per_km: best.price_per_km,
+        zone_amount: best.zone_amount,
+        freight_amount: best.freight_amount,
+        final_price: best.final_price,
         match_type: 'distance',
     };
 };

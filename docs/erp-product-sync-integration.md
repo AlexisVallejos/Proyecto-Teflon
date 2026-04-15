@@ -119,12 +119,17 @@ Prueba de conexion en modo compatibilidad:
       "external_id": "PROD-1001",
       "sku": "PROD-1001",
       "name": "Notebook Lenovo 15",
+      "short_description": "Texto corto para catalogo",
       "price_retail": 1250000,
       "price_wholesale": 1170000,
+      "price_1": 1250000,
+      "price_2": 1170000,
+      "price_3": 1120000,
       "stock": 6,
       "is_active": true,
       "brand": "Lenovo",
       "description": "Notebook 15 pulgadas",
+      "category_path": "Tecnologia > Notebooks > 15 pulgadas",
       "images": [
         "https://sistema.local/media/prod-1001.jpg"
       ]
@@ -166,6 +171,7 @@ Tambien se aceptan aliases como:
 - `short_description`, `descripcion_corta`, `detalle_abreviado`
 - `familia`, `category` o `categoria`
 - `gran_familia`, `categoria_padre`, `category_path`
+- `price_1` hasta `price_10`, `precio_1` hasta `precio_10`, `tarifa_1` hasta `tarifa_10`
 - `precio`, `precio_venta`, `precio_iva`
 - `mayorista`, `precio_mayorista`
 - `disponibilidad`, `stock_actual`
@@ -255,6 +261,8 @@ Comportamiento real del backend:
 - si falta `category` al crear, se asigna `Sin definir`
 - si `category` llega como `Ninguno` o equivalente, se asigna `Sin definir`
 - si llega `short_description`, se usa para catalogo y destacados
+- si la gestion envia `price_1` hasta `price_10`, el ecommerce guarda todas las tarifas
+- `price_retail` y `price_wholesale` siguen soportados por compatibilidad y pueden derivarse desde `price_1` y `price_2`
 
 ### 3. Regla create / update
 

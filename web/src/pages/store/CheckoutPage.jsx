@@ -482,13 +482,16 @@ export default function CheckoutPage() {
                     desc:
                         distanceQuote.zone.description ||
                         getDistanceQuoteDescription(distanceQuote),
-                    price: Number(distanceQuote.price || 0),
+                    price: Number(distanceQuote.final_price ?? distanceQuote.price ?? 0),
                     branch_id: distanceQuote.branch?.id || null,
                     shipping_zone_id: distanceQuote.zone.id,
                     distance_km: distanceQuote.distance_km,
                     pricing_mode: distanceQuote.pricing_mode || "fixed",
                     price_per_km: Number(distanceQuote.price_per_km || 0),
                     base_price: Number(distanceQuote.base_price || 0),
+                    zone_amount: Number(distanceQuote.zone_amount ?? distanceQuote.base_price ?? 0),
+                    freight_amount: Number(distanceQuote.freight_amount || 0),
+                    final_price: Number(distanceQuote.final_price ?? distanceQuote.price ?? 0),
                     dynamic: true,
                 };
             }
@@ -775,6 +778,10 @@ export default function CheckoutPage() {
                         distance_km: distanceQuote.distance_km,
                         branch_id: distanceQuote.branch?.id || null,
                         shipping_zone_id: distanceQuote.zone?.id || null,
+                        zone_amount: Number(distanceQuote.zone_amount ?? distanceQuote.base_price ?? 0),
+                        freight_amount: Number(distanceQuote.freight_amount || 0),
+                        final_price: Number(distanceQuote.final_price ?? distanceQuote.price ?? 0),
+                        pricing_mode: distanceQuote.pricing_mode || "fixed",
                         source: "checkout_location_picker",
                     }
                     : undefined,
@@ -1295,7 +1302,7 @@ export default function CheckoutPage() {
                                                 : `${distanceQuote.zone?.name || "Zona"} · ${distanceQuote.distance_km} km desde ${distanceQuote.branch?.name || "la sucursal"}`
                                             : opt.desc;
                                         const optionPrice = isDistanceOption && distanceQuote?.ok
-                                            ? Number(distanceQuote.price || 0)
+                                            ? Number(distanceQuote.final_price ?? distanceQuote.price ?? 0)
                                             : opt.price;
                                         return (
                                             <label
@@ -1368,17 +1375,49 @@ export default function CheckoutPage() {
                                                         {distanceQuote.match_type === "polygon"
                                                             ? "Zona fija detectada"
                                                             : `Sucursal mas cercana: ${distanceQuote.branch?.name || "Sucursal principal"}`}
-                                                        {" · "}
-                                                        Costo {distanceQuote.price === 0 ? "Gratis" : formatCurrency(distanceQuote.price, displayCurrency, locale)}
                                                     </p>
-                                                    {distanceQuote.match_type !== "polygon" && distanceQuote.pricing_mode === "per_km" ? (
-                                                        <p className="mt-1 text-xs opacity-80">
-                                                            {formatCurrency(Number(distanceQuote.price_per_km || 0), displayCurrency, locale)}/km
-                                                            {Number(distanceQuote.base_price || 0) > 0
-                                                                ? ` + base ${formatCurrency(Number(distanceQuote.base_price || 0), displayCurrency, locale)}`
-                                                                : ""}
+                                                    <div className="mt-2 space-y-1 text-xs opacity-90">
+                                                        <p>
+                                                            Zona:{" "}
+                                                            <span className="font-semibold">
+                                                                {Number(distanceQuote.zone_amount ?? distanceQuote.base_price ?? 0) <= 0
+                                                                    ? "Gratis"
+                                                                    : formatCurrency(
+                                                                        Number(distanceQuote.zone_amount ?? distanceQuote.base_price ?? 0),
+                                                                        displayCurrency,
+                                                                        locale,
+                                                                    )}
+                                                            </span>
                                                         </p>
-                                                    ) : null}
+                                                        <p>
+                                                            Flete:{" "}
+                                                            <span className="font-semibold">
+                                                                {Number(distanceQuote.freight_amount || 0) <= 0
+                                                                    ? "Gratis"
+                                                                    : formatCurrency(
+                                                                        Number(distanceQuote.freight_amount || 0),
+                                                                        displayCurrency,
+                                                                        locale,
+                                                                    )}
+                                                            </span>
+                                                            {distanceQuote.match_type !== "polygon" && distanceQuote.pricing_mode === "per_km" ? (
+                                                                <span className="opacity-80">
+                                                                    {" "}
+                                                                    ({formatCurrency(Number(distanceQuote.price_per_km || 0), displayCurrency, locale)}/km)
+                                                                </span>
+                                                            ) : null}
+                                                        </p>
+                                                        <p className="font-bold text-sm text-emerald-900 dark:text-emerald-100">
+                                                            Envio final:{" "}
+                                                            {Number(distanceQuote.final_price ?? distanceQuote.price ?? 0) <= 0
+                                                                ? "Gratis"
+                                                                : formatCurrency(
+                                                                    Number(distanceQuote.final_price ?? distanceQuote.price ?? 0),
+                                                                    displayCurrency,
+                                                                    locale,
+                                                                )}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             ) : null}
 

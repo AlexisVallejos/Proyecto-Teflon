@@ -7,6 +7,7 @@ const DEFAULT_SOURCE_SYSTEM = 'erp';
 const DEFAULT_UNCATEGORIZED_LABEL = 'Sin definir';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_SYNC_OPERATION = 'upsert';
+const MAX_PRICE_TIER_COUNT = 10;
 const SYNC_OPERATION_ALIASES = {
   create: 'create',
   insert: 'create',
@@ -34,6 +35,48 @@ const UNDEFINED_LIKE_TEXTS = new Set([
   '-',
   '--',
 ]);
+const STRUCTURED_PRICE_TIER_KEYS = ['price_tiers', 'priceTiers', 'prices', 'precios', 'tarifas'];
+const PRICE_TIER_SLOT_ALIASES = Array.from({ length: MAX_PRICE_TIER_COUNT }, (_, index) => {
+  const slot = index + 1;
+  const padded = String(slot).padStart(2, '0');
+  return {
+    slot,
+    aliases: [
+      `price_${slot}`,
+      `price${slot}`,
+      `price_${padded}`,
+      `price${padded}`,
+      `precio_${slot}`,
+      `precio${slot}`,
+      `precio_${padded}`,
+      `precio${padded}`,
+      `tarifa_${slot}`,
+      `tarifa${slot}`,
+      `lista_${slot}`,
+      `lista${slot}`,
+      `price_list_${slot}`,
+      `priceList${slot}`,
+    ],
+  };
+});
+const RETAIL_PRICE_ALIASES = [
+  'price_retail',
+  'priceRetail',
+  'price',
+  'precio',
+  'precio_venta',
+  'precioVenta',
+  'precio_iva',
+  'precio_final',
+];
+const WHOLESALE_PRICE_ALIASES = [
+  'price_wholesale',
+  'priceWholesale',
+  'wholesale_price',
+  'precio_wholesale',
+  'precio_mayorista',
+  'mayorista',
+];
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -46,6 +89,21 @@ const readNumeric = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const hasMeaningfulValue = (value) => {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  return true;
+};
+
+const buildFieldValidationError = (field, rawValue, detail = null) => ({
+  code: 'invalid_value_format',
+  field,
+  raw_value: rawValue ?? null,
+  detail:
+    detail ||
+    `El campo ${field} tiene un formato invalido${rawValue != null ? ` (${String(rawValue)})` : ''}.`,
+});
 
 const normalizeComparableText = (value) =>
   String(value || '')
@@ -129,6 +187,173 @@ const firstBooleanAlias = (source, aliases = []) => {
     if (normalized != null) return normalized;
   }
   return null;
+};
+
+const readNumericAliasState = (source, aliases = []) => {
+  for (const key of aliases) {
+    if (!hasOwn(source, key)) continue;
+    const rawValue = source[key];
+    if (!hasMeaningfulValue(rawValue)) {
+      return {
+        present: true,
+        value: null,
+        invalid: false,
+        key,
+        rawValue,
+      };
+    }
+
+    const normalized = readNumeric(rawValue);
+    if (normalized == null) {
+      return {
+        present: true,
+        value: null,
+        invalid: true,
+        key,
+        rawValue,
+      };
+    }
+
+    return {
+      present: true,
+      value: normalized,
+      invalid: false,
+      key,
+      rawValue,
+    };
+  }
+
+  return {
+    present: false,
+    value: null,
+    invalid: false,
+    key: null,
+    rawValue: undefined,
+  };
+};
+
+const normalizeStructuredPriceTierSlot = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const normalized = Math.trunc(value);
+    return normalized >= 1 && normalized <= MAX_PRICE_TIER_COUNT ? normalized : null;
+  }
+
+  const normalizedText = String(value || '').trim().toLowerCase();
+  if (!normalizedText) return null;
+
+  const directNumber = Number(normalizedText);
+  if (Number.isFinite(directNumber)) {
+    const slot = Math.trunc(directNumber);
+    return slot >= 1 && slot <= MAX_PRICE_TIER_COUNT ? slot : null;
+  }
+
+  const matchedAlias = PRICE_TIER_SLOT_ALIASES.find((entry) => entry.aliases.includes(normalizedText));
+  return matchedAlias?.slot || null;
+};
+
+const setNormalizedPriceTier = (target, slot, value) => {
+  if (!slot || slot < 1 || slot > MAX_PRICE_TIER_COUNT) return;
+  target.set(slot, Math.max(0, Number(value)));
+};
+
+const normalizePriceTiers = (raw) => {
+  const tiers = new Map();
+
+  for (const key of STRUCTURED_PRICE_TIER_KEYS) {
+    if (!hasOwn(raw, key)) continue;
+
+    const rawStructured = raw[key];
+    if (!hasMeaningfulValue(rawStructured)) continue;
+
+    if (Array.isArray(rawStructured)) {
+      for (let index = 0; index < rawStructured.length; index += 1) {
+        const entry = rawStructured[index];
+        if (!hasMeaningfulValue(entry)) continue;
+
+        if (isPlainObject(entry)) {
+          const slot = normalizeStructuredPriceTierSlot(
+            entry.slot ?? entry.index ?? entry.position ?? entry.id ?? entry.key ?? entry.name
+          );
+          const rawValue = entry.value ?? entry.price ?? entry.amount;
+          if (!slot) {
+            return {
+              priceTiers: [],
+              validationError: buildFieldValidationError(`${key}[${index}]`, rawValue, `No se pudo resolver el slot de ${key}[${index}].`),
+            };
+          }
+          if (!hasMeaningfulValue(rawValue)) continue;
+          const numericValue = readNumeric(rawValue);
+          if (numericValue == null) {
+            return {
+              priceTiers: [],
+              validationError: buildFieldValidationError(`${key}[${index}]`, rawValue),
+            };
+          }
+          setNormalizedPriceTier(tiers, slot, numericValue);
+          continue;
+        }
+
+        const slot = index + 1;
+        if (slot > MAX_PRICE_TIER_COUNT) continue;
+        const numericValue = readNumeric(entry);
+        if (numericValue == null) {
+          return {
+            priceTiers: [],
+            validationError: buildFieldValidationError(`${key}[${index}]`, entry),
+          };
+        }
+        setNormalizedPriceTier(tiers, slot, numericValue);
+      }
+      continue;
+    }
+
+    if (isPlainObject(rawStructured)) {
+      for (const [entryKey, entryValue] of Object.entries(rawStructured)) {
+        if (!hasMeaningfulValue(entryValue)) continue;
+        const slot = normalizeStructuredPriceTierSlot(entryKey);
+        if (!slot) {
+          return {
+            priceTiers: [],
+            validationError: buildFieldValidationError(`${key}.${entryKey}`, entryValue, `No se pudo resolver el slot de ${key}.${entryKey}.`),
+          };
+        }
+        const numericValue = readNumeric(entryValue);
+        if (numericValue == null) {
+          return {
+            priceTiers: [],
+            validationError: buildFieldValidationError(`${key}.${entryKey}`, entryValue),
+          };
+        }
+        setNormalizedPriceTier(tiers, slot, numericValue);
+      }
+    }
+  }
+
+  for (const entry of PRICE_TIER_SLOT_ALIASES) {
+    const numericState = readNumericAliasState(raw, entry.aliases);
+    if (!numericState.present) continue;
+    if (numericState.invalid) {
+      return {
+        priceTiers: [],
+        validationError: buildFieldValidationError(numericState.key, numericState.rawValue),
+      };
+    }
+    if (numericState.value == null) continue;
+    setNormalizedPriceTier(tiers, entry.slot, numericState.value);
+  }
+
+  const priceTiers = [...tiers.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([slot, value]) => ({
+      slot,
+      key: `price_${slot}`,
+      value,
+    }));
+
+  return {
+    priceTiers,
+    validationError: null,
+  };
 };
 
 const slugify = (value) =>
@@ -394,31 +619,12 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
   const categoryIds = normalizedCategories.ids;
   const categoryLabels = normalizedCategories.labels;
   const sourceCategoryLabel = categoryLabels[0] || categoryPathLabels[categoryPathLabels.length - 1] || null;
-  const priceRetail = firstNumericAlias(raw, [
-    'price_retail',
-    'priceRetail',
-    'price',
-    'precio',
-    'precio_venta',
-    'precioVenta',
-    'precio_iva',
-    'precio_final',
-    'precio01',
-    'precio_01',
-    'tarifa_1',
-  ]);
-  const priceWholesale = firstNumericAlias(raw, [
-    'price_wholesale',
-    'priceWholesale',
-    'wholesale_price',
-    'precio_wholesale',
-    'precio_mayorista',
-    'mayorista',
-    'precio03',
-    'precio_03',
-    'tarifa_3',
-  ]);
-  const rawStock = firstNumericAlias(raw, [
+  const priceTiersState = normalizePriceTiers(raw);
+  const priceTiers = Array.isArray(priceTiersState.priceTiers) ? priceTiersState.priceTiers : [];
+  const priceTierMap = Object.fromEntries(priceTiers.map((entry) => [entry.key, entry.value]));
+  const priceRetailState = readNumericAliasState(raw, RETAIL_PRICE_ALIASES);
+  const priceWholesaleState = readNumericAliasState(raw, WHOLESALE_PRICE_ALIASES);
+  const stockState = readNumericAliasState(raw, [
     'stock',
     'inventory',
     'quantity',
@@ -427,7 +633,15 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     'existencia',
     'cantidad',
   ]);
-  const stock = rawStock != null ? normalizeStockQuantity(rawStock) : null;
+  const priceRetail = priceRetailState.value ?? priceTierMap.price_1 ?? null;
+  const priceWholesale = priceWholesaleState.value ?? priceTierMap.price_2 ?? null;
+  const stock = stockState.value != null ? normalizeStockQuantity(stockState.value) : null;
+
+  const validationError =
+    priceTiersState.validationError ||
+    (priceRetailState.invalid ? buildFieldValidationError(priceRetailState.key, priceRetailState.rawValue) : null) ||
+    (priceWholesaleState.invalid ? buildFieldValidationError(priceWholesaleState.key, priceWholesaleState.rawValue) : null) ||
+    (stockState.invalid ? buildFieldValidationError(stockState.key, stockState.rawValue) : null);
 
   const rawIsActive = firstBooleanAlias(raw, ['is_active', 'isActive', 'active', 'activo']);
   const hasIsActive = rawIsActive != null;
@@ -465,23 +679,33 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     hasCategoryRefs: categoryIds.length > 0 || categoryLabels.length > 0,
     hasCategoryPath: categoryPathLabels.length > 1,
     hasSourceCategoryLabel: sourceCategoryLabel !== null,
-    hasPriceRetail: priceRetail != null,
-    hasPriceWholesale: priceWholesale != null,
+    hasPriceRetail: priceRetailState.present || priceRetail != null,
+    hasPriceWholesale: priceWholesaleState.present || priceWholesale != null,
+    hasPriceTiers: priceTiers.length > 0,
     hasStock: stock != null,
     hasIsActive,
     priceRetail,
     priceWholesale,
+    priceTiers,
     stock,
     isActiveSource,
     images: normalizeImageCollection(rawImages, name),
     hasImages: rawImages.length > 0,
     deletedAt,
+    validationError,
     rawPayload: raw,
   };
 };
 
 const buildProductDataFromSync = ({ existingData, item, allowEditorialSync }) => {
   const next = isPlainObject(existingData) ? { ...existingData } : {};
+
+  if (item.hasPriceTiers) {
+    next.price_tiers = item.priceTiers.reduce((acc, entry) => {
+      acc[entry.key] = entry.value;
+      return acc;
+    }, {});
+  }
 
   if (allowEditorialSync && item.hasImages) {
     next.images = item.images || [];
@@ -773,6 +997,15 @@ async function ensureCategoryPathForSync(client, { tenantId, categoryPathLabels 
 const mapSyncItemError = (err) => {
   const errorCode = String(err?.code || '').trim();
 
+  if (errorCode === 'invalid_value_format') {
+    return {
+      error: 'invalid_value_format',
+      ...(err?.detail ? { error_detail: err.detail } : {}),
+      ...(err?.field ? { error_field: err.field } : {}),
+      ...(err?.raw_value !== undefined ? { error_value: err.raw_value } : {}),
+    };
+  }
+
   if (!errorCode && err?.message) {
     return { error: err.message };
   }
@@ -980,6 +1213,28 @@ export async function syncIntegrationProducts({
       }
 
       const existing = existingByExternalId.get(item.externalId);
+
+      if (item?.validationError) {
+        failed += 1;
+        itemResults.push({
+          ...baseResult,
+          ok: false,
+          status: 'error',
+          action:
+            item.operation === 'update'
+              ? 'update'
+              : item.operation === 'create'
+                ? 'create'
+                : existing
+                  ? 'update'
+                  : 'create',
+          error: item.validationError.code || 'invalid_value_format',
+          ...(item.validationError.detail ? { error_detail: item.validationError.detail } : {}),
+          ...(item.validationError.field ? { error_field: item.validationError.field } : {}),
+          ...(item.validationError.raw_value !== undefined ? { error_value: item.validationError.raw_value } : {}),
+        });
+        continue;
+      }
       if (item.operation === 'create' && existing) {
         failed += 1;
         itemResults.push({

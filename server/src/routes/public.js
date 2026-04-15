@@ -48,6 +48,32 @@ async function buildPricingContext(req) {
   };
 }
 
+function normalizeStoredPriceTiers(data, priceRetail, priceWholesale) {
+  const raw = data?.price_tiers && typeof data.price_tiers === 'object' ? data.price_tiers : {};
+  const tiers = [];
+
+  for (let slot = 1; slot <= 10; slot += 1) {
+    const key = `price_${slot}`;
+    const value = raw[key];
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      tiers.push({ slot, key, value: parsed });
+    }
+  }
+
+  if (!tiers.some((entry) => entry.slot === 1) && Number.isFinite(Number(priceRetail))) {
+    tiers.unshift({ slot: 1, key: 'price_1', value: Number(priceRetail) });
+  }
+
+  if (!tiers.some((entry) => entry.slot === 2) && Number.isFinite(Number(priceWholesale)) && Number(priceWholesale) > 0) {
+    tiers.push({ slot: 2, key: 'price_2', value: Number(priceWholesale) });
+  }
+
+  return tiers
+    .sort((a, b) => a.slot - b.slot)
+    .filter((entry, index, list) => list.findIndex((candidate) => candidate.slot === entry.slot) === index);
+}
+
 function mapProductRow(row, pricingContext) {
   const { adjustments, pricingProfile, offers, userId } = pricingContext;
   const priceRetail = Number(row.price || 0);
@@ -67,6 +93,7 @@ function mapProductRow(row, pricingContext) {
   });
   const finalPrice = applyOfferDiscount(effective, bestOffer.percent);
   const data = row.data && typeof row.data === 'object' ? row.data : {};
+  const priceTiers = normalizeStoredPriceTiers(data, priceRetail, priceWholesale);
   const fallbackDescription =
     data.long_description ||
     data.longDescription ||
@@ -120,10 +147,13 @@ function mapProductRow(row, pricingContext) {
     price: finalPrice,
     price_retail: retail,
     price_wholesale: wholesale,
+    price_tiers: priceTiers,
     currency: row.currency,
     stock: row.stock,
     brand: row.brand,
     data,
+    source_category: data.source_category || null,
+    source_category_path: Array.isArray(data.source_category_path) ? data.source_category_path : [],
     variation_group: variationGroup || null,
     variation_group_label: rawVariationGroupLabel || variationGroup || null,
     variation_label: rawVariationLabel || null,

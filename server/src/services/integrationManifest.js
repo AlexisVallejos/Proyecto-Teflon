@@ -1,5 +1,12 @@
 import crypto from 'crypto';
 
+const PRICE_TIER_FIELDS = Array.from({ length: 10 }, (_, index) => ({
+  key: `price_${index + 1}`,
+  type: 'number',
+  required: false,
+  description: `Precio libre ${index + 1}. El ecommerce lo guarda como tarifa sincronizada sin asumir el nombre comercial.`,
+}));
+
 const PRODUCT_FIELDS = [
   {
     key: 'external_id',
@@ -26,6 +33,12 @@ const PRODUCT_FIELDS = [
     description: 'Descripcion ampliada o texto informativo del articulo.',
   },
   {
+    key: 'short_description',
+    type: 'string',
+    required: false,
+    description: 'Descripcion corta para catalogo, cards y destacados.',
+  },
+  {
     key: 'brand',
     type: 'string',
     required: false,
@@ -43,6 +56,7 @@ const PRODUCT_FIELDS = [
     required: false,
     description: 'Precio mayorista si la gestion lo maneja por separado.',
   },
+  ...PRICE_TIER_FIELDS,
   {
     key: 'stock',
     type: 'number',
@@ -74,6 +88,24 @@ const PRODUCT_FIELDS = [
     description: 'Lista de UUIDs de categorias del ecommerce para asociar el producto.',
   },
   {
+    key: 'category_path',
+    type: 'string|string[]',
+    required: false,
+    description: 'Jerarquia de categorias. Ejemplo: Categoria > Gran Familia > Familia.',
+  },
+  {
+    key: 'gran_familia',
+    type: 'string',
+    required: false,
+    description: 'Segmento intermedio opcional del arbol de categorias.',
+  },
+  {
+    key: 'familia',
+    type: 'string',
+    required: false,
+    description: 'Hoja final o familia comercial del producto.',
+  },
+  {
     key: 'updated_at',
     type: 'datetime',
     required: false,
@@ -88,16 +120,21 @@ const SAMPLE_PAYLOAD = {
       external_id: 'PROD-1001',
       sku: 'PROD-1001',
       name: 'Producto ejemplo',
+      short_description: 'Texto corto para cards y listados.',
       description: 'Descripcion ampliada del producto',
       brand: 'Marca Test',
       price_retail: 24990,
       price_wholesale: 21990,
+      price_1: 24990,
+      price_2: 21990,
+      price_3: 20990,
       stock: 15,
       is_active: true,
       images: [
         'https://dominio-del-sistema.com/imagenes/prod-1001.jpg',
       ],
       category_id: 'UUID_CATEGORIA_BOMBAS',
+      category_path: 'Sanitarios > Griferia > Monocomando',
       updated_at: '2026-03-14T15:00:00.000Z',
     },
   ],
@@ -110,9 +147,13 @@ const LEGACY_SAMPLE_PAYLOAD = {
       detalle_ampliado: 'ABLANDADOR AGUA AF1500 FLUVIAL',
       detalle_abreviado: 'ABLANDADOR AGUA AF1500 FLUVIAL',
       texto_asociado: 'Descripcion ampliada del articulo enviada por el sistema de gestion.',
+      gran_familia: 'Tratamiento de agua',
       familia: 'UUID_CATEGORIA_BOMBAS',
       precio: 1465583,
       mayorista: 0,
+      precio_1: 1465583,
+      precio_2: 1399000,
+      precio_3: 1325000,
       disponibilidad: 12,
     activo: true,
     imagenes: [
@@ -170,7 +211,9 @@ export const buildProductSyncSchema = (baseUrl) => ({
   notes: [
     'Stock viaja dentro del item de producto. No hace falta un endpoint separado para stock.',
     'El campo external_id es obligatorio para crear o actualizar sin ambiguedad.',
-    'Si la gestion maneja hasta 10 tarifas, se recomienda enviar al menos price_retail y price_wholesale.',
+    'La API acepta hasta 10 tarifas libres mediante price_1 hasta price_10.',
+    'price_retail y price_wholesale se mantienen por compatibilidad; si no llegan, se pueden derivar desde price_1 y price_2.',
+    'Tambien acepta short_description y category_path para descripcion corta y arbol Categoria > Gran Familia > Familia.',
   ],
   fields: PRODUCT_FIELDS,
   sample_payload: SAMPLE_PAYLOAD,

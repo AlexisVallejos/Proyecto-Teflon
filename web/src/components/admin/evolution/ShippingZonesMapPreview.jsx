@@ -41,6 +41,30 @@ const formatDistanceZonePrice = (zone) => {
     return formatZonePrice(zone?.price || 0);
 };
 
+const getDistanceZonePreviewDistanceKm = (zone) => {
+    const min = Math.max(0, Number(zone?.min_distance_km || 0));
+    const max = zone?.max_distance_km == null ? null : Math.max(min, Number(zone.max_distance_km || 0));
+    if (max == null) return Math.max(min, 5);
+    return Number((min + (max - min) * 0.5).toFixed(2));
+};
+
+const getDistanceZoneBreakdown = (zone, distanceKm) => {
+    const zoneAmount = Math.max(0, Number(zone?.price || 0));
+    const rate = Math.max(0, Number(zone?.price_per_km || 0));
+    const safeDistance = Math.max(0, Number(distanceKm || 0));
+    const freightAmount =
+        zone?.distance_pricing_mode === 'per_km'
+            ? Number((safeDistance * rate).toFixed(2))
+            : 0;
+    const finalPrice = Number((zoneAmount + freightAmount).toFixed(2));
+
+    return {
+        zone_amount: zoneAmount,
+        freight_amount: freightAmount,
+        final_price: finalPrice,
+    };
+};
+
 const formatDistanceBand = (zone) => {
     const min = Number(zone.min_distance_km || 0);
     if (zone.max_distance_km == null) {
@@ -198,35 +222,61 @@ const SummaryCard = ({ icon: Icon, label, value, toneClass = '' }) => (
     </div>
 );
 
-const DistanceZoneRow = ({ zone }) => (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.18)]">
-        <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-                <span
-                    className="mt-1 h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: zone.color }}
-                />
-                <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">{zone.name}</p>
-                    <p className="text-xs text-slate-500">{formatDistanceBand(zone)}</p>
+const DistanceZoneRow = ({ zone }) => {
+    const previewDistanceKm = getDistanceZonePreviewDistanceKm(zone);
+    const breakdown = getDistanceZoneBreakdown(zone, previewDistanceKm);
+
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.18)]">
+            <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                    <span
+                        className="mt-1 h-3 w-3 shrink-0 rounded-full"
+                        style={{ backgroundColor: zone.color }}
+                    />
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900">{zone.name}</p>
+                        <p className="text-xs text-slate-500">{formatDistanceBand(zone)}</p>
+                    </div>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
+                    {zone.priceLabel || formatDistanceZonePrice(zone)}
+                </span>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] text-slate-600">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    Zona: <span className="font-semibold text-slate-900">{formatZonePrice(breakdown.zone_amount)}</span>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    Flete:{" "}
+                    <span className="font-semibold text-slate-900">{formatZonePrice(breakdown.freight_amount)}</span>
+                    {zone?.distance_pricing_mode === 'per_km' ? (
+                        <span className="text-slate-500">
+                            {" "}
+                            ({previewDistanceKm} km x {formatMoney(Number(zone?.price_per_km || 0))}/km)
+                        </span>
+                    ) : null}
+                </div>
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-emerald-900">
+                    Total final: <span className="font-semibold">{formatZonePrice(breakdown.final_price)}</span>
                 </div>
             </div>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
-                {zone.priceLabel || formatDistanceZonePrice(zone)}
-            </span>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
-                {zone.branch?.name || (zone.branch_id ? 'Sucursal' : 'Sucursal mas cercana')}
-            </span>
-            {zone.description ? (
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
-                    {zone.description}
+                    {zone.branch?.name || (zone.branch_id ? 'Sucursal' : 'Sucursal mas cercana')}
                 </span>
-            ) : null}
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                    Simulacion: {previewDistanceKm} km
+                </span>
+                {zone.description ? (
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                        {zone.description}
+                    </span>
+                ) : null}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const FlatZoneRow = ({ zone }) => (
     <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_24px_-20px_rgba(15,23,42,0.18)]">
