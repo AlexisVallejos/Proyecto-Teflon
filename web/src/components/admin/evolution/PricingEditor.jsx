@@ -4,6 +4,11 @@ import {
     PRICE_VISIBILITY,
     PRICE_VISIBILITY_OPTIONS,
 } from '../../../utils/priceVisibility';
+import {
+    getDefaultPriceTierLabel,
+    normalizePriceTierLabels,
+    PRICE_TIER_SLOT_COUNT,
+} from '../../../utils/priceTierLabels';
 
 const PRICE_ADJUSTMENTS_FALLBACK = {
     retail_percent: 0,
@@ -44,6 +49,7 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
     const categoryItems = Array.isArray(categories) ? categories : [];
 
     const priceAdjustments = settings?.commerce?.price_adjustments || PRICE_ADJUSTMENTS_FALLBACK;
+    const priceTierLabels = normalizePriceTierLabels(settings?.commerce?.price_tier_labels);
     const priceVisibilityMode = getPriceVisibilityMode(settings);
 
     const updateCommerce = (patch) => {
@@ -77,6 +83,32 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
             show_prices: mode !== PRICE_VISIBILITY.HIDDEN,
         });
     };
+
+    const updatePriceTierLabel = (slot, value) => {
+        const key = `price_${slot}`;
+        updateCommerce({
+            price_tier_labels: {
+                ...priceTierLabels,
+                [key]: value,
+            },
+        });
+    };
+
+    const resetPriceTierLabels = () => {
+        updateCommerce({
+            price_tier_labels: normalizePriceTierLabels(),
+        });
+    };
+
+    const priceTierItems = Array.from({ length: PRICE_TIER_SLOT_COUNT }, (_, index) => {
+        const slot = index + 1;
+        const key = `price_${slot}`;
+        return {
+            slot,
+            key,
+            label: priceTierLabels[key] || getDefaultPriceTierLabel(slot),
+        };
+    });
 
     return (
         <div className="space-y-6 pb-10">
@@ -119,6 +151,47 @@ const PricingEditor = ({ settings, setSettings, offersManager, usersManager, cat
                 <p className="mt-3 text-xs text-zinc-500">
                     Usa "Con inicio de sesion" para que solo clientes autenticados puedan ver precios.
                 </p>
+            </div>
+            <div>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Tarifas ERP</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                            Define el nombre comercial de cada slot `price_1..price_10`. No cambia el valor importado, solo como se presenta en el panel y la API.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={resetPriceTierLabels}
+                        className="rounded-lg border border-white/15 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-zinc-300 transition hover:border-white/30 hover:text-white"
+                    >
+                        Restaurar nombres
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 md:grid-cols-2">
+                    {priceTierItems.map((item) => (
+                        <label
+                            key={item.key}
+                            className="rounded-2xl border border-white/10 bg-black/10 p-3"
+                        >
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                                    {item.key}
+                                </span>
+                                <span className="text-[10px] text-zinc-500">
+                                    Slot {item.slot}
+                                </span>
+                            </div>
+                            <input
+                                type="text"
+                                value={item.label}
+                                onChange={(e) => updatePriceTierLabel(item.slot, e.target.value)}
+                                placeholder={getDefaultPriceTierLabel(item.slot)}
+                                className={fieldClass}
+                            />
+                        </label>
+                    ))}
+                </div>
             </div>
             <div>
                 <p className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-400">Ajustes por porcentaje</p>

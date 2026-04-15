@@ -11,7 +11,7 @@ import { getPriceAccessState } from "../../utils/priceVisibility";
 import { createPlaceholderImage } from "../../utils/productImage";
 
 export default function CartPage() {
-    const { cartItems, updateQty, removeItem, addToCart } = useStore();
+    const { cartItems, updateQty, removeItem, addToCart, cartCount, cartSubtotal } = useStore();
     const { settings } = useTenant();
     const { user, loading: authLoading } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
@@ -76,24 +76,14 @@ export default function CartPage() {
         });
     }, [suggestedProducts]);
 
-    const cartCount = useMemo(
-        () => cartItems.reduce((acc, it) => acc + it.qty, 0),
-        [cartItems]
-    );
-
-    const subtotal = useMemo(
-        () => cartItems.reduce((acc, it) => acc + it.price * it.qty, 0),
-        [cartItems]
-    );
-
     const shippingFlat = Number(settings?.commerce?.shipping_flat || 0);
     const taxRate = Number(settings?.commerce?.tax_rate || 0);
-    const shipping = subtotal > 0 ? shippingFlat : 0;
-    const tax = (subtotal + shipping) * taxRate;
-    const total = subtotal + shipping + tax;
+    const shipping = cartSubtotal > 0 ? shippingFlat : 0;
+    const tax = (cartSubtotal + shipping) * taxRate;
+    const total = cartSubtotal + shipping + tax;
 
     const freeShippingThreshold = Number(settings?.commerce?.free_shipping_threshold || 0);
-    const freeShippingRemaining = Math.max(0, freeShippingThreshold - subtotal);
+    const freeShippingRemaining = Math.max(0, freeShippingThreshold - cartSubtotal);
     const goToAuthForCheckout = (path = "/login") => {
         sessionStorage.setItem("teflon_post_login_redirect", "/checkout");
         navigate(path);
@@ -102,18 +92,23 @@ export default function CartPage() {
     if (!cartItems.length) {
         return (
             <StoreLayout>
-                <main className="max-w-[960px] mx-auto w-full px-4 md:px-10 py-16 text-center">
-                    <h1 className="text-3xl font-black mb-4">Tu carrito esta vacio</h1>
-                    <p className="text-[#8a7560] mb-8">
-                        Suma productos para empezar tu compra.
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => navigate("/catalog")}
-                        className="bg-primary text-white font-bold px-6 py-3 rounded-lg"
-                    >
-                        Ir al catalogo
-                    </button>
+                <main className="w-full flex-1 flex flex-col items-center justify-center p-8 bg-zinc-50 dark:bg-zinc-950 min-h-[60vh]">
+                    <div className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-[2rem] p-10 flex flex-col items-center justify-center text-center shadow-xl shadow-zinc-200/50 dark:shadow-none border border-zinc-100 dark:border-zinc-800 transition-all">
+                        <div className="size-24 bg-orange-50 dark:bg-orange-500/10 text-primary rounded-full flex items-center justify-center mb-6">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg>
+                        </div>
+                        <h1 className="text-3xl font-black mb-3 text-zinc-900 dark:text-zinc-50">Tu carrito está vacío</h1>
+                        <p className="text-zinc-500 dark:text-zinc-400 mb-8 font-medium">
+                            Parece que aún no has añadido nada al carrito.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/catalog")}
+                            className="bg-primary hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-xl w-full transition-all active:scale-95 shadow-lg shadow-orange-500/20"
+                        >
+                            Explorar catálogo
+                        </button>
+                    </div>
                 </main>
             </StoreLayout>
         );
@@ -121,209 +116,209 @@ export default function CartPage() {
 
     return (
         <StoreLayout>
-            <main className="max-w-[1280px] mx-auto w-full px-4 md:px-10 py-8 pb-48 lg:pb-8">
-                <div className="flex flex-col gap-2 mb-8">
-                    <h1 className="text-3xl font-black tracking-tight">Carrito de compras</h1>
-                    <p className="text-[#8a7560] text-sm">
-                        Tienes {cartCount} producto{cartCount === 1 ? "" : "s"} en tu carrito
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    <div className="lg:col-span-8 flex flex-col gap-6">
-                        {cartItems.map((it) => (
-                            <CartItem
-                                key={it.id}
-                                item={it}
-                                onRemove={() => removeItem(it.id)}
-                                onDec={() => updateQty(it.id, it.qty - 1)}
-                                onInc={() => updateQty(it.id, it.qty + 1)}
-                                onChangeQty={(v) => updateQty(it.id, v)}
-                                currency={currency}
-                                locale={locale}
-                                showPricesEnabled={showPricesEnabled}
-                                canViewPrices={canViewPrices}
-                                authLoading={authLoading}
-                            />
-                        ))}
-
-                        <div className="mt-10">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold flex items-center gap-2">
-                                    Sugeridos para tu compra
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400 cursor-pointer"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                                </h2>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {loadingSuggested ? (
-                                    <div className="col-span-full rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6 text-center text-[#8a7560]">
-                                        Cargando sugeridos...
-                                    </div>
-                                ) : frequentlyBought.length ? (
-                                    frequentlyBought.map((item) => (
-                                        <UpsellCard
-                                            key={item.id}
-                                            item={item}
-                                            onAdd={() => addToCart(item)}
-                                            currency={currency}
-                                            locale={locale}
-                                            showPricesEnabled={showPricesEnabled}
-                                            canViewPrices={canViewPrices}
-                                            authLoading={authLoading}
-                                        />
-                                    ))
-                                ) : (
-                                    <div className="col-span-full rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6 text-center text-[#8a7560]">
-                                        No hay sugeridos disponibles.
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+            <div className="bg-zinc-50 dark:bg-zinc-950 min-h-[80vh] pb-32 lg:pb-12 pt-8">
+                <main className="max-w-[1280px] mx-auto w-full px-4 md:px-8">
+                    <div className="flex flex-col gap-2 mb-10">
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-white">Tu Carrito</h1>
+                        <p className="text-zinc-500 dark:text-zinc-400 font-medium">
+                            Tienes {cartCount} producto{cartCount === 1 ? "" : "s"} seleccionado{cartCount === 1 ? "" : "s"}
+                        </p>
                     </div>
 
-                    <div className="lg:col-span-4 flex flex-col gap-6">
-                        <div className="bg-white dark:bg-zinc-900 rounded-t-[32px] lg:rounded-xl border-t border-zinc-200 dark:border-zinc-800 p-6 lg:p-8 fixed bottom-0 left-0 right-0 z-50 lg:static lg:sticky lg:top-24 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:shadow-none flex flex-col">
-                            <h2 className="text-xl font-bold mb-4 lg:mb-6 hidden lg:block">Resumen del pedido</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative">
+                        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
+                            <div className="flex flex-col gap-4">
+                                {cartItems.map((it) => (
+                                    <CartItem
+                                        key={it.id}
+                                        item={it}
+                                        onRemove={() => removeItem(it.id)}
+                                        onDec={() => updateQty(it.id, it.qty - 1)}
+                                        onInc={() => updateQty(it.id, it.qty + 1)}
+                                        onChangeQty={(v) => updateQty(it.id, v)}
+                                        currency={currency}
+                                        locale={locale}
+                                        showPricesEnabled={showPricesEnabled}
+                                        canViewPrices={canViewPrices}
+                                        authLoading={authLoading}
+                                    />
+                                ))}
+                            </div>
 
-                            {canViewPrices ? (
-                                <>
-                                    <div className="hidden lg:flex flex-col gap-4 mb-6">
-                                        <Row
-                                            label="Subtotal"
-                                            value={formatCurrency(subtotal, currency, locale)}
-                                        />
-                                        <Row
-                                            label="Envio"
-                                            value={formatCurrency(shipping, currency, locale)}
-                                        />
-                                        <Row
-                                            label="Impuestos"
-                                            value={formatCurrency(tax, currency, locale)}
-                                        />
-                                    </div>
-
-                                    <div className="border-t border-zinc-200 dark:border-zinc-800 pt-0 lg:pt-6 mb-4 lg:mb-8">
-                                        <div className="flex justify-between items-center lg:items-end">
-                                            <span className="font-bold text-[#8a7560] lg:text-[#181411]">Total estimado</span>
-                                            <span className="text-3xl font-black text-primary">
-                                                {formatCurrency(total, currency, locale)}
-                                            </span>
+                            <div className="mt-12">
+                                <h2 className="text-2xl font-bold flex items-center gap-2 mb-6 text-zinc-900 dark:text-white">
+                                    Completa tu carrito
+                                </h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {loadingSuggested ? (
+                                        <div className="col-span-full rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-8 text-center text-zinc-400 font-medium">
+                                            Buscando recomendaciones...
                                         </div>
-                                    </div>
-                                </>
-                            ) : showPricesEnabled ? (
-                                <div className="mb-8 rounded-xl border border-[#e6e0db] bg-[#f9f7f4] p-4">
-                                    {authLoading ? (
-                                        <p className="text-sm text-[#8a7560]">Cargando precios...</p>
+                                    ) : frequentlyBought.length ? (
+                                        frequentlyBought.map((item) => (
+                                            <UpsellCard
+                                                key={item.id}
+                                                item={item}
+                                                onAdd={() => addToCart(item)}
+                                                currency={currency}
+                                                locale={locale}
+                                                showPricesEnabled={showPricesEnabled}
+                                                canViewPrices={canViewPrices}
+                                                authLoading={authLoading}
+                                            />
+                                        ))
                                     ) : (
-                                        <PriceAccessPrompt align="center" />
+                                        <div className="col-span-full rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-8 text-center text-zinc-400 font-medium">
+                                            No hay sugerencias disponibles.
+                                        </div>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="mb-8 rounded-xl border border-[#e6e0db] bg-[#f9f7f4] p-4 text-center text-sm text-[#8a7560]">
-                                    Los precios no estan visibles en esta tienda.
-                                </div>
-                            )}
+                            </div>
+                        </div>
 
-                            {user ? (
-                                <button
-                                    onClick={() => navigate("/checkout")}
-                                    className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-lg transition-colors flex items-center justify-center gap-2 mb-4"
-                                >
-                                    Continuar al pago
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                </button>
-                            ) : (
-                                <div className="mb-4 space-y-3 rounded-xl border border-[#e6e0db] bg-[#f9f7f4] p-4 text-left">
-                                    <p className="text-sm font-bold text-[#181411]">
-                                        Para continuar con el pago, inicia sesion o crea tu cuenta.
-                                    </p>
-                                    <p className="text-xs text-[#8a7560]">
-                                        Puedes seguir agregando productos al carrito, pero el checkout requiere una cuenta activa.
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => goToAuthForCheckout("/login")}
-                                            disabled={authLoading}
-                                            className="flex-1 min-w-[180px] rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:opacity-60"
-                                        >
-                                            {authLoading ? "Cargando..." : "Iniciar sesion"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => goToAuthForCheckout("/signup")}
-                                            className="flex-1 min-w-[180px] rounded-lg border border-[#d9d1ca] px-4 py-3 text-sm font-bold text-[#181411] transition-colors hover:border-primary hover:text-primary"
-                                        >
-                                            Crear cuenta
-                                        </button>
+                        <div className="lg:col-span-5 xl:col-span-4">
+                            <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-t-[2rem] lg:rounded-[2rem] border-t lg:border border-white/20 dark:border-zinc-800 p-6 lg:p-8 fixed bottom-0 left-0 right-0 z-50 lg:static lg:sticky lg:top-24 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:shadow-xl dark:shadow-black/50 flex flex-col transition-all">
+                                <h2 className="text-2xl font-black mb-6 hidden lg:block text-zinc-900 dark:text-white">Resumen</h2>
+
+                                {canViewPrices ? (
+                                    <>
+                                        <div className="hidden lg:flex flex-col gap-4 mb-6">
+                                            <Row label="Subtotal" value={formatCurrency(cartSubtotal, currency, locale)} />
+                                            <Row label="Envío estimado" value={shipping === 0 ? "Gratis" : formatCurrency(shipping, currency, locale)} />
+                                            {tax > 0 && <Row label="Impuestos" value={formatCurrency(tax, currency, locale)} />}
+                                        </div>
+
+                                        <div className="border-t border-zinc-200 dark:border-zinc-800 pt-0 lg:pt-6 mb-4 lg:mb-8">
+                                            <div className="flex justify-between items-center lg:items-end">
+                                                <span className="font-bold text-zinc-500 dark:text-zinc-400 text-sm lg:text-base">Total</span>
+                                                <span className="text-3xl lg:text-4xl font-black text-primary tracking-tight">
+                                                    {formatCurrency(total, currency, locale)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : showPricesEnabled ? (
+                                    <div className="mb-8 rounded-2xl bg-zinc-50 dark:bg-zinc-950 p-6 border border-zinc-100 dark:border-zinc-800">
+                                        {authLoading ? (
+                                            <p className="text-sm text-zinc-500 font-medium text-center">Cargando...</p>
+                                        ) : (
+                                            <PriceAccessPrompt align="center" />
+                                        )}
                                     </div>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="mb-8 rounded-2xl bg-zinc-50 dark:bg-zinc-950 p-6 border border-zinc-100 dark:border-zinc-800 text-center text-sm font-medium text-zinc-500">
+                                        Precios no disponibles.
+                                    </div>
+                                )}
 
-                            <div className="flex flex-col gap-4 mt-8">
-                                <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-bold">Envio gratis</span>
-                                        <span className="text-[10px] text-zinc-500">
-                                            {canViewPrices && freeShippingThreshold > 0
+                                {user ? (
+                                    <button
+                                        onClick={() => navigate("/checkout")}
+                                        className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 px-8 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 mb-4 shadow-lg shadow-orange-500/20"
+                                    >
+                                        Ir al Checkout
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                                    </button>
+                                ) : (
+                                    <div className="mb-4 space-y-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 p-6 border border-zinc-100 dark:border-zinc-800">
+                                        <div className="flex items-start gap-3">
+                                            <div className="p-2 bg-primary/10 text-primary rounded-lg shrink-0">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50 mb-1">
+                                                    Inicia sesión para pagar
+                                                </p>
+                                                <p className="text-xs text-zinc-500 font-medium">
+                                                    Necesitas una cuenta para completar tu compra.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col xl:flex-row gap-2 pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => goToAuthForCheckout("/login")}
+                                                disabled={authLoading}
+                                                className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition-all hover:bg-orange-600 disabled:opacity-60 active:scale-95"
+                                            >
+                                                {authLoading ? "Cargando..." : "Iniciar sesión"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => goToAuthForCheckout("/signup")}
+                                                className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-50 transition-all hover:border-primary hover:text-primary active:scale-95"
+                                            >
+                                                Crear cuenta
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="hidden lg:flex flex-col gap-3 mt-4">
+                                    <InfoBadge
+                                        icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="2" ry="2"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>}
+                                        title="Envío gratis"
+                                        desc={
+                                            canViewPrices && freeShippingThreshold > 0
                                                 ? freeShippingRemaining > 0
-                                                    ? `Te faltan ${formatCurrency(
-                                                        freeShippingRemaining,
-                                                        currency,
-                                                        locale
-                                                    )} para envio gratis`
-                                                    : "Ya calificas para envio gratis"
-                                                : showPricesEnabled && !canViewPrices
-                                                    ? "Inicia sesion para ver beneficios de envio"
-                                                    : "Beneficios en envios seleccionados"}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-bold">Compra segura</span>
-                                        <span className="text-[10px] text-zinc-500">
-                                            Tus datos estan protegidos
-                                        </span>
-                                    </div>
+                                                    ? `Faltan ${formatCurrency(freeShippingRemaining, currency, locale)}`
+                                                    : "¡Felicidades, tienes envío gratis!"
+                                                : "Beneficios en envíos"
+                                        }
+                                        highlight={freeShippingRemaining <= 0 && canViewPrices}
+                                    />
+                                    <InfoBadge
+                                        icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>}
+                                        title="Pago 100% Seguro"
+                                        desc="Tus datos están encriptados"
+                                    />
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </main>
+                </main>
+            </div>
         </StoreLayout>
     );
 }
 
 function Row({ label, value }) {
     return (
-        <div className="flex justify-between text-[#8a7560] text-sm">
-            <span>{label}</span>
-            <span className="font-medium text-black dark:text-white">{value}</span>
+        <div className="flex justify-between items-center text-sm font-medium">
+            <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+            <span className="text-zinc-900 dark:text-zinc-100">{value}</span>
+        </div>
+    );
+}
+
+function InfoBadge({ icon, title, desc, highlight }) {
+    return (
+        <div className={`flex items-center gap-4 p-4 rounded-2xl border transition-colors ${highlight ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-zinc-50 dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'}`}>
+            <div className={`p-2 rounded-xl ${highlight ? 'bg-primary/10' : 'bg-white dark:bg-zinc-800 shadow-sm'}`}>
+                {icon}
+            </div>
+            <div className="flex flex-col">
+                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-50">{title}</span>
+                <span className="text-xs font-medium opacity-80">{desc}</span>
+            </div>
         </div>
     );
 }
 
 function CartItem({ item, onRemove, onDec, onInc, onChangeQty, currency, locale, showPricesEnabled, canViewPrices, authLoading }) {
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 relative group">
+        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 p-3 sm:p-5 flex flex-col sm:flex-row gap-5 relative group shadow-sm hover:shadow-md transition-all">
             <button
                 onClick={onRemove}
-                className="absolute top-4 right-4 z-10 p-2 md:p-0 bg-white/80 md:bg-transparent rounded-full md:rounded-none backdrop-blur-sm text-zinc-400 hover:text-red-500 transition-colors"
+                className="absolute top-4 right-4 z-10 size-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-500/20 text-zinc-400 rounded-full transition-colors"
                 title="Eliminar"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
 
-            <div className="w-full md:w-32 h-40 md:h-32 bg-zinc-100 dark:bg-zinc-800 rounded-xl md:rounded-lg overflow-hidden flex-shrink-0">
+            <div className="w-full sm:w-36 h-48 sm:h-auto aspect-square bg-zinc-50 dark:bg-zinc-950 rounded-[1.5rem] overflow-hidden flex-shrink-0 relative border border-black/5 dark:border-white/5">
                 <div
-                    className="w-full h-full bg-center bg-no-repeat bg-cover"
+                    className="absolute inset-0 bg-center bg-no-repeat bg-contain m-2"
                     style={{ backgroundImage: `url("${item.image}")` }}
                     role="img"
                     aria-label={item.alt}
@@ -331,53 +326,47 @@ function CartItem({ item, onRemove, onDec, onInc, onChangeQty, currency, locale,
                 />
             </div>
 
-            <div className="flex flex-col flex-1 gap-1">
-                <div className="flex justify-between items-start pr-8">
-                    <div>
-                        <h3 className="font-bold text-lg">{item.name}</h3>
-                        <p className="text-xs text-[#8a7560] uppercase tracking-wider font-bold">
-                            SKU: {item.sku}
-                        </p>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-300 opacity-0 group-hover:opacity-100 cursor-pointer"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <div className="flex flex-col flex-1 py-1">
+                <div className="pr-10 mb-2">
+                    <p className="text-xs text-primary font-black tracking-widest uppercase mb-1">{item.sku}</p>
+                    <h3 className="font-black text-lg md:text-xl text-zinc-900 dark:text-white leading-tight">{item.name}</h3>
                 </div>
 
-                <p className="text-sm text-zinc-500 mt-1 md:mt-2">
-                    Acabado: {item.variant || "Estandar"}
-                </p>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-xl w-max mb-4 sm:mb-auto">
+                    <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Variante:</span>
+                    <span className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">{item.variant || "Estándar"}</span>
+                </div>
 
-                <div className="mt-4 md:mt-auto flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
-                    <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 rounded-xl h-14 md:h-9 bg-zinc-50 dark:bg-zinc-800 px-2 md:px-0">
-                        <button onClick={onDec} className="w-12 h-full flex items-center justify-center hover:text-primary transition-colors touch-manipulation">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <div className="flex flex-wrap items-end justify-between gap-4 mt-auto">
+                    <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
+                        <button onClick={onDec} className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-zinc-700 shadow-sm hover:shadow transition-all active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         </button>
-
                         <input
-                            className="w-16 md:w-10 text-center bg-transparent border-none focus:ring-0 font-black text-lg md:text-sm"
+                            className="w-12 text-center bg-transparent border-none focus:ring-0 font-black text-zinc-900 dark:text-white"
                             type="number"
                             value={item.qty}
                             min={1}
                             onChange={(e) => onChangeQty(Number(e.target.value || 1))}
                         />
-
-                        <button onClick={onInc} className="w-12 h-full flex items-center justify-center hover:text-primary transition-colors touch-manipulation">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <button onClick={onInc} className="w-10 h-10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white rounded-lg hover:bg-white dark:hover:bg-zinc-700 shadow-sm hover:shadow transition-all active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         </button>
                     </div>
 
                     {showPricesEnabled ? (
                         <div className="text-right">
                             {canViewPrices ? (
-                                <span className="text-xl font-black text-black dark:text-white">
+                                <span className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
                                     {formatCurrency(item.price * item.qty, currency, locale)}
                                 </span>
                             ) : (
-                                <span className="text-xs text-[#8a7560]">
-                                    {authLoading ? "Cargando..." : "Inicia sesion para ver precio"}
+                                <span className="text-xs font-medium text-zinc-500">
+                                    {authLoading ? "Cargando..." : "Inicia sesión para ver"}
                                 </span>
                             )}
                         </div>
-                    ) : <span className="text-xs text-[#8a7560]">Consultar precio</span>}
+                    ) : <span className="text-xs font-medium text-zinc-500">Consultar precio</span>}
                 </div>
             </div>
         </div>
@@ -386,10 +375,10 @@ function CartItem({ item, onRemove, onDec, onInc, onChangeQty, currency, locale,
 
 function UpsellCard({ item, onAdd, currency, locale, showPricesEnabled, canViewPrices, authLoading }) {
     return (
-        <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center gap-4 group hover:border-primary transition-colors">
-            <div className="size-16 bg-zinc-100 dark:bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
+        <div className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex items-center gap-4 group hover:border-primary/50 hover:shadow-md transition-all cursor-pointer" onClick={onAdd}>
+            <div className="size-20 bg-zinc-50 dark:bg-zinc-950 rounded-[1rem] overflow-hidden flex-shrink-0 relative border border-black/5 dark:border-white/5">
                 <div
-                    className="w-full h-full bg-center bg-no-repeat bg-cover"
+                    className="absolute inset-0 bg-center bg-no-repeat bg-contain m-1 group-hover:scale-110 transition-transform duration-500"
                     style={{ backgroundImage: `url("${item.image}")` }}
                     role="img"
                     aria-label={item.alt}
@@ -397,29 +386,30 @@ function UpsellCard({ item, onAdd, currency, locale, showPricesEnabled, canViewP
                 />
             </div>
 
-            <div className="flex flex-col flex-1">
-                <h4 className="text-sm font-bold">{item.name}</h4>
-                {showPricesEnabled ? (
-                    canViewPrices ? (
-                        <span className="text-primary font-bold text-sm">
-                            {formatCurrency(item.price, currency, locale)}
-                        </span>
+            <div className="flex flex-col flex-1 pl-1">
+                <h4 className="text-sm font-black text-zinc-900 dark:text-zinc-50 line-clamp-1 group-hover:text-primary transition-colors">{item.name}</h4>
+                <div className="mt-1">
+                    {showPricesEnabled ? (
+                        canViewPrices ? (
+                            <span className="text-primary font-black text-sm">
+                                {formatCurrency(item.price, currency, locale)}
+                            </span>
+                        ) : (
+                            <span className="text-[10px] uppercase font-bold text-zinc-400">
+                                {authLoading ? "Cargando..." : "Iniciar sesión"}
+                            </span>
+                        )
                     ) : (
-                        <span className="text-xs text-[#8a7560]">
-                            {authLoading ? "Cargando..." : "Inicia sesion para ver precio"}
-                        </span>
-                    )
-                ) : (
-                    <span className="text-xs text-[#8a7560]">Consultar precio</span>
-                )}
+                        <span className="text-[10px] uppercase font-bold text-zinc-400">Consultar</span>
+                    )}
+                </div>
             </div>
 
             <button
-                onClick={onAdd}
-                className="bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg hover:bg-primary hover:text-white transition-colors"
+                className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 size-10 rounded-xl flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-sm active:scale-95 shrink-0 mr-1"
                 title="Agregar al carrito"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path><path d="M12 9h6"></path><path d="M15 6v6"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
             </button>
         </div>
     );

@@ -1,6 +1,7 @@
 import express from 'express';
 import { resolveTenant } from '../middleware/tenant.js';
 import { normalizePriceAdjustments } from '../services/pricing.js';
+import { applyPriceTierLabels, normalizePriceTierLabels } from '../services/priceTierLabels.js';
 import { pool } from '../db.js';
 import { resolveEffectiveProductPrice, resolvePricingProfile } from '../services/userPricing.js';
 import {
@@ -27,7 +28,8 @@ async function buildPricingContext(req) {
     [req.tenant.id]
   );
 
-  const adjustments = normalizePriceAdjustments(settingsRes.rows[0]?.commerce || {});
+  const commerce = settingsRes.rows[0]?.commerce || {};
+  const adjustments = normalizePriceAdjustments(commerce);
   const pricingProfile = await resolvePricingProfile({
     tenantId: req.tenant.id,
     user: req.user || null,
@@ -43,6 +45,7 @@ async function buildPricingContext(req) {
   return {
     adjustments,
     pricingProfile,
+    priceTierLabels: normalizePriceTierLabels(commerce.price_tier_labels),
     offers,
     userId: req.user?.id || null,
   };
@@ -75,7 +78,7 @@ function normalizeStoredPriceTiers(data, priceRetail, priceWholesale) {
 }
 
 function mapProductRow(row, pricingContext) {
-  const { adjustments, pricingProfile, offers, userId } = pricingContext;
+  const { adjustments, pricingProfile, priceTierLabels, offers, userId } = pricingContext;
   const priceRetail = Number(row.price || 0);
   const priceWholesale = Number(row.price_wholesale || 0);
   const { retail, wholesale, effective, segment, priceList, pendingWholesale } =
@@ -93,7 +96,10 @@ function mapProductRow(row, pricingContext) {
   });
   const finalPrice = applyOfferDiscount(effective, bestOffer.percent);
   const data = row.data && typeof row.data === 'object' ? row.data : {};
-  const priceTiers = normalizeStoredPriceTiers(data, priceRetail, priceWholesale);
+  const priceTiers = applyPriceTierLabels(
+    normalizeStoredPriceTiers(data, priceRetail, priceWholesale),
+    priceTierLabels
+  );
   const fallbackDescription =
     data.long_description ||
     data.longDescription ||
@@ -333,7 +339,17 @@ publicRouter.get('/tenant', async (req, res, next) => {
       'select branding, theme, commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
     );
-    const settings = result.rows[0] || { branding: {}, theme: {}, commerce: {} };
+    const rawSettings = result.rows[0] || { branding: {}, theme: {}, commerce: {} };
+    const commerce = rawSettings.commerce && typeof rawSettings.commerce === 'object' ? rawSettings.commerce : {};
+    const settings = {
+      ...rawSettings,
+      branding: rawSettings.branding || {},
+      theme: rawSettings.theme || {},
+      commerce: {
+        ...commerce,
+        price_tier_labels: normalizePriceTierLabels(commerce.price_tier_labels),
+      },
+    };
     return res.json({ tenant: req.tenant, settings });
   } catch (err) {
     return next(err);

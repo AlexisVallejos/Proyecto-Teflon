@@ -155,7 +155,7 @@ export const StoreProvider = ({ children }) => {
             ];
         });
         if (didAdd) {
-            showToast("Producto añadido al carrito");
+            showToast("Producto agregado al carrito");
         }
     };
 

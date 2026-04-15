@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getApiBase, getTenantHeaders } from '../utils/api';
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../utils/storefrontTheme';
+import { normalizePriceTierLabels } from '../utils/priceTierLabels';
 import StoreSkeleton from '../components/StoreSkeleton';
 
 const DEFAULT_TENANT = {
@@ -59,6 +60,7 @@ const DEFAULT_SETTINGS = {
         shipping_flat: 1500,
         free_shipping_threshold: 999,
         payment_methods: ['transfer', 'cash_on_pickup'],
+        price_tier_labels: normalizePriceTierLabels(),
         default_delivery: 'distance:auto',
         shipping_zones: [
             {
@@ -162,6 +164,7 @@ function mergeTenantSettings(rawSettings = {}) {
         commerce: {
             ...DEFAULT_SETTINGS.commerce,
             ...(rawSettings.commerce || {}),
+            price_tier_labels: normalizePriceTierLabels(rawSettings.commerce?.price_tier_labels),
         },
     };
 }

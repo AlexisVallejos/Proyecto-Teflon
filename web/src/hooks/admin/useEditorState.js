@@ -7,6 +7,7 @@ import {
     DEFAULT_ADMIN_PANEL_THEME,
 } from '../../utils/adminPanelTheme';
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../../utils/storefrontTheme';
+import { normalizePriceTierLabels } from '../../utils/priceTierLabels';
 
 const RESERVED_PLACEHOLDER_TERMS = new Set(['messi']);
 
@@ -60,11 +61,11 @@ export function useEditorState(user) {
             ...DEFAULT_STOREFRONT_LIGHT_THEME,
             admin_panel: DEFAULT_ADMIN_PANEL_THEME,
         },
-        commerce: {
-            price_visibility: 'authenticated',
-            whatsapp_number: '',
-            email: '',
-            address: '',
+            commerce: {
+                price_visibility: 'authenticated',
+                whatsapp_number: '',
+                email: '',
+                address: '',
             order_notification_email: '',
             admin_order_confirmation_label: 'En confirmacion',
             customer_order_processing_label: 'En proceso',
@@ -73,16 +74,17 @@ export function useEditorState(user) {
             payment_methods: ['transfer', 'cash_on_pickup'],
             shipping_zones: [],
             branches: [],
-            price_adjustments: {
-                retail_percent: 0,
-                wholesale_percent: 0,
-                promo_enabled: false,
-                promo_percent: 0,
-                promo_scope: 'both',
-                promo_label: 'Oferta',
-            },
-        }
-    });
+                price_adjustments: {
+                    retail_percent: 0,
+                    wholesale_percent: 0,
+                    promo_enabled: false,
+                    promo_percent: 0,
+                    promo_scope: 'both',
+                    promo_label: 'Oferta',
+                },
+                price_tier_labels: normalizePriceTierLabels(),
+            }
+        });
 
     const [pageSections, setPageSections] = useState({
         home: DEFAULT_HOME_SECTIONS,
@@ -264,7 +266,11 @@ export function useEditorState(user) {
                             ...(data.settings?.theme?.admin_panel || {}),
                         },
                     },
-                    commerce: { ...prev.commerce, ...(data.settings?.commerce || {}) }
+                    commerce: {
+                        ...prev.commerce,
+                        ...(data.settings?.commerce || {}),
+                        price_tier_labels: normalizePriceTierLabels(data.settings?.commerce?.price_tier_labels),
+                    }
                 }));
             }
 

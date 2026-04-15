@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
 import { getTenantOffers } from '../services/offers.js';
 import { buildTenantIntegrationManifest, resolveServerBaseUrl } from '../services/integrationManifest.js';
+import { applyPriceTierLabels, normalizePriceTierLabels } from '../services/priceTierLabels.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -282,6 +283,21 @@ function parseBooleanInput(value, fallback = false) {
   return fallback;
 }
 
+function normalizeTenantSettingsPayload(row = {}) {
+  const settings = row && typeof row === 'object' ? row : {};
+  const commerce = settings.commerce && typeof settings.commerce === 'object' ? settings.commerce : {};
+
+  return {
+    ...settings,
+    branding: settings.branding || {},
+    theme: settings.theme || {},
+    commerce: {
+      ...commerce,
+      price_tier_labels: normalizePriceTierLabels(commerce.price_tier_labels),
+    },
+  };
+}
+
 function normalizeStoredPriceTiers(data, priceRetail, priceWholesale) {
   const raw = data?.price_tiers && typeof data.price_tiers === 'object' ? data.price_tiers : {};
   const tiers = [];
@@ -307,7 +323,7 @@ function normalizeStoredPriceTiers(data, priceRetail, priceWholesale) {
     .filter((entry, index, list) => list.findIndex((candidate) => candidate.slot === entry.slot) === index);
 }
 
-function mapTenantProductRecord(row) {
+function mapTenantProductRecord(row, priceTierLabels = {}) {
   const data = row?.data && typeof row.data === 'object' ? row.data : {};
   const fallbackDescription =
     data.long_description ||
@@ -326,13 +342,24 @@ function mapTenantProductRecord(row) {
       data.long_description ||
       data.longDescription ||
       fallbackDescription,
-    price_tiers: normalizeStoredPriceTiers(data, row?.price, row?.price_wholesale),
+    price_tiers: applyPriceTierLabels(
+      normalizeStoredPriceTiers(data, row?.price, row?.price_wholesale),
+      priceTierLabels
+    ),
     source_category: data.source_category || null,
     source_category_path: Array.isArray(data.source_category_path) ? data.source_category_path : [],
   };
 }
 
-async function fetchTenantProductRow(db, tenantId, productId) {
+async function loadTenantPriceTierLabels(db, tenantId) {
+  const result = await db.query(
+    'select commerce from tenant_settings where tenant_id = $1',
+    [tenantId]
+  );
+  return normalizePriceTierLabels(result.rows[0]?.commerce?.price_tier_labels);
+}
+
+async function fetchTenantProductRow(db, tenantId, productId, priceTierLabels = null) {
   const result = await db.query(
     [
       [
@@ -352,7 +379,9 @@ async function fetchTenantProductRow(db, tenantId, productId) {
     [tenantId, productId]
   );
 
-  return result.rows[0] ? mapTenantProductRecord(result.rows[0]) : null;
+  if (!result.rows[0]) return null;
+  const labels = priceTierLabels || await loadTenantPriceTierLabels(db, tenantId);
+  return mapTenantProductRecord(result.rows[0], labels);
 }
 
 async function upsertTenantCommerce(tenantId, commerce) {
@@ -607,7 +636,7 @@ tenantRouter.get('/settings', async (req, res, next) => {
       'select branding, theme, commerce from tenant_settings where tenant_id = $1',
       [tenantId]
     );
-    const settings = result.rows[0] || { branding: {}, theme: {}, commerce: {} };
+    const settings = normalizeTenantSettingsPayload(result.rows[0] || { branding: {}, theme: {}, commerce: {} });
     return res.json({ tenant_id: tenantId, settings });
   } catch (err) {
     return next(err);
@@ -800,7 +829,11 @@ tenantRouter.put('/settings', async (req, res, next) => {
   try {
     const branding = req.body.branding || {};
     const theme = req.body.theme || {};
-    const commerce = req.body.commerce || {};
+    const rawCommerce = req.body.commerce && typeof req.body.commerce === 'object' ? req.body.commerce : {};
+    const commerce = {
+      ...rawCommerce,
+      price_tier_labels: normalizePriceTierLabels(rawCommerce.price_tier_labels),
+    };
 
     const existing = await pool.query(
       'select tenant_id from tenant_settings where tenant_id = $1',
@@ -812,7 +845,7 @@ tenantRouter.put('/settings', async (req, res, next) => {
         'insert into tenant_settings (tenant_id, branding, theme, commerce) values ($1, $2::jsonb, $3::jsonb, $4::jsonb) returning branding, theme, commerce',
         [tenantId, branding, theme, commerce]
       );
-      return res.json({ tenant_id: tenantId, settings: insertRes.rows[0] });
+      return res.json({ tenant_id: tenantId, settings: normalizeTenantSettingsPayload(insertRes.rows[0]) });
     }
 
     const updateRes = await pool.query(
@@ -828,7 +861,7 @@ tenantRouter.put('/settings', async (req, res, next) => {
       [tenantId, branding, theme, commerce]
     );
 
-    return res.json({ tenant_id: tenantId, settings: updateRes.rows[0] });
+    return res.json({ tenant_id: tenantId, settings: normalizeTenantSettingsPayload(updateRes.rows[0]) });
   } catch (err) {
     return next(err);
   }
@@ -1295,7 +1328,9 @@ tenantRouter.get('/products', async (req, res, next) => {
   if (!tenantId) return;
 
   try {
-    const result = await pool.query(
+    const [priceTierLabels, result] = await Promise.all([
+      loadTenantPriceTierLabels(pool, tenantId),
+      pool.query(
       [
         [
           'select p.id, p.erp_id, p.external_id, p.source_system, p.sku, p.name, p.description, p.price, p.price_wholesale, p.stock, p.brand, p.data,',
@@ -1313,8 +1348,8 @@ tenantRouter.get('/products', async (req, res, next) => {
         'order by p.name asc'
       ].join(' '),
       [tenantId]
-    );
-    return res.json({ items: result.rows.map(mapTenantProductRecord) });
+    )]);
+    return res.json({ items: result.rows.map((row) => mapTenantProductRecord(row, priceTierLabels)) });
   } catch (err) {
     return next(err);
   }

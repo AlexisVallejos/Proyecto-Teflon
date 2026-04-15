@@ -1,18 +1,4 @@
 {
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/skill-reminder.js",
-            "timeout": 5,
-            "statusMessage": "Checking Superpowers skills..."
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(wc -l /c/Users/10/Documents/GitHub/Proyecto-Teflon/web/src/components/admin/evolution/*.jsx)",
@@ -34,7 +20,23 @@
       "Bash(curl -s https://api.github.com/repos/obra/superpowers/contents/skills)",
       "Bash(curl -s https://api.github.com/repos/obra/superpowers/contents/commands)",
       "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/executing-plans/SKILL.md)",
-      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md)"
+      "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md)",
+      "Bash(Expand-Archive -Path \"C:\\\\Users\\\\10\\\\Downloads\\\\ui-ux-pro-max.skill\" -DestinationPath \"C:\\\\Users\\\\10\\\\Documents\\\\GitHub\\\\Proyecto-Teflon\\\\.claude\\\\skills\\\\\" -Force)",
+      "Bash(powershell -Command \"Expand-Archive -Path 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Downloads\\\\\\\\ui-ux-pro-max.skill' -DestinationPath 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\Proyecto-Teflon\\\\\\\\.claude\\\\\\\\skills\\\\\\\\' -Force\")"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/skill-reminder.js",
+            "timeout": 5,
+            "statusMessage": "Checking Superpowers skills..."
+          }
+        ]
+      }
     ]
   }
 }
