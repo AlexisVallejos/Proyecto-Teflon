@@ -22,7 +22,9 @@
       "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/executing-plans/SKILL.md)",
       "Bash(curl -s https://raw.githubusercontent.com/obra/superpowers/main/skills/verification-before-completion/SKILL.md)",
       "Bash(Expand-Archive -Path \"C:\\\\Users\\\\10\\\\Downloads\\\\ui-ux-pro-max.skill\" -DestinationPath \"C:\\\\Users\\\\10\\\\Documents\\\\GitHub\\\\Proyecto-Teflon\\\\.claude\\\\skills\\\\\" -Force)",
-      "Bash(powershell -Command \"Expand-Archive -Path 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Downloads\\\\\\\\ui-ux-pro-max.skill' -DestinationPath 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\Proyecto-Teflon\\\\\\\\.claude\\\\\\\\skills\\\\\\\\' -Force\")"
+      "Bash(powershell -Command \"Expand-Archive -Path 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Downloads\\\\\\\\ui-ux-pro-max.skill' -DestinationPath 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\Proyecto-Teflon\\\\\\\\.claude\\\\\\\\skills\\\\\\\\' -Force\")",
+      "Bash(powershell -Command \"Copy-Item 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Downloads\\\\\\\\ui-ux-pro-max.skill' 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Downloads\\\\\\\\ui-ux-pro-max.zip'; Expand-Archive -Path 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Downloads\\\\\\\\ui-ux-pro-max.zip' -DestinationPath 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\Proyecto-Teflon\\\\\\\\.claude\\\\\\\\skills\\\\\\\\' -Force; Remove-Item 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Downloads\\\\\\\\ui-ux-pro-max.zip'\")",
+      "Bash(powershell -Command \"Get-Content 'C:\\\\\\\\Users\\\\\\\\10\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\Proyecto-Teflon\\\\\\\\.claude\\\\\\\\skills\\\\\\\\ui-ux-pro-max\\\\\\\\SKILL.md' -Head 30\")"
     ]
   },
   "hooks": {
