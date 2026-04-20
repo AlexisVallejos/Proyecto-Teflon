@@ -174,7 +174,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
     }, []);
 
     return (
-        <div className="space-y-4 rounded-[28px] border border-white/10 bg-[#0d131c]/95 p-5 text-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.8)] backdrop-blur">
+        <div className="space-y-4 rounded-[28px] border border-gray-200 bg-gray-50 p-5 text-gray-900 shadow-xl shadow-slate-200/60">
             <div className="flex flex-col gap-3 md:flex-row">
                 <div className="relative flex-1">
                     <input
@@ -182,15 +182,15 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder="Ej: Guemes Mar del Plata o Cordoba 1843"
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none transition-all duration-200 placeholder:text-zinc-500 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
-                    <MagnifyingGlass size={18} weight="bold" className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <MagnifyingGlass size={18} weight="bold" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 </div>
                 <button
                     type="button"
                     onClick={handleSearch}
                     disabled={searching}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary/50 hover:bg-white/10 disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-primary/50 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-60"
                 >
                     {searching ? 'Buscando...' : 'Buscar direccion'}
                 </button>
@@ -206,7 +206,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                 <button
                     type="button"
                     onClick={handleClearAll}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-primary/50 hover:bg-white/10"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-primary/50 hover:bg-gray-50 hover:text-gray-900"
                 >
                     <Trash size={16} weight="bold" />
                     Borrar
@@ -214,17 +214,17 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
             </div>
 
             {selectedPosition ? (
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                     Ubicacion elegida: {selectedPosition.lat}, {selectedPosition.lng}
                 </div>
             ) : (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-zinc-300">
-                    Elegí tu ubicación para calcular el envío según la zona configurada en el panel admin.
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">
+                    Elige tu ubicacion para calcular el envio segun la configuracion del panel admin.
                 </div>
             )}
 
             {results.length ? (
-                <div className="space-y-2 rounded-[26px] border border-white/10 bg-white/5 p-3">
+                <div className="space-y-2 rounded-[26px] border border-gray-200 bg-white p-3">
                     {results.map((result) => (
                         <button
                             key={`${result.place_id}-${result.osm_id || result.display_name}`}
@@ -236,12 +236,12 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
                                     address: result.display_name,
                                 })
                             }
-                            className="flex w-full items-start gap-3 rounded-2xl border border-white/10 bg-[#111827] px-3 py-3 text-left transition hover:border-primary/40"
+                            className="flex w-full items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-left transition hover:border-primary/40 hover:bg-white"
                         >
                             <MapPinLine size={18} weight="duotone" className="mt-0.5 text-primary" />
                             <div className="min-w-0">
-                                <p className="text-sm font-semibold text-white">{result.display_name}</p>
-                                <p className="mt-1 text-xs text-zinc-400">{result.type || result.class || 'direccion'}</p>
+                                <p className="text-sm font-semibold text-gray-900">{result.display_name}</p>
+                                <p className="mt-1 text-xs text-gray-500">{result.type || result.class || 'direccion'}</p>
                             </div>
                         </button>
                     ))}
@@ -249,7 +249,7 @@ const DeliveryLocationSelector = ({ value, onChange, onAddressDetected }) => {
             ) : null}
 
             {feedback ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-zinc-300">
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">
                     {feedback}
                 </div>
             ) : null}

@@ -37,14 +37,15 @@ const ORDER_CHANNEL_OPTIONS = [
     },
 ];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const GENERIC_FLAT_DELIVERY_KEY = "zone:arg-general";
 const checkoutFieldClass =
-    "w-full rounded-xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-all duration-200 focus:border-primary/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-primary/15";
-const checkoutNoteClass = "text-xs text-zinc-500 mt-1.5 leading-relaxed";
+    "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none shadow-sm transition-all duration-200 focus:border-primary/50 focus:ring-2 focus:ring-primary/15";
+const checkoutNoteClass = "mt-1.5 text-xs leading-relaxed text-gray-500";
 const checkoutCardClass =
-    "rounded-2xl border border-white/[0.08] bg-[#0a0f18] p-5 text-white shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]";
-const checkoutSoftCardClass = "rounded-xl border border-white/[0.07] bg-white/[0.04] p-4";
+    "rounded-2xl border border-gray-200 bg-white p-5 text-gray-900 shadow-xl shadow-slate-200/70";
+const checkoutSoftCardClass = "rounded-xl border border-gray-200 bg-gray-50 p-4";
 const checkoutGhostButtonClass =
-    "inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.09] px-5 py-2.5 text-sm font-medium text-zinc-400 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white";
+    "inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900";
 const checkoutPrimaryButtonClass =
     "inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_var(--color-primary)] transition-all hover:brightness-110 hover:shadow-[0_8px_24px_-4px_var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed";
 
@@ -164,6 +165,13 @@ export default function CheckoutPage() {
         const automaticLocationZones = shippingZones.filter(
             (zone) => zone.type === "distance" || (Array.isArray(zone.polygon) && zone.polygon.length >= 3),
         );
+        const manualFlatZone = shippingZones.find(
+            (zone) => zone.type !== "distance" && (!Array.isArray(zone.polygon) || zone.polygon.length < 3),
+        );
+        const fallbackFlatPrice =
+            commerce?.shipping_flat != null && commerce.shipping_flat !== ""
+                ? Number(commerce.shipping_flat || 0)
+                : Number(manualFlatZone?.price || 0);
         if (automaticLocationZones.length) {
             options.push({
                 key: DISTANCE_DELIVERY_KEY,
@@ -174,17 +182,15 @@ export default function CheckoutPage() {
                 dynamic: true,
             });
         }
-        shippingZones
-            .filter((zone) => zone.type !== "distance")
-            .forEach((zone) => {
+        if (!automaticLocationZones.length && (fallbackFlatPrice > 0 || !pickupBranches.length)) {
             options.push({
-                key: `zone:${zone.id}`,
+                key: GENERIC_FLAT_DELIVERY_KEY,
                 type: "shipping",
-                title: `Envio: ${zone.name}`,
-                desc: zone.description || "Entrega a domicilio",
-                price: Number(zone.price || 0),
+                title: "Envio general",
+                desc: "Tarifa plana definida por la tienda.",
+                price: fallbackFlatPrice,
             });
-        });
+        }
         pickupBranches.forEach((branch) => {
             const detail = [branch.address, branch.hours].filter(Boolean).join(" - ");
             options.push({
@@ -197,11 +203,11 @@ export default function CheckoutPage() {
         });
         if (!options.length) {
             options.push({
-                key: "zone:arg-general",
+                key: GENERIC_FLAT_DELIVERY_KEY,
                 type: "shipping",
-                title: "Envio: Argentina",
-                desc: "Cobertura nacional",
-                price: Number(commerce.shipping_flat || 0),
+                title: "Envio general",
+                desc: "Tarifa plana definida por la tienda.",
+                price: fallbackFlatPrice,
             });
         }
         return options;
@@ -217,8 +223,8 @@ export default function CheckoutPage() {
     );
 
     const [deliveryMethod, setDeliveryMethod] = useState(() => {
-        const fallback = String(commerce.default_delivery || "zone:arg-general").trim();
-        return fallback || "zone:arg-general";
+        const fallback = String(commerce.default_delivery || DISTANCE_DELIVERY_KEY).trim();
+        return fallback || DISTANCE_DELIVERY_KEY;
     });
 
     useEffect(() => {
@@ -226,7 +232,7 @@ export default function CheckoutPage() {
         if (selected) return;
         const preferred = String(checkoutSettings?.default_delivery || "").trim();
         const preferredOption = deliveryOptions.find((option) => option.key === preferred);
-        setDeliveryMethod(preferredOption?.key || deliveryOptions[0]?.key || "zone:arg-general");
+        setDeliveryMethod(preferredOption?.key || deliveryOptions[0]?.key || DISTANCE_DELIVERY_KEY);
     }, [deliveryOptions, deliveryMethod, checkoutSettings]);
 
     const selectedDeliveryGroup = useMemo(() => {
@@ -286,7 +292,7 @@ export default function CheckoutPage() {
         if (enabledMethods.includes("cash_on_pickup")) {
             options.push({
                 key: "cash_on_pickup",
-                label: "Pago en local",
+                label: "Pago al retirar",
                 icon: (
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7h18v10H3z"></path><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"></path><path d="M12 11v2"></path></svg>
                 ),
@@ -565,24 +571,18 @@ export default function CheckoutPage() {
         : items;
     const paymentSummary = useMemo(() => {
         if (paymentMethod === "transfer") {
-            return "Transferencia: se genera el pedido en estado pendiente de pago.";
+            return "Te mostraremos los datos para transferir cuando confirmes tu compra.";
         }
         if (paymentMethod === "cash_on_pickup") {
-            return "Pago en local: confirmas online y abonas cuando retiras.";
+            return "Confirmas ahora y pagas cuando retires tu pedido.";
         }
-        return "El pedido se registra y te mostramos los pasos siguientes.";
+        return "Elige la forma de pago que prefieras para continuar.";
     }, [paymentMethod]);
 
     const paymentLabel = useMemo(
         () => paymentOptions.find((opt) => opt.key === paymentMethod)?.label || "",
         [paymentOptions, paymentMethod]
     );
-    const deliveryHeadline = selectedDeliveryOption?.title || "Entrega a definir";
-    const deliverySupportingText = deliveryMethod === DISTANCE_DELIVERY_KEY
-        ? distanceQuote?.ok
-            ? getDistanceQuoteDescription(distanceQuote)
-            : "Comparte tu ubicacion para cotizar"
-        : selectedDeliveryOption?.desc || "Configuracion de entrega";
     const normalizedBilling = useMemo(() => normalizeBillingInfo(billingInfo), [billingInfo]);
     const hasOrderBillingInfo = useMemo(() => hasBillingInfo(normalizedBilling), [normalizedBilling]);
 
@@ -993,59 +993,33 @@ export default function CheckoutPage() {
 
     return (
         <StoreLayout>
-            <main className="max-w-[1400px] mx-auto w-full px-4 md:px-8 py-6 md:py-10">
+            <main className="mx-auto w-full max-w-[1400px] px-4 py-6 text-gray-900 md:px-8 md:py-10">
                 {/* Breadcrumbs */}
-                <div className="mb-6 flex items-center gap-2 text-xs text-zinc-600">
+                <div className="mb-6 flex items-center gap-2 text-xs text-gray-500">
                     <button
-                        className="transition-colors hover:text-zinc-400"
+                        className="transition-colors hover:text-gray-700"
                         onClick={() => (window.location.hash = '#')}
                         type="button"
                     >
                         Inicio
                     </button>
-                    <span className="text-zinc-700">/</span>
+                    <span className="text-gray-300">/</span>
                     <button
-                        className="transition-colors hover:text-zinc-400"
+                        className="transition-colors hover:text-gray-700"
                         onClick={() => (window.location.hash = '#cart')}
                         type="button"
                     >
                         Carrito
                     </button>
-                    <span className="text-zinc-700">/</span>
-                    <span className="text-zinc-300">Finalizar compra</span>
+                    <span className="text-gray-300">/</span>
+                    <span className="text-gray-900">Finalizar compra</span>
                 </div>
 
                 {/* Heading */}
-                <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-                    <div>
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest mb-3">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            Checkout seguro
-                        </div>
-                        <h1 className="text-3xl font-black text-white tracking-tight leading-tight">
-                            Finalizar compra
-                        </h1>
-                        <p className="mt-2 text-sm text-zinc-500 max-w-md leading-relaxed">
-                            Confirma tus datos, define la entrega y cierra el pedido en un flujo mas limpio y preciso.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Entrega</p>
-                            <p className="mt-1 text-sm font-bold text-white">{deliveryHeadline}</p>
-                            <p className="mt-0.5 text-[11px] text-zinc-600 max-w-[160px] truncate">{deliverySupportingText}</p>
-                        </div>
-                        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Pago</p>
-                            <p className="mt-1 text-sm font-bold text-white">{paymentLabel || 'A definir'}</p>
-                            <p className="mt-0.5 text-[11px] text-zinc-600 max-w-[160px] line-clamp-1">{paymentSummary}</p>
-                        </div>
-                        <div className="rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-primary/60">Total</p>
-                            <p className="mt-1 text-sm font-black text-white">{formatCurrency(total, displayCurrency, locale)}</p>
-                            <p className="mt-0.5 text-[11px] text-zinc-600">{summaryItems.length} producto{summaryItems.length === 1 ? '' : 's'}</p>
-                        </div>
-                    </div>
+                <div className="mb-8">
+                    <h1 className="text-3xl font-black tracking-tight leading-tight text-gray-900">
+                        Finalizar compra
+                    </h1>
                 </div>
 
                 <div className="flex flex-col gap-8 xl:flex-row">
@@ -1059,7 +1033,7 @@ export default function CheckoutPage() {
                             {/* 1 Shipping */}
                             <Accordion
                                 step={1}
-                                title="Informacion de envio"
+                                title="Tus datos"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(1)}
                             >
@@ -1101,7 +1075,7 @@ export default function CheckoutPage() {
                                         </div>
                                         <div className="col-span-2">
                                             <label className="block text-sm font-medium mb-1">
-                                                Gmail o email
+                                                Email
                                             </label>
                                             <input
                                                 className={checkoutFieldClass}
@@ -1115,7 +1089,7 @@ export default function CheckoutPage() {
                                                     }))
                                                 }
                                             />
-                                            <p className="mt-1 text-xs text-[#8a7560] dark:text-[#a59280]">
+                                            <p className="mt-1 text-xs text-gray-500">
                                                 Aca te enviamos la confirmacion del pedido.
                                             </p>
                                         </div>
@@ -1170,12 +1144,12 @@ export default function CheckoutPage() {
                                                 }
                                             />
                                         </div>
-                                        <div className="col-span-2 mt-2 border-t border-white/[0.06] pt-5">
+                                        <div className="col-span-2 mt-2 border-t border-gray-200 pt-5">
                                             <div className="mb-4">
-                                                <p className="text-sm font-semibold text-white">
+                                                <p className="text-sm font-semibold text-gray-900">
                                                     Datos de facturacion
                                                 </p>
-                                                <p className="text-xs text-zinc-500 mt-0.5">
+                                                <p className="mt-0.5 text-xs text-gray-500">
                                                     Completa estos datos si necesitas factura.
                                                 </p>
                                             </div>
@@ -1307,23 +1281,25 @@ export default function CheckoutPage() {
                             {/* 2 Delivery */}
                             <Accordion
                                 step={2}
-                                title="Metodo de entrega"
+                                title="Entrega"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(2)}
                             >
                                 <div className="pt-4 pb-2 space-y-3">
-                                    <div className="flex gap-2 p-1 rounded-xl bg-white/[0.04] border border-white/[0.07]">
+                                    <div className="flex gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1">
                                         <button
                                             type="button"
                                             onClick={() => handleDeliveryGroupChange("shipping")}
+                                            disabled={!shippingDeliveryOptions.length}
                                             className={[
                                                 "flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
                                                 selectedDeliveryGroup === "shipping"
                                                     ? "bg-primary text-white shadow-[0_2px_8px_-2px_var(--color-primary)]"
-                                                    : "text-zinc-500 hover:text-zinc-300",
+                                                    : "text-gray-500 hover:text-gray-900",
+                                                !shippingDeliveryOptions.length ? "cursor-not-allowed opacity-40" : "",
                                             ].join(" ")}
                                         >
-                                            Envío a domicilio
+                                            Envio a domicilio
                                         </button>
                                         <button
                                             type="button"
@@ -1333,7 +1309,7 @@ export default function CheckoutPage() {
                                                 "flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
                                                 selectedDeliveryGroup === "pickup"
                                                     ? "bg-primary text-white shadow-[0_2px_8px_-2px_var(--color-primary)]"
-                                                    : "text-zinc-500 hover:text-zinc-300",
+                                                    : "text-gray-500 hover:text-gray-900",
                                                 !pickupDeliveryOptions.length ? "cursor-not-allowed opacity-40" : "",
                                             ].join(" ")}
                                         >
@@ -1359,12 +1335,12 @@ export default function CheckoutPage() {
                                                     "flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all border",
                                                     checked
                                                         ? "border-primary/35 bg-primary/[0.08] ring-1 ring-primary/15"
-                                                        : "border-white/[0.08] bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]",
+                                                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50",
                                                 ].join(" ")}
                                             >
                                                 <div className={[
                                                     "flex items-center justify-center w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all",
-                                                    checked ? "border-primary bg-primary" : "border-zinc-700",
+                                                    checked ? "border-primary bg-primary" : "border-gray-300",
                                                 ].join(" ")}>
                                                     {checked && <div className="w-2 h-2 rounded-full bg-white" />}
                                                 </div>
@@ -1376,10 +1352,10 @@ export default function CheckoutPage() {
                                                     onChange={() => setDeliveryMethod(opt.key)}
                                                 />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className={`text-sm font-semibold ${checked ? "text-white" : "text-zinc-300"}`}>{opt.title}</p>
-                                                    <p className="text-xs text-zinc-500 mt-0.5 truncate">{optionDescription}</p>
+                                                    <p className={`text-sm font-semibold ${checked ? "text-gray-900" : "text-gray-800"}`}>{opt.title}</p>
+                                                    <p className="mt-0.5 truncate text-xs text-gray-500">{optionDescription}</p>
                                                 </div>
-                                                <span className={`text-sm font-bold flex-shrink-0 ${checked ? "text-white" : "text-zinc-500"}`}>
+                                                <span className={`text-sm font-bold flex-shrink-0 ${checked ? "text-gray-900" : "text-gray-500"}`}>
                                                     {optionPrice == null
                                                         ? "Calcular"
                                                         : optionPrice === 0
@@ -1391,13 +1367,13 @@ export default function CheckoutPage() {
                                     })}
 
                                     {deliveryMethod === DISTANCE_DELIVERY_KEY ? (
-                                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5 text-white">
+                                        <div className="rounded-xl border border-gray-200 bg-white p-5 text-gray-900 shadow-sm shadow-slate-200/60">
                                             <div className="space-y-1 mb-4">
-                                                <p className="text-sm font-semibold text-white">
-                                                    Cotizacion por ubicacion
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    Calcula el envio con tu ubicacion
                                                 </p>
-                                                <p className="text-xs text-zinc-500 leading-relaxed">
-                                                    Compartí tu ubicación (o buscá tu dirección). Primero probamos zonas fijas. Si no coincide con ninguna, calculamos la distancia hasta la sucursal más cercana.
+                                                <p className="text-xs leading-relaxed text-gray-500">
+                                                    Comparte tu ubicacion o busca tu direccion. Primero probamos zonas fijas y luego calculamos la distancia hasta la sucursal mas cercana.
                                                 </p>
                                             </div>
 
@@ -1418,7 +1394,7 @@ export default function CheckoutPage() {
                                             </div>
 
                                             {distanceQuote?.ok ? (
-                                                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                                                     <p className="font-bold">
                                                         {distanceQuote.zone?.name}
                                                         {distanceQuote.distance_km != null ? ` · ${distanceQuote.distance_km} km` : ""}
@@ -1459,7 +1435,7 @@ export default function CheckoutPage() {
                                                                 </span>
                                                             ) : null}
                                                         </p>
-                                                        <p className="font-bold text-sm text-emerald-900 dark:text-emerald-100">
+                                                        <p className="text-sm font-bold text-emerald-900">
                                                             Envio final:{" "}
                                                             {Number(distanceQuote.final_price ?? distanceQuote.price ?? 0) <= 0
                                                                 ? "Gratis"
@@ -1474,7 +1450,7 @@ export default function CheckoutPage() {
                                             ) : null}
 
                                             {deliveryQuoteError ? (
-                                                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
+                                                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                                                     {deliveryQuoteError}
                                                 </div>
                                             ) : null}
@@ -1499,7 +1475,7 @@ export default function CheckoutPage() {
                             {/* 3 Payment */}
                             <Accordion
                                 step={3}
-                                title="Metodo de pago"
+                                title="Pago"
                                 openStep={openStep}
                                 onOpen={() => setOpenStep(3)}
                             >
@@ -1523,17 +1499,17 @@ export default function CheckoutPage() {
                                         ))}
                                     </div>
 
-                                    <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 text-xs text-zinc-500 leading-relaxed">
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-500">
                                         {paymentSummary}
                                     </div>
 
                                     <div className="space-y-3">
                                         <div>
-                                            <p className="text-sm font-semibold text-white">
-                                                Canal de notificacion
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                Como quieres recibir la confirmacion
                                             </p>
-                                            <p className="text-xs text-zinc-500 mt-0.5">
-                                                Elige si quieres continuar por WhatsApp o recibir la confirmacion en Gmail.
+                                            <p className="mt-0.5 text-xs text-gray-500">
+                                                Puedes recibir la confirmacion por WhatsApp o por email.
                                             </p>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1562,7 +1538,7 @@ export default function CheckoutPage() {
                                                 );
                                             })}
                                         </div>
-                                        <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 text-xs text-zinc-500 leading-relaxed">
+                                        <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-500">
                                             {orderChannel === "whatsapp"
                                                 ? "El pedido queda registrado y tambien intentaremos enviarte una copia por email."
                                                 : "El pedido queda registrado y la confirmacion principal llega a tu Gmail."}
@@ -1570,8 +1546,8 @@ export default function CheckoutPage() {
                                     </div>
 
                                     {paymentMethod === "transfer" ? (
-                                        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-3">Datos bancarios</p>
+                                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+                                            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Datos para la transferencia</p>
                                             <div className="grid grid-cols-2 gap-2.5">
                                                 {[
                                                     { label: "CBU", value: bankTransfer.cbu || "-" },
@@ -1579,9 +1555,9 @@ export default function CheckoutPage() {
                                                     { label: "Banco", value: bankTransfer.bank || "-" },
                                                     { label: "Titular", value: bankTransfer.holder || "-" },
                                                 ].map(({ label, value }) => (
-                                                    <div key={label} className="rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2.5">
-                                                        <p className="text-[10px] text-zinc-600 uppercase tracking-wider">{label}</p>
-                                                        <p className="text-sm font-semibold text-white mt-0.5 truncate">{value}</p>
+                                                    <div key={label} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
+                                                        <p className="text-[10px] uppercase tracking-wider text-gray-400">{label}</p>
+                                                        <p className="mt-0.5 truncate text-sm font-semibold text-gray-900">{value}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -1626,12 +1602,12 @@ export default function CheckoutPage() {
                         </div>
 
                         {validationError ? (
-                            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                                 {validationError}
                             </div>
                         ) : null}
                         {checkoutError ? (
-                            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                                 {checkoutError}
                             </div>
                         ) : null}
@@ -1639,18 +1615,18 @@ export default function CheckoutPage() {
 
                     {/* Right column */}
                     <div className="w-full lg:w-[380px]">
-                        <div className="sticky top-24 rounded-2xl border border-white/[0.08] bg-[#0a0f18] overflow-hidden text-white shadow-[0_24px_80px_-24px_rgba(0,0,0,0.9)]">
+                        <div className="sticky top-24 overflow-hidden rounded-2xl border border-gray-200 bg-white text-gray-900 shadow-xl shadow-slate-200/80">
                             {/* Panel header */}
-                            <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Resumen</p>
-                                <h3 className="mt-0.5 text-lg font-bold text-white">Tu pedido</h3>
+                            <div className="border-b border-gray-200 px-6 pb-4 pt-6">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Resumen</p>
+                                <h3 className="mt-0.5 text-lg font-bold text-gray-900">Tu pedido</h3>
                             </div>
 
                             {/* Items */}
                             <div className="px-6 py-4 space-y-3 max-h-[260px] overflow-y-auto">
                                 {summaryItems.map((it) => (
                                     <div key={it.id} className="flex items-center gap-3">
-                                        <div className="w-14 h-14 rounded-xl border border-white/[0.07] bg-black/30 overflow-hidden flex-shrink-0">
+                                        <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
                                             <div
                                                 className="w-full h-full bg-center bg-no-repeat bg-cover"
                                                 style={{
@@ -1664,10 +1640,10 @@ export default function CheckoutPage() {
                                             />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-zinc-200 truncate">{it.name}</p>
-                                            <p className="text-xs text-zinc-600 mt-0.5">×{it.qty}</p>
+                                            <p className="truncate text-sm font-medium text-gray-900">{it.name}</p>
+                                            <p className="mt-0.5 text-xs text-gray-500">×{it.qty}</p>
                                         </div>
-                                        <p className="text-sm font-semibold text-white flex-shrink-0">
+                                        <p className="flex-shrink-0 text-sm font-semibold text-gray-900">
                                             {formatCurrency(it.price * it.qty, displayCurrency, locale)}
                                         </p>
                                     </div>
@@ -1675,7 +1651,7 @@ export default function CheckoutPage() {
                             </div>
 
                             {/* Totals */}
-                            <div className="px-6 py-4 border-t border-white/[0.06] space-y-2.5">
+                            <div className="space-y-2.5 border-t border-gray-200 px-6 py-4">
                                 <Line label="Subtotal" value={formatCurrency(subtotal, displayCurrency, locale)} />
                                 <Line
                                     label="Envio"
@@ -1691,9 +1667,9 @@ export default function CheckoutPage() {
                             </div>
 
                             {/* Total row */}
-                            <div className="px-6 py-4 border-t border-white/[0.06] bg-primary/[0.06] flex items-center justify-between">
-                                <span className="text-sm text-zinc-400">Total a pagar</span>
-                                <span className="text-2xl font-black text-white">
+                            <div className="flex items-center justify-between border-t border-gray-200 bg-primary/[0.06] px-6 py-4">
+                                <span className="text-sm text-gray-500">Total a pagar</span>
+                                <span className="text-2xl font-black text-gray-900">
                                     {formatCurrency(total, displayCurrency, locale)}
                                 </span>
                             </div>
@@ -1720,9 +1696,6 @@ export default function CheckoutPage() {
                                         </>
                                     )}
                                 </button>
-                                <p className="text-[10px] text-center mt-3 text-zinc-700 uppercase tracking-widest">
-                                    Pedido seguro · Validado por stock
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -1736,9 +1709,9 @@ export default function CheckoutPage() {
 
 function StepProgress({ openStep }) {
     const steps = [
-        { step: 1, title: "Identidad", description: "Contacto y facturacion" },
-        { step: 2, title: "Entrega", description: "Ubicacion y modalidad" },
-        { step: 3, title: "Pago", description: "Cobro y confirmacion" },
+        { step: 1, title: "Datos", description: "Tu informacion" },
+        { step: 2, title: "Entrega", description: "Envio o retiro" },
+        { step: 3, title: "Pago", description: "Forma de pago" },
     ];
 
     return (
@@ -1756,7 +1729,7 @@ function StepProgress({ openStep }) {
                                     ? "bg-primary text-white ring-4 ring-primary/20"
                                     : isDone
                                         ? "bg-primary/20 text-primary border border-primary/30"
-                                        : "bg-white/[0.05] text-zinc-600 border border-white/[0.08]",
+                                        : "border border-gray-200 bg-white text-gray-500",
                             ].join(" ")}>
                                 {isDone ? (
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -1765,16 +1738,16 @@ function StepProgress({ openStep }) {
                                 ) : item.step}
                             </div>
                             <div className="mt-2 text-center px-2">
-                                <p className={`text-xs font-semibold leading-tight ${isActive ? "text-white" : isDone ? "text-zinc-400" : "text-zinc-600"}`}>
+                                <p className={`text-xs font-semibold leading-tight ${isActive ? "text-primary" : isDone ? "text-gray-700" : "text-gray-500"}`}>
                                     {item.title}
                                 </p>
-                                <p className="text-[10px] text-zinc-700 mt-0.5 hidden sm:block">{item.description}</p>
+                                <p className="mt-0.5 hidden text-[10px] text-gray-400 sm:block">{item.description}</p>
                             </div>
                         </div>
                         {!isLast && (
                             <div className={[
                                 "flex-1 h-px mt-[18px] mx-3 transition-all duration-300",
-                                isDone ? "bg-primary/40" : "bg-white/[0.07]",
+                                isDone ? "bg-primary/40" : "bg-gray-200",
                             ].join(" ")} />
                         )}
                     </React.Fragment>
@@ -1792,8 +1765,8 @@ function Accordion({ step, title, openStep, onOpen, children }) {
         <div className={[
             "rounded-2xl border transition-all duration-200",
             isOpen
-                ? "border-primary/25 bg-[#0a0f18] shadow-[0_0_0_1px_rgba(99,102,241,0.08),0_20px_60px_-20px_rgba(0,0,0,0.8)]"
-                : "border-white/[0.07] bg-[#0a0f18]/80",
+                ? "border-primary/25 bg-white shadow-[0_0_0_1px_rgba(99,102,241,0.08),0_20px_60px_-20px_rgba(148,163,184,0.28)]"
+                : "border-gray-200 bg-white",
         ].join(" ")}>
             <button
                 type="button"
@@ -1807,7 +1780,7 @@ function Accordion({ step, title, openStep, onOpen, children }) {
                             ? "bg-primary text-white"
                             : isDone
                                 ? "bg-primary/15 text-primary"
-                                : "bg-white/[0.05] text-zinc-600",
+                                : "bg-gray-100 text-gray-500",
                     ].join(" ")}>
                         {isDone ? (
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -1816,18 +1789,18 @@ function Accordion({ step, title, openStep, onOpen, children }) {
                         ) : step}
                     </div>
                     <div className="text-left">
-                        <p className={`font-semibold text-sm ${isOpen ? "text-white" : "text-zinc-400"}`}>{title}</p>
+                        <p className={`text-sm font-semibold ${isOpen ? "text-gray-900" : "text-gray-700"}`}>{title}</p>
                         {isDone && !isOpen && (
-                            <p className="text-[11px] text-zinc-600 mt-0.5">Completado</p>
+                            <p className="mt-0.5 text-[11px] text-gray-500">Completado</p>
                         )}
                     </div>
                 </div>
-                <div className={`text-zinc-600 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>
+                <div className={`text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                 </div>
             </button>
             {isOpen && (
-                <div className="px-6 pb-6 border-t border-white/[0.06]">
+                <div className="border-t border-gray-200 px-6 pb-6">
                     {children}
                 </div>
             )}
@@ -1845,7 +1818,7 @@ function PayOption({ active, onClick, icon, label, description, highlight, disab
                 "relative flex items-start gap-3 p-4 rounded-xl transition-all duration-200 border text-left w-full",
                 active
                     ? "border-primary/40 bg-primary/[0.09] ring-1 ring-primary/20"
-                    : "border-white/[0.08] bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.06]",
+                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50",
                 disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
             ].join(" ")}
         >
@@ -1858,14 +1831,14 @@ function PayOption({ active, onClick, icon, label, description, highlight, disab
             )}
             <div className={[
                 "flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 transition-colors",
-                active || highlight ? "bg-primary/20 text-primary" : "bg-white/[0.05] text-zinc-500",
+                active || highlight ? "bg-primary/20 text-primary" : "bg-gray-100 text-gray-500",
             ].join(" ")}>
                 {icon}
             </div>
             <div className="flex-1 min-w-0 pt-0.5">
-                <p className={`text-sm font-semibold ${active ? "text-white" : "text-zinc-300"}`}>{label}</p>
+                <p className={`text-sm font-semibold ${active ? "text-gray-900" : "text-gray-800"}`}>{label}</p>
                 {description && (
-                    <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{description}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{description}</p>
                 )}
             </div>
         </button>
@@ -1875,8 +1848,8 @@ function PayOption({ active, onClick, icon, label, description, highlight, disab
 function Line({ label, value }) {
     return (
         <div className="flex justify-between items-center">
-            <span className="text-sm text-zinc-500">{label}</span>
-            <span className="text-sm font-medium text-zinc-200">{value}</span>
+            <span className="text-sm text-gray-500">{label}</span>
+            <span className="text-sm font-medium text-gray-900">{value}</span>
         </div>
     );
 }

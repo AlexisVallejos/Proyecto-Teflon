@@ -191,8 +191,6 @@ export const useIntegrationManager = () => {
                         external_id: `ERP-ADMIN-${stamp}`,
                         sku: `ERP-ADMIN-${stamp}`,
                         name: `Producto prueba integracion ${stamp}`,
-                        price_retail: 18990,
-                        price_wholesale: 16990,
                         price_1: 18990,
                         price_2: 16990,
                         price_3: 15990,

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import useEvolutionStore from '../../store/useEvolutionStore';
 
 const createEmptyProduct = () => ({
     name: '',
@@ -29,6 +30,8 @@ const createEmptyProduct = () => ({
     is_active_source: true,
     last_sync_at: null,
     sync_status: 'manual',
+    price_tiers: [],
+    source_category_path: [],
 });
 
 const readImageAsDataUrl = (file) =>
@@ -59,6 +62,18 @@ const mapSpecificationRowsToObject = (rows) => {
         acc[key] = value;
         return acc;
     }, {});
+};
+
+const mapStoredPriceTiersToList = (source) => {
+    const raw = source && typeof source === 'object' && !Array.isArray(source) ? source : {};
+    const tiers = [];
+    for (let slot = 1; slot <= 10; slot += 1) {
+        const key = `price_${slot}`;
+        const value = Number(raw[key]);
+        if (!Number.isFinite(value)) continue;
+        tiers.push({ slot, key, value });
+    }
+    return tiers;
 };
 
 const buildProductFormFromProduct = (product) => {
@@ -130,6 +145,14 @@ const buildProductFormFromProduct = (product) => {
         is_active_source: product?.is_active_source !== false,
         last_sync_at: product?.last_sync_at || null,
         sync_status: product?.sync_status || (product?.external_id ? 'synced' : 'manual'),
+        price_tiers: Array.isArray(product?.price_tiers)
+            ? product.price_tiers
+            : mapStoredPriceTiersToList(data.price_tiers),
+        source_category_path: Array.isArray(product?.source_category_path)
+            ? product.source_category_path
+            : Array.isArray(data.source_category_path)
+                ? data.source_category_path
+                : [],
     };
 };
 
@@ -180,6 +203,8 @@ const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => (
     is_active_source: payload.is_active_source !== false,
     last_sync_at: payload.last_sync_at || null,
     sync_status: payload.sync_status || (payload.external_id ? 'synced' : 'manual'),
+    price_tiers: Array.isArray(payload.price_tiers) ? payload.price_tiers : [],
+    source_category_path: Array.isArray(payload.source_category_path) ? payload.source_category_path : [],
     data: {
         images: Array.isArray(payload.images) ? payload.images : [],
         features: Array.isArray(payload.features) ? payload.features : [],
@@ -195,11 +220,17 @@ const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => (
         variant_group_label: payload.variant_group_label || null,
         variant_label: payload.variant_label || null,
         is_variant_root: payload.is_variant_root === true,
+        price_tiers:
+            payload.price_tiers && typeof payload.price_tiers === 'object' && !Array.isArray(payload.price_tiers)
+                ? payload.price_tiers
+                : {},
+        source_category_path: Array.isArray(payload.source_category_path) ? payload.source_category_path : [],
     },
 });
 
 export const useCatalogManager = ({ setProducts, categories, setCategories, brands, setBrands }) => {
     const { addToast } = useToast();
+    const setCatalogInspectorSection = useEvolutionStore((state) => state.setCatalogInspectorSection);
     const [productDraft, setProductDraft] = useState(createEmptyProduct);
     const [editingProductId, setEditingProductId] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -219,7 +250,8 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
     const resetProductForm = useCallback(() => {
         setEditingProductId(null);
         setProductDraft(createEmptyProduct());
-    }, []);
+        setCatalogInspectorSection('general');
+    }, [setCatalogInspectorSection]);
 
     const toggleProductCategorySelection = useCallback((categoryId) => {
         setProductDraft((prev) => {
@@ -237,9 +269,10 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
 
     const handleEditProduct = useCallback((product) => {
         if (!product?.id) return;
+        setCatalogInspectorSection('general');
         setEditingProductId(product.id);
         setProductDraft(sanitizeDraftCategories(buildProductFormFromProduct(product), categories));
-    }, [categories]);
+    }, [categories, setCatalogInspectorSection]);
 
     const handleCancelEditProduct = useCallback(() => {
         resetProductForm();

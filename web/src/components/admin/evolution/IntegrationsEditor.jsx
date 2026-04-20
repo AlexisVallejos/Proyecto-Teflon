@@ -546,12 +546,13 @@ const IntegrationsEditor = ({ manager }) => {
                         <p className="text-[12px] leading-6 text-zinc-300">
                             Necesitamos que el sistema de gestion lea productos desde su propia base y los envie a la URL de sincronizacion.
                             Debe mandar `x-api-key`, `x-tenant-id`, `source_system` y un array `items` con `external_id`, `sku`, `name`,
-                            `price_retail`, `price_wholesale` o `price_1..price_10`, `short_description`, `stock`, `is_active`,
-                            `description`, `category_id` o `category_path`, e `images` si las tiene.
+                            `price_1..price_10`, `short_description`, `stock`, `is_active`, `description`, `category_path`
+                            e `images` si las tiene. `category_id` solo aplica si ya conocen el UUID real de una categoria del ecommerce.
                         </p>
                         <p className="text-[12px] leading-6 text-zinc-300">
                             Si el software solo acepta `Consumer Key` y `Consumer Secret`, debe usar la capa de compatibilidad con las URLs
-                            `Compatibilidad producto` o `Compatibilidad productos`.
+                            `Compatibilidad producto` o `Compatibilidad productos`. Aun asi, recomendamos mantener el mismo criterio:
+                            `price_1..price_10` y `category_path`.
                         </p>
                     </div>
                 </div>

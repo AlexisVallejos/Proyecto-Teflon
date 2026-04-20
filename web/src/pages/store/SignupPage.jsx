@@ -1,7 +1,15 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate } from '../../utils/navigation';
+import {
+    FALLBACK_COUNTRY_OPTIONS,
+    findOptionByText,
+    getCountryLabelByCode,
+    loadArgentinaCities,
+    loadArgentinaProvinces,
+    loadCountries,
+} from '../../utils/locations';
 
 const CheckIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -39,25 +47,151 @@ const EyeIcon = ({ open }) => (
     </svg>
 );
 
-const inputClass = 'w-full px-3.5 py-2.5 rounded-lg border border-[#e5e1de] bg-white text-[#181411] focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all placeholder:text-[#8a7560]';
-const labelClass = 'block text-[13px] font-bold text-[#181411] mb-1.5';
+const inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/30';
+const labelClass = 'mb-1.5 block text-[13px] font-semibold text-gray-700';
+const helperTextClass = 'mt-1.5 text-xs text-gray-500';
 
-function Step1({ data, onChange, onNext }) {
+function Step1({
+    data,
+    onChange,
+    onNext,
+    countryInput,
+    onCountryInputChange,
+    countryOptions,
+    countriesLoading,
+    onProvinceInputChange,
+    provinceOptions,
+    provinceLoading,
+    provinceSuggestionsEnabled,
+    onCityInputChange,
+    cityOptions,
+    citiesLoading,
+    citySuggestionsEnabled,
+    isArgentinaCountry,
+}) {
     return (
         <div className="space-y-4">
             <div>
                 <label className={labelClass}>Nombre completo</label>
                 <input className={inputClass} type="text" placeholder="Tu nombre" value={data.name} onChange={(e) => onChange('name', e.target.value)} />
             </div>
-            <div>
-                <label className={labelClass}>Email</label>
-                <input className={inputClass} type="email" placeholder="tu@email.com" value={data.email} onChange={(e) => onChange('email', e.target.value)} />
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                    <label className={labelClass}>Email</label>
+                    <input className={inputClass} type="email" placeholder="tu@email.com" value={data.email} onChange={(e) => onChange('email', e.target.value)} />
+                </div>
+                <div>
+                    <label className={labelClass}>Telefono</label>
+                    <input className={inputClass} type="tel" placeholder="+54 11 ...." value={data.phone} onChange={(e) => onChange('phone', e.target.value)} />
+                </div>
             </div>
-            <div>
-                <label className={labelClass}>Telefono</label>
-                <input className={inputClass} type="tel" placeholder="+54 11 ...." value={data.phone} onChange={(e) => onChange('phone', e.target.value)} />
+
+            <div className="border-t border-gray-100 pt-2">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Direccion</p>
+                <div className="space-y-3">
+                    <div>
+                        <label className={labelClass}>Direccion</label>
+                        <input className={inputClass} type="text" placeholder="Calle y numero" value={data.address} onChange={(e) => onChange('address', e.target.value)} />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label className={labelClass}>Pais</label>
+                            <input
+                                className={inputClass}
+                                type="text"
+                                list="signup-country-options"
+                                placeholder="Argentina"
+                                value={countryInput}
+                                onChange={(e) => onCountryInputChange(e.target.value)}
+                                autoComplete="country-name"
+                            />
+                            <datalist id="signup-country-options">
+                                {countryOptions.map((country) => (
+                                    <option key={country.value} value={country.label} />
+                                ))}
+                            </datalist>
+                            <p className={helperTextClass}>
+                                {countriesLoading ? 'Cargando paises...' : 'Escribe para buscar y selecciona un pais del listado.'}
+                            </p>
+                        </div>
+                        <div>
+                            <label className={labelClass}>Provincia</label>
+                            <input
+                                className={inputClass}
+                                type="text"
+                                list={provinceSuggestionsEnabled ? 'signup-province-options' : undefined}
+                                placeholder={isArgentinaCountry ? 'Buenos Aires' : 'Provincia / estado / region'}
+                                value={data.province}
+                                onChange={(e) => onProvinceInputChange(e.target.value)}
+                                autoComplete="address-level1"
+                                disabled={!data.country}
+                            />
+                            {provinceSuggestionsEnabled ? (
+                                <datalist id="signup-province-options">
+                                    {provinceOptions.map((province) => (
+                                        <option key={province.value} value={province.label} />
+                                    ))}
+                                </datalist>
+                            ) : null}
+                            <p className={helperTextClass}>
+                                {!data.country
+                                    ? 'Primero selecciona un pais.'
+                                    : isArgentinaCountry
+                                        ? provinceLoading
+                                            ? 'Cargando provincias de Argentina...'
+                                            : provinceSuggestionsEnabled
+                                                ? 'Selecciona una provincia valida para habilitar las ciudades.'
+                                                : 'No pudimos cargar provincias. Puedes escribirla manualmente.'
+                                        : 'Completa la provincia o estado manualmente.'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label className={labelClass}>Ciudad</label>
+                            <input
+                                className={inputClass}
+                                type="text"
+                                list={citySuggestionsEnabled ? 'signup-city-options' : undefined}
+                                placeholder={isArgentinaCountry ? 'Mar del Plata' : 'Ciudad'}
+                                value={data.city}
+                                onChange={(e) => onCityInputChange(e.target.value)}
+                                autoComplete="address-level2"
+                                disabled={!data.country || (provinceSuggestionsEnabled && !data.provinceId)}
+                            />
+                            {citySuggestionsEnabled ? (
+                                <datalist id="signup-city-options">
+                                    {cityOptions.map((city) => (
+                                        <option key={city.value} value={city.label} />
+                                    ))}
+                                </datalist>
+                            ) : null}
+                            <p className={helperTextClass}>
+                                {!data.country
+                                    ? 'Primero selecciona un pais.'
+                                    : isArgentinaCountry
+                                        ? !data.provinceId
+                                            ? 'Selecciona una provincia para ver las ciudades disponibles.'
+                                            : citiesLoading
+                                                ? 'Cargando ciudades de la provincia elegida...'
+                                                : citySuggestionsEnabled
+                                                    ? 'Selecciona una ciudad del listado oficial.'
+                                                    : 'No pudimos cargar las ciudades. Puedes escribirla manualmente.'
+                                        : 'Completa tu ciudad manualmente.'}
+                            </p>
+                        </div>
+                        <div>
+                            <label className={labelClass}>Codigo postal</label>
+                            <input className={inputClass} type="text" placeholder="7600" value={data.postalCode} onChange={(e) => onChange('postalCode', e.target.value)} autoComplete="postal-code" />
+                        </div>
+                    </div>
+                </div>
             </div>
-            <button onClick={onNext} className="w-full mt-2 bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+
+            <button onClick={onNext} className="mt-2 w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:bg-orange-600">
                 Continuar
             </button>
         </div>
@@ -73,15 +207,17 @@ function Step2({ data, onChange, onNext, onBack }) {
                 <label className={labelClass}>Contrasena</label>
                 <div className="relative">
                     <input className={inputClass} type={showPass ? 'text' : 'password'} placeholder="********" value={data.password} onChange={(e) => onChange('password', e.target.value)} />
-                    <button type="button" onClick={() => setShowPass((v) => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8a7560] hover:text-[#181411]">
+                    <button type="button" onClick={() => setShowPass((value) => !value)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8a7560] transition-colors hover:text-[#181411]">
                         <EyeIcon open={showPass} />
                     </button>
                 </div>
             </div>
+
             <div>
                 <label className={labelClass}>Confirmar contrasena</label>
                 <input className={inputClass} type="password" placeholder="********" value={data.confirmPassword} onChange={(e) => onChange('confirmPassword', e.target.value)} />
             </div>
+
             <div>
                 <label className={labelClass}>Tipo de cuenta</label>
                 <div className="grid grid-cols-2 gap-4">
@@ -91,20 +227,21 @@ function Step2({ data, onChange, onNext, onBack }) {
                     ].map(({ value, label, Icon }) => (
                         <label key={value} className="cursor-pointer">
                             <input type="radio" name="accountType" value={value} checked={data.accountType === value} onChange={() => onChange('accountType', value)} className="sr-only" />
-                            <div className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-200 ${data.accountType === value ? 'border-primary bg-primary/10 text-primary' : 'border-[#e5e1de] bg-white text-[#8a7560]'}`}>
+                            <div className={`flex flex-col items-center justify-center rounded-2xl border-2 p-4 transition-all duration-200 ${data.accountType === value ? 'border-primary bg-primary/10 text-primary' : 'border-[#e5e1de] bg-white text-[#8a7560]'}`}>
                                 <Icon />
-                                <span className="font-bold text-sm mt-2">{label}</span>
+                                <span className="mt-2 text-sm font-bold">{label}</span>
                             </div>
                         </label>
                     ))}
                 </div>
             </div>
-            <div className="pt-1 space-y-3">
-                <button onClick={onNext} className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+
+            <div className="space-y-3 pt-1">
+                <button onClick={onNext} className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:bg-orange-600">
                     Continuar
                 </button>
                 <div className="text-center">
-                    <button onClick={onBack} className="text-[#8a7560] font-semibold text-sm hover:text-[#181411] transition-colors">
+                    <button onClick={onBack} className="text-sm font-semibold text-[#8a7560] transition-colors hover:text-[#181411]">
                         Volver al paso anterior
                     </button>
                 </div>
@@ -116,24 +253,28 @@ function Step2({ data, onChange, onNext, onBack }) {
 function Step3({ data, onChange, onBack, onSubmit, loading }) {
     return (
         <div className="space-y-4">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                {data.accountType === 'mayorista'
+                    ? 'Completa los datos fiscales para solicitar la aprobacion mayorista.'
+                    : 'Estos datos son opcionales si solo necesitas una cuenta minorista.'}
+            </div>
+
             <div>
                 <label className={labelClass}>Nombre de la empresa</label>
                 <input className={inputClass} type="text" placeholder="Nombre comercial o razon social" value={data.company} onChange={(e) => onChange('company', e.target.value)} />
             </div>
+
             <div>
                 <label className={labelClass}>CUIT / CUIL</label>
                 <input className={inputClass} type="text" placeholder="00-00000000-0" value={data.cuit} onChange={(e) => onChange('cuit', e.target.value)} />
             </div>
-            <div>
-                <label className={labelClass}>Direccion comercial</label>
-                <input className={inputClass} type="text" placeholder="Calle, numero, localidad" value={data.address} onChange={(e) => onChange('address', e.target.value)} />
-            </div>
-            <div className="pt-1 space-y-3">
-                <button onClick={onSubmit} disabled={loading} className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70">
+
+            <div className="space-y-3 pt-1">
+                <button onClick={onSubmit} disabled={loading} className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:bg-orange-600 disabled:opacity-70">
                     {loading ? 'Creando cuenta...' : 'Finalizar registro'}
                 </button>
                 <div className="text-center">
-                    <button onClick={onBack} className="text-[#8a7560] font-semibold text-sm hover:text-[#181411] transition-colors">
+                    <button onClick={onBack} className="text-sm font-semibold text-[#8a7560] transition-colors hover:text-[#181411]">
                         Volver al paso anterior
                     </button>
                 </div>
@@ -174,23 +315,23 @@ function Step4({
                     onChange={(e) => onCodeChange(e.target.value.replace(/\D/g, ''))}
                 />
             </div>
-            <div className="pt-1 space-y-3">
+            <div className="space-y-3 pt-1">
                 <button
                     onClick={onVerify}
                     disabled={loading}
-                    className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70"
+                    className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:bg-orange-600 disabled:opacity-70"
                 >
                     {loading ? 'Verificando...' : 'Verificar email'}
                 </button>
                 <button
                     onClick={onResend}
                     disabled={resendLoading}
-                    className="w-full border border-[#e5e1de] bg-white text-[#181411] font-bold py-3 rounded-lg transition-all active:scale-[0.98] disabled:opacity-60"
+                    className="w-full rounded-lg border border-[#e5e1de] bg-white py-3 font-bold text-[#181411] transition-all active:scale-[0.98] disabled:opacity-60"
                 >
                     {resendLoading ? 'Reenviando...' : 'Reenviar codigo'}
                 </button>
                 <div className="text-center">
-                    <button onClick={onBack} className="text-[#8a7560] font-semibold text-sm hover:text-[#181411] transition-colors">
+                    <button onClick={onBack} className="text-sm font-semibold text-[#8a7560] transition-colors hover:text-[#181411]">
                         Volver al paso anterior
                     </button>
                 </div>
@@ -208,19 +349,19 @@ function Stepper({ current, total = 3 }) {
     const progressWidth = `${Math.round(progress * 100)}%`;
 
     return (
-        <div className="flex items-start justify-between mb-8 relative px-2">
-            <div className="absolute top-3.5 left-0 w-full h-0.5 bg-[#f0ece8] z-0" />
-            <div className="absolute top-3.5 left-0 h-0.5 bg-primary z-0 transition-all duration-500" style={{ width: progressWidth }} />
-            {steps.map((label, i) => {
-                const stepNum = i + 1;
+        <div className="relative mb-8 flex items-start justify-between px-2">
+            <div className="absolute left-0 top-3.5 z-0 h-0.5 w-full bg-gray-200" />
+            <div className="absolute left-0 top-3.5 z-0 h-0.5 bg-primary transition-all duration-500" style={{ width: progressWidth }} />
+            {steps.map((label, index) => {
+                const stepNum = index + 1;
                 const done = stepNum < current;
                 const active = stepNum === current;
                 return (
                     <div key={label} className="relative z-10 flex flex-col items-center">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${done || active ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-[#f0ece8] text-[#8a7560]'}`}>
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all duration-300 ${done || active ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-white text-gray-500 ring-1 ring-gray-200'}`}>
                             {done ? <CheckIcon /> : stepNum}
                         </div>
-                        <span className={`text-[9px] mt-1.5 font-bold uppercase tracking-wider transition-colors ${active ? 'text-primary' : 'text-[#8a7560]'}`}>{label}</span>
+                        <span className={`mt-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${active ? 'text-primary' : done ? 'text-gray-700' : 'text-gray-500'}`}>{label}</span>
                     </div>
                 );
             })}
@@ -265,6 +406,7 @@ function getVerificationDeliveryNotice(verification, email) {
     }
     return `No pudimos confirmar la entrega del codigo a ${email}. Intenta reenviar el codigo.`;
 }
+
 export default function SignupPage() {
     const { signup, verifyEmailCode, resendVerificationCode } = useAuth();
     const [step, setStep] = useState(1);
@@ -275,10 +417,23 @@ export default function SignupPage() {
     const [verificationLoading, setVerificationLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const [deliveryNotice, setDeliveryNotice] = useState('');
+    const [countryOptions, setCountryOptions] = useState(FALLBACK_COUNTRY_OPTIONS);
+    const [countryInput, setCountryInput] = useState(getCountryLabelByCode('AR', FALLBACK_COUNTRY_OPTIONS));
+    const [countriesLoading, setCountriesLoading] = useState(false);
+    const [provinceOptions, setProvinceOptions] = useState([]);
+    const [provinceLoading, setProvinceLoading] = useState(false);
+    const [cityOptions, setCityOptions] = useState([]);
+    const [citiesLoading, setCitiesLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
+        country: 'AR',
+        province: '',
+        provinceId: '',
+        city: '',
+        cityId: '',
+        postalCode: '',
         password: '',
         confirmPassword: '',
         accountType: 'minorista',
@@ -289,24 +444,247 @@ export default function SignupPage() {
 
     const roleForApi = useMemo(
         () => (formData.accountType === 'mayorista' ? 'wholesale' : 'retail'),
-        [formData.accountType]
+        [formData.accountType],
     );
+    const isArgentinaCountry = formData.country === 'AR';
+    const provinceSuggestionsEnabled = isArgentinaCountry && provinceOptions.length > 0;
+    const citySuggestionsEnabled = isArgentinaCountry && Boolean(formData.provinceId) && cityOptions.length > 0;
 
     const update = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
+
+    useEffect(() => {
+        let active = true;
+        setCountriesLoading(true);
+        loadCountries()
+            .then((options) => {
+                if (!active || !Array.isArray(options) || !options.length) return;
+                setCountryOptions(options);
+            })
+            .finally(() => {
+                if (active) {
+                    setCountriesLoading(false);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        const selectedCountry = countryOptions.find((option) => option.value === formData.country);
+        if (selectedCountry) {
+            setCountryInput(selectedCountry.label);
+        }
+    }, [countryOptions, formData.country]);
+
+    useEffect(() => {
+        if (formData.country !== 'AR') {
+            setProvinceOptions([]);
+            setProvinceLoading(false);
+            return;
+        }
+
+        let active = true;
+        setProvinceLoading(true);
+        loadArgentinaProvinces()
+            .then((options) => {
+                if (active) {
+                    setProvinceOptions(options);
+                }
+            })
+            .catch(() => {
+                if (active) {
+                    setProvinceOptions([]);
+                }
+            })
+            .finally(() => {
+                if (active) {
+                    setProvinceLoading(false);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [formData.country]);
+
+    useEffect(() => {
+        if (formData.country !== 'AR' || !formData.provinceId) {
+            setCityOptions([]);
+            setCitiesLoading(false);
+            return;
+        }
+
+        let active = true;
+        setCitiesLoading(true);
+        loadArgentinaCities(formData.provinceId)
+            .then((options) => {
+                if (active) {
+                    setCityOptions(options);
+                }
+            })
+            .finally(() => {
+                if (active) {
+                    setCitiesLoading(false);
+                }
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [formData.country, formData.provinceId]);
+
+    const handleCountryInputChange = (value) => {
+        setCountryInput(value);
+        const trimmedValue = String(value || '').trim();
+        const match = findOptionByText(countryOptions, trimmedValue);
+        if (match) {
+            setCountryInput(match.label);
+        }
+
+        setFormData((prev) => {
+            if (!trimmedValue) {
+                return {
+                    ...prev,
+                    country: '',
+                    province: '',
+                    provinceId: '',
+                    city: '',
+                    cityId: '',
+                };
+            }
+
+            if (!match) {
+                return {
+                    ...prev,
+                    country: '',
+                    province: '',
+                    provinceId: '',
+                    city: '',
+                    cityId: '',
+                };
+            }
+
+            if (prev.country === match.value) {
+                return prev;
+            }
+
+            return {
+                ...prev,
+                country: match.value,
+                province: '',
+                provinceId: '',
+                city: '',
+                cityId: '',
+            };
+        });
+    };
+
+    const handleProvinceInputChange = (value) => {
+        if (formData.country !== 'AR') {
+            update('province', value);
+            return;
+        }
+
+        const trimmedValue = String(value || '').trim();
+        const match = findOptionByText(provinceOptions, trimmedValue);
+        setFormData((prev) => {
+            if (!trimmedValue) {
+                return {
+                    ...prev,
+                    province: '',
+                    provinceId: '',
+                    city: '',
+                    cityId: '',
+                };
+            }
+
+            if (!match) {
+                return {
+                    ...prev,
+                    province: value,
+                    provinceId: '',
+                    city: '',
+                    cityId: '',
+                };
+            }
+
+            if (prev.provinceId === match.value) {
+                return {
+                    ...prev,
+                    province: match.label,
+                };
+            }
+
+            return {
+                ...prev,
+                province: match.label,
+                provinceId: match.value,
+                city: '',
+                cityId: '',
+            };
+        });
+    };
+
+    const handleCityInputChange = (value) => {
+        if (formData.country !== 'AR') {
+            update('city', value);
+            return;
+        }
+
+        const trimmedValue = String(value || '').trim();
+        const match = findOptionByText(cityOptions, trimmedValue);
+        setFormData((prev) => {
+            if (!trimmedValue) {
+                return {
+                    ...prev,
+                    city: '',
+                    cityId: '',
+                };
+            }
+
+            if (!match) {
+                return {
+                    ...prev,
+                    city: value,
+                    cityId: '',
+                };
+            }
+
+            return {
+                ...prev,
+                city: match.label,
+                cityId: match.value,
+            };
+        });
+    };
 
     const persistProfileAddress = (email) => {
         const normalizedEmail = String(email || '').trim().toLowerCase();
         if (!normalizedEmail) return;
 
+        const countryLabel = getCountryLabelByCode(formData.country, countryOptions);
+        const addressLine = formData.address.trim();
+        const city = formData.city.trim();
+        const postalCode = formData.postalCode.trim();
+        const province = formData.province.trim();
+
         const payload = {
             fullName: formData.name.trim(),
-            line1: formData.address.trim(),
-            city: '',
-            postal: '',
-            region: '',
-            country: 'Argentina',
+            line1: addressLine,
+            fullAddress: addressLine,
+            address: addressLine,
+            city,
+            locality: city,
+            postal: postalCode,
+            postalCode,
+            province,
+            region: province,
+            country: countryLabel,
+            countryCode: formData.country,
             phone: formData.phone.trim(),
-            phoneCountry: 'AR',
+            phoneCountry: formData.country || 'AR',
             phoneNumber: formData.phone.trim(),
             company: formData.company.trim(),
             cuit: formData.cuit.trim(),
@@ -324,6 +702,11 @@ export default function SignupPage() {
         if (!formData.email.trim()) return 'Completa tu email.';
         if (!/\S+@\S+\.\S+/.test(formData.email)) return 'Email invalido.';
         if (!formData.phone.trim()) return 'Completa tu telefono.';
+        if (!formData.country) return 'Selecciona tu pais.';
+        if (provinceSuggestionsEnabled && !formData.provinceId) return 'Selecciona una provincia valida.';
+        if (!formData.city.trim()) return 'Completa tu ciudad.';
+        if (citySuggestionsEnabled && !formData.cityId) return 'Selecciona una ciudad valida.';
+        if (!formData.postalCode.trim()) return 'Completa el codigo postal.';
         return '';
     };
 
@@ -361,16 +744,23 @@ export default function SignupPage() {
             setStep(1);
             return;
         }
+
         const step2Error = validateStep2();
         if (step2Error) {
             setError(step2Error);
             setStep(2);
             return;
         }
+
         if (formData.accountType === 'mayorista') {
-            if (!formData.company.trim() || !formData.cuit.trim() || !formData.address.trim()) {
-                setError('Para mayorista completa empresa, cuit y direccion.');
+            if (!formData.company.trim() || !formData.cuit.trim()) {
+                setError('Para mayorista completa empresa y cuit.');
                 setStep(3);
+                return;
+            }
+            if (!formData.address.trim()) {
+                setError('Para mayorista completa la direccion comercial.');
+                setStep(1);
                 return;
             }
         }
@@ -382,7 +772,7 @@ export default function SignupPage() {
                 formData.email.trim(),
                 formData.password,
                 roleForApi,
-                formData.name.trim()
+                formData.name.trim(),
             );
             const normalizedEmail = formData.email.trim().toLowerCase();
             const requiresVerification = data?.requires_email_verification !== false;
@@ -395,8 +785,7 @@ export default function SignupPage() {
                 return;
             }
 
-            const loginNotice = 'Cuenta creada correctamente. Ya podes iniciar sesion.';
-            sessionStorage.setItem('teflon_auth_notice', loginNotice);
+            sessionStorage.setItem('teflon_auth_notice', 'Cuenta creada correctamente. Ya podes iniciar sesion.');
             navigate('/login');
         } catch (err) {
             const errorCode = String(err?.message || '');
@@ -432,7 +821,7 @@ export default function SignupPage() {
             await verifyEmailCode(verificationEmail, verificationCode.trim());
             sessionStorage.setItem(
                 'teflon_auth_notice',
-                'Email verificado. Tu cuenta quedo pendiente de aprobacion del administrador.'
+                'Email verificado. Tu cuenta quedo pendiente de aprobacion del administrador.',
             );
             navigate('/login');
         } catch (err) {
@@ -462,22 +851,41 @@ export default function SignupPage() {
 
     return (
         <StoreLayout>
-            <div className="min-h-[80vh] flex items-center justify-center p-4">
-                <div className="w-full max-w-[360px] bg-white rounded-2xl shadow-xl border border-[#e5e1de] p-5 md:p-6">
-                    <div className="text-center mb-6">
-                        <h1 className="text-2xl font-extrabold text-[#181411] mb-1">Crear cuenta</h1>
-                        <p className="text-[#8a7560] text-sm font-medium">Unite a Sanitarios El Teflon</p>
+            <div className="flex min-h-[80vh] items-center justify-center bg-gradient-to-b from-white via-gray-50 to-white p-4">
+                <div className="w-full max-w-[460px] rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.18)] md:p-8">
+                    <div className="mb-6 text-center">
+                        <h1 className="mb-1 text-2xl font-extrabold text-gray-900">Crear cuenta</h1>
+                        <p className="text-sm font-medium text-gray-500">Unite a Sanitarios El Teflon</p>
                     </div>
 
                     <Stepper current={step} total={4} />
 
                     {error ? (
-                        <div className="bg-red-50 text-red-700 p-3 rounded-xl border border-red-200 text-sm font-semibold mb-5">
+                        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
                             {error}
                         </div>
                     ) : null}
 
-                    {step === 1 && <Step1 data={formData} onChange={update} onNext={goStep2} />}
+                    {step === 1 && (
+                        <Step1
+                            data={formData}
+                            onChange={update}
+                            onNext={goStep2}
+                            countryInput={countryInput}
+                            onCountryInputChange={handleCountryInputChange}
+                            countryOptions={countryOptions}
+                            countriesLoading={countriesLoading}
+                            onProvinceInputChange={handleProvinceInputChange}
+                            provinceOptions={provinceOptions}
+                            provinceLoading={provinceLoading}
+                            provinceSuggestionsEnabled={provinceSuggestionsEnabled}
+                            onCityInputChange={handleCityInputChange}
+                            cityOptions={cityOptions}
+                            citiesLoading={citiesLoading}
+                            citySuggestionsEnabled={citySuggestionsEnabled}
+                            isArgentinaCountry={isArgentinaCountry}
+                        />
+                    )}
                     {step === 2 && <Step2 data={formData} onChange={update} onNext={goStep3} onBack={() => setStep(1)} />}
                     {step === 3 && <Step3 data={formData} onChange={update} onBack={() => setStep(2)} onSubmit={submit} loading={loading} />}
                     {step === 4 && (
@@ -494,10 +902,10 @@ export default function SignupPage() {
                         />
                     )}
 
-                    <div className="mt-6 pt-4 border-t border-[#f0ece8] text-center">
-                        <p className="text-[#8a7560] text-sm">
+                    <div className="mt-6 border-t border-gray-100 pt-4 text-center">
+                        <p className="text-sm text-gray-500">
                             Ya tenes cuenta?{' '}
-                            <button onClick={() => navigate('/login')} className="text-primary font-bold hover:underline">
+                            <button onClick={() => navigate('/login')} className="font-bold text-primary hover:underline">
                                 Iniciar sesion
                             </button>
                         </p>
@@ -507,4 +915,3 @@ export default function SignupPage() {
         </StoreLayout>
     );
 }
-

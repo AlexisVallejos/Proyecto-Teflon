@@ -5,6 +5,7 @@ const useEvolutionStore = create((set) => ({
     activeModule: 'home', // legacy: home/about/appearance/catalog/pricing/users/checkout/tenants
     isSidebarCollapsed: false,
     isInspectorOpen: true,
+    catalogInspectorSection: 'general',
 
     // Selection Context (for the Inspector)
     selectedId: null,      // e.g., product ID or block ID
@@ -12,11 +13,15 @@ const useEvolutionStore = create((set) => ({
     selectionData: null,   // Current data of the selected item
 
     // Actions
-    setActiveModule: (module) => set({
+    setActiveModule: (module) => set((state) => ({
         activeModule: module,
         selectedId: null,
         selectionType: null,
         selectionData: null,
+        catalogInspectorSection: module === 'catalog' ? 'general' : state.catalogInspectorSection,
+    })),
+    setCatalogInspectorSection: (section) => set({
+        catalogInspectorSection: section || 'general',
     }),
     setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
     toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),

@@ -507,6 +507,13 @@ export function resolveShippingAmount(settings = {}, customer = {}) {
   const deliveryRaw = String(customer?.delivery_method || customer?.deliveryMethod || '').trim();
   const shippingZones = normalizeShippingZones(settings);
   const branches = normalizeBranches(settings);
+  const genericFlatAmount =
+    settings?.shipping_flat !== undefined && settings?.shipping_flat !== null && settings?.shipping_flat !== ''
+      ? toNumber(settings.shipping_flat, 0)
+      : toNumber(
+        shippingZones.find((zone) => zone.type !== DISTANCE_ZONE_TYPE)?.price,
+        0,
+      );
 
   if (deliveryRaw === 'distance:auto' || deliveryRaw === 'location:auto') {
     return resolveDistanceShippingQuote(settings, customer, {
@@ -516,6 +523,19 @@ export function resolveShippingAmount(settings = {}, customer = {}) {
 
   if (deliveryRaw.startsWith('zone:')) {
     const zoneId = deliveryRaw.slice(5);
+    if (zoneId === 'arg-general') {
+      return {
+        ok: true,
+        amount: genericFlatAmount,
+        shipping_zone_id: 'arg-general',
+        shipping_zone_type: 'flat',
+        branch_id: null,
+        distance_km: null,
+        zone_amount: genericFlatAmount,
+        freight_amount: 0,
+        final_price: genericFlatAmount,
+      };
+    }
     const zone = shippingZones.find((entry) => entry.id === zoneId);
     if (zone) {
       if (zone.type === DISTANCE_ZONE_TYPE) {
@@ -581,7 +601,7 @@ export function resolveShippingAmount(settings = {}, customer = {}) {
     });
   }
 
-  const fallbackAmount = toNumber(fallbackZone?.price, toNumber(settings?.shipping_flat, 0));
+  const fallbackAmount = toNumber(fallbackZone?.price, genericFlatAmount);
   return {
     ok: true,
     amount: fallbackAmount,

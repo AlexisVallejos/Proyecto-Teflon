@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import { cn } from '../../../utils/cn';
 import {
@@ -30,9 +30,12 @@ const SYNC_STATUS_LABELS = {
     deleted: 'Baja logica',
 };
 
+const PRODUCTS_PER_PAGE = 10;
+
 const CatalogEditor = ({ products, onAddItem, onEditProduct }) => {
     const { selectItem, selectedId } = useEvolutionStore();
     const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
 
     const normalizedProducts = useMemo(() => {
         return (Array.isArray(products) ? products : [])
@@ -52,6 +55,21 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct }) => {
             String(product.sku || '').toLowerCase().includes(query)
         );
     }, [normalizedProducts, searchQuery]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredItems.length / PRODUCTS_PER_PAGE));
+
+    const visibleItems = useMemo(() => {
+        const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+        return filteredItems.slice(start, start + PRODUCTS_PER_PAGE);
+    }, [currentPage, filteredItems]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        setCurrentPage((prev) => Math.min(prev, totalPages));
+    }, [totalPages]);
 
     const handleAdd = () => {
         if (typeof onAddItem !== 'function') return;
@@ -103,7 +121,7 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct }) => {
 
             <div className="flex-1 overflow-auto custom-scrollbar pr-2 -mr-2">
                 <div className="grid grid-cols-2 gap-4 pb-10 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                    {filteredItems.map((item) => (
+                    {visibleItems.map((item) => (
                         <div
                             key={item.id}
                             onClick={() => {
@@ -199,9 +217,34 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct }) => {
 
             <div className="flex items-center justify-between border-t border-white/5 pt-4">
                 <p className="text-[11px] font-medium italic text-zinc-500">
-                    Mostrando {filteredItems.length} de {normalizedProducts.length} productos.
+                    {filteredItems.length > 0
+                        ? `Mostrando ${Math.min((currentPage - 1) * PRODUCTS_PER_PAGE + 1, filteredItems.length)}-${Math.min(currentPage * PRODUCTS_PER_PAGE, filteredItems.length)} de ${filteredItems.length} productos filtrados.`
+                        : `Mostrando 0 de ${normalizedProducts.length} productos.`}
                 </p>
-                <div className="flex gap-4">
+                <div className="flex items-center gap-4">
+                    {totalPages > 1 ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            {Array.from({ length: totalPages }, (_, index) => {
+                                const page = index + 1;
+                                const active = currentPage === page;
+                                return (
+                                    <button
+                                        key={`catalog-page-${page}`}
+                                        type="button"
+                                        onClick={() => setCurrentPage(page)}
+                                        className={cn(
+                                            'rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors',
+                                            active
+                                                ? 'border-evolution-indigo bg-evolution-indigo text-white'
+                                                : 'border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:text-white'
+                                        )}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    ) : null}
                     <button className="flex items-center gap-2 text-[11px] font-bold text-zinc-400 transition-colors hover:text-white">
                         <Funnel size={14} weight="bold" />
                         Filtros Avanzados
