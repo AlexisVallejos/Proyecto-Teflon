@@ -149,7 +149,7 @@ async function sendApprovalRequestedEmail({
     '',
     'Puedes revisarlo desde el panel de administracion en la seccion Usuarios o Notificaciones.',
     '',
-    `Admin: ${process.env.PUBLIC_ADMIN_URL || process.env.ADMIN_PANEL_URL || 'Panel en Vercel'}`,
+    `Admin: ${process.env.PUBLIC_ADMIN_URL || process.env.ADMIN_PANEL_URL || 'Panel de administracion'}`,
     '',
     'Saludos,',
     `Sistema ${companyName}`,
@@ -164,7 +164,7 @@ async function sendApprovalRequestedEmail({
     `<li><strong>Perfil solicitado:</strong> ${roleLabel}</li>`,
     '</ul>',
     '<p>Puedes revisarlo desde el panel de administracion en la seccion Usuarios o Notificaciones.</p>',
-    `<p><strong>Admin:</strong> ${process.env.PUBLIC_ADMIN_URL || process.env.ADMIN_PANEL_URL || 'Panel en Vercel'}</p>`,
+    `<p><strong>Admin:</strong> ${process.env.PUBLIC_ADMIN_URL || process.env.ADMIN_PANEL_URL || 'Panel de administracion'}</p>`,
     `<p>Saludos,<br />Sistema ${companyName}</p>`,
   ].join('');
 

@@ -16,6 +16,20 @@ const cardClass = 'rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4';
 const codeClass = 'rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-200 font-mono break-all';
 const preClass = 'custom-scrollbar overflow-auto rounded-2xl border border-white/10 bg-black/30 p-4 text-[12px] leading-6 text-zinc-200';
 
+const normalizeUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
+
+const getUrlOrigin = (value) => {
+    const normalized = normalizeUrl(value);
+    if (!normalized) return '';
+    try {
+        return new URL(normalized).origin;
+    } catch {
+        return normalized;
+    }
+};
+
+const isLocalOrigin = (value) => /localhost|127\.0\.0\.1/i.test(String(value || ''));
+
 const CopyButton = ({ value, label = 'Copiar', className = '' }) => {
     const [copied, setCopied] = useState(false);
 
@@ -148,51 +162,57 @@ const IntegrationsEditor = ({ manager }) => {
         () => JSON.stringify(lastSamplePayload || {}, null, 2),
         [lastSamplePayload]
     );
-    const expectedFrontendOrigin = 'https://proyecto-teflon-web.vercel.app';
-    const expectedBackendOrigin = 'https://proyecto-teflon.onrender.com';
-    const currentFrontendOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-    const configuredApiBase = getApiBase();
+    const currentFrontendOrigin = typeof window !== 'undefined' ? normalizeUrl(window.location.origin) : '';
+    const configuredApiBase = normalizeUrl(getApiBase());
     const manifestSyncUrl = manifest?.endpoints?.sync_products_url || '';
     const manifestPingUrl = manifest?.endpoints?.ping_url || '';
-    const renderEnvSnippet = useMemo(
+    const currentApiOrigin = getUrlOrigin(configuredApiBase);
+    const manifestSyncOrigin = getUrlOrigin(manifestSyncUrl);
+    const manifestPingOrigin = getUrlOrigin(manifestPingUrl);
+    const expectedServiceOrigin = currentApiOrigin || currentFrontendOrigin;
+    const expectedAdminUrl = currentFrontendOrigin ? `${currentFrontendOrigin}/admin/evolution` : '';
+    const backendEnvSnippet = useMemo(
         () => [
-            `PUBLIC_API_URL=${expectedBackendOrigin}`,
-            `INTEGRATIONS_PUBLIC_BASE_URL=${expectedBackendOrigin}`,
-            `CORS_ORIGIN=${expectedFrontendOrigin}`,
+            `PUBLIC_API_URL=${expectedServiceOrigin || 'https://editor.vase.ar'}`,
+            `INTEGRATIONS_PUBLIC_BASE_URL=${expectedServiceOrigin || 'https://editor.vase.ar'}`,
+            `PUBLIC_ADMIN_URL=${expectedAdminUrl || 'https://editor.vase.ar/admin/evolution'}`,
+            `CORS_ORIGIN=${currentFrontendOrigin || 'https://editor.vase.ar'}`,
         ].join('\n'),
-        []
+        [currentFrontendOrigin, expectedAdminUrl, expectedServiceOrigin]
     );
-    const vercelEnvSnippet = useMemo(
+    const frontendEnvSnippet = useMemo(
         () => [
-            `VITE_API_URL=${expectedBackendOrigin}`,
+            currentFrontendOrigin && expectedServiceOrigin === currentFrontendOrigin
+                ? '# VITE_API_URL no hace falta si frontend y API comparten el mismo host'
+                : `VITE_API_URL=${expectedServiceOrigin || 'https://editor.vase.ar'}`,
             `VITE_TENANT_ID=${manifest?.tenant_id || import.meta.env.VITE_TENANT_ID || '636736e2-e135-44cd-ac5c-5d4ccb839a73'}`,
         ].join('\n'),
-        [manifest]
+        [currentFrontendOrigin, expectedServiceOrigin, manifest]
     );
     const deploymentChecks = useMemo(
         () => [
             {
-                label: 'Frontend actual',
+                label: 'Panel actual',
                 value: currentFrontendOrigin,
-                ok: currentFrontendOrigin === expectedFrontendOrigin,
+                ok: Boolean(currentFrontendOrigin) && !isLocalOrigin(currentFrontendOrigin),
             },
             {
                 label: 'API configurada en frontend',
                 value: configuredApiBase,
-                ok: configuredApiBase === expectedBackendOrigin,
+                ok: Boolean(currentApiOrigin) && !isLocalOrigin(currentApiOrigin) && currentApiOrigin === currentFrontendOrigin,
             },
             {
                 label: 'Ping ERP publicado por backend',
                 value: manifestPingUrl,
-                ok: manifestPingUrl.startsWith(expectedBackendOrigin),
+                ok: Boolean(manifestPingOrigin) && !isLocalOrigin(manifestPingOrigin) && manifestPingOrigin === expectedServiceOrigin,
             },
             {
                 label: 'Sync ERP publicado por backend',
                 value: manifestSyncUrl,
-                ok: manifestSyncUrl.startsWith(expectedBackendOrigin),
+                ok: Boolean(manifestSyncOrigin) && !isLocalOrigin(manifestSyncOrigin) && manifestSyncOrigin === expectedServiceOrigin,
             },
         ],
-        [configuredApiBase, currentFrontendOrigin, manifestPingUrl, manifestSyncUrl]
+        [configuredApiBase, currentApiOrigin, currentFrontendOrigin, expectedServiceOrigin, manifestPingOrigin, manifestPingUrl, manifestSyncOrigin, manifestSyncUrl]
     );
     const hasDeploymentMismatch = deploymentChecks.some((check) => !check.ok);
     const powershellSnippet = useMemo(() => {
@@ -373,13 +393,13 @@ const IntegrationsEditor = ({ manager }) => {
 
                 {hasDeploymentMismatch ? (
                     <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-[12px] leading-6 text-rose-200">
-                        Hay una configuracion desalineada entre Vercel y Render. Si en alguna fila ves `localhost` o una URL distinta,
-                        las integraciones pueden fallar aunque el codigo este bien.
+                        Hay una configuracion desalineada entre el panel, la API o los endpoints publicados. Si en alguna fila ves `localhost`
+                        o un host distinto al servicio activo en EasyPanel, las integraciones pueden fallar aunque el codigo este bien.
                     </div>
                 ) : (
                     <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-[12px] leading-6 text-emerald-200">
-                        El panel esta apuntando a las URLs productivas correctas: Vercel para frontend, Render para backend e integraciones.
-                        La persistencia sigue en Supabase via `DATABASE_URL` del backend.
+                        El panel, la API y las URLs publicadas de integracion estan alineadas para el despliegue actual en VPS / EasyPanel.
+                        La verificacion ya no depende de una separacion artificial entre frontend y backend.
                     </div>
                 )}
 
@@ -397,18 +417,18 @@ const IntegrationsEditor = ({ manager }) => {
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                     <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Render env esperado</p>
-                            <CopyButton value={renderEnvSnippet} label="Copiar Render env" />
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Backend env esperado</p>
+                            <CopyButton value={backendEnvSnippet} label="Copiar backend env" />
                         </div>
-                        <pre className={preClass}>{renderEnvSnippet}</pre>
+                        <pre className={preClass}>{backendEnvSnippet}</pre>
                     </div>
 
                     <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Vercel env esperado</p>
-                            <CopyButton value={vercelEnvSnippet} label="Copiar Vercel env" />
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Frontend env sugerido</p>
+                            <CopyButton value={frontendEnvSnippet} label="Copiar frontend env" />
                         </div>
-                        <pre className={preClass}>{vercelEnvSnippet}</pre>
+                        <pre className={preClass}>{frontendEnvSnippet}</pre>
                     </div>
                 </div>
             </div>

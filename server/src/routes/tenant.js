@@ -232,7 +232,7 @@ async function inspectDomainConnection(domain, config) {
     return {
       status: 'active',
       label: 'Activo',
-      message: 'El DNS ya apunta a la plataforma. Falta solo que Vercel termine de emitir SSL si todavia no aparece en vivo.',
+      message: 'El DNS ya apunta a la plataforma. Falta solo que termine de propagarse el certificado SSL si todavia no aparece en vivo.',
       last_checked_at: checkedAt,
       observed_records: {
         a: aRecords,
