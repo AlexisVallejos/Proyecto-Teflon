@@ -9,6 +9,13 @@ import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPr
 import { getTenantOffers } from '../services/offers.js';
 import { buildTenantIntegrationManifest, resolveServerBaseUrl } from '../services/integrationManifest.js';
 import { applyPriceTierLabels, normalizePriceTierLabels } from '../services/priceTierLabels.js';
+import {
+  buildTenantDomainsPayload as buildTenantDomainsPayloadService,
+  normalizeDomainInput as normalizeDomainInputService,
+  normalizeSubdomainLabel as normalizeSubdomainLabelService,
+  removeTenantDomain as removeTenantDomainService,
+  upsertTenantDomain as upsertTenantDomainService,
+} from '../services/tenantDomains.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -648,7 +655,7 @@ tenantRouter.get('/domains', async (req, res, next) => {
   if (!tenantId) return;
 
   try {
-    return res.json(await buildTenantDomainsPayload(pool, tenantId));
+    return res.json(await buildTenantDomainsPayloadService(pool, tenantId, { ensurePlatformDomain: true }));
   } catch (err) {
     return next(err);
   }
@@ -664,7 +671,7 @@ tenantRouter.post('/domains', async (req, res, next) => {
       return res.status(400).json({ error: 'domain_required' });
     }
 
-    const payload = await upsertTenantDomain(pool, tenantId, domain, {
+    const payload = await upsertTenantDomainService(pool, tenantId, domain, {
       isPrimary: parseBooleanInput(req.body?.is_primary, true),
     });
 
@@ -687,13 +694,13 @@ tenantRouter.post('/domains/platform', async (req, res, next) => {
   }
 
   try {
-    const subdomain = normalizeSubdomainLabel(req.body?.subdomain || '');
+    const subdomain = normalizeSubdomainLabelService(req.body?.subdomain || '');
     if (!subdomain) {
       return res.status(400).json({ error: 'subdomain_required' });
     }
 
     const fullDomain = `${subdomain}.${platformBaseDomain}`;
-    const payload = await upsertTenantDomain(pool, tenantId, fullDomain, {
+    const payload = await upsertTenantDomainService(pool, tenantId, fullDomain, {
       isPrimary: parseBooleanInput(req.body?.is_primary, true),
     });
 
@@ -711,8 +718,8 @@ tenantRouter.post('/domains/check', async (req, res, next) => {
   if (!tenantId) return;
 
   try {
-    const payload = await buildTenantDomainsPayload(pool, tenantId);
-    const requestedDomain = normalizeDomainInput(req.body?.domain || '');
+    const payload = await buildTenantDomainsPayloadService(pool, tenantId, { ensurePlatformDomain: true });
+    const requestedDomain = normalizeDomainInputService(req.body?.domain || '');
     if (!requestedDomain) {
       return res.json(payload);
     }
@@ -732,7 +739,7 @@ tenantRouter.patch('/domains/:domain/primary', async (req, res, next) => {
   if (!tenantId) return;
 
   try {
-    const payload = await upsertTenantDomain(pool, tenantId, decodeURIComponent(req.params.domain || ''), {
+    const payload = await upsertTenantDomainService(pool, tenantId, decodeURIComponent(req.params.domain || ''), {
       isPrimary: true,
     });
     return res.json(payload);
@@ -749,7 +756,9 @@ tenantRouter.delete('/domains/:domain', async (req, res, next) => {
   if (!tenantId) return;
 
   try {
-    const payload = await removeTenantDomain(pool, tenantId, decodeURIComponent(req.params.domain || ''));
+    const payload = await removeTenantDomainService(pool, tenantId, decodeURIComponent(req.params.domain || ''), {
+      ensurePlatformDomain: true,
+    });
     return res.json(payload);
   } catch (err) {
     if (err?.status && err?.code) {

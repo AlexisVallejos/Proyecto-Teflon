@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { signToken } from '../middleware/auth.js';
 import { normalizeDisplayName, normalizeEmailInput } from './mailer.js';
+import { ensureTenantPlatformDomain } from './tenantDomains.js';
 
 const EXTERNAL_SOURCE = 'vase';
 const BRIDGE_ISSUER = process.env.VASE_BUSINESS_SSO_ISSUER || 'vase-app';
@@ -297,6 +298,11 @@ export async function exchangeVaseLaunchToken(rawToken) {
 
     const tenant = await upsertTenant(client, payload);
     await ensureTenantSettings(client, tenant.id, tenant.name);
+    await ensureTenantPlatformDomain(client, tenant.id, {
+      preferredSubdomain: payload.externalTenantSlug || '',
+      preferredLabels: [payload.displayName || '', payload.tenantName || ''],
+      email: payload.email || '',
+    });
 
     const user = await upsertUser(client, payload);
     await ensureMembership(client, user.id, tenant.id);

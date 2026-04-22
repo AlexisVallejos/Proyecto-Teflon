@@ -94,6 +94,9 @@ JWT_SECRET=CAMBIAR_ESTE_SECRETO
 BOOTSTRAP_TOKEN=CAMBIAR_ESTE_TOKEN
 DATABASE_URL=postgresql://USUARIO:PASSWORD@HOST:5432/DBNAME
 VITE_EDITOR_HOST=editor.vase.ar
+PLATFORM_BASE_DOMAIN=vase.ar
+PLATFORM_CNAME_TARGET=editor.vase.ar
+PLATFORM_APEX_IP=76.13.231.188
 ```
 
 Puntos importantes:
@@ -115,6 +118,9 @@ BOOTSTRAP_TOKEN=CAMBIAR_ESTE_TOKEN
 DATABASE_URL=postgresql://USUARIO:PASSWORD@HOST:5432/DBNAME
 VITE_EDITOR_HOST=editor.vase.ar
 VASE_BUSINESS_SSO_SECRET=vase091218
+PLATFORM_BASE_DOMAIN=vase.ar
+PLATFORM_CNAME_TARGET=editor.vase.ar
+PLATFORM_APEX_IP=76.13.231.188
 VITE_EXTERNAL_AUTH=true
 VITE_VASE_APP_URL=https://vase.ar
 VITE_VASE_APP_LAUNCH_URL=https://vase.ar/app/business/launch
@@ -125,6 +131,8 @@ VITE_VASE_APP_SIGNUP_URL=https://vase.ar/register
 Importante:
 
 - `VASE_BUSINESS_SSO_SECRET` debe existir con el mismo valor en `vase-app` y `vase-business`. Valor definido: `vase091218`.
+- `PLATFORM_BASE_DOMAIN=vase.ar` habilita que cada tenant sin dominio propio reciba automaticamente un subdominio tipo `negocio.vase.ar`.
+- `PLATFORM_CNAME_TARGET=editor.vase.ar` y `PLATFORM_APEX_IP=76.13.231.188` dejan preparado el panel para guiar la conexion de dominios propios hacia el mismo servicio.
 - `VITE_VASE_APP_LAUNCH_URL` hace que el login del editor vaya directo al launcher de Business en `vase.ar`.
 - `vase-app` firma un token corto y redirige a `editor.vase.ar/admin/evolution?vase_token=...`.
 - `vase-business` consume ese `vase_token`, hace exchange y deja creada la sesion local del editor.

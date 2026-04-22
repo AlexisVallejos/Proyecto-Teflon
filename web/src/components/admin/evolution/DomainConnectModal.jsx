@@ -73,9 +73,14 @@ const normalizeDomainInput = (value) =>
 
 const safePublicUrl = (domain) => {
     const value = normalizeDomainInput(domain);
-    if (!value || value === 'sin dominio principal') return null;
+    if (!value || value === 'sin url principal') return null;
     return `https://${value}`;
 };
+
+const getPlatformSubdomainValue = (payload) =>
+    String(payload?.platform?.assigned_subdomain || payload?.platform?.suggested_subdomain || '')
+        .trim()
+        .toLowerCase();
 
 const resolveDomainErrorMessage = (errorCode, domainValue) => {
     const domain = String(domainValue || '').trim();
@@ -85,7 +90,7 @@ const resolveDomainErrorMessage = (errorCode, domainValue) => {
         case 'invalid_domain':
             return domain ? `El dominio ${domain} no tiene un formato valido.` : 'El dominio ingresado no tiene un formato valido.';
         case 'domain_in_use':
-            return domain ? `El dominio ${domain} ya esta vinculado a otra tienda.` : 'Ese dominio ya esta vinculado a otra tienda.';
+            return domain ? `El dominio ${domain} ya esta vinculado a otro negocio.` : 'Ese dominio ya esta vinculado a otro negocio.';
         default:
             return 'No se pudo conectar el dominio.';
     }
@@ -98,7 +103,7 @@ const resolvePlatformErrorMessage = (errorCode) => {
         case 'subdomain_required':
             return 'Ingresa un subdominio para reservar.';
         case 'domain_in_use':
-            return 'Ese subdominio ya esta reservado en otra tienda.';
+            return 'Ese subdominio ya esta reservado por otro negocio.';
         default:
             return 'No se pudo reservar el subdominio.';
     }
@@ -117,8 +122,8 @@ const inferDraftDnsPlan = (domain, platform) => {
     const normalized = normalizeDomainInput(domain);
     if (!normalized) return null;
     const platformBase = String(platform?.base_domain || '').trim().toLowerCase();
-    const cnameTarget = String(platform?.cname_target || 'cname.vercel-dns.com').trim();
-    const apexIp = String(platform?.apex_ip || '76.76.21.21').trim();
+    const cnameTarget = String(platform?.cname_target || 'tu-host-de-publicacion').trim();
+    const apexIp = String(platform?.apex_ip || 'tu-ip-publica').trim();
     const labels = normalized.split('.');
     const isPlatform = platformBase && normalized.endsWith(`.${platformBase}`);
     const mode = isPlatform ? 'platform' : labels.length > 2 ? 'subdomain' : 'apex';
@@ -217,9 +222,7 @@ const DomainConnectModal = ({ open, onClose }) => {
             const payload = await readResponsePayload(res);
             if (!res.ok) throw new Error(payload?.error || 'tenant_domains_load_failed');
             setDomainState(payload);
-            if (!platformSubdomain) {
-                setPlatformSubdomain(payload?.platform?.suggested_subdomain || '');
-            }
+            setPlatformSubdomain((current) => current || getPlatformSubdomainValue(payload));
             return payload;
         } catch (err) {
             console.error('Failed to load tenant domains', err);
@@ -228,7 +231,7 @@ const DomainConnectModal = ({ open, onClose }) => {
         } finally {
             setLoading(false);
         }
-    }, [addToast, platformSubdomain]);
+    }, [addToast]);
 
     useEffect(() => {
         if (!open) return;
@@ -260,6 +263,7 @@ const DomainConnectModal = ({ open, onClose }) => {
             const payload = await readResponsePayload(res);
             if (!res.ok) throw new Error(payload?.error || 'tenant_domain_connect_failed');
             setDomainState(payload);
+            setPlatformSubdomain((current) => current || getPlatformSubdomainValue(payload));
             setCustomDomain('');
             addToast('Dominio conectado. Ahora publica los DNS y verifica el estado.', 'success');
         } catch (err) {
@@ -286,7 +290,8 @@ const DomainConnectModal = ({ open, onClose }) => {
             const payload = await readResponsePayload(res);
             if (!res.ok) throw new Error(payload?.error || 'tenant_platform_domain_connect_failed');
             setDomainState(payload);
-            addToast('Subdominio reservado y listo para publicar', 'success');
+            setPlatformSubdomain(getPlatformSubdomainValue(payload));
+            addToast('Link de plataforma guardado y listo para publicar', 'success');
         } catch (err) {
             console.error('Failed to reserve platform subdomain', err);
             addToast(resolvePlatformErrorMessage(err?.message), 'error');
@@ -306,6 +311,7 @@ const DomainConnectModal = ({ open, onClose }) => {
             const payload = await readResponsePayload(res);
             if (!res.ok) throw new Error(payload?.error || 'tenant_domains_check_failed');
             setDomainState(payload);
+            setPlatformSubdomain((current) => current || getPlatformSubdomainValue(payload));
             addToast(domain ? `Estado actualizado para ${domain}` : 'Estado de dominios actualizado', 'success');
         } catch (err) {
             console.error('Failed to verify domain state', err);
@@ -323,6 +329,7 @@ const DomainConnectModal = ({ open, onClose }) => {
             const payload = await readResponsePayload(res);
             if (!res.ok) throw new Error(payload?.error || 'tenant_domain_primary_failed');
             setDomainState(payload);
+            setPlatformSubdomain((current) => current || getPlatformSubdomainValue(payload));
             addToast('Dominio principal actualizado', 'success');
         } catch (err) {
             console.error('Failed to set primary domain', err);
@@ -340,6 +347,7 @@ const DomainConnectModal = ({ open, onClose }) => {
             const payload = await readResponsePayload(res);
             if (!res.ok) throw new Error(payload?.error || 'tenant_domain_delete_failed');
             setDomainState(payload);
+            setPlatformSubdomain(getPlatformSubdomainValue(payload));
             addToast('Dominio eliminado', 'success');
         } catch (err) {
             console.error('Failed to remove tenant domain', err);
@@ -360,11 +368,13 @@ const DomainConnectModal = ({ open, onClose }) => {
 
     const connectedDomains = Array.isArray(domainState?.domains) ? domainState.domains : [];
     const summary = domainState?.summary || { connected: connectedDomains.length, active: 0, attention: 0, pending: 0 };
-    const currentPrimary = domainState?.primary_domain || 'Sin dominio principal';
+    const currentPrimary = domainState?.primary_domain || 'Sin URL principal';
     const platform = domainState?.platform || {};
     const currentStoreUrl = safePublicUrl(currentPrimary);
+    const assignedPlatformUrl = safePublicUrl(platform?.assigned_domain);
     const draftDomainPlan = useMemo(() => inferDraftDnsPlan(customDomain, platform), [customDomain, platform]);
-    const platformPreview = platform?.base_domain && platformSubdomain ? `${platformSubdomain}.${platform.base_domain}` : '';
+    const platformPreviewDomain = platform?.base_domain && platformSubdomain ? `${platformSubdomain}.${platform.base_domain}` : (platform?.assigned_domain || platform?.suggested_domain || '');
+    const platformPreview = safePublicUrl(platformPreviewDomain) || platformPreviewDomain || '';
 
     if (!open) return null;
 
@@ -375,8 +385,8 @@ const DomainConnectModal = ({ open, onClose }) => {
                     <div className="flex items-center gap-3">
                         <div className="admin-accent-surface flex h-10 w-10 items-center justify-center rounded-2xl border"><Globe size={18} weight="bold" /></div>
                         <div className="space-y-0.5">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">Centro de dominio</p>
-                            <h2 className="text-lg font-semibold tracking-tight admin-text-primary">Dominio propio o dominio de plataforma</h2>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">Publicacion y dominios</p>
+                            <h2 className="text-lg font-semibold tracking-tight admin-text-primary">Dominio propio o subdominio de plataforma</h2>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -389,11 +399,11 @@ const DomainConnectModal = ({ open, onClose }) => {
                     <section className="admin-panel-surface flex min-h-0 flex-col overflow-hidden rounded-3xl border" style={panelStyle}>
                         <div className="admin-header-surface flex items-center justify-between border-b px-4 py-3" style={headerStyle}>
                             <div className="space-y-0.5"><p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">Estado actual</p><h3 className="text-sm font-semibold admin-text-primary">Inventario y verificacion de hosts</h3></div>
-                            {currentStoreUrl ? <Chip label="Storefront publicado" tone="success" /> : <Chip label="Sin dominio principal" tone="warning" />}
+                            {currentStoreUrl ? <Chip label="Sitio publicado" tone="success" /> : <Chip label="Sin URL principal" tone="warning" />}
                         </div>
 
                         <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
-                            <Card eyebrow="Resumen" title="Como funciona" description="Conecta un dominio propio o reserva uno de la plataforma. Publicas DNS y verificas desde el mismo panel, igual que en Wix pero adaptado a Vercel + Render.">
+                            <Card eyebrow="Resumen" title="Como funciona" description="Conecta un dominio propio o usa el link automatico de la plataforma. Publicas DNS y verificas el estado desde el mismo panel.">
                                 <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
                                     <Stat icon={<HouseLine size={18} weight="bold" />} label="Conectados" value={String(summary.connected || 0)} helper="Hosts asociados al tenant." tone="info" />
                                     <Stat icon={<ShieldCheck size={18} weight="bold" />} label="Activos" value={String(summary.active || 0)} helper="Listos para recibir trafico." tone="success" />
@@ -402,14 +412,14 @@ const DomainConnectModal = ({ open, onClose }) => {
                                 </div>
                                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                                     <div className="rounded-2xl border p-5" style={surfaceStyle}>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Storefront publico</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Sitio publico</p>
                                         {currentStoreUrl ? <a href={currentStoreUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm font-semibold transition hover:opacity-80" style={whiteTextPrimary}>{currentStoreUrl}</a> : <p className="mt-2 text-sm font-semibold" style={whiteTextPrimary}>Todavia sin URL publica</p>}
-                                        <p className="mt-3 text-sm leading-relaxed" style={whiteTextMuted}>Cuando el DNS apunte a Vercel y el estado salga activo, esta sera la URL publica de la tienda.</p>
+                                        <p className="mt-3 text-sm leading-relaxed" style={whiteTextMuted}>Cuando el dominio activo apunte a la plataforma y el estado salga listo, esta sera la URL publica del sitio.</p>
                                     </div>
                                     <div className="rounded-2xl border p-5" style={surfaceStyle}>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Admin actual</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Panel editor</p>
                                         <p className="mt-2 break-all text-sm font-semibold" style={whiteTextPrimary}>{typeof window !== 'undefined' ? window.location.origin : 'Sin origin'}</p>
-                                        <p className="mt-3 text-xs leading-relaxed text-zinc-500">El admin sigue viviendo en Vercel. El dominio conectado solo afecta la tienda publica.</p>
+                                        <p className="mt-3 text-xs leading-relaxed text-zinc-500">El panel de administracion sigue viviendo en este host. Los dominios conectados solo afectan el sitio publico.</p>
                                     </div>
                                 </div>
                             </Card>
@@ -445,7 +455,7 @@ const DomainConnectModal = ({ open, onClose }) => {
                                                 </div>
                                             </div>
                                         );
-                                    }) : <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border px-5 py-10 text-center" style={surfaceStyle}><Globe size={28} weight="bold" style={whiteTextLabel} /><p className="text-base font-semibold" style={whiteTextPrimary}>Todavia no hay dominios conectados</p><p className="max-w-xl text-sm leading-relaxed" style={whiteTextMuted}>Puedes conectar un dominio que ya tengas o reservar un subdominio de la plataforma, igual que en Wix.</p></div>}
+                                    }) : <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border px-5 py-10 text-center" style={surfaceStyle}><Globe size={28} weight="bold" style={whiteTextLabel} /><p className="text-base font-semibold" style={whiteTextPrimary}>Todavia no hay dominios conectados</p><p className="max-w-xl text-sm leading-relaxed" style={whiteTextMuted}>Puedes conectar un dominio que ya tengas o usar el subdominio de plataforma que se asigna automaticamente.</p></div>}
                                 </div>
                             </Card>
                         </div>
@@ -453,11 +463,11 @@ const DomainConnectModal = ({ open, onClose }) => {
 
                     <section className="admin-panel-surface flex min-h-0 flex-col overflow-hidden rounded-3xl border" style={panelStyle}>
                         <div className="admin-header-surface flex items-center justify-between border-b px-4 py-3" style={headerStyle}>
-                            <div className="space-y-0.5"><p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">Conexion</p><h3 className="text-sm font-semibold admin-text-primary">Conecta como Wix, adaptado a Teflon</h3></div>
-                            <Chip label="Vercel + Render" tone="info" />
+                            <div className="space-y-0.5"><p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">Publicacion</p><h3 className="text-sm font-semibold admin-text-primary">Dominios y link publicado</h3></div>
+                            <Chip label={platform?.base_domain || 'Plataforma'} tone="info" />
                         </div>
                         <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
-                            <Card eyebrow="Opcion 1" title="Conectar un dominio que ya tienes" description="Escribe el dominio del cliente. El panel te dice exactamente que DNS publicar y despues verifica si ya quedo apuntando a Vercel.">
+                            <Card eyebrow="Opcion 1" title="Conectar un dominio que ya tienes" description="Escribe el dominio del negocio. El panel te dice exactamente que DNS publicar y despues verifica si ya quedo apuntando a la plataforma.">
                                 <div className="space-y-3">
                                     <div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Dominio del cliente</label><input className={inputClass} style={fieldStyle} placeholder="alessitech.space o www.alessitech.space" value={customDomain} onChange={(event) => setCustomDomain(event.target.value)} /></div>
                                     {draftDomainPlan ? <div className="space-y-3 rounded-2xl border p-5" style={surfaceStyle}><div className="flex flex-wrap items-center gap-2"><Chip label={draftDomainPlan.mode === 'apex' ? 'Dominio raiz' : draftDomainPlan.mode === 'subdomain' ? 'Subdominio' : 'Plataforma'} tone="info" /><Chip label={draftDomainPlan.connection_type === 'custom' ? 'Dominio propio' : 'Plataforma'} /></div><p className="text-sm leading-relaxed" style={whiteTextPrimary}>{draftDomainPlan.dns_hint}</p>{draftDomainPlan.required_records?.length ? <div className="space-y-2">{draftDomainPlan.required_records.map((record) => <RecordRow key={`draft-${record.type}-${record.host}-${record.value}`} record={record} onCopy={(value) => copyText(value, 'Registro DNS copiado')} />)}</div> : null}</div> : <div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-sm" style={whiteTextPrimary}>Escribe el dominio para ver la configuracion DNS recomendada.</p></div>}
@@ -465,18 +475,18 @@ const DomainConnectModal = ({ open, onClose }) => {
                                 </div>
                             </Card>
 
-                            <Card eyebrow="Opcion 2" title="Usar un dominio de la plataforma" description="Si el cliente todavia no compro un dominio, puedes dejarlo publicado con un subdominio propio de la plataforma, igual que Wix.">
+                            <Card eyebrow="Opcion 2" title="Usar el link de la plataforma" description="Si el negocio todavia no tiene dominio propio, puedes publicarlo con un subdominio bajo la base de la plataforma.">
                                 <div className="space-y-3">
-                                    {platform?.enabled ? <><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Base de plataforma</p><p className="mt-2 text-sm font-semibold" style={whiteTextPrimary}>{platform.base_domain}</p><p className="mt-2 text-xs leading-relaxed text-zinc-500">El subdominio se publica sin DNS manual porque ya pertenece al dominio gestionado por la plataforma.</p></div><div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Subdominio</label><input className={inputClass} style={fieldStyle} placeholder={platform?.suggested_subdomain || 'mi-tienda'} value={platformSubdomain} onChange={(event) => setPlatformSubdomain(event.target.value)} /></div><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Vista previa</p><p className="mt-2 break-all text-sm font-semibold" style={whiteTextPrimary}>{platformPreview || 'Escribe un subdominio para ver la URL'}</p></div><button type="button" onClick={submitPlatformDomain} disabled={saving} className={cn(ghostButtonClass, 'w-full')} style={headerStyle}><Link size={16} weight="bold" />{saving ? 'Reservando subdominio...' : 'Reservar subdominio de plataforma'}</button></> : <div className="rounded-2xl border p-4" style={chipToneMap.warning}><div className="flex items-start gap-3"><WarningCircle size={18} weight="bold" className="mt-0.5" /><div className="space-y-1"><p className="text-sm font-semibold">Falta configurar la base de dominios de la plataforma</p><p className="text-xs leading-relaxed">Define `PLATFORM_BASE_DOMAIN` en Render para habilitar el modo de subdominio gestionado.</p></div></div></div>}
+                                    {platform?.enabled ? <><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Base de plataforma</p><p className="mt-2 text-sm font-semibold" style={whiteTextPrimary}>{platform.base_domain}</p><p className="mt-2 text-xs leading-relaxed text-zinc-500">Cualquier negocio sin dominio propio puede publicarse bajo esta base sin DNS manual.</p></div>{assignedPlatformUrl ? <div className="rounded-2xl border p-5" style={surfaceStyle}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Link Vase asignado</p><a href={assignedPlatformUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm font-semibold transition hover:opacity-80" style={whiteTextPrimary}>{assignedPlatformUrl}</a></div><button type="button" onClick={() => copyText(assignedPlatformUrl, 'Link publicado copiado')} className={ghostButtonClass} style={headerStyle}><Copy size={14} weight="bold" />Copiar</button></div><p className="mt-3 text-xs leading-relaxed text-zinc-500">Este link queda disponible aunque el negocio todavia no conecte un dominio propio.</p></div> : null}<div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Subdominio Vase</label><input className={inputClass} style={fieldStyle} placeholder={platform?.assigned_subdomain || platform?.suggested_subdomain || 'mi-sitio'} value={platformSubdomain} onChange={(event) => setPlatformSubdomain(event.target.value)} /></div><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Vista previa</p><p className="mt-2 break-all text-sm font-semibold" style={whiteTextPrimary}>{platformPreview || 'Escribe un subdominio para ver la URL'}</p></div><button type="button" onClick={submitPlatformDomain} disabled={saving} className={cn(ghostButtonClass, 'w-full')} style={headerStyle}><Link size={16} weight="bold" />{saving ? 'Guardando link...' : (platform?.assigned_domain ? 'Guardar subdominio Vase' : 'Generar link de plataforma')}</button></> : <div className="rounded-2xl border p-4" style={chipToneMap.warning}><div className="flex items-start gap-3"><WarningCircle size={18} weight="bold" className="mt-0.5" /><div className="space-y-1"><p className="text-sm font-semibold">Falta configurar la base de dominios de la plataforma</p><p className="text-xs leading-relaxed">Define `PLATFORM_BASE_DOMAIN` en la configuracion del servicio para habilitar subdominios automaticos.</p></div></div></div>}
                                 </div>
                             </Card>
 
                             <Card eyebrow="Checklist" title="Salida en vivo" description="Orden recomendado para dejar un dominio operativo en esta arquitectura.">
                                 <div className="space-y-3">
-                                    <Step step="1" title="Elegir modo" description="Decide si el cliente entra con un dominio propio o con un subdominio de la plataforma." />
-                                    <Step step="2" title="Publicar DNS" description={`Para dominio propio, publica los registros esperados hacia ${platform?.cname_target || 'cname.vercel-dns.com'} y ${platform?.apex_ip || '76.76.21.21'}.`} />
-                                    <Step step="3" title="Verificar estado" description="Usa el boton Verificar para confirmar si ya resolvio DNS y la tienda esta lista." />
-                                    <Step step="4" title="Marcar principal" description="Cuando tengas mas de un host, deja uno como principal para definir la URL publica del storefront." />
+                                    <Step step="1" title="Elegir modo" description="Decide si el negocio sale con dominio propio o con el subdominio de plataforma." />
+                                    <Step step="2" title="Publicar DNS" description={`Para dominio propio, publica los registros esperados hacia ${platform?.cname_target || 'tu-host-de-publicacion'} y ${platform?.apex_ip || 'tu-ip-publica'}.`} />
+                                    <Step step="3" title="Verificar estado" description="Usa el boton Verificar para confirmar si ya resolvio DNS y el sitio esta listo." />
+                                    <Step step="4" title="Marcar principal" description="Cuando tengas mas de un host, deja uno como principal para definir la URL publica del sitio." />
                                 </div>
                             </Card>
                         </div>

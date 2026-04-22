@@ -1,6 +1,7 @@
 import express from 'express';
 import { pool } from '../db.js';
 import { requireRole } from '../middleware/auth.js';
+import { ensureTenantPlatformDomain } from '../services/tenantDomains.js';
 
 export const adminRouter = express.Router();
 
@@ -52,6 +53,8 @@ adminRouter.post('/tenants', async (req, res, next) => {
           [tenant.id, domain, true]
         );
       }
+
+      await ensureTenantPlatformDomain(client, tenant.id);
 
       await client.query('COMMIT');
       return res.status(201).json({ tenant });
