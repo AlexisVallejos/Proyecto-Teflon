@@ -30,6 +30,7 @@ WORKDIR /app/server
 COPY server/package*.json ./
 RUN npm ci --omit=dev
 COPY server/ ./
+COPY db/ /app/db/
 COPY --from=web-build /app/web/dist /app/web/dist
 
 EXPOSE 3000

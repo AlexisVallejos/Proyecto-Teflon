@@ -4,6 +4,7 @@ import http from 'http';
 
 import { pool } from './db.js';
 import app from './app.js';
+import { ensureBaseSchema } from './services/bootstrapSchema.js';
 import { ensurePricingSchema } from './services/userPricing.js';
 import { ensureProductSyncSchema } from './services/integration.service.js';
 
@@ -76,12 +77,14 @@ console.log(`Checking DB connection to: ${dbHost}`);
 async function bootstrapDb() {
   try {
     await pool.query('SELECT 1');
+    await ensureBaseSchema();
     await runStartupMigrations();
     console.log('DB Connection OK');
     await ensurePricingSchema();
     console.log('Pricing schema ready');
   } catch (err) {
     console.error('DB bootstrap warning:', err?.message || err);
+    throw err;
   }
 }
 
