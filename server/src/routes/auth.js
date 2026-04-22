@@ -9,6 +9,7 @@ import {
   normalizeEmailInput,
   sendSmtpEmail,
 } from '../services/mailer.js';
+import { exchangeVaseLaunchToken } from '../services/vaseBridge.js';
 
 export const authRouter = express.Router();
 const VERIFICATION_CODE_TTL_MINUTES = Math.max(5, Number(process.env.EMAIL_VERIFICATION_TTL_MINUTES || 15));
@@ -320,6 +321,24 @@ authRouter.post('/login', async (req, res, next) => {
       user: { id: user.id, email: user.email, role, status, tenant_id: tenantId },
     });
   } catch (err) {
+    return next(err);
+  }
+});
+
+authRouter.post('/exchange-vase', async (req, res, next) => {
+  try {
+    const result = await exchangeVaseLaunchToken(req.body?.token);
+    return res.json(result);
+  } catch (err) {
+    if (err?.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'launch_token_expired' });
+    }
+    if (err?.name === 'JsonWebTokenError' || err?.name === 'NotBeforeError') {
+      return res.status(401).json({ error: 'invalid_launch_token' });
+    }
+    if (err?.status) {
+      return res.status(err.status).json({ error: err.code || err.message || 'launch_exchange_failed' });
+    }
     return next(err);
   }
 });

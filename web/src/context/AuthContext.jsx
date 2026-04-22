@@ -14,6 +14,39 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('teflon_user');
     };
 
+    const replaceBrowserUrl = (nextUrl) => {
+        if (typeof window === 'undefined') return;
+        window.history.replaceState({}, document.title, nextUrl);
+    };
+
+    const removeLaunchTokenFromUrl = () => {
+        if (typeof window === 'undefined') return;
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has('vase_token')) return;
+        url.searchParams.delete('vase_token');
+        replaceBrowserUrl(`${url.pathname}${url.search}${url.hash}`);
+    };
+
+    const dispatchTenantRefresh = () => {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(new Event('tenant-settings-updated'));
+    };
+
+    const exchangeVaseSession = async (launchToken) => {
+        const response = await fetch(`${getApiBase()}/auth/exchange-vase`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: launchToken }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => null);
+            throw new Error(error?.error || `exchange_vase_${response.status}`);
+        }
+
+        return response.json();
+    };
+
     const isTokenExpired = (token) => {
         try {
             const payloadPart = token.split('.')[1];
@@ -33,6 +66,35 @@ export const AuthProvider = ({ children }) => {
         let active = true;
 
         const bootstrapSession = async () => {
+            const launchToken =
+                typeof window !== 'undefined'
+                    ? new URL(window.location.href).searchParams.get('vase_token')
+                    : null;
+
+            if (launchToken) {
+                try {
+                    const data = await exchangeVaseSession(launchToken);
+                    if (!active) return;
+                    setUser(data.user || null);
+                    localStorage.setItem('teflon_token', data.token);
+                    localStorage.setItem('teflon_user', JSON.stringify(data.user || null));
+                    removeLaunchTokenFromUrl();
+                    dispatchTenantRefresh();
+                    setLoading(false);
+                    return;
+                } catch (err) {
+                    if (!active) return;
+                    clearSession();
+                    removeLaunchTokenFromUrl();
+                    sessionStorage.setItem(
+                        'teflon_auth_notice',
+                        'No pudimos validar el acceso desde Vase. Intenta nuevamente.'
+                    );
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const storedUser = localStorage.getItem('teflon_user');
             const token = localStorage.getItem('teflon_token');
             if (!storedUser || !token || token === 'null' || token === 'undefined') {

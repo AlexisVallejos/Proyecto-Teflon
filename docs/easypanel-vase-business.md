@@ -9,13 +9,15 @@ Esta guia deja claro que este repo ya puede desplegarse como un solo servicio we
 - El frontend usa mismo origen por defecto, asi que no hace falta separar `web` y `server` en V1.
 - La API de admin general se movio de `/admin` a `/api/platform/admin` para no chocar con la SPA del editor.
 - En `editor.vase.ar`, entrar a `/` redirige al panel en `/admin/evolution`.
-- Login y registro del frontend ya se pueden delegar por configuracion a `vase.ar`, pero eso no reemplaza todavia una integracion real de sesion.
+- Existe bridge de auth entre `vase-app` y `vase-business` via token firmado de corta duracion.
+- Cuando el usuario llega desde `Vase`, `vase-business` hace exchange del token y crea o reutiliza shadow records locales para usuario, tenant y membership.
 
 ## Limites actuales que no hay que esconder
 
 - El backend sigue usando PostgreSQL (`pg`, schema SQL y queries Postgres). No esta listo para conectarse a `vase-db` MySQL.
 - Si hoy apuntas este servicio a `vase-db`, el deploy puede levantar, pero las rutas que pegan a la DB van a fallar.
-- Auth compartida completa con `vase-app` todavia no existe en backend. El frontend ya puede redirigir a `vase.ar`, pero `vase-business` aun no consume una sesion emitida por `vase-app`.
+- El bridge de auth ahora existe, pero depende de configurar la misma variable `VASE_BUSINESS_SSO_SECRET` en `vase-app` y `vase-business`.
+- El bridge actual no elimina todavia la dependencia de Postgres local: `vase-business` sigue necesitando su propia base para los shadow records y el modelo operativo actual.
 - El servicio guarda uploads en disco local (`/app/server/uploads`), asi que en EasyPanel necesitas un mount persistente y una sola replica por ahora.
 
 ## Decision operativa recomendada
@@ -25,7 +27,7 @@ Hay dos caminos y no conviene mezclarlos:
 1. Validacion tecnica de `vase-business` en EasyPanel ahora:
    usar este repo como servicio unico, con dominio `editor.vase.ar`, y si necesitas probarlo end to end hacerlo contra una base PostgreSQL temporal.
 2. Paso a arquitectura Vase final:
-   primero portar base de datos a MySQL y definir el bridge de auth con `vase-app`; despues recien conectar este servicio a `vase-db` y activar auth externa obligatoria.
+   primero portar base de datos a MySQL y despues recien conectar este servicio a `vase-db` sin shadow storage local.
 
 Si tu objetivo inmediato es dejar `vase-business` desplegado y verificable en EasyPanel, hace el camino 1.
 
@@ -100,9 +102,9 @@ Puntos importantes:
 - `CORS_ORIGIN` puedes dejarlo vacio mientras frontend y backend vivan en el mismo host.
 - Esta opcion requiere una base PostgreSQL funcional. Si no tienes una, crea una temporal solo para validar este servicio.
 
-#### Opcion B: dejar el frontend apuntando a auth de `vase-app`
+#### Opcion B: activar el bridge real con `vase-app`
 
-Usa esto solo cuando `vase-app` ya pueda devolverte una sesion/token que `vase-business` entienda.
+Usa esto cuando `vase-app` y `vase-business` ya compartan el secreto del bridge.
 
 ```env
 NODE_ENV=production
@@ -112,18 +114,30 @@ JWT_SECRET=CAMBIAR_ESTE_SECRETO
 BOOTSTRAP_TOKEN=CAMBIAR_ESTE_TOKEN
 DATABASE_URL=postgresql://USUARIO:PASSWORD@HOST:5432/DBNAME
 VITE_EDITOR_HOST=editor.vase.ar
+VASE_BUSINESS_SSO_SECRET=vase091218
 VITE_EXTERNAL_AUTH=true
 VITE_VASE_APP_URL=https://vase.ar
-VITE_VASE_APP_LOGIN_URL=https://vase.ar/login
+VITE_VASE_APP_LAUNCH_URL=https://vase.ar/app/business/launch
+VITE_VASE_APP_LOGIN_URL=https://vase.ar/signin
 VITE_VASE_APP_SIGNUP_URL=https://vase.ar/register
-VITE_VASE_APP_REDIRECT_PARAM=redirect
-VITE_VASE_APP_REDIRECT_URL=https://editor.vase.ar/admin/evolution
 ```
 
 Importante:
 
-- Estas variables solo cambian el frontend de login/registro para enviar al usuario a `vase.ar`.
-- No resuelven por si solas el intercambio de sesion con `vase-business`.
+- `VASE_BUSINESS_SSO_SECRET` debe existir con el mismo valor en `vase-app` y `vase-business`. Valor definido: `vase091218`.
+- `VITE_VASE_APP_LAUNCH_URL` hace que el login del editor vaya directo al launcher de Business en `vase.ar`.
+- `vase-app` firma un token corto y redirige a `editor.vase.ar/admin/evolution?vase_token=...`.
+- `vase-business` consume ese `vase_token`, hace exchange y deja creada la sesion local del editor.
+
+### 5.1 Flujo real del bridge de auth
+
+1. El usuario entra a `vase.ar` y autentica en `vase-app`.
+2. Desde `Vase`, abre `Business` o entra a `/app/business/launch`.
+3. `vase-app` valida la sesion y firma un token corto con `user`, `tenant` y `role`.
+4. `vase-app` redirige a `https://editor.vase.ar/admin/evolution?vase_token=...`.
+5. El frontend de `vase-business` detecta `vase_token` y llama a `/auth/exchange-vase`.
+6. El backend de `vase-business` valida la firma, crea o reutiliza el shadow `tenant`, `user` y `user_tenants`, y devuelve su JWT local.
+7. El editor sigue operando con su auth actual, pero la fuente de identidad pasa a ser `vase-app`.
 
 ### 6. Base de datos: que hacer hoy y que no hacer
 
@@ -194,8 +208,8 @@ Orden recomendado:
 2. Validarlo tecnicamente con Postgres temporal si hace falta.
 3. No conectar todavia a `vase-db`.
 4. Portar modelo y queries criticas a MySQL.
-5. Definir el bridge de auth con `vase-app`.
-6. Recien ahi activar `VITE_EXTERNAL_AUTH` en serio y sumar `*.vase.ar`.
+5. Mantener el bridge de auth activo mientras sigas en Postgres.
+6. Recien despues cerrar la migracion a MySQL y revisar si el modelo shadow sigue siendo necesario o si conviene absorberlo en el esquema final.
 
 Ese camino evita dos errores que ya aparecieron:
 

@@ -2,7 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate, normalizeInternalPath } from '../../utils/navigation';
-import { getExternalLoginUrl, getExternalSignupUrl, isExternalAuthEnabled } from '../../utils/vaseAuth';
+import {
+    getExternalBusinessLaunchUrl,
+    getExternalLoginUrl,
+    getExternalSignupUrl,
+    isExternalAuthEnabled,
+} from '../../utils/vaseAuth';
 
 function getVerificationDeliveryNotice(verification, email) {
     if (!verification) return `Te reenviamos un codigo a ${email}.`;
@@ -21,8 +26,10 @@ function getVerificationDeliveryNotice(verification, email) {
 export default function LoginPage() {
     const { login, verifyEmailCode, resendVerificationCode } = useAuth();
     const externalAuthEnabled = isExternalAuthEnabled();
+    const externalLaunchUrl = getExternalBusinessLaunchUrl();
     const externalLoginUrl = getExternalLoginUrl();
     const externalSignupUrl = getExternalSignupUrl();
+    const externalAccessUrl = externalLaunchUrl || externalLoginUrl;
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -81,8 +88,8 @@ export default function LoginPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (externalAuthEnabled && externalLoginUrl) {
-            window.location.href = externalLoginUrl;
+        if (externalAuthEnabled && externalAccessUrl) {
+            window.location.href = externalAccessUrl;
             return;
         }
         setError('');
@@ -128,13 +135,13 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (externalLoginUrl) {
-                                        window.location.href = externalLoginUrl;
+                                    if (externalAccessUrl) {
+                                        window.location.href = externalAccessUrl;
                                     }
                                 }}
                                 className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
                             >
-                                Ir a iniciar sesion
+                                Abrir desde Vase
                             </button>
 
                             {externalSignupUrl ? (

@@ -10,11 +10,15 @@ const joinUrl = (base, path) => {
     return `${normalizedBase}${normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`}`;
 };
 
-const buildConfiguredUrl = (specificUrl, fallbackPath) => {
+const buildConfiguredUrl = (specificUrl, fallbackPath, { appendRedirect = true } = {}) => {
     const directUrl = normalizeUrl(specificUrl);
     const baseUrl = normalizeUrl(import.meta.env.VITE_VASE_APP_URL);
     const targetUrl = directUrl || joinUrl(baseUrl, fallbackPath);
     if (!targetUrl) return '';
+
+    if (!appendRedirect) {
+        return targetUrl;
+    }
 
     const redirectParam = String(import.meta.env.VITE_VASE_APP_REDIRECT_PARAM || '').trim();
     const redirectTarget = normalizeUrl(import.meta.env.VITE_VASE_APP_REDIRECT_URL);
@@ -31,15 +35,22 @@ const buildConfiguredUrl = (specificUrl, fallbackPath) => {
     }
 };
 
+export const getExternalBusinessLaunchUrl = () =>
+    buildConfiguredUrl(import.meta.env.VITE_VASE_APP_LAUNCH_URL, '/app/business/launch', {
+        appendRedirect: false,
+    });
+
 export const getExternalLoginUrl = () =>
-    buildConfiguredUrl(import.meta.env.VITE_VASE_APP_LOGIN_URL, '/login');
+    buildConfiguredUrl(import.meta.env.VITE_VASE_APP_LOGIN_URL, '/signin');
 
 export const getExternalSignupUrl = () =>
     buildConfiguredUrl(import.meta.env.VITE_VASE_APP_SIGNUP_URL, '/register');
 
 export const isExternalAuthEnabled = () => {
     const externalAuthFlag = String(import.meta.env.VITE_EXTERNAL_AUTH || '').trim().toLowerCase();
-    const hasExternalTargets = Boolean(getExternalLoginUrl() || getExternalSignupUrl());
+    const hasExternalTargets = Boolean(
+        getExternalBusinessLaunchUrl() || getExternalLoginUrl() || getExternalSignupUrl()
+    );
     if (TRUTHY_VALUES.has(externalAuthFlag)) {
         return hasExternalTargets;
     }
