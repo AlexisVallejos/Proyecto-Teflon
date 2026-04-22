@@ -1,0 +1,9 @@
+.git
+.gitignore
+.claude
+tmp
+node_modules
+web/node_modules
+server/node_modules
+web/dist
+.DS_Store

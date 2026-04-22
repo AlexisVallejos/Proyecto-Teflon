@@ -64,13 +64,66 @@ const mapSpecificationRowsToObject = (rows) => {
     }, {});
 };
 
-const mapStoredPriceTiersToList = (source) => {
-    const raw = source && typeof source === 'object' && !Array.isArray(source) ? source : {};
+const parsePriceTierNumber = (value) => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+    }
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+    const normalized = raw.includes(',')
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const extractPriceTierSlot = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return 0;
+    const match = raw.match(/price_(\d+)/i);
+    if (match) {
+        return Number(match[1] || 0);
+    }
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const normalizePriceTiers = (source) => {
+    if (Array.isArray(source)) {
+        return source
+            .map((entry) => {
+                if (!entry || typeof entry !== 'object') return null;
+                const slot =
+                    Number(entry.slot || entry.position || entry.index || 0)
+                    || extractPriceTierSlot(entry.key || entry.code || entry.name);
+                const key = String(entry.key || entry.code || (slot ? `price_${slot}` : '')).trim();
+                const value = parsePriceTierNumber(
+                    entry.value
+                    ?? entry.amount
+                    ?? entry.price
+                    ?? entry.rawValue
+                    ?? entry.valor
+                );
+
+                if (!key || !slot || value == null) return null;
+
+                return {
+                    ...entry,
+                    slot,
+                    key,
+                    value,
+                };
+            })
+            .filter(Boolean)
+            .sort((left, right) => left.slot - right.slot);
+    }
+
+    const raw = source && typeof source === 'object' ? source : {};
     const tiers = [];
     for (let slot = 1; slot <= 10; slot += 1) {
         const key = `price_${slot}`;
-        const value = Number(raw[key]);
-        if (!Number.isFinite(value)) continue;
+        const value = parsePriceTierNumber(raw[key]);
+        if (value == null) continue;
         tiers.push({ slot, key, value });
     }
     return tiers;
@@ -145,9 +198,11 @@ const buildProductFormFromProduct = (product) => {
         is_active_source: product?.is_active_source !== false,
         last_sync_at: product?.last_sync_at || null,
         sync_status: product?.sync_status || (product?.external_id ? 'synced' : 'manual'),
-        price_tiers: Array.isArray(product?.price_tiers)
-            ? product.price_tiers
-            : mapStoredPriceTiersToList(data.price_tiers),
+        price_tiers: normalizePriceTiers(
+            Array.isArray(product?.price_tiers) && product.price_tiers.length
+                ? product.price_tiers
+                : data.price_tiers
+        ),
         source_category_path: Array.isArray(product?.source_category_path)
             ? product.source_category_path
             : Array.isArray(data.source_category_path)
@@ -203,7 +258,7 @@ const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => (
     is_active_source: payload.is_active_source !== false,
     last_sync_at: payload.last_sync_at || null,
     sync_status: payload.sync_status || (payload.external_id ? 'synced' : 'manual'),
-    price_tiers: Array.isArray(payload.price_tiers) ? payload.price_tiers : [],
+    price_tiers: normalizePriceTiers(payload.price_tiers),
     source_category_path: Array.isArray(payload.source_category_path) ? payload.source_category_path : [],
     data: {
         images: Array.isArray(payload.images) ? payload.images : [],

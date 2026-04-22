@@ -5,6 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { StoreProvider } from './context/StoreContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import { navigate } from './utils/navigation';
 
 // Store pages
 import HomePage from './pages/store/HomePage';
@@ -27,6 +28,11 @@ import PreviewPage from './pages/admin/evolution/PreviewPage';
 function AppContent() {
     const [route, setRoute] = useState(window.location.pathname);
     const { isAdmin, loading: authLoading, user } = useAuth();
+    const currentHostname = window.location.hostname.toLowerCase();
+    const configuredEditorHost = String(import.meta.env.VITE_EDITOR_HOST || '').trim().toLowerCase();
+    const isEditorHost = configuredEditorHost
+        ? currentHostname === configuredEditorHost
+        : currentHostname.startsWith('editor.');
 
     useEffect(() => {
         const handleLocationChange = () => setRoute(window.location.pathname);
@@ -41,6 +47,12 @@ function AppContent() {
             window.removeEventListener('navigate', handleLocationChange);
         };
     }, []);
+
+    useEffect(() => {
+        if (!isEditorHost) return;
+        if (route !== '/') return;
+        navigate('/admin/evolution');
+    }, [isEditorHost, route]);
 
     let Component = HomePage;
     const isPreviewRoute = route === '/admin/preview';

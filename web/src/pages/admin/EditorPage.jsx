@@ -835,7 +835,7 @@ const setSections = (nextValue) => {
             const headers = {
                 'Authorization': `Bearer ${token}`,
             };
-            const res = await fetch(`${getApiBase()}/admin/tenants`, { headers });
+            const res = await fetch(`${getApiBase()}/api/platform/admin/tenants`, { headers });
             if (!res.ok) {
                 const msg = await res.text();
                 throw new Error(msg || 'No se pudo cargar empresas');

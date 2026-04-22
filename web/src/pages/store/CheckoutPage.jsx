@@ -22,6 +22,8 @@ import {
     normalizeShippingZones,
     resolveDistanceQuote,
 } from "../../utils/shipping";
+import { getCountryLabelByCode } from "../../utils/locations";
+import { useAddressLocationFields } from "../../hooks/useAddressLocationFields";
 
 const SUPPORTED_PAYMENT_METHODS = ["transfer", "cash_on_pickup"];
 const ORDER_CHANNEL_OPTIONS = [
@@ -138,7 +140,12 @@ export default function CheckoutPage() {
     });
     const [shippingInfo, setShippingInfo] = useState({
         fullAddress: "",
+        country: "",
+        countryCode: "",
+        province: "",
+        provinceId: "",
         city: "",
+        cityId: "",
         postalCode: "",
     });
     const [deliveryLocation, setDeliveryLocation] = useState(null);
@@ -146,6 +153,32 @@ export default function CheckoutPage() {
     const [billingInfo, setBillingInfo] = useState(EMPTY_BILLING_INFO);
     const [orderChannel, setOrderChannel] = useState("whatsapp");
     const shippingAutofillRef = useRef(false);
+    const {
+        countryInput: shippingCountryInput,
+        countryOptions: shippingCountryOptions,
+        countriesLoading: shippingCountriesLoading,
+        provinceOptions: shippingProvinceOptions,
+        provinceLoading: shippingProvinceLoading,
+        cityOptions: shippingCityOptions,
+        citiesLoading: shippingCitiesLoading,
+        isArgentinaCountry: isArgentinaShippingCountry,
+        provinceSuggestionsEnabled: shippingProvinceSuggestionsEnabled,
+        citySuggestionsEnabled: shippingCitySuggestionsEnabled,
+        handleCountryInputChange: handleShippingCountryInputChange,
+        handleProvinceInputChange: handleShippingProvinceInputChange,
+        handleCityInputChange: handleShippingCityInputChange,
+    } = useAddressLocationFields({
+        value: shippingInfo,
+        setValue: setShippingInfo,
+        fields: {
+            countryCode: "countryCode",
+            countryLabel: "country",
+            province: "province",
+            provinceId: "provinceId",
+            city: "city",
+            cityId: "cityId",
+        },
+    });
     const shippingZones = useMemo(() => {
         const fromSettings = Array.isArray(checkoutSettings?.shipping_zones) ? checkoutSettings.shipping_zones : [];
         const fromCommerce = Array.isArray(commerce?.shipping_zones) ? commerce.shipping_zones : [];
@@ -406,9 +439,15 @@ export default function CheckoutPage() {
             const raw = localStorage.getItem(key);
             if (!raw) return;
             const parsed = JSON.parse(raw);
+            const resolvedCountryLabel = parsed.country || getCountryLabelByCode(parsed.countryCode || "");
             const prefill = {
                 fullAddress: parsed.line1 || parsed.fullAddress || "",
+                country: resolvedCountryLabel || "",
+                countryCode: parsed.countryCode || "",
+                province: parsed.region || parsed.province || "",
+                provinceId: parsed.provinceId || "",
                 city: parsed.city || "",
+                cityId: parsed.cityId || "",
                 postalCode: parsed.postal || parsed.postalCode || "",
             };
             const prefillCustomer = {
@@ -416,10 +455,19 @@ export default function CheckoutPage() {
                 phone: parsed.phone || parsed.phoneNumber || "",
                 email: user?.email || "",
             };
-            const prefillBilling = normalizeBillingInfo(parsed);
+            const prefillBilling = normalizeBillingInfo({
+                ...parsed,
+                billingAddress: parsed.billingAddress || parsed.line1 || parsed.address || "",
+                billingCity: parsed.billingCity || parsed.city || "",
+            });
             setShippingInfo((prev) => ({
                 fullAddress: prev.fullAddress || prefill.fullAddress,
+                country: prev.country || prefill.country,
+                countryCode: prev.countryCode || prefill.countryCode,
+                province: prev.province || prefill.province,
+                provinceId: prev.provinceId || prefill.provinceId,
                 city: prev.city || prefill.city,
+                cityId: prev.cityId || prefill.cityId,
                 postalCode: prev.postalCode || prefill.postalCode,
             }));
             setCustomerInfo((prev) => ({
@@ -440,6 +488,21 @@ export default function CheckoutPage() {
             console.warn("No se pudo cargar la direccion de perfil", err);
         }
     }, [user]);
+
+    useEffect(() => {
+        setBillingInfo((prev) => {
+            const nextAddress = prev.address || shippingInfo.fullAddress || "";
+            const nextCity = prev.city || shippingInfo.city || "";
+            if (nextAddress === prev.address && nextCity === prev.city) {
+                return prev;
+            }
+            return {
+                ...prev,
+                address: nextAddress,
+                city: nextCity,
+            };
+        });
+    }, [shippingInfo.fullAddress, shippingInfo.city]);
 
     useEffect(() => {
         let active = true;
@@ -605,13 +668,23 @@ export default function CheckoutPage() {
                 }
             }
             if (!parsed) return {};
+            const resolvedCountryLabel = parsed.country || getCountryLabelByCode(parsed.countryCode || "");
             return {
                 fullName: parsed.fullName || "",
                 phone: parsed.phone || parsed.phoneNumber || "",
                 line1: parsed.line1 || "",
+                country: resolvedCountryLabel || "",
+                countryCode: parsed.countryCode || "",
+                province: parsed.region || parsed.province || "",
+                provinceId: parsed.provinceId || "",
                 city: parsed.city || "",
-                postal: parsed.postal || "",
-                billing: normalizeBillingInfo(parsed),
+                cityId: parsed.cityId || "",
+                postal: parsed.postal || parsed.postalCode || "",
+                billing: normalizeBillingInfo({
+                    ...parsed,
+                    billingAddress: parsed.billingAddress || parsed.line1 || parsed.address || "",
+                    billingCity: parsed.billingCity || parsed.city || "",
+                }),
             };
         } catch (err) {
             console.warn("No se pudo leer la direccion de perfil", err);
@@ -636,8 +709,10 @@ export default function CheckoutPage() {
                     : "Pago";
         const addressParts = [
             shippingInfo.fullAddress || profile.line1,
+            shippingInfo.province || profile.province,
             shippingInfo.city || profile.city,
             shippingInfo.postalCode || profile.postal,
+            shippingInfo.country || profile.country,
         ]
             .filter(Boolean)
             .join(", ");
@@ -709,8 +784,18 @@ export default function CheckoutPage() {
                 ...previous,
                 fullName: customerPayload.full_name || customerPayload.fullName || previous.fullName || "",
                 line1: customerPayload.fullAddress || previous.line1 || "",
+                address: customerPayload.fullAddress || previous.address || "",
+                fullAddress: customerPayload.fullAddress || previous.fullAddress || "",
+                country: customerPayload.country || previous.country || getCountryLabelByCode(customerPayload.countryCode || previous.countryCode || ""),
+                countryCode: customerPayload.countryCode || previous.countryCode || "",
+                province: customerPayload.province || previous.province || "",
+                region: customerPayload.province || previous.region || "",
+                provinceId: customerPayload.provinceId || previous.provinceId || "",
                 city: customerPayload.city || previous.city || "",
+                cityId: customerPayload.cityId || previous.cityId || "",
+                locality: customerPayload.city || previous.locality || "",
                 postal: customerPayload.postalCode || previous.postal || "",
+                postalCode: customerPayload.postalCode || previous.postalCode || "",
                 phone: customerPayload.phone || previous.phone || "",
                 company: previous.company || "",
                 cuit: previous.cuit || billing.documentNumber || "",
@@ -755,8 +840,22 @@ export default function CheckoutPage() {
             return;
         }
         if (isShippingDelivery) {
-            if (!shippingInfo.fullAddress.trim() || !shippingInfo.city.trim()) {
-                setCheckoutError("Completa direccion y ciudad para entrega a domicilio.");
+            if (
+                !shippingInfo.fullAddress.trim()
+                || !shippingInfo.countryCode
+                || !shippingInfo.province.trim()
+                || !shippingInfo.city.trim()
+                || !shippingInfo.postalCode.trim()
+            ) {
+                setCheckoutError("Completa direccion, pais, provincia, ciudad y codigo postal para la entrega a domicilio.");
+                return;
+            }
+            if (shippingProvinceSuggestionsEnabled && !shippingInfo.provinceId) {
+                setCheckoutError("Selecciona una provincia valida para continuar con el envio.");
+                return;
+            }
+            if (shippingCitySuggestionsEnabled && !shippingInfo.cityId) {
+                setCheckoutError("Selecciona una ciudad valida para continuar con el envio.");
                 return;
             }
             if (deliveryMethod === DISTANCE_DELIVERY_KEY && !distanceQuote?.ok) {
@@ -1112,20 +1211,93 @@ export default function CheckoutPage() {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-1">
+                                                Pais
+                                            </label>
+                                            <input
+                                                className={checkoutFieldClass}
+                                                placeholder="Argentina"
+                                                type="text"
+                                                list="checkout-country-options"
+                                                value={shippingCountryInput}
+                                                onChange={(e) => handleShippingCountryInputChange(e.target.value)}
+                                                autoComplete="country-name"
+                                            />
+                                            <datalist id="checkout-country-options">
+                                                {shippingCountryOptions.map((country) => (
+                                                    <option key={country.value} value={country.label} />
+                                                ))}
+                                            </datalist>
+                                            <p className={checkoutNoteClass}>
+                                                {shippingCountriesLoading ? "Cargando paises..." : "Escribe para buscar y selecciona un pais del listado."}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
+                                                Provincia
+                                            </label>
+                                            <input
+                                                className={checkoutFieldClass}
+                                                placeholder={isArgentinaShippingCountry ? "Buenos Aires" : "Provincia / estado / region"}
+                                                type="text"
+                                                list={shippingProvinceSuggestionsEnabled ? "checkout-province-options" : undefined}
+                                                value={shippingInfo.province}
+                                                onChange={(e) => handleShippingProvinceInputChange(e.target.value)}
+                                                autoComplete="address-level1"
+                                                disabled={!shippingInfo.countryCode}
+                                            />
+                                            {shippingProvinceSuggestionsEnabled ? (
+                                                <datalist id="checkout-province-options">
+                                                    {shippingProvinceOptions.map((province) => (
+                                                        <option key={province.value} value={province.label} />
+                                                    ))}
+                                                </datalist>
+                                            ) : null}
+                                            <p className={checkoutNoteClass}>
+                                                {!shippingInfo.countryCode
+                                                    ? "Primero selecciona un pais."
+                                                    : isArgentinaShippingCountry
+                                                        ? shippingProvinceLoading
+                                                            ? "Cargando provincias de Argentina..."
+                                                            : shippingProvinceSuggestionsEnabled
+                                                                ? "Selecciona una provincia valida para habilitar las ciudades."
+                                                                : "No pudimos cargar provincias. Puedes escribirla manualmente."
+                                                        : "Completa la provincia o estado manualmente."}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">
                                                 Ciudad
                                             </label>
                                             <input
                                                 className={checkoutFieldClass}
-                                                placeholder="Mar del Plata"
+                                                placeholder={isArgentinaShippingCountry ? "Mar del Plata" : "Ciudad"}
                                                 type="text"
+                                                list={shippingCitySuggestionsEnabled ? "checkout-city-options" : undefined}
                                                 value={shippingInfo.city}
-                                                onChange={(e) =>
-                                                    setShippingInfo((s) => ({
-                                                        ...s,
-                                                        city: e.target.value,
-                                                    }))
-                                                }
+                                                onChange={(e) => handleShippingCityInputChange(e.target.value)}
+                                                autoComplete="address-level2"
+                                                disabled={!shippingInfo.countryCode || (shippingProvinceSuggestionsEnabled && !shippingInfo.provinceId)}
                                             />
+                                            {shippingCitySuggestionsEnabled ? (
+                                                <datalist id="checkout-city-options">
+                                                    {shippingCityOptions.map((city) => (
+                                                        <option key={city.value} value={city.label} />
+                                                    ))}
+                                                </datalist>
+                                            ) : null}
+                                            <p className={checkoutNoteClass}>
+                                                {!shippingInfo.countryCode
+                                                    ? "Primero selecciona un pais."
+                                                    : isArgentinaShippingCountry
+                                                        ? !shippingInfo.provinceId
+                                                            ? "Selecciona una provincia para ver las ciudades disponibles."
+                                                            : shippingCitiesLoading
+                                                                ? "Cargando ciudades de la provincia elegida..."
+                                                                : shippingCitySuggestionsEnabled
+                                                                    ? "Selecciona una ciudad del listado oficial."
+                                                                    : "No pudimos cargar las ciudades. Puedes escribirla manualmente."
+                                                        : "Completa tu ciudad manualmente."}
+                                            </p>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium mb-1">
@@ -1142,6 +1314,7 @@ export default function CheckoutPage() {
                                                         postalCode: e.target.value,
                                                     }))
                                                 }
+                                                autoComplete="postal-code"
                                             />
                                         </div>
                                         <div className="col-span-2 mt-2 border-t border-gray-200 pt-5">

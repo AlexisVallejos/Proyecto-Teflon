@@ -19,7 +19,7 @@ export const useTenantsManager = () => {
         setTenantsError('');
         try {
             const token = localStorage.getItem('teflon_token');
-            const res = await fetch(`${getApiBase()}/admin/tenants`, {
+            const res = await fetch(`${getApiBase()}/api/platform/admin/tenants`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },

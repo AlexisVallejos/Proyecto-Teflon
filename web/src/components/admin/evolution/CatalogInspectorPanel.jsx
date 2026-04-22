@@ -33,6 +33,26 @@ const INSPECTOR_SECTIONS = [
 const sortByName = (left, right) =>
     String(left?.name || '').localeCompare(String(right?.name || ''), 'es', { sensitivity: 'base' });
 
+const parseTierAmount = (value) => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+    }
+    const raw = String(value ?? '').trim();
+    if (!raw) return null;
+    const normalized = raw.includes(',')
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const resolveTierSlot = (entry = {}) => {
+    const explicit = Number(entry?.slot || entry?.position || entry?.index || 0);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const keyMatch = String(entry?.key || entry?.code || '').match(/price_(\d+)/i);
+    return keyMatch ? Number(keyMatch[1] || 0) : 0;
+};
+
 const formatSyncDate = (value) => {
     if (!value) return 'Todavia no sincronizado';
     const parsed = new Date(value);
@@ -73,14 +93,40 @@ const buildCategoryOptions = (items = []) => {
 };
 
 const formatCurrency = (value) => {
-    const amount = Number(value);
+    const amount = parseTierAmount(value);
     if (!Number.isFinite(amount)) return '-';
     return new Intl.NumberFormat('es-AR', {
         style: 'currency',
         currency: 'ARS',
-        maximumFractionDigits: 0,
+        minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+        maximumFractionDigits: 2,
     }).format(amount);
 };
+
+const normalizeInspectorPriceTiers = (items = []) =>
+    (Array.isArray(items) ? items : [])
+        .map((entry) => {
+            const slot = resolveTierSlot(entry);
+            const key = String(entry?.key || entry?.code || (slot ? `price_${slot}` : '')).trim();
+            const value = parseTierAmount(
+                entry?.value
+                ?? entry?.amount
+                ?? entry?.price
+                ?? entry?.rawValue
+                ?? entry?.valor
+            );
+
+            if (!key || !slot || value == null) return null;
+
+            return {
+                ...entry,
+                slot,
+                key,
+                value,
+            };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.slot - right.slot);
 
 const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
     const { catalogInspectorSection, setCatalogInspectorSection } = useEvolutionStore();
@@ -119,7 +165,10 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
     const specificationRows = Array.isArray(productDraft.specifications) ? productDraft.specifications : [];
     const syncMeta = SYNC_STATUS_META[productDraft.sync_status] || SYNC_STATUS_META.manual;
     const categoryOptions = React.useMemo(() => buildCategoryOptions(categories), [categories]);
-    const priceTiers = Array.isArray(productDraft.price_tiers) ? productDraft.price_tiers : [];
+    const priceTiers = React.useMemo(
+        () => normalizeInspectorPriceTiers(productDraft.price_tiers),
+        [productDraft.price_tiers],
+    );
     const sourceCategoryPath = Array.isArray(productDraft.source_category_path) ? productDraft.source_category_path.filter(Boolean) : [];
     const selectedCategoryEntries = React.useMemo(
         () => categoryOptions.filter((option) => selectedCategories.includes(option.id)),
@@ -238,6 +287,56 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
                                 helperText="Valor final de venta."
                             />
                         </div>
+
+                        {priceTiers.length ? (
+                            <div
+                                className="space-y-3 rounded-xl border p-3"
+                                style={{
+                                    borderColor: 'var(--admin-border-soft)',
+                                    backgroundColor: 'var(--admin-hover)',
+                                }}
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className={sectionLabelClass}>Tarifas detectadas</p>
+                                        <p className="mt-1 text-[11px]" style={{ color: 'var(--admin-muted)' }}>
+                                            Llegaron {priceTiers.length} tarifas sincronizadas para este producto.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCatalogInspectorSection('sync')}
+                                        className="rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors"
+                                        style={{
+                                            borderColor: 'var(--admin-accent-border)',
+                                            backgroundColor: 'var(--admin-accent-soft)',
+                                            color: 'var(--admin-accent)',
+                                        }}
+                                    >
+                                        Ver Sync
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                    {priceTiers.map((tier) => (
+                                        <div
+                                            key={`general-tier-${tier.key || tier.slot}`}
+                                            className="rounded-xl border px-3 py-2.5"
+                                            style={{
+                                                borderColor: 'var(--admin-border-soft)',
+                                                backgroundColor: 'var(--admin-panel-bg)',
+                                            }}
+                                        >
+                                            <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--admin-muted)' }}>
+                                                {tier.label || tier.key}
+                                            </p>
+                                            <p className="mt-1 text-sm font-bold" style={{ color: 'var(--admin-text)' }}>
+                                                {formatCurrency(tier.value)}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
 
                         <div className="grid grid-cols-2 gap-3">
                             <EvolutionInput
@@ -599,15 +698,28 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
                                     {priceTiers.map((tier) => (
                                         <div
                                             key={tier.key || tier.slot}
-                                            className="flex items-center justify-between rounded-xl border border-white/10 bg-black/10 px-3 py-2.5"
+                                            className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
+                                            style={{
+                                                borderColor: 'var(--admin-border-soft)',
+                                                backgroundColor: 'var(--admin-hover)',
+                                            }}
                                         >
                                             <div>
-                                                <p className="text-sm font-semibold text-zinc-100">{tier.label || tier.key}</p>
-                                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+                                                <p className="text-sm font-semibold" style={{ color: 'var(--admin-text)' }}>
+                                                    {tier.label || tier.key}
+                                                </p>
+                                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--admin-muted)' }}>
                                                     {tier.key || `price_${tier.slot}`}
                                                 </p>
                                             </div>
-                                            <span className="text-sm font-bold text-zinc-100">{formatCurrency(tier.value)}</span>
+                                            <div className="text-right">
+                                                <p className="text-sm font-bold" style={{ color: 'var(--admin-text)' }}>
+                                                    {formatCurrency(tier.value)}
+                                                </p>
+                                                <p className="mt-1 text-[10px] font-medium" style={{ color: 'var(--admin-muted)' }}>
+                                                    Valor exacto: {String(tier.value)}
+                                                </p>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

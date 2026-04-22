@@ -1,15 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate } from '../../utils/navigation';
-import {
-    FALLBACK_COUNTRY_OPTIONS,
-    findOptionByText,
-    getCountryLabelByCode,
-    loadArgentinaCities,
-    loadArgentinaProvinces,
-    loadCountries,
-} from '../../utils/locations';
+import { getCountryLabelByCode } from '../../utils/locations';
+import { useAddressLocationFields } from '../../hooks/useAddressLocationFields';
+import { getExternalLoginUrl, getExternalSignupUrl, isExternalAuthEnabled } from '../../utils/vaseAuth';
 
 const CheckIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
@@ -409,6 +404,9 @@ function getVerificationDeliveryNotice(verification, email) {
 
 export default function SignupPage() {
     const { signup, verifyEmailCode, resendVerificationCode } = useAuth();
+    const externalAuthEnabled = isExternalAuthEnabled();
+    const externalLoginUrl = getExternalLoginUrl();
+    const externalSignupUrl = getExternalSignupUrl();
     const [step, setStep] = useState(1);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -417,13 +415,6 @@ export default function SignupPage() {
     const [verificationLoading, setVerificationLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const [deliveryNotice, setDeliveryNotice] = useState('');
-    const [countryOptions, setCountryOptions] = useState(FALLBACK_COUNTRY_OPTIONS);
-    const [countryInput, setCountryInput] = useState(getCountryLabelByCode('AR', FALLBACK_COUNTRY_OPTIONS));
-    const [countriesLoading, setCountriesLoading] = useState(false);
-    const [provinceOptions, setProvinceOptions] = useState([]);
-    const [provinceLoading, setProvinceLoading] = useState(false);
-    const [cityOptions, setCityOptions] = useState([]);
-    const [citiesLoading, setCitiesLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -446,219 +437,32 @@ export default function SignupPage() {
         () => (formData.accountType === 'mayorista' ? 'wholesale' : 'retail'),
         [formData.accountType],
     );
-    const isArgentinaCountry = formData.country === 'AR';
-    const provinceSuggestionsEnabled = isArgentinaCountry && provinceOptions.length > 0;
-    const citySuggestionsEnabled = isArgentinaCountry && Boolean(formData.provinceId) && cityOptions.length > 0;
-
     const update = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
-
-    useEffect(() => {
-        let active = true;
-        setCountriesLoading(true);
-        loadCountries()
-            .then((options) => {
-                if (!active || !Array.isArray(options) || !options.length) return;
-                setCountryOptions(options);
-            })
-            .finally(() => {
-                if (active) {
-                    setCountriesLoading(false);
-                }
-            });
-
-        return () => {
-            active = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        const selectedCountry = countryOptions.find((option) => option.value === formData.country);
-        if (selectedCountry) {
-            setCountryInput(selectedCountry.label);
-        }
-    }, [countryOptions, formData.country]);
-
-    useEffect(() => {
-        if (formData.country !== 'AR') {
-            setProvinceOptions([]);
-            setProvinceLoading(false);
-            return;
-        }
-
-        let active = true;
-        setProvinceLoading(true);
-        loadArgentinaProvinces()
-            .then((options) => {
-                if (active) {
-                    setProvinceOptions(options);
-                }
-            })
-            .catch(() => {
-                if (active) {
-                    setProvinceOptions([]);
-                }
-            })
-            .finally(() => {
-                if (active) {
-                    setProvinceLoading(false);
-                }
-            });
-
-        return () => {
-            active = false;
-        };
-    }, [formData.country]);
-
-    useEffect(() => {
-        if (formData.country !== 'AR' || !formData.provinceId) {
-            setCityOptions([]);
-            setCitiesLoading(false);
-            return;
-        }
-
-        let active = true;
-        setCitiesLoading(true);
-        loadArgentinaCities(formData.provinceId)
-            .then((options) => {
-                if (active) {
-                    setCityOptions(options);
-                }
-            })
-            .finally(() => {
-                if (active) {
-                    setCitiesLoading(false);
-                }
-            });
-
-        return () => {
-            active = false;
-        };
-    }, [formData.country, formData.provinceId]);
-
-    const handleCountryInputChange = (value) => {
-        setCountryInput(value);
-        const trimmedValue = String(value || '').trim();
-        const match = findOptionByText(countryOptions, trimmedValue);
-        if (match) {
-            setCountryInput(match.label);
-        }
-
-        setFormData((prev) => {
-            if (!trimmedValue) {
-                return {
-                    ...prev,
-                    country: '',
-                    province: '',
-                    provinceId: '',
-                    city: '',
-                    cityId: '',
-                };
-            }
-
-            if (!match) {
-                return {
-                    ...prev,
-                    country: '',
-                    province: '',
-                    provinceId: '',
-                    city: '',
-                    cityId: '',
-                };
-            }
-
-            if (prev.country === match.value) {
-                return prev;
-            }
-
-            return {
-                ...prev,
-                country: match.value,
-                province: '',
-                provinceId: '',
-                city: '',
-                cityId: '',
-            };
-        });
-    };
-
-    const handleProvinceInputChange = (value) => {
-        if (formData.country !== 'AR') {
-            update('province', value);
-            return;
-        }
-
-        const trimmedValue = String(value || '').trim();
-        const match = findOptionByText(provinceOptions, trimmedValue);
-        setFormData((prev) => {
-            if (!trimmedValue) {
-                return {
-                    ...prev,
-                    province: '',
-                    provinceId: '',
-                    city: '',
-                    cityId: '',
-                };
-            }
-
-            if (!match) {
-                return {
-                    ...prev,
-                    province: value,
-                    provinceId: '',
-                    city: '',
-                    cityId: '',
-                };
-            }
-
-            if (prev.provinceId === match.value) {
-                return {
-                    ...prev,
-                    province: match.label,
-                };
-            }
-
-            return {
-                ...prev,
-                province: match.label,
-                provinceId: match.value,
-                city: '',
-                cityId: '',
-            };
-        });
-    };
-
-    const handleCityInputChange = (value) => {
-        if (formData.country !== 'AR') {
-            update('city', value);
-            return;
-        }
-
-        const trimmedValue = String(value || '').trim();
-        const match = findOptionByText(cityOptions, trimmedValue);
-        setFormData((prev) => {
-            if (!trimmedValue) {
-                return {
-                    ...prev,
-                    city: '',
-                    cityId: '',
-                };
-            }
-
-            if (!match) {
-                return {
-                    ...prev,
-                    city: value,
-                    cityId: '',
-                };
-            }
-
-            return {
-                ...prev,
-                city: match.label,
-                cityId: match.value,
-            };
-        });
-    };
+    const {
+        countryInput,
+        countryOptions,
+        countriesLoading,
+        provinceOptions,
+        provinceLoading,
+        cityOptions,
+        citiesLoading,
+        isArgentinaCountry,
+        provinceSuggestionsEnabled,
+        citySuggestionsEnabled,
+        handleCountryInputChange,
+        handleProvinceInputChange,
+        handleCityInputChange,
+    } = useAddressLocationFields({
+        value: formData,
+        setValue: setFormData,
+        fields: {
+            countryCode: 'country',
+            province: 'province',
+            provinceId: 'provinceId',
+            city: 'city',
+            cityId: 'cityId',
+        },
+    });
 
     const persistProfileAddress = (email) => {
         const normalizedEmail = String(email || '').trim().toLowerCase();
@@ -680,9 +484,11 @@ export default function SignupPage() {
             postal: postalCode,
             postalCode,
             province,
+            provinceId: formData.provinceId,
             region: province,
             country: countryLabel,
             countryCode: formData.country,
+            cityId: formData.cityId,
             phone: formData.phone.trim(),
             phoneCountry: formData.country || 'AR',
             phoneNumber: formData.phone.trim(),
@@ -848,6 +654,49 @@ export default function SignupPage() {
             setResendLoading(false);
         }
     };
+
+    if (externalAuthEnabled) {
+        return (
+            <StoreLayout>
+                <div className="flex min-h-[80vh] items-center justify-center bg-gradient-to-b from-white via-gray-50 to-white p-4">
+                    <div className="w-full max-w-[460px] rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.18)] md:p-8">
+                        <div className="text-center space-y-3">
+                            <h1 className="text-2xl font-extrabold text-gray-900">Registro centralizado</h1>
+                            <p className="text-sm font-medium text-gray-500">
+                                El alta de usuarios de Vase Business se resuelve desde Vase App.
+                            </p>
+                        </div>
+
+                        <div className="mt-8 space-y-4">
+                            {externalSignupUrl ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        window.location.href = externalSignupUrl;
+                                    }}
+                                    className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:bg-orange-600"
+                                >
+                                    Ir a crear cuenta
+                                </button>
+                            ) : null}
+
+                            {externalLoginUrl ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        window.location.href = externalLoginUrl;
+                                    }}
+                                    className="w-full rounded-lg border border-gray-200 bg-white py-3 font-bold text-gray-900 transition-all active:scale-[0.98]"
+                                >
+                                    Ya tengo cuenta
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+            </StoreLayout>
+        );
+    }
 
     return (
         <StoreLayout>

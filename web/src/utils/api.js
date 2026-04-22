@@ -1,7 +1,14 @@
-const DEFAULT_API_BASE = 'http://localhost:4000';
+const DEFAULT_API_BASE = '';
 
 export function getApiBase() {
-    return import.meta.env.VITE_API_URL || DEFAULT_API_BASE;
+    const configuredBase = String(import.meta.env.VITE_API_URL || DEFAULT_API_BASE).trim();
+    if (!configuredBase) {
+        if (typeof window !== 'undefined') {
+            return window.location.origin.replace(/\/+$/, '');
+        }
+        return '';
+    }
+    return configuredBase.replace(/\/+$/, '');
 }
 
 export function getTenantHeaders() {

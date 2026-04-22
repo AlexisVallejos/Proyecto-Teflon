@@ -25,6 +25,7 @@ import { navigate } from '../../utils/navigation';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { getPriceAccessState } from '../../utils/priceVisibility';
 import { createPlaceholderImage } from '../../utils/productImage';
+import { getCountryLabelByCode } from '../../utils/locations';
 import {
     BILLING_DOCUMENT_OPTIONS,
     BILLING_VAT_OPTIONS,
@@ -34,6 +35,7 @@ import {
     hasBillingInfo,
     normalizeBillingInfo,
 } from '../../utils/billing';
+import { useAddressLocationFields } from '../../hooks/useAddressLocationFields';
 
 const STATUS_STYLES = {
     Enviado: 'bg-primary/20 text-primary',
@@ -169,21 +171,43 @@ const normalizeProfileAddress = (value = {}, fallback = {}) => {
         postal: '',
         region: '',
         country: 'Argentina',
+        countryCode: 'AR',
+        provinceId: '',
+        cityId: '',
         company: '',
         cuit: '',
         ...fallback,
         ...value,
     };
+    const rawCountry = String(merged.country || merged.countryLabel || '').trim();
+    const countryCodeFromValue = String(merged.countryCode || merged.country_code || '').trim().toUpperCase();
+    const inferredCountryCode = /^[A-Z]{2}$/.test(rawCountry) ? rawCountry.toUpperCase() : '';
+    const countryCode = countryCodeFromValue || inferredCountryCode;
+    const fallbackCountryCode = String(fallback.countryCode || '').trim().toUpperCase();
+    const countryLabel = countryCode
+        ? getCountryLabelByCode(countryCode)
+        : rawCountry || 'Argentina';
+    const normalizedCountryCode =
+        countryCode
+        || ((!rawCountry || countryLabel === 'Argentina') ? (fallbackCountryCode || 'AR') : '');
     const billing = normalizeBillingInfo(merged);
 
     return {
         ...merged,
         fullName: String(merged.fullName || merged.name || '').trim(),
         line1: String(merged.line1 || merged.address || '').trim(),
-        city: String(merged.city || '').trim(),
-        postal: String(merged.postal || '').trim(),
-        region: String(merged.region || '').trim(),
-        country: String(merged.country || 'Argentina').trim() || 'Argentina',
+        address: String(merged.line1 || merged.address || '').trim(),
+        fullAddress: String(merged.line1 || merged.address || '').trim(),
+        city: String(merged.city || merged.locality || '').trim(),
+        cityId: String(merged.cityId || merged.city_id || '').trim(),
+        locality: String(merged.city || merged.locality || '').trim(),
+        postal: String(merged.postal || merged.postalCode || '').trim(),
+        postalCode: String(merged.postal || merged.postalCode || '').trim(),
+        region: String(merged.region || merged.province || '').trim(),
+        province: String(merged.region || merged.province || '').trim(),
+        provinceId: String(merged.provinceId || merged.province_id || '').trim(),
+        country: String(countryLabel || 'Argentina').trim() || 'Argentina',
+        countryCode: normalizedCountryCode,
         company: String(merged.company || '').trim(),
         cuit: String(merged.cuit || '').trim(),
         billingBusinessName: billing.businessName,
@@ -233,9 +257,12 @@ export default function ProfilePage() {
         fullName: '',
         line1: '',
         city: '',
+        cityId: '',
         postal: '',
         region: '',
+        provinceId: '',
         country: 'Argentina',
+        countryCode: 'AR',
         phone: '',
         phoneCountry: 'AR',
         phoneNumber: '',
@@ -258,6 +285,32 @@ export default function ProfilePage() {
         () => address?.fullName?.trim() || displayName,
         [address?.fullName, displayName]
     );
+    const {
+        countryInput,
+        countryOptions,
+        countriesLoading,
+        provinceOptions,
+        provinceLoading,
+        cityOptions,
+        citiesLoading,
+        isArgentinaCountry,
+        provinceSuggestionsEnabled,
+        citySuggestionsEnabled,
+        handleCountryInputChange,
+        handleProvinceInputChange,
+        handleCityInputChange,
+    } = useAddressLocationFields({
+        value: addressDraft,
+        setValue: setAddressDraft,
+        fields: {
+            countryCode: 'countryCode',
+            countryLabel: 'country',
+            province: 'region',
+            provinceId: 'provinceId',
+            city: 'city',
+            cityId: 'cityId',
+        },
+    });
     const billingDetails = useMemo(() => normalizeBillingInfo(address), [address]);
     const hasProfileBillingInfo = useMemo(() => hasBillingInfo(address), [address]);
     const addressStorageKeys = useMemo(() => getProfileAddressKeys(user), [user]);
@@ -929,13 +982,82 @@ export default function ProfilePage() {
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Pais</label>
+                                                        <input
+                                                            type="text"
+                                                            list="profile-country-options"
+                                                            value={countryInput}
+                                                            onChange={(e) => handleCountryInputChange(e.target.value)}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                        />
+                                                        <datalist id="profile-country-options">
+                                                            {countryOptions.map((country) => (
+                                                                <option key={country.value} value={country.label} />
+                                                            ))}
+                                                        </datalist>
+                                                        <p className="text-[11px] text-[#8a7560]">
+                                                            {countriesLoading ? 'Cargando paises...' : 'Escribe para buscar y selecciona un pais del listado.'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Provincia</label>
+                                                        <input
+                                                            type="text"
+                                                            list={provinceSuggestionsEnabled ? 'profile-province-options' : undefined}
+                                                            value={addressDraft.region}
+                                                            onChange={(e) => handleProvinceInputChange(e.target.value)}
+                                                            disabled={!addressDraft.countryCode}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm disabled:opacity-60"
+                                                        />
+                                                        {provinceSuggestionsEnabled ? (
+                                                            <datalist id="profile-province-options">
+                                                                {provinceOptions.map((province) => (
+                                                                    <option key={province.value} value={province.label} />
+                                                                ))}
+                                                            </datalist>
+                                                        ) : null}
+                                                        <p className="text-[11px] text-[#8a7560]">
+                                                            {!addressDraft.countryCode
+                                                                ? 'Primero selecciona un pais.'
+                                                                : isArgentinaCountry
+                                                                    ? provinceLoading
+                                                                        ? 'Cargando provincias...'
+                                                                        : provinceSuggestionsEnabled
+                                                                            ? 'Selecciona una provincia valida para habilitar las ciudades.'
+                                                                            : 'Si no carga el listado, puedes escribir la provincia manualmente.'
+                                                                    : 'Completa la provincia o estado manualmente.'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
                                                         <label className="text-[10px] font-bold uppercase text-[#8a7560]">Ciudad</label>
                                                         <input
                                                             type="text"
+                                                            list={citySuggestionsEnabled ? 'profile-city-options' : undefined}
                                                             value={addressDraft.city}
-                                                            onChange={(e) => setAddressDraft({ ...addressDraft, city: e.target.value })}
-                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
+                                                            onChange={(e) => handleCityInputChange(e.target.value)}
+                                                            disabled={!addressDraft.countryCode || (provinceSuggestionsEnabled && !addressDraft.provinceId)}
+                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm disabled:opacity-60"
                                                         />
+                                                        {citySuggestionsEnabled ? (
+                                                            <datalist id="profile-city-options">
+                                                                {cityOptions.map((city) => (
+                                                                    <option key={city.value} value={city.label} />
+                                                                ))}
+                                                            </datalist>
+                                                        ) : null}
+                                                        <p className="text-[11px] text-[#8a7560]">
+                                                            {!addressDraft.countryCode
+                                                                ? 'Primero selecciona un pais.'
+                                                                : isArgentinaCountry
+                                                                    ? !addressDraft.provinceId
+                                                                        ? 'Selecciona una provincia para ver las ciudades disponibles.'
+                                                                        : citiesLoading
+                                                                            ? 'Cargando ciudades...'
+                                                                            : citySuggestionsEnabled
+                                                                                ? 'Selecciona una ciudad del listado oficial.'
+                                                                                : 'Si no carga el listado, puedes escribir la ciudad manualmente.'
+                                                                    : 'Completa tu ciudad manualmente.'}
+                                                        </p>
                                                     </div>
                                                     <div className="grid grid-cols-1 gap-2">
                                                         <label className="text-[10px] font-bold uppercase text-[#8a7560]">Codigo postal</label>
@@ -943,24 +1065,6 @@ export default function ProfilePage() {
                                                             type="text"
                                                             value={addressDraft.postal}
                                                             onChange={(e) => setAddressDraft({ ...addressDraft, postal: e.target.value })}
-                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                        />
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-2">
-                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Provincia</label>
-                                                        <input
-                                                            type="text"
-                                                            value={addressDraft.region}
-                                                            onChange={(e) => setAddressDraft({ ...addressDraft, region: e.target.value })}
-                                                            className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
-                                                        />
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-2">
-                                                        <label className="text-[10px] font-bold uppercase text-[#8a7560]">Pais</label>
-                                                        <input
-                                                            type="text"
-                                                            value={addressDraft.country}
-                                                            onChange={(e) => setAddressDraft({ ...addressDraft, country: e.target.value })}
                                                             className="w-full px-3 py-2 rounded-lg border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] text-sm"
                                                         />
                                                     </div>
@@ -1247,4 +1351,3 @@ export default function ProfilePage() {
         </StoreLayout>
     );
 }
-

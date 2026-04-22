@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getApiBase, getTenantHeaders } from '../utils/api';
+import { isExternalAuthEnabled } from '../utils/vaseAuth';
 
 const AuthContext = createContext(null);
 
@@ -78,6 +79,10 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async (email, password) => {
+        if (isExternalAuthEnabled()) {
+            throw new Error('external_auth_enabled');
+        }
+
         const rawEmail = String(email || '').trim();
         const normalizedEmail = rawEmail.toLowerCase() === 'admin'
             ? 'admin@teflon.local'
@@ -106,6 +111,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const signup = async (email, password, role, name = '') => {
+        if (isExternalAuthEnabled()) {
+            throw new Error('external_auth_enabled');
+        }
+
         const response = await fetch(`${getApiBase()}/auth/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -138,6 +147,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const verifyEmailCode = async (email, code) => {
+        if (isExternalAuthEnabled()) {
+            throw new Error('external_auth_enabled');
+        }
+
         const response = await fetch(`${getApiBase()}/auth/verify-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -156,6 +169,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const resendVerificationCode = async (email) => {
+        if (isExternalAuthEnabled()) {
+            throw new Error('external_auth_enabled');
+        }
+
         const response = await fetch(`${getApiBase()}/auth/resend-verification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

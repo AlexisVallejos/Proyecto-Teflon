@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate, normalizeInternalPath } from '../../utils/navigation';
+import { getExternalLoginUrl, getExternalSignupUrl, isExternalAuthEnabled } from '../../utils/vaseAuth';
 
 function getVerificationDeliveryNotice(verification, email) {
     if (!verification) return `Te reenviamos un codigo a ${email}.`;
@@ -19,6 +20,9 @@ function getVerificationDeliveryNotice(verification, email) {
 
 export default function LoginPage() {
     const { login, verifyEmailCode, resendVerificationCode } = useAuth();
+    const externalAuthEnabled = isExternalAuthEnabled();
+    const externalLoginUrl = getExternalLoginUrl();
+    const externalSignupUrl = getExternalSignupUrl();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -77,6 +81,10 @@ export default function LoginPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (externalAuthEnabled && externalLoginUrl) {
+            window.location.href = externalLoginUrl;
+            return;
+        }
         setError('');
         setLoading(true);
         try {
@@ -103,6 +111,49 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
+
+    if (externalAuthEnabled) {
+        return (
+            <StoreLayout>
+                <div className="min-h-[80vh] flex items-center justify-center px-4">
+                    <div className="max-w-md w-full bg-white dark:bg-[#1a130c] p-10 rounded-2xl shadow-xl border border-[#e5e1de] dark:border-[#3d2f21]">
+                        <div className="text-center space-y-3">
+                            <h2 className="text-3xl font-black text-[#181411] dark:text-white">Acceso centralizado</h2>
+                            <p className="text-[#8a7560]">
+                                El inicio de sesion de Vase Business se gestiona desde Vase App.
+                            </p>
+                        </div>
+
+                        <div className="mt-8 space-y-4">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (externalLoginUrl) {
+                                        window.location.href = externalLoginUrl;
+                                    }
+                                }}
+                                className="w-full bg-primary hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+                            >
+                                Ir a iniciar sesion
+                            </button>
+
+                            {externalSignupUrl ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        window.location.href = externalSignupUrl;
+                                    }}
+                                    className="w-full border border-[#e5e1de] dark:border-[#3d2f21] text-[#181411] dark:text-white font-bold py-4 rounded-lg transition-all active:scale-[0.98]"
+                                >
+                                    Ir a registrarse
+                                </button>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+            </StoreLayout>
+        );
+    }
 
     const handleVerifyPendingEmail = async () => {
         if (!pendingVerificationEmail) {
