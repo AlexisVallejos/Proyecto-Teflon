@@ -199,7 +199,7 @@ export const useIntegrationManager = () => {
                         brand: 'Integracion Demo',
                         description: 'Producto enviado desde la prueba rapida del panel admin.',
                         short_description: 'Prueba rapida ERP desde admin.',
-                        category_path: 'Sanitarios > Griferia > Demo',
+                        category_path: 'Categoria principal > Subcategoria > Demo',
                     },
                 ],
             };

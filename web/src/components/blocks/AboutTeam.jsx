@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function AboutTeam({
     title = 'Precisión e inspiración en cada detalle.',
-    quote = 'Nuestro trabajo no es solo sobre sanitarios, es sobre la seguridad y el confort de cada hogar. Cada unión cuenta.',
+    quote = 'Nuestro trabajo no es solo vender productos: es ayudar a que cada marca se presente mejor y conecte con sus clientes.',
     author = 'Julian Sterling',
     role = 'Fundador y jefe de ingeniería',
     avatarImage = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAea9Hk8KW-uNz2oCLHAOeVLaF4OEuHrLoMYAQ5icf0UpW2MbWEoppeOoK7-_ef46vSPLm9bOZn19yxGPkKgbqwzNxdl8pCXwjX84M0rsOM-14FdHnwu8rzaIZR1UJSvo2LVbbFvgWP_nntPKbU-nmwnPjWuzy9XiXqlmi62Yw8p6R5XWHQoEjxiw4mfhRuljOaKyPWkvPFELxYq8TKyXzDzeOlvj5ntTgVpCWOshfxNK3WLIQvRk7FstFclk10_lOYekLKXyXKEYA',

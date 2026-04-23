@@ -704,7 +704,7 @@ export default function SignupPage() {
                 <div className="w-full max-w-[460px] rounded-3xl border border-gray-200 bg-white p-6 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.18)] md:p-8">
                     <div className="mb-6 text-center">
                         <h1 className="mb-1 text-2xl font-extrabold text-gray-900">Crear cuenta</h1>
-                        <p className="text-sm font-medium text-gray-500">Unite a Sanitarios El Teflon</p>
+                        <p className="text-sm font-medium text-gray-500">Crea tu cuenta para comprar y gestionar tus pedidos</p>
                     </div>
 
                     <Stepper current={step} total={4} />

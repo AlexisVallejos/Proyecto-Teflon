@@ -331,7 +331,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         <input
                             type="text"
                             value={bankTransferSettings.alias || ''}
-                            placeholder="teflon.ventas.mp"
+                            placeholder="mi-negocio.ventas.mp"
                             onChange={(e) => updateBankTransferField('alias', e.target.value)}
                             className={fieldClass}
                         />
@@ -352,7 +352,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         <input
                             type="text"
                             value={bankTransferSettings.holder || ''}
-                            placeholder="Sanitarios El Teflon SRL"
+                            placeholder="Mi Negocio SRL"
                             onChange={(e) => updateBankTransferField('holder', e.target.value)}
                             className={fieldClass}
                         />

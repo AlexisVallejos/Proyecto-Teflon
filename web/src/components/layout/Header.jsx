@@ -119,7 +119,7 @@ export default function Header({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileCategories, setExpandedMobileCategories] = useState({});
 
-  const resolvedBrand = brandName || settings?.branding?.name || tenant?.name || "El Teflon";
+  const resolvedBrand = brandName || settings?.branding?.name || tenant?.name || "Mi Negocio";
   const logoUrl = settings?.branding?.logo_url;
 
   useEffect(() => {

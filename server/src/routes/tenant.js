@@ -433,7 +433,7 @@ async function findLatestProductSyncToken(db, tenantId) {
 }
 
 function createProductSyncTokenValue() {
-  return `teflon_${crypto.randomBytes(24).toString('hex')}`;
+  return `vase_${crypto.randomBytes(24).toString('hex')}`;
 }
 
 async function ensureProductSyncToken(db, tenantId, tokenName = 'ERP Sync') {

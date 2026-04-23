@@ -4,11 +4,11 @@ import { isExternalPath, navigate, normalizeInternalPath } from "../../utils/nav
 
 export default function Footer() {
   const { tenant, settings } = useTenant();
-  const brandName = settings?.branding?.name || tenant?.name || "El Teflon";
+  const brandName = settings?.branding?.name || tenant?.name || "Mi Negocio";
   const showWhatsappFooter = settings?.branding?.footer?.whatsapp_enabled !== false;
   const footerDescription =
     settings?.branding?.footer?.description ||
-    "Soluciones integrales en sanitarios y griferia. Calidad y confianza en cada proyecto.";
+    "Productos, servicios y atencion pensados para que tu negocio venda mejor online.";
   const whatsappNumber =
     settings?.branding?.footer?.socials?.whatsapp ||
     settings?.commerce?.whatsapp_number ||
@@ -16,10 +16,10 @@ export default function Footer() {
   const instagramUrl = settings?.branding?.footer?.socials?.instagram || "#";
   const address =
     settings?.branding?.footer?.contact?.address ||
-    "Av. Juan B. Justo 1234, Mar del Plata";
-  const phone = settings?.branding?.footer?.contact?.phone || "+54 223 123-4567";
+    "Direccion comercial";
+  const phone = settings?.branding?.footer?.contact?.phone || "+54 11 1234-5678";
   const email =
-    settings?.branding?.footer?.contact?.email || "ventas@elteflon.com";
+    settings?.branding?.footer?.contact?.email || "ventas@tunegocio.com";
   const quickLinks = settings?.branding?.footer?.quickLinks || [
     { label: "Productos", href: "/catalog" },
     { label: "Sobre nosotros", href: "#" },

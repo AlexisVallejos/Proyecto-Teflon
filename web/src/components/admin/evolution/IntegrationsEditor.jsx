@@ -463,7 +463,7 @@ const IntegrationsEditor = ({ manager }) => {
                             </ActionButton>
                         </div>
                         <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-white">
-                            La prueba de sync envia un producto demo con categoria `Sanitarios`. Si esa categoria no existe, el backend la crea automaticamente.
+                            La prueba de sync envia un producto demo con una categoria generica. Si esa categoria no existe, el backend la crea automaticamente.
                         </div>
                     </div>
 

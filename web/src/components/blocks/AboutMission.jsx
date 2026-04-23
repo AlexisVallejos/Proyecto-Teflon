@@ -20,14 +20,14 @@ export default function AboutMission({
     title = 'La misión',
     paragraphs = [
         'Creemos que la base de cada proyecto está en los detalles que no se ven. Combinamos ingeniería avanzada y materiales premium para soluciones que duran.',
-        'Desde reformas residenciales hasta desarrollos comerciales, ofrecemos sanitarios que equilibran diseño y resistencia.',
+        'Desde ventas online hasta atencion personalizada, ordenamos la oferta para que cada cliente encuentre lo que necesita.',
     ],
     highlights = [
         { icon: 'verified', title: 'Calidad certificada', text: 'Procesos con estándares ISO 9001.' },
         { icon: 'eco', title: 'Eco innovación', text: 'Tecnología para ahorro de agua.' },
     ],
     image = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDaDIcmwXvGopChH4z2NtypzPKEOIJB5DIz-cix6aLVUAg6015AqowjMQbKKJ273hv-K-Mdeeq78GFd-8Wt2hah0kOFgDkEGW24otJ-Yqrdn019S_zxUM4qMhyJ0sXG12Fr-Nk9EA4ZnVoQXzs0ZTjGJtuHBj_cdqJ4Z-i7TOx-wRo3JuBOyDsruX5utjj00tVbmE0sUIiRoPxHOH4_ohJ25dVPm0jFLFwKMx0fn7DC6IGRbByTaUUBATc5XDKzCDFZBcDdlv3kpB4',
-    imageAlt = 'Equipo técnico revisando piezas sanitarias',
+    imageAlt = 'Equipo revisando una propuesta comercial',
     styles = {},
 }) {
     const accentColor = styles.accentColor || 'var(--color-primary, #f97316)';

@@ -36,7 +36,7 @@ export async function sendSmtpEmail({
   const smtpPass = process.env.SMTP_PASS;
   const smtpPort = Number(process.env.SMTP_PORT || 587);
   const smtpSecure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
-  const fromAddress = from || process.env.SMTP_FROM || smtpUser || 'no-reply@teflon.local';
+  const fromAddress = from || process.env.SMTP_FROM || smtpUser || 'no-reply@vase.local';
 
   if (!smtpHost || !smtpUser || !smtpPass) {
     console.log(`[${logPrefix}] SMTP no configurado para ${recipient}.`);

@@ -6,12 +6,12 @@ import StoreSkeleton from '../components/StoreSkeleton';
 
 const DEFAULT_TENANT = {
     id: 'demo-tenant-id',
-    name: 'Sanitarios El Teflon',
+    name: 'Mi Negocio',
 };
 
 const DEFAULT_SETTINGS = {
     branding: {
-        name: 'Sanitarios El Teflon',
+        name: 'Mi Negocio',
         logo_url: '',
         navbar: {
             links: [

@@ -9,8 +9,8 @@ import HeroSaleBurstSlider from "./HeroSaleBurstSlider";
 import { normalizeHeroSlides, normalizeHeroStyles, normalizeHeroVariant } from "../../data/heroSliderTemplates";
 
 function ClassicHeroSlider({
-  title = "Sanitarios y griferia para cada proyecto",
-  subtitle = "Descubri productos para renovar tu bano con calidad, diseno y asesoramiento real.",
+  title = "Tu negocio online, listo para vender",
+  subtitle = "Descubri productos, servicios y novedades con una experiencia simple y clara.",
   tag = "Coleccion destacada",
   image = "https://lh3.googleusercontent.com/aida-public/AB6AXuAsE3UyUs8hwy2ulbda_AkoJgM8Dt4ADPYbA-N4JuZyG7V0vY4q6cc-Tt89t4P27xMxKmcjbMRSj4N02izzDB8sxKnPwkQT6oyUKxlUSIDxrIG34D9wU86tDWjBT-0y3V2Z_OLjdxCgq5XnSZfNN_gaFHdyDgF3Yqu1LH2AdPc8uRelPjbm_EzN2gggEAeP5ZoaAymWqHgYvaOW7zs6nmpnzlMDbxoDHw2MGpOOxIcYt6nSxjDnngClgvhP9eojjcdPz_JpCIAFFZA",
   primaryButton = { label: "Ver catalogo", link: "/catalog" },
@@ -314,4 +314,3 @@ export default function HeroSlider(props) {
 
   return <ClassicHeroSlider {...props} />;
 }
-

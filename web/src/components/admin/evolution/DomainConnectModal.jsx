@@ -424,7 +424,7 @@ const DomainConnectModal = ({ open, onClose }) => {
                                 </div>
                             </Card>
 
-                            <Card eyebrow="Hosts conectados" title="Inventario operativo" description="Cada dominio muestra el estado de conexion, el DNS esperado y las acciones normales: verificar, abrir, hacerlo principal o quitarlo." action={<button type="button" onClick={() => refreshVerification()} disabled={checkingDomain === '__all__'} className={ghostButtonClass} style={headerStyle}><ArrowsClockwise size={14} weight="bold" className={cn(checkingDomain === '__all__' && 'animate-spin')} />Verificar todo</button>}>
+                            <Card eyebrow="Dominios conectados" title="Estado y acciones" description="Revisa que URLs estan listas para publicar, que DNS espera cada una y que host quedara como principal. Desde aca puedes verificar, abrir, marcar principal o quitar un dominio." action={<button type="button" onClick={() => refreshVerification()} disabled={checkingDomain === '__all__'} className={ghostButtonClass} style={headerStyle}><ArrowsClockwise size={14} weight="bold" className={cn(checkingDomain === '__all__' && 'animate-spin')} />Verificar todo</button>}>
                                 <div className="space-y-3">
                                     {connectedDomains.length ? connectedDomains.map((item) => {
                                         const publicUrl = safePublicUrl(item.domain);

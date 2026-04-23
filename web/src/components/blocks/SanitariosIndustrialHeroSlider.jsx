@@ -8,9 +8,9 @@ const DEFAULT_SLIDES = [
         title: 'DUCHA',
         subtitle: 'PREMIUM',
         description: 'Precision tecnica y durabilidad extrema en cada componente.',
-        featured: 'Sanitarios El Teflon',
-        cardEyebrow: 'Master Dealer',
-        cardTitle: 'Sanitarios El Teflon',
+        featured: 'Mi Negocio',
+        cardEyebrow: 'Linea destacada',
+        cardTitle: 'Mi Negocio',
         specLabel: 'Spec: Chrome_04 // 2024',
         image:
             'https://lh3.googleusercontent.com/aida-public/AB6AXuCtrx3pTyYlPgB-m5Qu8uUwctQeJRkUAX5nF4uBy2EZwom64tlIa_jjJvKQZoFhDcseM0gZGo98GRYEGNf2hmNgD_EbPbEoOxG5vWrWAiXYIIWF2p48XGa626y2T8Xfxt5AK9C4upAWDExfCK11CrcPsFqDSnlQ5hTkj0bxFygNWYkKXfJXjpiX4QTnbkzXxUTP1V14BbbMtMm6kle200TQd25KHbu1zdec36SSAutjvA0O9VIiku54n_VWSvD0qL0kXDAiOZKDahg',
@@ -126,8 +126,8 @@ export default function SanitariosIndustrialHeroSlider({ slides = [], styles = {
         slide.title || 'DUCHA',
         slide.subtitle || 'PREMIUM',
     ].filter(Boolean);
-    const cardEyebrow = slide.cardEyebrow || 'Master Dealer';
-    const cardTitle = slide.cardTitle || slide.featured || 'Sanitarios El Teflon';
+    const cardEyebrow = slide.cardEyebrow || 'Linea destacada';
+    const cardTitle = slide.cardTitle || slide.featured || 'Mi Negocio';
     const specLabel = slide.specLabel || slide.secondaryButtonLabel || 'Spec: Chrome_04 // 2024';
     const cardDescription = slide.description || 'Precision tecnica y durabilidad extrema en cada componente.';
     const motionSign = direction === 'next' ? 1 : -1;

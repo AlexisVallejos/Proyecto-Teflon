@@ -7,8 +7,8 @@ export const DEFAULT_HOME_SECTIONS = [
         enabled: true,
         props: {
             variant: 'classic',
-            title: 'Sanitarios y griferia para cada proyecto',
-            subtitle: 'Productos pensados para renovar tu bano con calidad, diseno y stock real.',
+            title: 'Tu negocio online, listo para vender',
+            subtitle: 'Productos, servicios y contenido organizados para que tus clientes compren con claridad.',
             tag: 'Coleccion destacada',
             primaryButton: { label: 'Ver catalogo', link: '/catalog' },
             secondaryButton: { label: 'Conocer la marca', link: '/about' },
@@ -28,7 +28,7 @@ export const DEFAULT_HOME_SECTIONS = [
         props: {
             variant: 'classic',
             title: 'Productos destacados',
-            subtitle: 'Lo mas elegido para renovar banos, cocinas y espacios de uso diario.',
+            subtitle: 'Lo mas elegido por tus clientes, destacado en el storefront.',
             ctaLabel: 'Ver catalogo completo',
             ctaLink: '/catalog',
             styles: { alignment: 'items-end justify-between' },
@@ -42,7 +42,7 @@ export const DEFAULT_HOME_SECTIONS = [
             title: 'Te acompanamos en cada compra',
             subtitle: 'Asesoria, entrega y soporte para que elijas con confianza.',
             items: [
-                { icon: 'support_agent', title: 'Asesoramiento experto', text: 'Te ayudamos a elegir la opcion correcta segun tu obra o renovacion.' },
+                { icon: 'support_agent', title: 'Asesoramiento experto', text: 'Te ayudamos a elegir la opcion correcta segun cada necesidad.' },
                 { icon: 'local_shipping', title: 'Entrega coordinada', text: 'Retiro en sucursal o envio segun la cobertura disponible para tu zona.' },
                 { icon: 'shield', title: 'Compra con respaldo', text: 'Atencion clara, seguimiento y soporte para una experiencia de compra mas simple.' },
             ],

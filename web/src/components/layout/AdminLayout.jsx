@@ -125,7 +125,7 @@ export default function AdminLayout({
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="h-8 rounded-full border border-gray-200 bg-[#f7f8fa] px-4 text-xs text-[#667085] flex items-center dark:border-[#3d2f21] dark:bg-[#241b13]">
-                                https://www.teflon.com/misite
+                                https://mi-negocio.vase.ar
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-[#667085]">

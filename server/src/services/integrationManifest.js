@@ -90,7 +90,7 @@ const PRODUCT_FIELDS = [
 ];
 
 const SAMPLE_PAYLOAD = {
-  source_system: 'sistema-gestion-teflon',
+  source_system: 'sistema-gestion-cliente',
   items: [
     {
       external_id: 'PROD-1001',
@@ -107,7 +107,7 @@ const SAMPLE_PAYLOAD = {
       images: [
         'https://dominio-del-sistema.com/imagenes/prod-1001.jpg',
       ],
-      category_path: 'Sanitarios > Griferia > Monocomando',
+      category_path: 'Categoria principal > Subcategoria > Linea',
       updated_at: '2026-03-14T15:00:00.000Z',
     },
   ],
