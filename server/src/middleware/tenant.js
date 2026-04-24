@@ -19,7 +19,14 @@ export async function resolveTenant(req, res, next) {
     }
 
     if (!tenant) {
-      const host = normalizeDomainInput(req.hostname || req.get('host') || '');
+      const forwardedHost = String(
+        req.get('x-original-host') ||
+        req.get('x-forwarded-host') ||
+        req.hostname ||
+        req.get('host') ||
+        ''
+      ).split(',')[0];
+      const host = normalizeDomainInput(forwardedHost);
       if (host) {
         const hostCandidates = host.startsWith('www.')
           ? [host, host.slice(4)]
