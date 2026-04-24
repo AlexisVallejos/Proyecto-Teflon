@@ -54,7 +54,9 @@ adminRouter.post('/tenants', async (req, res, next) => {
         );
       }
 
-      await ensureTenantPlatformDomain(client, tenant.id);
+      await ensureTenantPlatformDomain(client, tenant.id, {
+        onlyWhenMissing: false,
+      });
 
       await client.query('COMMIT');
       return res.status(201).json({ tenant });

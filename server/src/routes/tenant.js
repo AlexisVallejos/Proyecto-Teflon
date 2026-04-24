@@ -11,6 +11,7 @@ import { buildTenantIntegrationManifest, resolveServerBaseUrl } from '../service
 import { applyPriceTierLabels, normalizePriceTierLabels } from '../services/priceTierLabels.js';
 import {
   buildTenantDomainsPayload as buildTenantDomainsPayloadService,
+  ensureTenantPlatformDomain as ensureTenantPlatformDomainService,
   normalizeDomainInput as normalizeDomainInputService,
   normalizeSubdomainLabel as normalizeSubdomainLabelService,
   removeTenantDomain as removeTenantDomainService,
@@ -655,7 +656,10 @@ tenantRouter.get('/domains', async (req, res, next) => {
   if (!tenantId) return;
 
   try {
-    return res.json(await buildTenantDomainsPayloadService(pool, tenantId, { ensurePlatformDomain: true }));
+    return res.json(await buildTenantDomainsPayloadService(pool, tenantId, {
+      ensurePlatformDomain: true,
+      autoCreateOptions: { onlyWhenMissing: false },
+    }));
   } catch (err) {
     return next(err);
   }
@@ -713,12 +717,48 @@ tenantRouter.post('/domains/platform', async (req, res, next) => {
   }
 });
 
+tenantRouter.post('/domains/platform/ensure', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  const platformBaseDomain = String(process.env.PLATFORM_BASE_DOMAIN || '').trim().toLowerCase();
+  if (!platformBaseDomain) {
+    return res.status(400).json({ error: 'platform_domain_not_configured' });
+  }
+
+  try {
+    await ensureTenantPlatformDomainService(pool, tenantId, {
+      preferredSubdomain: normalizeSubdomainLabelService(req.body?.subdomain || ''),
+      onlyWhenMissing: false,
+      isPrimary: parseBooleanInput(req.body?.is_primary, true),
+    });
+
+    const payload = await buildTenantDomainsPayloadService(pool, tenantId, {
+      ensurePlatformDomain: true,
+      autoCreateOptions: {
+        onlyWhenMissing: false,
+        isPrimary: parseBooleanInput(req.body?.is_primary, true),
+      },
+    });
+
+    return res.status(201).json(payload);
+  } catch (err) {
+    if (err?.status && err?.code) {
+      return res.status(err.status).json({ error: err.code });
+    }
+    return next(err);
+  }
+});
+
 tenantRouter.post('/domains/check', async (req, res, next) => {
   const tenantId = getTenantId(req, res);
   if (!tenantId) return;
 
   try {
-    const payload = await buildTenantDomainsPayloadService(pool, tenantId, { ensurePlatformDomain: true });
+    const payload = await buildTenantDomainsPayloadService(pool, tenantId, {
+      ensurePlatformDomain: true,
+      autoCreateOptions: { onlyWhenMissing: false },
+    });
     const requestedDomain = normalizeDomainInputService(req.body?.domain || '');
     if (!requestedDomain) {
       return res.json(payload);

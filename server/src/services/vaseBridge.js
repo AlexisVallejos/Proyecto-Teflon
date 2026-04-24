@@ -302,6 +302,7 @@ export async function exchangeVaseLaunchToken(rawToken) {
       preferredSubdomain: payload.externalTenantSlug || '',
       preferredLabels: [payload.displayName || '', payload.tenantName || ''],
       email: payload.email || '',
+      onlyWhenMissing: false,
     });
 
     const user = await upsertUser(client, payload);

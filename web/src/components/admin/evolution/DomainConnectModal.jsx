@@ -8,6 +8,7 @@ import {
     GlobeHemisphereWest,
     HouseLine,
     Link,
+    RocketLaunch,
     ShieldCheck,
     Trash,
     WarningCircle,
@@ -206,7 +207,7 @@ const RecordRow = ({ record, onCopy }) => (
     </div>
 );
 
-const DomainConnectModal = ({ open, onClose }) => {
+const DomainConnectModal = ({ open, onClose, initialIntent = 'domains' }) => {
     const { addToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -300,6 +301,33 @@ const DomainConnectModal = ({ open, onClose }) => {
         }
     };
 
+    const publishPlatformDomain = async () => {
+        setSaving(true);
+        try {
+            const subdomain = String(platformSubdomain || domainState?.platform?.assigned_subdomain || domainState?.platform?.suggested_subdomain || '').trim();
+            const assignedSubdomain = String(domainState?.platform?.assigned_subdomain || '').trim();
+            const endpoint = subdomain && subdomain !== assignedSubdomain
+                ? `${getApiBase()}/tenant/domains/platform`
+                : `${getApiBase()}/tenant/domains/platform/ensure`;
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { ...buildHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subdomain, is_primary: true }),
+            });
+            const payload = await readResponsePayload(res);
+            if (!res.ok) throw new Error(payload?.error || 'tenant_platform_domain_publish_failed');
+            setDomainState(payload);
+            setPlatformSubdomain(getPlatformSubdomainValue(payload));
+            const publishedUrl = safePublicUrl(payload?.platform?.assigned_domain || payload?.primary_domain);
+            addToast(publishedUrl ? `Sitio publicado en ${publishedUrl}` : 'Sitio publicado con link de plataforma', 'success');
+        } catch (err) {
+            console.error('Failed to publish platform domain', err);
+            addToast(resolvePlatformErrorMessage(err?.message), 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const refreshVerification = async (domain = '') => {
         setCheckingDomain(domain || '__all__');
         try {
@@ -372,6 +400,7 @@ const DomainConnectModal = ({ open, onClose }) => {
     const platform = domainState?.platform || {};
     const currentStoreUrl = safePublicUrl(currentPrimary);
     const assignedPlatformUrl = safePublicUrl(platform?.assigned_domain);
+    const activePublishUrl = assignedPlatformUrl || currentStoreUrl;
     const draftDomainPlan = useMemo(() => inferDraftDnsPlan(customDomain, platform), [customDomain, platform]);
     const platformPreviewDomain = platform?.base_domain && platformSubdomain ? `${platformSubdomain}.${platform.base_domain}` : (platform?.assigned_domain || platform?.suggested_domain || '');
     const platformPreview = safePublicUrl(platformPreviewDomain) || platformPreviewDomain || '';
@@ -464,9 +493,28 @@ const DomainConnectModal = ({ open, onClose }) => {
                     <section className="admin-panel-surface flex min-h-0 flex-col overflow-hidden rounded-3xl border" style={panelStyle}>
                         <div className="admin-header-surface flex items-center justify-between border-b px-4 py-3" style={headerStyle}>
                             <div className="space-y-0.5"><p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">Publicacion</p><h3 className="text-sm font-semibold admin-text-primary">Dominios y link publicado</h3></div>
-                            <Chip label={platform?.base_domain || 'Plataforma'} tone="info" />
+                            <Chip label={initialIntent === 'publish' ? 'Publicar' : (platform?.base_domain || 'Plataforma')} tone="info" />
                         </div>
                         <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
+                            <Card eyebrow="Publicar ahora" title="Link publico Vase" description="Genera o marca como principal el subdominio de plataforma. Este es el fallback para clientes que todavia no conectaron dominio propio.">
+                                <div className="space-y-3">
+                                    <div className="rounded-3xl border p-5" style={{ ...surfaceStyle, background: 'linear-gradient(135deg, #f8fafc 0%, #ecfeff 48%, #f0fdf4 100%)' }}>
+                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="min-w-0 space-y-2">
+                                                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>URL de publicacion</p>
+                                                <p className="break-all text-lg font-black tracking-tight" style={whiteTextPrimary}>{activePublishUrl || platformPreview || 'Pendiente de generar'}</p>
+                                                <p className="text-sm leading-relaxed" style={whiteTextMuted}>El sitio se publica por datos/version activa, no por deploy individual por cliente.</p>
+                                            </div>
+                                            <div className="flex shrink-0 flex-wrap gap-2">
+                                                {activePublishUrl ? <a href={activePublishUrl} target="_blank" rel="noreferrer" className={ghostButtonClass} style={headerStyle}><GlobeHemisphereWest size={14} weight="bold" />Abrir</a> : null}
+                                                {activePublishUrl ? <button type="button" onClick={() => copyText(activePublishUrl, 'Link publicado copiado')} className={ghostButtonClass} style={headerStyle}><Copy size={14} weight="bold" />Copiar</button> : null}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" onClick={publishPlatformDomain} disabled={saving || !platform?.enabled} className="admin-accent-button flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50"><RocketLaunch size={17} weight="bold" />{saving ? 'Publicando...' : (assignedPlatformUrl ? 'Publicar usando este .vase.ar' : 'Generar y publicar .vase.ar')}</button>
+                                </div>
+                            </Card>
+
                             <Card eyebrow="Opcion 1" title="Conectar un dominio que ya tienes" description="Escribe el dominio del negocio. El panel te dice exactamente que DNS publicar y despues verifica si ya quedo apuntando a la plataforma.">
                                 <div className="space-y-3">
                                     <div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Dominio del cliente</label><input className={inputClass} style={fieldStyle} placeholder="alessitech.space o www.alessitech.space" value={customDomain} onChange={(event) => setCustomDomain(event.target.value)} /></div>

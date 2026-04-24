@@ -368,10 +368,15 @@ export async function buildTenantDomainsPayload(db, tenantId, options = {}) {
 
   if (options.ensurePlatformDomain && platformConfig.platformBaseDomain) {
     const existingDomains = await listTenantDomains(db, tenantId);
-    if (!existingDomains.length) {
+    const existingPlatformDomain = existingDomains.find(
+      (item) => inferDomainMode(item.domain, platformConfig.platformBaseDomain) === 'platform'
+    );
+    if (!existingPlatformDomain) {
       await ensureTenantPlatformDomain(db, tenantId, {
         ...options.autoCreateOptions,
         context,
+        existingDomains,
+        onlyWhenMissing: false,
       });
     }
   }
@@ -524,6 +529,11 @@ export async function ensureTenantPlatformDomain(db, tenantId, options = {}) {
   );
 
   if (existingPlatformDomain) {
+    if (options.isPrimary === true && existingPlatformDomain.is_primary !== true) {
+      await upsertTenantDomain(db, tenantId, existingPlatformDomain.domain, {
+        isPrimary: true,
+      });
+    }
     return {
       created: false,
       domain: existingPlatformDomain.domain,
@@ -542,7 +552,7 @@ export async function ensureTenantPlatformDomain(db, tenantId, options = {}) {
   }
 
   await upsertTenantDomain(db, tenantId, available.domain, {
-    isPrimary: existingDomains.length === 0,
+    isPrimary: options.isPrimary ?? existingDomains.length === 0,
   });
 
   return {

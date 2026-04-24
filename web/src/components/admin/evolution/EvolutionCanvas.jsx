@@ -19,6 +19,7 @@ import {
     CreditCard,
     SquaresFour,
     WarningCircle,
+    RocketLaunch,
 } from '@phosphor-icons/react';
 
 const iconButtonStyle = {
@@ -54,6 +55,7 @@ const getSearchItemIcon = (kind = '') => {
 const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems = [] }) => {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
+    const [domainModalIntent, setDomainModalIntent] = useState('domains');
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -200,6 +202,11 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
         setIsNotificationsOpen(false);
     };
 
+    const openDomainCenter = (intent = 'domains') => {
+        setDomainModalIntent(intent);
+        setIsDomainModalOpen(true);
+    };
+
     return (
         <main className="admin-canvas-surface relative flex flex-1 flex-col overflow-hidden">
             <header className="admin-header-surface sticky top-0 z-40 flex h-14 items-center justify-between border-b px-6 backdrop-blur-md">
@@ -306,7 +313,16 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
 
                     <button
                         type="button"
-                        onClick={() => setIsDomainModalOpen(true)}
+                        onClick={() => openDomainCenter('publish')}
+                        className="admin-accent-button inline-flex h-8 items-center gap-2 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
+                    >
+                        <RocketLaunch size={14} weight="bold" />
+                        Publicar
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => openDomainCenter('domains')}
                         style={{
                             backgroundColor: 'var(--admin-hover)',
                             borderColor: 'var(--admin-border)',
@@ -432,6 +448,7 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
             <DomainConnectModal
                 open={isDomainModalOpen}
                 onClose={() => setIsDomainModalOpen(false)}
+                initialIntent={domainModalIntent}
             />
         </main>
     );

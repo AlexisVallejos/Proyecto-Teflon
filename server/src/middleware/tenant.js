@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import { normalizeDomainInput } from '../services/tenantDomains.js';
 
 export async function resolveTenant(req, res, next) {
   try {
@@ -18,11 +19,21 @@ export async function resolveTenant(req, res, next) {
     }
 
     if (!tenant) {
-      const host = (req.hostname || '').toLowerCase();
+      const host = normalizeDomainInput(req.hostname || req.get('host') || '');
       if (host) {
+        const hostCandidates = host.startsWith('www.')
+          ? [host, host.slice(4)]
+          : [host];
         const result = await pool.query(
-          'select t.id, t.name from tenant_domains d join tenants t on t.id = d.tenant_id where d.domain = $1 and t.status = $2',
-          [host, 'active']
+          [
+            'select t.id, t.name',
+            'from tenant_domains d',
+            'join tenants t on t.id = d.tenant_id',
+            'where d.domain = any($1::text[]) and t.status = $2',
+            'order by array_position($1::text[], d.domain) asc',
+            'limit 1',
+          ].join(' '),
+          [hostCandidates, 'active']
         );
         tenant = result.rows[0];
       }
