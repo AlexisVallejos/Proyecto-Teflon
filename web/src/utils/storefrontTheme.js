@@ -1,7 +1,7 @@
 export const DEFAULT_STOREFRONT_LIGHT_THEME = {
     mode: 'light',
-    primary: '#111111',
-    accent: '#111111',
+    primary: '#ea580c',
+    accent: '#ea580c',
     background: '#f8fafc',
     text: '#111827',
     secondary: '#64748b',
@@ -18,18 +18,18 @@ export const DEFAULT_STOREFRONT_LIGHT_THEME = {
 
 export const DEFAULT_STOREFRONT_DARK_THEME = {
     mode: 'dark',
-    primary: '#111111',
-    accent: '#f5f5f5',
-    background: '#09090b',
+    primary: '#ea580c',
+    accent: '#ea580c',
+    background: '#120c08',
     text: '#f5f5f5',
     secondary: '#a1a1aa',
     font_family: 'Inter, sans-serif',
     catalog: {
-        shell_bg: '#09090b',
-        panel_bg: '#111113',
-        surface_bg: '#0c0c0e',
-        card_bg: '#111113',
-        border: '#27272a',
+        shell_bg: '#120c08',
+        panel_bg: '#1a130c',
+        surface_bg: '#2c2116',
+        card_bg: '#2d2218',
+        border: '#3d2f21',
         muted_text: '#a1a1aa',
     },
 };

@@ -354,57 +354,8 @@
     border-color: rgba(15, 23, 42, 0.12) !important;
   }
 
-  html.dark,
-  html.dark body {
-    background-color: #090b0f;
-    color: #e6edf7;
-  }
-
-  html.dark [class*="dark:bg-[#120c08]"],
-  html.dark [class*="dark:bg-[#120d08]"] {
-    background-color: #090b0f !important;
-  }
-
-  html.dark [class*="dark:bg-[#1a130c]"],
-  html.dark [class*="dark:bg-[#1a140d]"] {
-    background-color: #0f1115 !important;
-  }
-
-  html.dark [class*="dark:bg-[#2c2116]"],
-  html.dark [class*="dark:bg-[#2c221a]"],
-  html.dark [class*="dark:bg-[#2d2218]"],
-  html.dark [class*="dark:bg-[#2b2219]"] {
-    background-color: #171b21 !important;
-  }
-
-  html.dark [class*="dark:bg-[#2d241c]"],
-  html.dark [class*="dark:bg-[#3d2e1f]"],
-  html.dark [class*="dark:bg-[#3d2e21]"] {
-    background-color: #20262f !important;
-  }
-
-  html.dark [class*="dark:border-[#3d2f21]"],
-  html.dark [class*="dark:border-[#3d2e21]"],
-  html.dark [class*="dark:border-[#3d2e1f]"] {
-    border-color: #2a313b !important;
-  }
-
-  html.dark [class*="dark:text-[#a59280]"] {
-    color: #97a3b6 !important;
-  }
-
-  html.dark [class*="dark:text-[#f4e7d8]"] {
-    color: #e6edf7 !important;
-  }
-
-  html.dark [class*="dark:hover:bg-[#2c2116]"]:hover {
-    background-color: #1c222b !important;
-  }
-
-  html.dark [class*="dark:hover:bg-[#1a130c]"]:hover {
-    background-color: #151b22 !important;
-  }
 }
+
 
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";

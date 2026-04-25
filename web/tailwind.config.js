@@ -8,9 +8,9 @@ export default {
     theme: {
         extend: {
             colors: {
-                primary: 'var(--color-primary, #6366f1)', // Default to Indigo Vivid
+                primary: 'var(--color-primary, #ea580c)', // Default to Teflon Orange
                 'zinc-dark': '#09090b',
-                'evolution-indigo': '#6366f1',
+                'evolution-indigo': '#ea580c',
                 border: 'rgba(255, 255, 255, 0.1)',
                 background: {
                     DEFAULT: '#09090b',
@@ -18,7 +18,7 @@ export default {
                     dark: '#09090b',
                 },
                 accent: {
-                    DEFAULT: '#6366f1',
+                    DEFAULT: '#ea580c',
                     foreground: '#ffffff',
                 },
             },
