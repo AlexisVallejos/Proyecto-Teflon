@@ -42,6 +42,24 @@ const PaletteChip = ({ label, value }) => (
     </div>
 );
 
+const ColorField = ({ label, value, onChange }) => (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 pl-3 pr-2 py-1.5 focus-within:border-white/20 transition-colors">
+        <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p>
+            <p className="mt-0.5 font-mono text-xs text-zinc-300">{value}</p>
+        </div>
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-white/15">
+            <input 
+                type="color" 
+                value={value} 
+                onChange={(e) => onChange(e.target.value)} 
+                className="absolute -left-2 -top-2 h-12 w-12 cursor-pointer bg-transparent"
+                title="Editar color"
+            />
+        </div>
+    </div>
+);
+
 const ThemeModeButton = ({ active, icon, title, description, onClick }) => (
     <button
         type="button"
@@ -281,35 +299,54 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         </p>
                     </div>
 
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-1">
                         <ThemeModeButton
-                            active={storefrontMode === 'light'}
+                            active={true}
                             icon={<Sun size={16} weight="bold" />}
                             title="Claro"
-                            description="Base blanca, contraste fuerte y lectura limpia para catalogos extensos."
-                            onClick={() => applyStorefrontThemePreset('light')}
-                        />
-                        <ThemeModeButton
-                            active={storefrontMode === 'dark'}
-                            icon={<MoonStars size={16} weight="bold" />}
-                            title="Oscuro"
-                            description="Base oscura sobria, paneles profundos y texto alto contraste."
-                            onClick={() => applyStorefrontThemePreset('dark')}
+                            description="Modo principal de la tienda. Puedes modificar los colores libremente."
+                            onClick={() => {}}
                         />
                     </div>
 
-                    <PalettePreview
-                        title="Paleta aplicada"
-                        subtitle="Los colores son preset; no hay edicion manual para evitar combinaciones rotas."
-                        colors={{
-                            primary: storefrontPreview.primary,
-                            background: storefrontPreview.background,
-                            text: storefrontPreview.text,
-                            secondary: storefrontPreview.secondary,
-                            panel_bg: storefrontPreview.catalog.panel_bg,
-                            card_bg: storefrontPreview.catalog.card_bg,
-                        }}
-                    />
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <div className="mb-4 space-y-1">
+                            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Paleta base interactiva</p>
+                            <p className="text-xs text-zinc-500">Haz clic en los colores para personalizarlos.</p>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            <ColorField
+                                label="Acento"
+                                value={theme.primary || DEFAULT_STOREFRONT_LIGHT_THEME.primary}
+                                onChange={(val) => updateTheme({ mode: 'light', primary: val, accent: val })}
+                            />
+                            <ColorField
+                                label="Fondo"
+                                value={theme.background || DEFAULT_STOREFRONT_LIGHT_THEME.background}
+                                onChange={(val) => updateTheme({ mode: 'light', background: val })}
+                            />
+                            <ColorField
+                                label="Texto"
+                                value={theme.text || DEFAULT_STOREFRONT_LIGHT_THEME.text}
+                                onChange={(val) => updateTheme({ mode: 'light', text: val })}
+                            />
+                            <ColorField
+                                label="Texto sec."
+                                value={theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.secondary}
+                                onChange={(val) => updateTheme({ mode: 'light', secondary: val })}
+                            />
+                            <ColorField
+                                label="Paneles"
+                                value={theme.catalog?.panel_bg || DEFAULT_STOREFRONT_LIGHT_THEME.catalog.panel_bg}
+                                onChange={(val) => updateTheme({ mode: 'light', catalog: { ...(theme.catalog || DEFAULT_STOREFRONT_LIGHT_THEME.catalog), panel_bg: val } })}
+                            />
+                            <ColorField
+                                label="Cartas"
+                                value={theme.catalog?.card_bg || DEFAULT_STOREFRONT_LIGHT_THEME.catalog.card_bg}
+                                onChange={(val) => updateTheme({ mode: 'light', catalog: { ...(theme.catalog || DEFAULT_STOREFRONT_LIGHT_THEME.catalog), card_bg: val } })}
+                            />
+                        </div>
+                    </div>
 
                     <EvolutionInput
                         label="Nombre de la empresa"
