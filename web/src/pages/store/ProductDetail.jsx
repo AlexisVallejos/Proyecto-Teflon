@@ -511,6 +511,10 @@ export default function ProductDetail() {
                                                         {formatCurrency(view.price, currency, locale)}
                                                     </span>
                                                 </div>
+                                                <div className="flex flex-col gap-1 mt-2">
+                                                    <span className="text-xs font-bold text-amber-600">⚠️ IVA No Incluido</span>
+                                                    <span className="text-xs italic text-[#8a7560]">⚠️ El precio puede variar según tu ubicación / región</span>
+                                                </div>
                                             </div>
                                         ) : authLoading ? (
                                             <p className="text-[#8a7560]">Cargando precio...</p>

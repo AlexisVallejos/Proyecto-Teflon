@@ -12,6 +12,8 @@ import {
   getTenantOffers,
   resolveBestOfferForProduct,
 } from '../services/offers.js';
+import { resolveTaxDetails } from '../services/taxes.js';
+import { generateFiscalInvoice } from '../services/invoiceService.js';
 
 export const checkoutRouter = express.Router();
 
@@ -134,6 +136,7 @@ async function validateItems(tenantId, items, adjustments, context = {}) {
         unit_price: unitPrice,
         total: unitPrice * item.qty,
         currency: product.currency,
+        category_ids: product.category_ids || [],
       };
     })
     .filter(Boolean);
@@ -182,6 +185,19 @@ checkoutRouter.post('/validate', async (req, res, next) => {
     if (!result.valid) {
       return res.status(400).json(result);
     }
+
+    // Calcula shipping y taxes para /validate (reactividad del carrito)
+    const customer = req.body.customer || {};
+    const shippingInfo = resolveShippingAmount(context.commerce, customer);
+    const shipping = toNumber(shippingInfo?.amount, 0);
+    
+    // Resolve dynamic taxes
+    const taxData = await resolveTaxDetails(req.tenant.id, result.items, customer, shipping);
+    result.shipping = shipping;
+    result.tax = taxData.total_tax;
+    result.tax_details = taxData.tax_details;
+    result.total = result.subtotal + result.shipping + result.tax;
+
     return res.json(result);
   } catch (err) {
     return next(err);
@@ -202,14 +218,20 @@ checkoutRouter.post('/create', async (req, res, next) => {
     const checkoutMode = resolveCheckoutMethod(commerce, requestedPayment);
     const customer = req.body.customer || {};
     const shippingInfo = resolveShippingAmount(commerce, customer);
-    const taxRate = Number(commerce.tax_rate || 0);
     if (shippingInfo?.error) {
       return res.status(400).json({ error: shippingInfo.error });
     }
 
     const shipping = toNumber(shippingInfo.amount, 0);
-    const tax = (validation.subtotal + shipping) * taxRate;
+    const taxData = await resolveTaxDetails(req.tenant.id, validation.items, customer, shipping);
+    const tax = taxData.total_tax;
     const total = validation.subtotal + shipping + tax;
+
+    // Validate Tax Acknowledgement Checkbox
+    if (!req.body.taxes_acknowledged) {
+       // Si el comercio habilita la validacion estricta fiscal, podemos rebotar acá
+       // return res.status(400).json({ valid: false, errors: ['taxes_not_acknowledged'] });
+    }
 
     await client.query('BEGIN');
     for (const item of validation.items) {
@@ -299,7 +321,25 @@ checkoutRouter.post('/create', async (req, res, next) => {
     );
 
     await client.query('COMMIT');
-    return res.json({ order_id: orderId, checkout_mode: checkoutMode, payment, whatsapp_url });
+    
+    // Generar PDF Asincronamente tras crear la orden con éxito
+    const invoiceData = await generateFiscalInvoice({
+      id: orderId,
+      user_id: req.user?.id,
+      subtotal: validation.subtotal,
+      shipping: shipping,
+      tax: tax,
+      total: total,
+      currency: validation.currency
+    });
+
+    return res.json({ 
+        order_id: orderId, 
+        checkout_mode: checkoutMode, 
+        payment, 
+        whatsapp_url,
+        invoice_url: invoiceData?.url || null 
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     if (String(err?.message || '').startsWith('insufficient_stock:')) {

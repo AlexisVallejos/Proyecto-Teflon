@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Objetivos - Vase</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #fafaf7;
+            --bg-card: #ffffff;
+            --text-main: #1a1a1a;
+            --text-sec: #6b6b6b;
+            --accent: #2d6a4f;
+            --border: #ebe8e2;
+            --completed: #6b9080;
+            --hover-bg: #f5f5f5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding: 50px 24px;
+        }
+
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        h1,
+        h2,
+        h3,
+        .serif {
+            font-family: 'Crimson Text', serif;
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 40px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        header p {
+            color: var(--text-sec);
+            font-size: 1.1rem;
+        }
+
+        /* Progress Card */
+        .progress-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+            animation: fadeIn 0.5s ease 0.1s both;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .progress-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .progress-percent {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--accent);
+            font-family: 'Crimson Text', serif;
+        }
+
+        .progress-bar-bg {
+            background-color: var(--border);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .progress-bar-fill {
+            background-color: var(--accent);
+            height: 100%;
+            width: 0%;
+            border-radius: 4px;
+            transition: width 0.5s ease-out;
+        }
+
+        /* Sections */
+        .section {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 40px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            animation: fadeIn 0.6s ease 0.2s both;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            background-color: #fdfdfc;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-count {
+            font-size: 0.9rem;
+            color: var(--text-sec);
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-main);
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        /* Task Items */
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-item:hover {
+            background-color: var(--hover-bg);
+            box-shadow: inset 2px 0 0 var(--accent);
+        }
+
+        .checkbox-wrapper {
+            margin-right: 16px;
+            display: flex;
+            align-items: flex-start;
+            padding-top: 2px;
+        }
+
+        .custom-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            background-color: var(--bg-card);
+        }
+
+        .task-item.completed .custom-checkbox {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .check-icon {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: white;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 20;
+            stroke-dashoffset: 20;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+
+        .task-item.completed .check-icon {
+            stroke-dashoffset: 0;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .task-desc {
+            font-size: 0.88rem;
+            color: var(--text-sec);
+            line-height: 1.4;
+            transition: all 0.2s ease;
+        }
+
+        .task-item.completed .task-title {
+            color: var(--completed);
+            text-decoration: line-through;
+        }
+
+        .task-item.completed .task-desc {
+            color: var(--completed);
+            opacity: 0.8;
+        }
+
+        /* Actions */
+        .actions {
+            display: flex;
+            gap: 16px;
+            margin-top: 40px;
+            justify-content: center;
+            animation: fadeIn 0.6s ease 0.4s both;
+        }
+
+        button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary:hover {
+            background-color: #21503b;
+            box-shadow: 0 4px 12px rgba(45, 106, 79, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: #d62828;
+            border: 1px solid transparent;
+        }
+
+        .btn-danger:hover {
+            background-color: #fff0f0;
+            border-color: #ffcdcd;
+        }
+
+        /* Pre-formatted code for details */
+        pre {
+            background: var(--bg-main);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+            margin-top: 8px;
+            overflow-x: auto;
+            color: var(--text-sec);
+            font-family: monospace;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 30px 16px;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .progress-card {
+                position: static;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .progress-card {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                position: static;
+            }
+
+            .section {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                break-inside: avoid;
+            }
+
+            .actions {
+                display: none;
+            }
+
+            .task-item:hover {
+                background-color: transparent;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Mis Objetivos</h1>
+            <p>Marca cada tarea conforme la completes</p>
+        </header>
+
+        <div class="progress-card">
+            <div class="progress-header">
+                <div class="progress-title serif" id="progress-text">0/0 completados</div>
+                <div class="progress-percent" id="progress-percent">0%</div>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progress-bar"></div>
+            </div>
+        </div>
+
+        <div id="sections-container">
+            <!-- JS renderiza las secciones aquí -->
+        </div>
+
+        <div class="actions">
+            <button class="btn-primary" onclick="window.print()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                Imprimir
+            </button>
+            <button class="btn-secondary" onclick="exportar()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Descargar JSON
+            </button>
+            <button class="btn-danger" onclick="limpiar()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Limpiar todo
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Estructura de datos original
+        const data = [
+            {
+                id: "cat-1",
+                icon: "🛡️",
+                nombre: "Política & Seguridad",
+                objetivos: [
+                    { id: "1-1", titulo: "Implementar HTTPS/SSL", descripcion: "Activado en toda la plataforma con redirección automática." },
+                    { id: "1-2", titulo: "Política de Privacidad completa", descripcion: "Asegurar cumplimiento RGPD/LGPD." },
+                    { id: "1-3", titulo: "Términos y Condiciones legales", descripcion: "Redactar y mantener actualizados los TyC." },
+                    { id: "1-4", titulo: "Autenticación 2FA", descripcion: "Incluir SMS, Email y códigos de recuperación de un solo uso." },
+                    { id: "1-5", titulo: "Encriptación Bcrypt", descripcion: "Para contraseñas con hash + salt único por usuario." },
+                    { id: "1-6", titulo: "Auditoría de logs", descripcion: "Registro de intentos de login, cambios de contraseña y accesos sensibles." },
+                    { id: "1-7", titulo: "Certificación PCI DSS v3.2.1", descripcion: "Cumplimiento normativo para procesamiento seguro de pagos." },
+                    { id: "1-8", titulo: "Backup automático diario", descripcion: "Con cifrado asegurado en almacenamiento externo." },
+                    { id: "1-9", titulo: "Headers de seguridad", descripcion: "Configurar CSP, HSTS, X-Frame-Options en el servidor." }
+                ]
+            },
+            {
+                id: "cat-2",
+                icon: "👤",
+                nombre: "Validación de Registro",
+                objetivos: [
+                    { id: "2-1", titulo: "Validación de Email", descripcion: "Con enlace único (expira en 24h, reenvío disponible)." },
+                    { id: "2-2", titulo: "Verificación SMS", descripcion: "Con OTP de 6 dígitos (válido por 10 min, máximo 3 intentos)." },
+                    { id: "2-3", titulo: "Validación de fuerza de contraseña", descripcion: "Mínimo 8 caracteres, mayúsculas, minúsculas, números, símbolos y un indicador visual." },
+                    { id: "2-4", titulo: "Prevención de duplicados", descripcion: "Verificación de email en base de datos insensible a mayúsculas/minúsculas." },
+                    { id: "2-5", titulo: "Integración reCAPTCHA v3", descripcion: "Integrado en el formulario de registro." },
+                    { id: "2-6", titulo: "Rate Limiting", descripcion: "Bloqueo temporal de 15 minutos tras 5 intentos fallidos." },
+                    { id: "2-7", titulo: "Validación dual", descripcion: "Validación estricta siempre en cliente y servidor." }
+                ]
+            },
+            {
+                id: "cat-3",
+                icon: "🌐",
+                nombre: "Validación Web",
+                objetivos: [
+                    { id: "3-1", titulo: "HTML5 semántico validado", descripcion: "Cumplir estándares W3C sin alertas críticas." },
+                    { id: "3-2", titulo: "Accesibilidad WCAG 2.1 AA", descripcion: "Atributos alt en imágenes, ARIA labels correctos, alto contraste." },
+                    { id: "3-3", titulo: "Responsive Design Mobile-First", descripcion: "Soporte perfecto para mobile, tablet y desktop comprobado." },
+                    { id: "3-4", titulo: "Performance optimizada", descripcion: "Tiempo de carga < 3 segundos, puntuación Lighthouse > 90." },
+                    { id: "3-5", titulo: "SEO básico", descripcion: "Meta tags configuradas, og:image, canonicals, sitemap.xml y robots.txt." },
+                    { id: "3-6", titulo: "Validación de formularios robusta", descripcion: "Manejo completo de errores de forms en cliente y servidor." },
+                    { id: "3-7", titulo: "Prevención de ataques web", descripcion: "Tokens CSRF en formularios, escapado de datos XSS, prepared statements para prevenir Inyección SQL." },
+                    { id: "3-8", titulo: "Testing automatizado", descripcion: "Unit tests + E2E tests, y coverage general > 80%." },
+                    { id: "3-9", titulo: "Documentación técnica", descripcion: "README exhaustivo, documentación de API y diagramas de arquitectura." }
+                ]
+            },
+            {
+                id: "cat-4",
+                icon: "🚚",
+                nombre: "Búsqueda & Envíos",
+                objetivos: [
+                    { id: "4-1", titulo: "Integración con APIs logísticas", descripcion: "DHL, FedEx, Correos para tarifas en tiempo real." },
+                    { id: "4-2", titulo: "Búsqueda por Código Postal", descripcion: "Validación de formato con autocomplete de ciudades integrado." },
+                    { id: "4-3", titulo: "Cálculo de tiempos de entrega", descripcion: "Algoritmo basado en distancia, zona, volumen, con margen de ±1 día." },
+                    { id: "4-4", titulo: "Múltiples opciones de envío", descripcion: "Standard (5-7d), Express (2-3d), Overnight (24h)." },
+                    { id: "4-5", titulo: "Rastreo en tiempo real", descripcion: "Número de seguimiento con actualización cada 2h y push notifications." },
+                    { id: "4-6", titulo: "Envíos internacionales", descripcion: "Cálculo automático de aduanas y aranceles." },
+                    { id: "4-7", titulo: "Transparencia de costos de envío", descripcion: "Desglose visible (tarifa base + seguro + manejo), sin costos ocultos." },
+                    { id: "4-8", titulo: "Filtros avanzados en catálogo", descripcion: "Filtros por velocidad de entrega, precio de envío o transportista." }
+                ]
+            },
+            {
+                id: "cat-5",
+                icon: "🧾",
+                nombre: "IVA e Impuestos",
+                objetivos: [
+                    { id: "5-1", titulo: "Cálculo 19% IVA", descripcion: "Cálculo automático base por cada producto en el carrito." },
+                    { id: "5-2", titulo: "Etiquetas en productos", descripcion: "Indicar visiblemente '📦 IVA Incluido' o '⚠️ IVA No Incluido' junto al tipo (+5%, +8%)." },
+                    { id: "5-3", titulo: "Aviso de variación", descripcion: "Texto claro: '⚠️ El precio puede variar según tu ubicación / región' para advertir en lugar de imponer." },
+                    { id: "5-4", titulo: "Variación regional dinámica", descripcion: "Actualización automática de cifras al cambiar el domicilio de envío en la app." },
+                    { id: "5-5", titulo: "Impuestos por categoría p/producto", descripcion: "Ej: Electrónica +5%, Lujo +8%, Alimentos 0%." },
+                    { id: "5-6", titulo: "Resumen de checkout detallado", descripcion: "Mostrar desglose exacto (Subtotal sin impuestos, IVA, Extras, Aranceles, Total) en el carrito." },
+                    { id: "5-7", titulo: "Recálculo Reactivo", descripcion: "La interfaz se actualiza en tiempo real al seleccionar otra dirección sin recargar." },
+                    { id: "5-8", titulo: "Checkbox obligatorio checkout", descripcion: "'☑️ Entiendo que el precio final puede variar...'. Bloquea pago si no está marcado." },
+                    { id: "5-9", titulo: "Descarga de PDF fiscal", descripcion: "Factura descargable con IVA desglosado, sello digital y código QR validador." },
+                    { id: "5-10", titulo: "Comunicación de no-imposición", descripcion: "Copywriting enfocado en advertir clara y proactivamente en vez de sorprender en el último paso." }
+                ]
+            }
+        ];
+
+        // Estado local
+        let state = JSON.parse(localStorage.getItem('vase_tasks')) || {};
+
+        const container = document.getElementById('sections-container');
+        const checkedIconSVG = `<svg class="check-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+        // Renderizar HTML
+        function render() {
+            container.innerHTML = '';
+
+            data.forEach(sec => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'section';
+
+                // Calcular contador de la sección
+                const totalSec = sec.objetivos.length;
+                const completedSec = sec.objetivos.filter(obj => state[obj.id]).length;
+
+                let html = `
+                <div class="section-header">
+                    <div class="section-title serif">
+                        <span>${sec.icon}</span> ${sec.nombre}
+                    </div>
+                    <div class="section-count">${completedSec}/${totalSec}</div>
+                </div>
+                <div class="task-list">
+            `;
+
+                sec.objetivos.forEach(obj => {
+                    const isCompleted = !!state[obj.id];
+                    html += `
+                    <div class="task-item ${isCompleted ? 'completed' : ''}" onclick="toggleTask('${obj.id}')">
+                        <div class="checkbox-wrapper">
+                            <div class="custom-checkbox">
+                                ${checkedIconSVG}
+                            </div>
+                        </div>
+                        <div class="task-content">
+                            <div class="task-title">${obj.titulo}</div>
+                            <div class="task-desc">${obj.descripcion}</div>
+                        </div>
+                    </div>
+                `;
+                });
+
+                html += `</div>`;
+                sectionEl.innerHTML = html;
+                container.appendChild(sectionEl);
+            });
+
+            updateProgressUI();
+        }
+
+        // Alternar check
+        function toggleTask(id) {
+            state[id] = !state[id];
+            saveState();
+            render(); // Re-render forces UI update nicely
+        }
+
+        // Actualizar progreso global
+        function updateProgressUI() {
+            let total = 0;
+            let completed = 0;
+
+            data.forEach(sec => {
+                sec.objetivos.forEach(obj => {
+                    total++;
+                    if (state[obj.id]) completed++;
+                });
+            });
+
+            const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+            document.getElementById('progress-text').innerText = `${completed}/${total} completados`;
+            document.getElementById('progress-percent').innerText = `${percent}%`;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+        }
+
+        // Persistencia
+        function saveState() {
+            localStorage.setItem('vase_tasks', JSON.stringify(state));
+        }
+
+        // Exportar a JSON
+        function exportar() {
+            const exportData = {
+                fecha: new Date().toISOString(),
+                proyecto: "Vase",
+                secciones: data.map(sec => ({
+                    nombre: sec.nombre,
+                    objetivos: sec.objetivos.map(obj => ({
+                        titulo: obj.titulo,
+                        descripcion: obj.descripcion,
+                        completado: !!state[obj.id]
+                    }))
+                }))
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vase-objetivos-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Limpiar progreso
+        function limpiar() {
+            if (confirm("¿Estás seguro de que quieres limpiar todo el progreso? Esta acción no se puede deshacer.")) {
+                state = {};
+                saveState();
+                render();
+                // Scroll to top gently
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            render();
+        });
+
+    </script>
+</body>
+
+</html>

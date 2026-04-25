@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import DeliveryLocationSelector from "../../components/store/DeliveryLocationSelector";
 import { formatCurrency } from "../../utils/format";
@@ -380,6 +380,7 @@ export default function CheckoutPage() {
     }, [deliveryLocation, deliveryMethod, distanceQuote]);
 
     const [orderSuccess, setOrderSuccess] = useState(null);
+    const [taxesAcknowledged, setTaxesAcknowledged] = useState(false);
 
     // Accordion open
     const [openStep, setOpenStep] = useState(1); // 1..3
@@ -874,6 +875,10 @@ export default function CheckoutPage() {
                 setCheckoutError("Completa razon social, direccion, localidad, tipo de IVA y numero de documento para la facturacion.");
                 return;
             }
+        }
+        if (!taxesAcknowledged) {
+            setCheckoutError("Debes aceptar y confirmar la informacion de impuestos antes de proceder con el pago.");
+            return;
         }
 
         setCreating(true);
@@ -1845,6 +1850,26 @@ export default function CheckoutPage() {
                                 <span className="text-2xl font-black text-gray-900">
                                     {formatCurrency(total, displayCurrency, locale)}
                                 </span>
+                            </div>
+
+                            {/* Taxes Acknowledgement */}
+                            <div className="px-6 pt-4 pb-2">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center pt-0.5">
+                                        <input
+                                            type="checkbox"
+                                            className="peer sr-only"
+                                            checked={taxesAcknowledged}
+                                            onChange={(e) => setTaxesAcknowledged(e.target.checked)}
+                                        />
+                                        <div className="w-5 h-5 rounded border-2 border-gray-300 peer-checked:border-primary peer-checked:bg-primary transition-all group-hover:border-primary/50 flex flex-shrink-0 items-center justify-center">
+                                            <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 text-[11px] text-gray-600 leading-relaxed font-medium">
+                                        Entiendo que los precios mostrados no incluyen impuestos y seran liquidados <span className="font-bold">segun la categoria y/o ubicacion</span>, con factura electronica emitida automaticamente.
+                                    </div>
+                                </label>
                             </div>
 
                             {/* CTA */}

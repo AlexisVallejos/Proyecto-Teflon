@@ -182,10 +182,17 @@ export default function CartPage() {
 
                                 {canViewPrices ? (
                                     <>
-                                        <div className="hidden lg:flex flex-col gap-4 mb-6">
-                                            <Row label="Subtotal" value={formatCurrency(cartSubtotal, currency, locale)} />
+                                        <div className="hidden lg:flex flex-col gap-4 mb-3">
+                                            <Row label="Subtotal (sin impuestos)" value={formatCurrency(cartSubtotal, currency, locale)} />
                                             <Row label="Envío estimado" value={shipping === 0 ? "Gratis" : formatCurrency(shipping, currency, locale)} />
-                                            {tax > 0 && <Row label="Impuestos" value={formatCurrency(tax, currency, locale)} />}
+                                            {tax > 0 && <Row label="IVA (19%)" value={formatCurrency(tax, currency, locale)} />}
+                                            <Row label="Impuestos Adicionales" value={formatCurrency(0, currency, locale)} />
+                                            <Row label="Aranceles (si aplica)" value={formatCurrency(0, currency, locale)} />
+                                        </div>
+                                        <div className="hidden lg:flex px-2 mb-4">
+                                            <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest leading-tight">
+                                                ⚠️ El precio final y los impuestos pueden variar según tu ubicación / región
+                                            </span>
                                         </div>
 
                                         <div className="border-t border-zinc-200 dark:border-zinc-800 pt-0 lg:pt-6 mb-4 lg:mb-8">

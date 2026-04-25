@@ -85,6 +85,7 @@ export default function ProductCard({ product }) {
               <p className="text-2xl font-black text-primary">
                 {formatCurrency(price, currency, locale)}
               </p>
+              <p className="text-[10px] font-bold text-amber-600 mt-0.5">⚠️ IVA No Incluido</p>
             </div>
           ) : loading ? (
             <p className="text-sm text-[#8a7560] mt-1">Cargando precio...</p>
