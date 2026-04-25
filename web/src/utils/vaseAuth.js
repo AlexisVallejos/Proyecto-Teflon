@@ -1,6 +1,7 @@
 const TRUTHY_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
 const normalizeUrl = (value) => String(value || '').trim().replace(/\/+$/, '');
+const normalizeHost = (value) => String(value || '').trim().toLowerCase().replace(/:\d+$/, '');
 
 const joinUrl = (base, path) => {
     const normalizedBase = normalizeUrl(base);
@@ -46,7 +47,23 @@ export const getExternalLoginUrl = () =>
 export const getExternalSignupUrl = () =>
     buildConfiguredUrl(import.meta.env.VITE_VASE_APP_SIGNUP_URL, '/register');
 
-export const isExternalAuthEnabled = () => {
+export const isEditorHost = () => {
+    if (typeof window === 'undefined') return false;
+    const currentHost = normalizeHost(window.location.hostname);
+    const configuredEditorHost = normalizeHost(import.meta.env.VITE_EDITOR_HOST);
+
+    if (configuredEditorHost) {
+        return currentHost === configuredEditorHost;
+    }
+
+    return currentHost.startsWith('editor.');
+};
+
+export const isExternalAuthEnabled = ({ requireEditorHost = true } = {}) => {
+    if (requireEditorHost && !isEditorHost()) {
+        return false;
+    }
+
     const externalAuthFlag = String(import.meta.env.VITE_EXTERNAL_AUTH || '').trim().toLowerCase();
     const hasExternalTargets = Boolean(
         getExternalBusinessLaunchUrl() || getExternalLoginUrl() || getExternalSignupUrl()

@@ -6,6 +6,7 @@ import { StoreProvider } from './context/StoreContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { navigate } from './utils/navigation';
+import { isEditorHost as resolveIsEditorHost } from './utils/vaseAuth';
 
 // Store pages
 import HomePage from './pages/store/HomePage';
@@ -28,11 +29,9 @@ import PreviewPage from './pages/admin/evolution/PreviewPage';
 function AppContent() {
     const [route, setRoute] = useState(window.location.pathname);
     const { isAdmin, loading: authLoading, user } = useAuth();
-    const currentHostname = window.location.hostname.toLowerCase();
-    const configuredEditorHost = String(import.meta.env.VITE_EDITOR_HOST || '').trim().toLowerCase();
-    const isEditorHost = configuredEditorHost
-        ? currentHostname === configuredEditorHost
-        : currentHostname.startsWith('editor.');
+    const isEditorHost = resolveIsEditorHost();
+    const isPreviewRoute = route === '/admin/preview';
+    const isAdminRoute = route === '/admin' || route === '/admin/evolution' || route === '/admin/legacy';
 
     useEffect(() => {
         const handleLocationChange = () => setRoute(window.location.pathname);
@@ -54,11 +53,17 @@ function AppContent() {
         navigate('/admin/evolution');
     }, [isEditorHost, route]);
 
-    let Component = HomePage;
-    const isPreviewRoute = route === '/admin/preview';
-    const isAdminRoute = route === '/admin' || route === '/admin/evolution' || route === '/admin/legacy';
+    useEffect(() => {
+        if (isEditorHost) return;
+        if (!isPreviewRoute && !isAdminRoute) return;
+        navigate('/');
+    }, [isAdminRoute, isEditorHost, isPreviewRoute]);
 
-    if (isPreviewRoute) {
+    let Component = HomePage;
+
+    if ((isPreviewRoute || isAdminRoute) && !isEditorHost) {
+        Component = HomePage;
+    } else if (isPreviewRoute) {
         Component = PreviewPage;
     } else if (isAdminRoute) {
         if (authLoading) {

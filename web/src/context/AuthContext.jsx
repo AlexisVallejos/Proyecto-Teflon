@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }) => {
                     ? new URL(window.location.href).searchParams.get('vase_token')
                     : null;
 
-            if (launchToken) {
+            if (launchToken && isExternalAuthEnabled()) {
                 try {
                     const data = await exchangeVaseSession(launchToken);
                     if (!active) return;
@@ -93,6 +93,10 @@ export const AuthProvider = ({ children }) => {
                     setLoading(false);
                     return;
                 }
+            }
+
+            if (launchToken) {
+                removeLaunchTokenFromUrl();
             }
 
             const storedUser = localStorage.getItem('teflon_user');
