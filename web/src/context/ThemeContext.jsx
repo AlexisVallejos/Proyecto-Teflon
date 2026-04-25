@@ -7,8 +7,8 @@ const ThemeContext = createContext(null);
 export const ThemeProvider = ({ children }) => {
     const { tenant, settings } = useTenant();
     const configuredTheme = settings?.theme || tenant?.theme || {};
-    const mode = 'light';
-    const effectiveTheme = useMemo(() => getStorefrontThemePreset('light', configuredTheme), [configuredTheme]);
+    const mode = configuredTheme?.mode === 'dark' ? 'dark' : 'light';
+    const effectiveTheme = useMemo(() => getStorefrontThemePreset(mode, configuredTheme), [configuredTheme, mode]);
 
     useEffect(() => {
         const palette = effectiveTheme.colors || {};
@@ -56,11 +56,6 @@ export const ThemeProvider = ({ children }) => {
         if (fontFamily) {
             root.style.setProperty('--font-family', fontFamily);
         }
-        try {
-            window.localStorage.removeItem('teflon_storefront_mode');
-        } catch (error) {
-            // Ignore storage failures.
-        }
     }, [effectiveTheme, mode]);
 
     const noop = () => {
@@ -76,7 +71,7 @@ export const ThemeProvider = ({ children }) => {
             value={{
                 theme: effectiveTheme,
                 mode,
-                configuredMode: 'light',
+                configuredMode: mode,
                 setMode: noop,
                 toggleMode: noop,
                 clearModePreference: noop,

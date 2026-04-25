@@ -457,6 +457,7 @@ export default function Header({
             <div className="group relative h-full">
               <button
                 type="button"
+                onClick={() => navigate("/catalog")}
                 className={`inline-flex h-full items-center gap-1 border-b-2 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
                   productsActive
                     ? "border-[color:var(--color-primary,#0099e5)] text-[color:var(--color-primary,#0099e5)]"

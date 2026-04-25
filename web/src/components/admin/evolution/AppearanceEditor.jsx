@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import EvolutionInput from './EvolutionInput';
-import { FloppyDisk, UploadSimple, Sun, MoonStars } from '@phosphor-icons/react';
+import { FloppyDisk, MoonStars, Storefront, Sun, UploadSimple } from '@phosphor-icons/react';
 import {
     DEFAULT_ADMIN_PANEL_THEME,
     LIGHT_ADMIN_PANEL_THEME,
 } from '../../../utils/adminPanelTheme';
 import {
-    DEFAULT_STOREFRONT_LIGHT_THEME,
-    getCatalogThemePreset,
+    getStorefrontThemePreset,
 } from '../../../utils/storefrontTheme';
 
 const fieldClass =
-    "w-full rounded-xl border border-white/25 bg-zinc-900/70 px-3 py-2.5 text-sm text-white placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-[var(--admin-accent)] focus:ring-2 focus:ring-[var(--admin-accent-soft)]";
+    'admin-input-field w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all duration-200';
 
 const readImageAsDataUrl = (file) =>
     new Promise((resolve, reject) => {
@@ -21,6 +20,77 @@ const readImageAsDataUrl = (file) =>
         reader.readAsDataURL(file);
     });
 
+const paletteLabelMap = {
+    primary: 'Acento',
+    background: 'Fondo',
+    text: 'Texto',
+    secondary: 'Texto secundario',
+    shell_bg: 'Shell',
+    sidebar_bg: 'Sidebar',
+    panel_bg: 'Paneles',
+    canvas_bg: 'Canvas',
+    muted_text: 'Texto secundario',
+};
+
+const PaletteChip = ({ label, value }) => (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+        <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p>
+            <p className="mt-0.5 font-mono text-xs text-zinc-300">{value}</p>
+        </div>
+        <span className="h-8 w-8 shrink-0 rounded-lg border border-white/15" style={{ backgroundColor: value }} />
+    </div>
+);
+
+const ThemeModeButton = ({ active, icon, title, description, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className="group relative overflow-hidden rounded-2xl border p-4 text-left transition-all"
+        style={{
+            backgroundColor: active ? 'var(--admin-accent-soft)' : 'var(--admin-hover)',
+            borderColor: active ? 'var(--admin-accent-border)' : 'var(--admin-border-soft)',
+            boxShadow: active ? '0 18px 40px rgba(0,0,0,0.18)' : 'none',
+        }}
+    >
+        <div className="flex items-start gap-3">
+            <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border"
+                style={{
+                    backgroundColor: active ? 'var(--admin-accent)' : 'var(--admin-panel-bg)',
+                    borderColor: active ? 'var(--admin-accent-border)' : 'var(--admin-border-soft)',
+                    color: active ? 'var(--admin-accent-contrast)' : 'var(--admin-text)',
+                }}
+            >
+                {icon}
+            </div>
+            <div className="min-w-0">
+                <p className="text-sm font-black uppercase tracking-[0.14em] admin-text-primary">{title}</p>
+                <p className="mt-1 text-xs leading-relaxed admin-text-muted">{description}</p>
+            </div>
+        </div>
+        {active ? (
+            <span className="absolute right-3 top-3 rounded-full bg-[var(--admin-accent)] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--admin-accent-contrast)]">
+                Activo
+            </span>
+        ) : null}
+    </button>
+);
+
+const PalettePreview = ({ title, subtitle, colors }) => (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+        <div className="mb-4 space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">{title}</p>
+            {subtitle ? <p className="text-xs text-zinc-500">{subtitle}</p> : null}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+            {Object.entries(colors).map(([key, value]) => (
+                <PaletteChip key={key} label={paletteLabelMap[key] || key} value={value} />
+            ))}
+        </div>
+    </div>
+);
+
 const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const [logoUploading, setLogoUploading] = useState(false);
     const [adminLogoUploading, setAdminLogoUploading] = useState(false);
@@ -29,13 +99,14 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const theme = settings?.theme || {};
     const adminBranding = branding?.admin_panel || {};
     const adminTheme = theme?.admin_panel || {};
-    const catalogTheme = getCatalogThemePreset('light', theme);
     const footer = branding?.footer || {};
     const socials = footer?.socials || {};
     const contact = footer?.contact || {};
     const quickLinks = Array.isArray(footer?.quickLinks) ? footer.quickLinks : [];
-    const adminMode = adminTheme.mode === 'light' ? 'light' : 'dark';
-    const adminThemeDefaults = adminMode === 'light' ? LIGHT_ADMIN_PANEL_THEME : DEFAULT_ADMIN_PANEL_THEME;
+    const storefrontMode = theme?.mode === 'dark' ? 'dark' : 'light';
+    const adminMode = adminTheme?.mode === 'light' ? 'light' : 'dark';
+    const storefrontPreview = getStorefrontThemePreset(storefrontMode);
+    const adminPreview = adminMode === 'light' ? LIGHT_ADMIN_PANEL_THEME : DEFAULT_ADMIN_PANEL_THEME;
 
     const updateTheme = (patch) => {
         setSettings((prev) => ({
@@ -53,19 +124,6 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
             branding: {
                 ...(prev.branding || {}),
                 ...patch,
-            },
-        }));
-    };
-
-    const updateCatalogTheme = (patch) => {
-        setSettings((prev) => ({
-            ...prev,
-            theme: {
-                ...(prev.theme || {}),
-                catalog: {
-                    ...(((prev.theme || {}).catalog) || {}),
-                    ...patch,
-                },
             },
         }));
     };
@@ -96,12 +154,12 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
         }));
     };
 
+    const applyStorefrontThemePreset = (mode) => {
+        updateTheme(getStorefrontThemePreset(mode));
+    };
+
     const applyAdminThemePreset = (mode) => {
-        const preset = mode === 'light' ? LIGHT_ADMIN_PANEL_THEME : DEFAULT_ADMIN_PANEL_THEME;
-        updateAdminTheme({
-            ...preset,
-            accent: adminTheme.accent || preset.accent,
-        });
+        updateAdminTheme(mode === 'light' ? LIGHT_ADMIN_PANEL_THEME : DEFAULT_ADMIN_PANEL_THEME);
     };
 
     const updateFooter = (patch) => {
@@ -157,13 +215,11 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     };
 
     const removeQuickLink = (index) => {
-        const next = quickLinks.filter((_, idx) => idx !== index);
-        updateFooter({ quickLinks: next });
+        updateFooter({ quickLinks: quickLinks.filter((_, idx) => idx !== index) });
     };
 
     const addQuickLink = () => {
-        const next = [...quickLinks, { label: 'Nuevo link', href: '#' }];
-        updateFooter({ quickLinks: next });
+        updateFooter({ quickLinks: [...quickLinks, { label: 'Nuevo link', href: '/catalog' }] });
     };
 
     const handleLogoUpload = async (event) => {
@@ -172,8 +228,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
         setLogoUploading(true);
         try {
             const dataUrl = await readImageAsDataUrl(file);
-            if (!dataUrl) return;
-            updateBranding({ logo_url: dataUrl });
+            if (dataUrl) updateBranding({ logo_url: dataUrl });
         } catch (err) {
             console.error('Logo upload failed', err);
         } finally {
@@ -188,8 +243,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
         setAdminLogoUploading(true);
         try {
             const dataUrl = await readImageAsDataUrl(file);
-            if (!dataUrl) return;
-            updateAdminBranding({ logo_url: dataUrl });
+            if (dataUrl) updateAdminBranding({ logo_url: dataUrl });
         } catch (err) {
             console.error('Admin logo upload failed', err);
         } finally {
@@ -200,21 +254,18 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
 
     return (
         <div className="space-y-6 pb-10">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
-                    <h2 className="text-2xl font-bold text-white tracking-tight">Apariencia</h2>
-                    <p className="text-sm text-zinc-400">Completa los campos para configurar colores, marca y footer.</p>
+                    <h2 className="text-2xl font-bold tracking-tight admin-text-primary">Apariencia</h2>
+                    <p className="text-sm admin-text-muted">
+                        Paletas cerradas para que la tienda y el panel mantengan una identidad consistente.
+                    </p>
                 </div>
                 <button
                     type="button"
                     onClick={onSave}
                     disabled={isSaving}
-                    style={{
-                        backgroundColor: 'var(--admin-accent)',
-                        color: 'var(--admin-accent-contrast)',
-                        boxShadow: '0 0 24px var(--admin-shadow)',
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                    className="admin-accent-button inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
                 >
                     <FloppyDisk size={14} weight="bold" />
                     {isSaving ? 'Guardando...' : 'Guardar'}
@@ -222,173 +273,54 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <div className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Tema</h3>
-                    <div className="space-y-2">
-                        <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Modo tienda</p>
+                <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="space-y-1">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Tienda publica</h3>
                         <p className="text-xs text-zinc-500">
-                            La tienda queda fija en modo claro. Desde aca solo ajustas colores y marca del storefront.
+                            Este tema se aplica a home, catalogo, producto, carrito, checkout, login y registro del cliente.
                         </p>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Color primario</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={theme.primary || DEFAULT_STOREFRONT_LIGHT_THEME.primary}
-                                    onChange={(e) => updateTheme({ primary: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">{theme.primary || DEFAULT_STOREFRONT_LIGHT_THEME.primary}</span>
-                            </div>
-                        </div>
 
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Color texto</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={theme.text || theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.text}
-                                    onChange={(e) => updateTheme({ text: e.target.value, secondary: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">
-                                    {theme.text || theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.text}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Color fondo</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={theme.background || DEFAULT_STOREFRONT_LIGHT_THEME.background}
-                                    onChange={(e) => updateTheme({ background: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">
-                                    {theme.background || DEFAULT_STOREFRONT_LIGHT_THEME.background}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Texto secundario</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.secondary}
-                                    onChange={(e) => updateTheme({ secondary: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">
-                                    {theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.secondary}
-                                </span>
-                            </div>
-                        </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <ThemeModeButton
+                            active={storefrontMode === 'light'}
+                            icon={<Sun size={16} weight="bold" />}
+                            title="Claro"
+                            description="Base blanca, contraste fuerte y lectura limpia para catalogos extensos."
+                            onClick={() => applyStorefrontThemePreset('light')}
+                        />
+                        <ThemeModeButton
+                            active={storefrontMode === 'dark'}
+                            icon={<MoonStars size={16} weight="bold" />}
+                            title="Oscuro"
+                            description="Base oscura sobria, paneles profundos y texto alto contraste."
+                            onClick={() => applyStorefrontThemePreset('dark')}
+                        />
                     </div>
 
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Catalogo</p>
-                            <p className="text-xs text-zinc-500">
-                                Ajusta el color del listado: fondo, paneles, tarjetas, bordes y texto secundario.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Fondo catalogo</p>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={catalogTheme.shell_bg}
-                                        onChange={(e) => updateCatalogTheme({ shell_bg: e.target.value })}
-                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.shell_bg}</span>
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Paneles</p>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={catalogTheme.panel_bg}
-                                        onChange={(e) => updateCatalogTheme({ panel_bg: e.target.value })}
-                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.panel_bg}</span>
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Superficie</p>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={catalogTheme.surface_bg}
-                                        onChange={(e) => updateCatalogTheme({ surface_bg: e.target.value })}
-                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.surface_bg}</span>
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Tarjetas</p>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={catalogTheme.card_bg}
-                                        onChange={(e) => updateCatalogTheme({ card_bg: e.target.value })}
-                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.card_bg}</span>
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Bordes</p>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={catalogTheme.border}
-                                        onChange={(e) => updateCatalogTheme({ border: e.target.value })}
-                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.border}</span>
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Texto secundario</p>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={catalogTheme.muted_text}
-                                        onChange={(e) => updateCatalogTheme({ muted_text: e.target.value })}
-                                        className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                    />
-                                    <span className="text-xs font-mono text-zinc-300">{catalogTheme.muted_text}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <PalettePreview
+                        title="Paleta aplicada"
+                        subtitle="Los colores son preset; no hay edicion manual para evitar combinaciones rotas."
+                        colors={{
+                            primary: storefrontPreview.primary,
+                            background: storefrontPreview.background,
+                            text: storefrontPreview.text,
+                            secondary: storefrontPreview.secondary,
+                            panel_bg: storefrontPreview.catalog.panel_bg,
+                            card_bg: storefrontPreview.catalog.card_bg,
+                        }}
+                    />
 
                     <EvolutionInput
                         label="Nombre de la empresa"
                         value={branding.name || ''}
                         onChange={(e) => updateBranding({ name: e.target.value })}
                         placeholder="Ej: Tu empresa"
-                        helperText="Se usa como nombre base en la tienda y tambien en Evolution Admin."
+                        helperText="Se usa como marca principal en la tienda y como fallback en el admin."
                     />
 
                     <div className="space-y-2">
-                        <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Logo</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Logo de la tienda</p>
                         <div className="flex items-center gap-3">
                             <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">
                                 <input
@@ -408,47 +340,45 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             ) : null}
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <div className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="space-y-1">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Admin Panel</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Admin panel</h3>
                         <p className="text-xs text-zinc-500">
-                            Personaliza el shell del admin: nombre, logo y colores base.
+                            El editor tambien usa presets completos: sidebar, paneles, canvas, texto y estados.
                         </p>
                     </div>
 
-                    <div className="space-y-2">
-                        <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Modo</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button
-                                type="button"
-                                onClick={() => applyAdminThemePreset('light')}
-                                className="flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors"
-                                style={{
-                                    backgroundColor: adminMode === 'light' ? 'var(--admin-accent-soft)' : 'var(--admin-hover)',
-                                    borderColor: adminMode === 'light' ? 'var(--admin-accent-border)' : 'var(--admin-border)',
-                                    color: adminMode === 'light' ? 'var(--admin-accent)' : '#d4d4d8',
-                                }}
-                            >
-                                <Sun size={14} weight="bold" />
-                                Claro
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => applyAdminThemePreset('dark')}
-                                className="flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition-colors"
-                                style={{
-                                    backgroundColor: adminMode === 'dark' ? 'var(--admin-accent-soft)' : 'var(--admin-hover)',
-                                    borderColor: adminMode === 'dark' ? 'var(--admin-accent-border)' : 'var(--admin-border)',
-                                    color: adminMode === 'dark' ? 'var(--admin-accent)' : '#d4d4d8',
-                                }}
-                            >
-                                <MoonStars size={14} weight="bold" />
-                                Oscuro
-                            </button>
-                        </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <ThemeModeButton
+                            active={adminMode === 'light'}
+                            icon={<Sun size={16} weight="bold" />}
+                            title="Claro"
+                            description="Panel luminoso para gestion diaria con mucho contenido."
+                            onClick={() => applyAdminThemePreset('light')}
+                        />
+                        <ThemeModeButton
+                            active={adminMode === 'dark'}
+                            icon={<MoonStars size={16} weight="bold" />}
+                            title="Oscuro"
+                            description="Panel oscuro con acento neutro y foco en el canvas."
+                            onClick={() => applyAdminThemePreset('dark')}
+                        />
                     </div>
+
+                    <PalettePreview
+                        title="Paleta del admin"
+                        subtitle="Preset bloqueado para que todo el panel mantenga contraste correcto."
+                        colors={{
+                            accent: adminPreview.accent,
+                            sidebar_bg: adminPreview.sidebar_bg,
+                            panel_bg: adminPreview.panel_bg,
+                            canvas_bg: adminPreview.canvas_bg,
+                            text: adminPreview.text,
+                            muted_text: adminPreview.muted_text,
+                        }}
+                    />
 
                     <EvolutionInput
                         label="Nombre visible del admin"
@@ -491,90 +421,18 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             ) : null}
                         </div>
                     </div>
+                </section>
 
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Acento</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={adminTheme.accent || adminThemeDefaults.accent}
-                                    onChange={(e) => updateAdminTheme({ accent: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">{adminTheme.accent || adminThemeDefaults.accent}</span>
-                            </div>
+                <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-2">
+                    <div className="flex items-center gap-3">
+                        <div className="admin-accent-surface flex h-10 w-10 items-center justify-center rounded-2xl border">
+                            <Storefront size={18} weight="bold" />
                         </div>
-
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Sidebar</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={adminTheme.sidebar_bg || adminThemeDefaults.sidebar_bg}
-                                    onChange={(e) => updateAdminTheme({ sidebar_bg: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">{adminTheme.sidebar_bg || adminThemeDefaults.sidebar_bg}</span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Paneles</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={adminTheme.panel_bg || adminThemeDefaults.panel_bg}
-                                    onChange={(e) => updateAdminTheme({ panel_bg: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">{adminTheme.panel_bg || adminThemeDefaults.panel_bg}</span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Canvas</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={adminTheme.canvas_bg || adminThemeDefaults.canvas_bg}
-                                    onChange={(e) => updateAdminTheme({ canvas_bg: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">{adminTheme.canvas_bg || adminThemeDefaults.canvas_bg}</span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Texto</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={adminTheme.text || adminThemeDefaults.text}
-                                    onChange={(e) => updateAdminTheme({ text: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">{adminTheme.text || adminThemeDefaults.text}</span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-400">Texto secundario</p>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="color"
-                                    value={adminTheme.muted_text || adminThemeDefaults.muted_text}
-                                    onChange={(e) => updateAdminTheme({ muted_text: e.target.value })}
-                                    className="h-9 w-10 rounded-lg border-none bg-transparent"
-                                />
-                                <span className="text-xs font-mono text-zinc-300">{adminTheme.muted_text || adminThemeDefaults.muted_text}</span>
-                            </div>
+                        <div>
+                            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Footer y contacto</h3>
+                            <p className="text-xs text-zinc-500">Contenido del pie de pagina publico.</p>
                         </div>
                     </div>
-                </div>
-
-                <div className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Footer</h3>
 
                     <EvolutionInput
                         label="Descripcion"
@@ -687,7 +545,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             ) : null}
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
         </div>
     );
