@@ -6,12 +6,8 @@ import {
     CrownSimple,
     Globe,
     GlobeHemisphereWest,
-    HouseLine,
-    Link,
     RocketLaunch,
-    ShieldCheck,
     Trash,
-    WarningCircle,
     X,
 } from '@phosphor-icons/react';
 
@@ -170,19 +166,6 @@ const Card = ({ eyebrow, title, description, action, children }) => (
     </section>
 );
 
-const Stat = ({ icon, label, value, helper, tone = 'default' }) => (
-    <div className="rounded-2xl border p-5" style={surfaceStyle}>
-        <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>{label}</p>
-                <p className="break-words text-lg font-semibold" style={whiteTextPrimary}>{value}</p>
-                {helper ? <p className="text-xs leading-relaxed text-zinc-500">{helper}</p> : null}
-            </div>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border" style={chipToneMap[tone] || chipToneMap.default}>{icon}</div>
-        </div>
-    </div>
-);
-
 const Step = ({ step, title, description }) => (
     <div className="rounded-2xl border p-4" style={surfaceStyle}>
         <div className="flex items-start gap-3">
@@ -270,32 +253,6 @@ const DomainConnectModal = ({ open, onClose, initialIntent = 'domains' }) => {
         } catch (err) {
             console.error('Failed to connect custom domain', err);
             addToast(resolveDomainErrorMessage(err?.message, domain), 'error');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const submitPlatformDomain = async () => {
-        const subdomain = String(platformSubdomain || '').trim();
-        if (!subdomain) {
-            addToast('Ingresa un subdominio para reservar', 'error');
-            return;
-        }
-        setSaving(true);
-        try {
-            const res = await fetch(`${getApiBase()}/tenant/domains/platform`, {
-                method: 'POST',
-                headers: { ...buildHeaders(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subdomain, is_primary: true }),
-            });
-            const payload = await readResponsePayload(res);
-            if (!res.ok) throw new Error(payload?.error || 'tenant_platform_domain_connect_failed');
-            setDomainState(payload);
-            setPlatformSubdomain(getPlatformSubdomainValue(payload));
-            addToast('Link de plataforma guardado y listo para publicar', 'success');
-        } catch (err) {
-            console.error('Failed to reserve platform subdomain', err);
-            addToast(resolvePlatformErrorMessage(err?.message), 'error');
         } finally {
             setSaving(false);
         }
@@ -395,7 +352,6 @@ const DomainConnectModal = ({ open, onClose, initialIntent = 'domains' }) => {
     };
 
     const connectedDomains = Array.isArray(domainState?.domains) ? domainState.domains : [];
-    const summary = domainState?.summary || { connected: connectedDomains.length, active: 0, attention: 0, pending: 0 };
     const currentPrimary = domainState?.primary_domain || 'Sin URL principal';
     const platform = domainState?.platform || {};
     const currentStoreUrl = safePublicUrl(currentPrimary);
@@ -432,27 +388,6 @@ const DomainConnectModal = ({ open, onClose, initialIntent = 'domains' }) => {
                         </div>
 
                         <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4">
-                            <Card eyebrow="Resumen" title="Como funciona" description="Conecta un dominio propio o usa el link automatico de la plataforma. Publicas DNS y verificas el estado desde el mismo panel.">
-                                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-                                    <Stat icon={<HouseLine size={18} weight="bold" />} label="Conectados" value={String(summary.connected || 0)} helper="Hosts asociados al tenant." tone="info" />
-                                    <Stat icon={<ShieldCheck size={18} weight="bold" />} label="Activos" value={String(summary.active || 0)} helper="Listos para recibir trafico." tone="success" />
-                                    <Stat icon={<WarningCircle size={18} weight="bold" />} label="Revisar" value={String(summary.attention || 0)} helper="DNS publicado con valores incorrectos." tone="warning" />
-                                    <Stat icon={<CrownSimple size={18} weight="bold" />} label="Principal" value={currentPrimary} helper="Host publico por defecto." tone="default" />
-                                </div>
-                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                                    <div className="rounded-2xl border p-5" style={surfaceStyle}>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Sitio publico</p>
-                                        {currentStoreUrl ? <a href={currentStoreUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm font-semibold transition hover:opacity-80" style={whiteTextPrimary}>{currentStoreUrl}</a> : <p className="mt-2 text-sm font-semibold" style={whiteTextPrimary}>Todavia sin URL publica</p>}
-                                        <p className="mt-3 text-sm leading-relaxed" style={whiteTextMuted}>Cuando el dominio activo apunte a la plataforma y el estado salga listo, esta sera la URL publica del sitio.</p>
-                                    </div>
-                                    <div className="rounded-2xl border p-5" style={surfaceStyle}>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Panel editor</p>
-                                        <p className="mt-2 break-all text-sm font-semibold" style={whiteTextPrimary}>{typeof window !== 'undefined' ? window.location.origin : 'Sin origin'}</p>
-                                        <p className="mt-3 text-xs leading-relaxed text-zinc-500">El panel de administracion sigue viviendo en este host. Los dominios conectados solo afectan el sitio publico.</p>
-                                    </div>
-                                </div>
-                            </Card>
-
                             <Card eyebrow="Dominios conectados" title="Estado y acciones" description="Revisa que URLs estan listas para publicar, que DNS espera cada una y que host quedara como principal. Desde aca puedes verificar, abrir, marcar principal o quitar un dominio." action={<button type="button" onClick={() => refreshVerification()} disabled={checkingDomain === '__all__'} className={ghostButtonClass} style={headerStyle}><ArrowsClockwise size={14} weight="bold" className={cn(checkingDomain === '__all__' && 'animate-spin')} />Verificar todo</button>}>
                                 <div className="space-y-3">
                                     {connectedDomains.length ? connectedDomains.map((item) => {
@@ -515,17 +450,11 @@ const DomainConnectModal = ({ open, onClose, initialIntent = 'domains' }) => {
                                 </div>
                             </Card>
 
-                            <Card eyebrow="Opcion 1" title="Conectar un dominio que ya tienes" description="Escribe el dominio del negocio. El panel te dice exactamente que DNS publicar y despues verifica si ya quedo apuntando a la plataforma.">
+                            <Card eyebrow="Dominio propio" title="Conectar un dominio que ya tienes" description="Escribe el dominio del negocio. El panel te dice exactamente que DNS publicar y despues verifica si ya quedo apuntando a la plataforma.">
                                 <div className="space-y-3">
                                     <div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Dominio del cliente</label><input className={inputClass} style={fieldStyle} placeholder="alessitech.space o www.alessitech.space" value={customDomain} onChange={(event) => setCustomDomain(event.target.value)} /></div>
                                     {draftDomainPlan ? <div className="space-y-3 rounded-2xl border p-5" style={surfaceStyle}><div className="flex flex-wrap items-center gap-2"><Chip label={draftDomainPlan.mode === 'apex' ? 'Dominio raiz' : draftDomainPlan.mode === 'subdomain' ? 'Subdominio' : 'Plataforma'} tone="info" /><Chip label={draftDomainPlan.connection_type === 'custom' ? 'Dominio propio' : 'Plataforma'} /></div><p className="text-sm leading-relaxed" style={whiteTextPrimary}>{draftDomainPlan.dns_hint}</p>{draftDomainPlan.required_records?.length ? <div className="space-y-2">{draftDomainPlan.required_records.map((record) => <RecordRow key={`draft-${record.type}-${record.host}-${record.value}`} record={record} onCopy={(value) => copyText(value, 'Registro DNS copiado')} />)}</div> : null}</div> : <div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-sm" style={whiteTextPrimary}>Escribe el dominio para ver la configuracion DNS recomendada.</p></div>}
                                     <button type="button" onClick={submitCustomDomain} disabled={saving} className="admin-accent-button flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle size={16} weight="bold" />{saving ? 'Guardando dominio...' : 'Conectar dominio propio'}</button>
-                                </div>
-                            </Card>
-
-                            <Card eyebrow="Opcion 2" title="Usar el link de la plataforma" description="Si el negocio todavia no tiene dominio propio, puedes publicarlo con un subdominio bajo la base de la plataforma.">
-                                <div className="space-y-3">
-                                    {platform?.enabled ? <><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Base de plataforma</p><p className="mt-2 text-sm font-semibold" style={whiteTextPrimary}>{platform.base_domain}</p><p className="mt-2 text-xs leading-relaxed text-zinc-500">Cualquier negocio sin dominio propio puede publicarse bajo esta base sin DNS manual.</p></div>{assignedPlatformUrl ? <div className="rounded-2xl border p-5" style={surfaceStyle}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Link Vase asignado</p><a href={assignedPlatformUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm font-semibold transition hover:opacity-80" style={whiteTextPrimary}>{assignedPlatformUrl}</a></div><button type="button" onClick={() => copyText(assignedPlatformUrl, 'Link publicado copiado')} className={ghostButtonClass} style={headerStyle}><Copy size={14} weight="bold" />Copiar</button></div><p className="mt-3 text-xs leading-relaxed text-zinc-500">Este link queda disponible aunque el negocio todavia no conecte un dominio propio.</p></div> : null}<div className="space-y-2"><label className="text-[11px] font-bold tracking-wide admin-input-label">Subdominio Vase</label><input className={inputClass} style={fieldStyle} placeholder={platform?.assigned_subdomain || platform?.suggested_subdomain || 'mi-sitio'} value={platformSubdomain} onChange={(event) => setPlatformSubdomain(event.target.value)} /></div><div className="rounded-2xl border p-5" style={surfaceStyle}><p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={whiteTextLabel}>Vista previa</p><p className="mt-2 break-all text-sm font-semibold" style={whiteTextPrimary}>{platformPreview || 'Escribe un subdominio para ver la URL'}</p></div><button type="button" onClick={submitPlatformDomain} disabled={saving} className={cn(ghostButtonClass, 'w-full')} style={headerStyle}><Link size={16} weight="bold" />{saving ? 'Guardando link...' : (platform?.assigned_domain ? 'Guardar subdominio Vase' : 'Generar link de plataforma')}</button></> : <div className="rounded-2xl border p-4" style={chipToneMap.warning}><div className="flex items-start gap-3"><WarningCircle size={18} weight="bold" className="mt-0.5" /><div className="space-y-1"><p className="text-sm font-semibold">Falta configurar la base de dominios de la plataforma</p><p className="text-xs leading-relaxed">Define `PLATFORM_BASE_DOMAIN` en la configuracion del servicio para habilitar subdominios automaticos.</p></div></div></div>}
                                 </div>
                             </Card>
 
