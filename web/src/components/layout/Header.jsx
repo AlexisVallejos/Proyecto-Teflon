@@ -112,7 +112,7 @@ export default function Header({
 }) {
   const { tenant, settings } = useTenant();
   const { search, setSearch, cartCount } = useStore();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isClub } = useAuth();
   const [activeRoute, setActiveRoute] = useState(() => `${window.location.pathname}${window.location.search || ""}${window.location.hash || ""}`);
   const [catalogCategories, setCatalogCategories] = useState([]);
   const [catalogBrands, setCatalogBrands] = useState([]);
@@ -233,7 +233,7 @@ export default function Header({
 
   const handleAccountClick = () => {
     if (user) {
-      navigate(isAdmin ? "/admin" : "/profile");
+      navigate(isAdmin ? "/admin" : isClub ? "/consorcio" : "/profile");
     } else {
       navigate("/login");
     }

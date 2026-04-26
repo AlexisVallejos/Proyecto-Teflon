@@ -20,6 +20,7 @@ import SignupPage from './pages/store/SignupPage';
 import ProfilePage from './pages/store/ProfilePage';
 import OrderSuccessPage from './pages/store/OrderSuccessPage';
 import OrderDetailPage from './pages/store/OrderDetailPage';
+import ClubPortal from './pages/ClubPortal';
 
 // Admin pages
 import EditorPage from './pages/admin/EditorPage';
@@ -80,6 +81,7 @@ function AppContent() {
             Component = LoginPage;
         }
     } else if (route === '/profile') Component = ProfilePage;
+    else if (route === '/consorcio' || route === '/club-portal') Component = ClubPortal;
     else if (route === '/catalog') Component = CatalogPage;
     else if (route === '/about' || route === '/sobre-nosotros') Component = AboutPage;
     else if (route === '/cart') Component = CartPage;

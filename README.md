@@ -144,6 +144,38 @@ Si aparece `no existe la relación "price_lists"` o `user_price_list`, ejecutá:
 psql -U user -d teflon -f db/migrations/20260223_pricing_lists.sql
 ```
 
+## Modulo Consorcio de Clubes
+El sistema incluye un modulo independiente para clubes dentro del tenant actual.
+
+### Migracion
+Ejecutar una vez sobre la DB:
+
+```bash
+psql -U user -d teflon -f db/migrations/20260426_consortium_tables.sql
+```
+
+### Variables opcionales
+```env
+ENABLE_CONSORTIUM_CRON=true
+CONSORTIUM_CRON_SCHEDULE=15 9 * * *
+PUBLIC_CLUB_PORTAL_URL=http://localhost:5173/consorcio
+```
+
+- `ENABLE_CONSORTIUM_CRON=true` activa el job diario de cuotas, avisos proximos a vencer y vencidas.
+- `CONSORTIUM_CRON_SCHEDULE` usa formato cron de `node-cron`; por default corre todos los dias a las 09:15.
+- `PUBLIC_CLUB_PORTAL_URL` se usa en emails para llevar al club directo al portal de pago.
+
+### Rutas principales
+- Portal club: `GET /api/consortium/me`, `GET /api/consortium/quotas`, `POST /api/consortium/quotas/:id/proof`, `GET /api/consortium/draws`.
+- Admin: `GET/POST /api/admin/consortium/clubs`, `PUT /api/admin/consortium/clubs/:id`, `PATCH /api/admin/consortium/clubs/:id/status`.
+- Cuotas: `GET /api/admin/consortium/quotas`, `POST /api/admin/consortium/quotas/generate`, `PATCH /api/admin/consortium/quotas/:id/approve`.
+- Sorteos: `POST /api/admin/consortium/draws`, `GET /api/admin/consortium/draws`, `GET /api/admin/consortium/draws/:mes`.
+- Config: `GET/PUT /api/admin/consortium/config`.
+
+### Frontend
+- Portal del club: `/consorcio` o `/club-portal`.
+- Panel admin: modulo `Consorcio` dentro de `/admin/evolution`.
+
 ## Problemas comunes
 - **Pantalla en blanco / Unexpected token '<'**  
   Casi siempre es por deps faltantes en `web/`. Ejecutar `npm install` en `web`.

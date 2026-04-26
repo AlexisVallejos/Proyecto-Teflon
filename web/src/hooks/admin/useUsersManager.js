@@ -8,6 +8,7 @@ const USERS_LIMIT = 10;
 export const USER_ROLE_OPTIONS = [
     { value: 'retail', label: 'Minorista' },
     { value: 'wholesale', label: 'Mayorista' },
+    { value: 'club', label: 'Club' },
     { value: 'tenant_admin', label: 'Admin' },
 ];
 

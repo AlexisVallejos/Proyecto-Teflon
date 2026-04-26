@@ -262,9 +262,10 @@ export const AuthProvider = ({ children }) => {
     const isWholesale = user?.role === 'wholesale' && user?.status === 'active';
     const isWholesalePending = user?.role === 'wholesale' && user?.status === 'pending';
     const isAdmin = user?.role === 'tenant_admin' || user?.role === 'master_admin';
+    const isClub = user?.role === 'club' && user?.status === 'active';
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, verifyEmailCode, resendVerificationCode, logout, isWholesale, isWholesalePending, isAdmin, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, verifyEmailCode, resendVerificationCode, logout, isWholesale, isWholesalePending, isAdmin, isClub, loading }}>
             {children}
         </AuthContext.Provider>
     );

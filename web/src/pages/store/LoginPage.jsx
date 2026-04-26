@@ -102,6 +102,8 @@ export default function LoginPage() {
             }
             if (role === 'tenant_admin' || role === 'master_admin') {
                 navigate('/admin');
+            } else if (role === 'club') {
+                navigate('/consorcio');
             } else {
                 navigate('/profile');
             }

@@ -7,6 +7,7 @@ import app from './app.js';
 import { ensureBaseSchema } from './services/bootstrapSchema.js';
 import { ensurePricingSchema } from './services/userPricing.js';
 import { ensureProductSyncSchema } from './services/integration.service.js';
+import { startConsortiumCron } from './services/consortiumCron.js';
 
 async function runStartupMigrations() {
   await pool.query(
@@ -90,6 +91,7 @@ async function bootstrapDb() {
 
 async function startServer() {
   await bootstrapDb();
+  startConsortiumCron();
 
   const port = Number(process.env.PORT || 4000);
   const server = http.createServer(app);

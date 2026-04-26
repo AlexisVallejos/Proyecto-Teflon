@@ -17,12 +17,14 @@ import NotificationsEditor from '../../../components/admin/evolution/Notificatio
 import TenantsEditor from '../../../components/admin/evolution/TenantsEditor';
 import AppearanceEditor from '../../../components/admin/evolution/AppearanceEditor';
 import MediaLibrary from '../../../components/admin/evolution/MediaLibrary';
+import ConsorcioAdmin from '../../../components/admin/consorcio/ConsorcioAdmin';
 import EvolutionInput from '../../../components/admin/evolution/EvolutionInput';
 import LegacyAdminFrame from '../../../components/admin/evolution/LegacyAdminFrame';
 import { useCatalogManager } from '../../../hooks/admin/useCatalogManager';
 import { useUsersManager } from '../../../hooks/admin/useUsersManager';
 import { useOffersManager } from '../../../hooks/admin/useOffersManager';
 import { useTenantsManager } from '../../../hooks/admin/useTenantsManager';
+import useConsorcio from '../../../hooks/admin/useConsorcio';
 import useIntegrationManager from '../../../hooks/admin/useIntegrationManager';
 import useNotificationsManager from '../../../hooks/admin/useNotificationsManager';
 import {
@@ -165,6 +167,7 @@ const EvolutionAdmin = () => {
     const usersManager = useUsersManager();
     const offersManager = useOffersManager();
     const tenantsManager = useTenantsManager();
+    const consorcioManager = useConsorcio();
     const integrationManager = useIntegrationManager();
     const notificationsManager = useNotificationsManager();
     const catalog = useCatalogManager({
@@ -282,6 +285,14 @@ const EvolutionAdmin = () => {
                 description: 'ERP, dominios y conectividad',
                 keywords: 'integraciones erp dominios',
                 onSelect: () => setActiveModule('integrations'),
+            },
+            {
+                id: 'module-consortium',
+                kind: 'module',
+                label: 'Consorcio',
+                description: 'Clubes, cuotas y sorteos',
+                keywords: 'consorcio clubes cuotas sorteo',
+                onSelect: () => setActiveModule('consortium'),
             },
         ];
 
@@ -559,6 +570,8 @@ const EvolutionAdmin = () => {
                         manager={notificationsManager}
                     />
                 );
+            case 'consortium':
+                return <ConsorcioAdmin manager={consorcioManager} />;
             case 'tenants':
                 return <TenantsEditor manager={tenantsManager} />;
             case 'legacy':

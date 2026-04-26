@@ -13,6 +13,8 @@ import { settingsRouter, settingsAdminRouter } from './routes/settings.js';
 import { ordersRouter, adminOrdersRouter } from './routes/orders.js';
 import { webhooksRouter } from './routes/webhooks.js';
 import { integrationsRouter } from './routes/integrations.js';
+import { consortiumPublicRouter } from './routes/consortiumPublic.js';
+import { consortiumAdminRouter } from './routes/consortiumAdmin.js';
 import { authenticate, optionalAuthenticate, requireRole } from './middleware/auth.js';
 
 const app = express();
@@ -53,11 +55,15 @@ if (disableAuth) {
   console.warn('AUTH DISABLED: /tenant and /api/platform/admin routes are open without token.');
   app.use('/api/admin/settings', settingsAdminRouter);
   app.use('/api/admin/orders', adminOrdersRouter);
+  app.use('/api/consortium', optionalAuthenticate, consortiumPublicRouter);
+  app.use('/api/admin/consortium', consortiumAdminRouter);
   app.use('/tenant', tenantRouter);
   app.use(platformAdminApiBase, adminRouter);
 } else {
+  app.use('/api/consortium', authenticate, consortiumPublicRouter);
   app.use('/api/admin/settings', authenticate, requireRole(ADMIN_ROLES), settingsAdminRouter);
   app.use('/api/admin/orders', authenticate, requireRole(ADMIN_ROLES), adminOrdersRouter);
+  app.use('/api/admin/consortium', authenticate, requireRole(ADMIN_ROLES), consortiumAdminRouter);
   app.use('/tenant', authenticate, requireRole(ADMIN_ROLES), tenantRouter);
   app.use(platformAdminApiBase, authenticate, adminRouter);
 }

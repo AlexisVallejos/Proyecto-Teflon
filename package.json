@@ -8,6 +8,7 @@
         "install-all": "npm install && cd server && npm install && cd ../web && npm install"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^0.89.0"
+        "@anthropic-ai/sdk": "^0.89.0",
+        "node-cron": "^4.2.1"
     }
 }

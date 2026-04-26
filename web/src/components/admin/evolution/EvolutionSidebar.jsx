@@ -13,6 +13,7 @@ import {
     Plug,
     Bell,
     Truck,
+    Trophy,
 } from '@phosphor-icons/react';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import { cn } from '../../../utils/cn';
@@ -74,6 +75,7 @@ const EvolutionSidebar = ({ branding }) => {
         { id: 'shipping', label: 'Envios', icon: Truck },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },
         { id: 'integrations', label: 'Integraciones', icon: Plug },
+        { id: 'consortium', label: 'Consorcio', icon: Trophy },
         { id: 'users', label: 'Usuarios', icon: Users },
     ];
 
