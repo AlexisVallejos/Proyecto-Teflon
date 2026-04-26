@@ -310,9 +310,10 @@ export default function Header({
   }));
 
   const staticLinks = [
-    { label: "Sobre nosotros", href: "/about", external: false },
-    { label: "Contactanos", href: "/#contacto", external: false },
-    ...(whatsappHref ? [{ label: "WhatsApp", href: whatsappHref, external: true }] : []),
+    { label: "Beneficios del Club", href: "/#sobre-nosotros", external: false },
+    { label: "Vehículos", href: "/#ofertas", external: false },
+    { label: "Mi Portal (Consorcio)", href: "/consorcio", external: false },
+    ...(whatsappHref ? [{ label: "Asesor Comercial", href: whatsappHref, external: true }] : []),
   ];
 
   const extraLinks = links.filter((item) => {
@@ -464,7 +465,7 @@ export default function Header({
                     : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)] dark:text-[#e7ddd3]"
                 }`}
               >
-                Productos
+                Catálogo de Vehículos
                 <ChevronDown className="size-3" />
               </button>
 

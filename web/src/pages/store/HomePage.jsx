@@ -104,17 +104,43 @@ export default function HomePage() {
                     <PageBuilder sections={finalSections} />
                 ) : (
                     <>
-                        <HeroSlider />
-                        <section id="marcas">
+                        <HeroSlider 
+                            title="Únete a nuestro exclusivo Club de Ahorro"
+                            subtitle="Participá de sorteos mensuales, adjudicá vehículos y ahorrá con nuestro consorcio premium. Transparencia y confianza garantizada."
+                            tag="Nuevos grupos abiertos"
+                            primaryButton={{ label: "Unirme ahora", link: "/signup" }}
+                            secondaryButton={{ label: "Mi Portal", link: "/consorcio" }}
+                        />
+                        <section id="marcas" className="bg-[#0f172a] py-8">
                             <BrandMarquee />
                         </section>
                         {featuredLoaded && featuredProducts.length > 0 ? (
-                            <section id="ofertas">
+                            <section id="ofertas" className="bg-[#0B101E] py-12">
+                                <div className="text-center mb-10">
+                                    <h2 className="text-3xl font-black text-white">Vehículos Disponibles para Adjudicación</h2>
+                                    <p className="text-[#d4af37] mt-2">Modelos que puedes llevarte este mes</p>
+                                </div>
                                 <FeaturedProducts products={featuredProducts} />
                             </section>
                         ) : null}
-                        <section id="sobre-nosotros">
-                            <Services />
+                        <section id="sobre-nosotros" className="bg-[#0f172a] py-12 text-white border-t border-white/5">
+                            <div className="max-w-6xl mx-auto px-4 text-center">
+                                <h2 className="text-3xl font-black mb-8">¿Por qué elegir nuestro Consorcio?</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <div className="glass-premium p-8 rounded-2xl">
+                                        <h3 className="text-xl font-bold text-[#d4af37] mb-2">Cuotas Fijas</h3>
+                                        <p className="text-white/70">Planificá tus pagos sin sorpresas ni intereses ocultos.</p>
+                                    </div>
+                                    <div className="glass-premium p-8 rounded-2xl">
+                                        <h3 className="text-xl font-bold text-[#d4af37] mb-2">Sorteos Mensuales</h3>
+                                        <p className="text-white/70">Posibilidad de adjudicación anticipada en cada sorteo.</p>
+                                    </div>
+                                    <div className="glass-premium p-8 rounded-2xl">
+                                        <h3 className="text-xl font-bold text-[#d4af37] mb-2">Gestión Transparente</h3>
+                                        <p className="text-white/70">Controlá tus cuotas pagadas y tu historial desde tu portal privado.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </section>
                     </>
                 )}

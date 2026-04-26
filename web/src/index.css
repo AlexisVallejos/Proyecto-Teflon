@@ -32,6 +32,18 @@
     @apply backdrop-blur-md bg-white/5 border border-white/10;
   }
 
+  .glass-premium {
+    @apply backdrop-blur-xl bg-[#0f172a]/80 border border-[#d4af37]/30 shadow-[0_8px_32px_rgba(0,0,0,0.3)];
+  }
+
+  .bg-premium-gradient {
+    @apply bg-gradient-to-br from-[#0B101E] via-[#1e1b4b] to-[#0f172a];
+  }
+
+  .text-premium-gradient {
+    @apply bg-gradient-to-r from-[#d4af37] to-[#fde047] bg-clip-text text-transparent;
+  }
+
   .evolution-input {
     @apply bg-transparent border-none focus:ring-1 focus:ring-white/20 focus:bg-white/5 transition-all duration-200 outline-none;
   }

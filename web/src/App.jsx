@@ -54,17 +54,16 @@ function AppContent() {
         navigate('/admin/evolution');
     }, [isEditorHost, route]);
 
-    useEffect(() => {
-        if (isEditorHost) return;
-        if (!isPreviewRoute && !isAdminRoute) return;
-        navigate('/');
-    }, [isAdminRoute, isEditorHost, isPreviewRoute]);
+    // Comentado para permitir el acceso a /admin directamente en localhost
+    // useEffect(() => {
+    //     if (isEditorHost) return;
+    //     if (!isPreviewRoute && !isAdminRoute) return;
+    //     navigate('/');
+    // }, [isAdminRoute, isEditorHost, isPreviewRoute]);
 
     let Component = HomePage;
 
-    if ((isPreviewRoute || isAdminRoute) && !isEditorHost) {
-        Component = HomePage;
-    } else if (isPreviewRoute) {
+    if (isPreviewRoute) {
         Component = PreviewPage;
     } else if (isAdminRoute) {
         if (authLoading) {
