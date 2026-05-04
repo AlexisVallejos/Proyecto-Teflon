@@ -79,6 +79,28 @@ export const HERO_COLOR_FIELDS = {
         { key: 'accentTextColor', label: 'Pill de oferta (texto)' },
         { key: 'overlayColor', label: 'Capa de oscuridad (Overlay)' },
     ],
+    modernist_centered: [
+        { key: 'titleColor', label: 'Titulos' },
+        { key: 'textColor', label: 'Texto descriptivo' },
+        { key: 'labelColor', label: 'Etiqueta superior' },
+        { key: 'primaryButtonBgColor', label: 'Boton primario (fondo)' },
+        { key: 'primaryButtonTextColor', label: 'Boton primario (texto)' },
+        { key: 'secondaryButtonBgColor', label: 'Boton secundario (fondo)' },
+        { key: 'secondaryButtonTextColor', label: 'Boton secundario (texto)' },
+        { key: 'secondaryButtonBorderColor', label: 'Boton secundario (borde)' },
+        { key: 'overlayColor', label: 'Overlay (gradiente)' },
+    ],
+    classic: [
+        { key: 'titleColor', label: 'Titulos' },
+        { key: 'textColor', label: 'Texto descriptivo' },
+        { key: 'primaryButtonBgColor', label: 'Boton (fondo)' },
+        { key: 'primaryButtonTextColor', label: 'Boton (texto)' },
+    ],
+    corporate: [
+        { key: 'titleColor', label: 'Titulos' },
+        { key: 'textColor', label: 'Texto descriptivo' },
+        { key: 'labelColor', label: 'Etiqueta superior' },
+    ],
 };
 
 const FASHION_DEFAULT_SLIDES = [

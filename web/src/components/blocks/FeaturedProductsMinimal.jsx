@@ -9,6 +9,7 @@ export default function FeaturedProductsMinimal({ products, title, subtitle, cta
             <div className="mx-auto max-w-4xl">
                 <div className="mb-10 border-b border-zinc-200 pb-4">
                     <h2 className={`${titleSize} font-light ${titleColor} tracking-widest uppercase`}>{title}</h2>
+                    {subtitle && <p className="mt-2 text-zinc-500 font-light">{subtitle}</p>}
                 </div>
 
                 {products.length ? (

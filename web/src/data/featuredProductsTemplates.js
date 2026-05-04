@@ -41,6 +41,21 @@ export const FEATURED_COLOR_FIELDS = {
         { key: 'buttonTextColor', label: 'Boton texto' },
         { key: 'borderColor', label: 'Bordes' },
     ],
+    masonry: [
+        { key: 'backgroundColor', label: 'Fondo' },
+        { key: 'titleColor', label: 'Titulo' },
+        { key: 'accentColor', label: 'Acento' },
+    ],
+    snap: [
+        { key: 'backgroundColor', label: 'Fondo' },
+        { key: 'titleColor', label: 'Titulo' },
+        { key: 'accentColor', label: 'Acento' },
+    ],
+    minimal: [
+        { key: 'backgroundColor', label: 'Fondo' },
+        { key: 'titleColor', label: 'Titulo' },
+        { key: 'textColor', label: 'Texto' },
+    ],
 };
 
 const STYLE_DEFAULTS_BY_VARIANT = {
