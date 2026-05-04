@@ -1,13 +1,12 @@
 export const HERO_VARIANT_OPTIONS = [
-    { value: 'classic', label: 'Clasico (actual)' },
+    { value: 'classic', label: 'Clásico (Estandar)' },
     { value: 'modernist', label: 'Modernist Premium' },
-    { value: 'fashion', label: 'Fashion' },
+    { value: 'modernist_centered', label: 'Modernist Centered' },
+    { value: 'modern_boutique', label: 'Modern Boutique' },
+    { value: 'fashion', label: 'Fashion Minimal' },
     { value: 'home_decor', label: 'Home Decor' },
     { value: 'sanitarios_industrial', label: 'Industrial Showcase' },
-    { value: 'gaming', label: 'Gaming Neon' },
     { value: 'corporate', label: 'Corporate Clean' },
-    { value: 'modern_boutique', label: 'Modern Boutique' },
-    { value: 'sale_burst', label: 'Liquidación Burst' },
 ];
 
 export const HERO_COLOR_FIELDS = {
@@ -279,9 +278,7 @@ const STYLE_DEFAULTS_BY_VARIANT = {
         dotActiveColor: '#f97316',
         dotInactiveColor: '#d4d4d8',
     },
-    gaming: { titleColor: '#ffffff', overlayOpacity: '0.9', overlayColor: '#0f0c29' },
     corporate: {},
-    sale_burst: {},
     modern_boutique: {
         titleColor: '#ffffff',
         textColor: '#f4f4f5',

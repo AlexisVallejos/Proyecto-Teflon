@@ -343,101 +343,228 @@ export default function Header({
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200/50 bg-white/70 backdrop-blur-xl dark:border-zinc-800/50 dark:bg-[#120c08]/70">
       <div className={`mx-auto ${containerClassName}`}>
-        <div className="flex items-center justify-between px-4 h-20 md:px-10">
-          <div className="flex items-center gap-12">
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="flex items-center gap-3 text-[color:var(--color-primary,#0099e5)]"
-              aria-label="Ir a inicio"
-            >
-              {logoUrl ? (
-                <img src={logoUrl} alt={resolvedBrand} className="h-10 w-auto max-w-[160px] object-contain" />
-              ) : (
-                <>
-                  <BrandMark className="size-9" />
-                  <h2 className={`text-2xl font-black leading-none tracking-tighter sm:text-3xl font-['Manrope'] ${brandUppercase ? "uppercase" : ""}`}>
-                    {resolvedBrand}
-                  </h2>
-                </>
-              )}
-            </button>
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 md:flex-nowrap md:gap-8 md:px-10 md:py-4">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3 text-[color:var(--color-primary,#0099e5)]"
+            aria-label="Ir a inicio"
+          >
+            {logoUrl ? (
+              <img src={logoUrl} alt={resolvedBrand} className="h-10 w-auto max-w-[160px] object-contain" />
+            ) : (
+              <>
+                <BrandMark className="size-9" />
+                <h2 className={`text-2xl font-black leading-none tracking-tighter sm:text-3xl font-['Manrope'] ${brandUppercase ? "uppercase" : ""}`}>
+                  {resolvedBrand}
+                </h2>
+              </>
+            )}
+          </button>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <a 
-                href="/catalog" 
-                onClick={(e) => { e.preventDefault(); navigate('/catalog'); }}
-                className={`font-['Manrope'] text-sm font-medium tracking-wide uppercase transition-all duration-300 ${activeRoute.startsWith('/catalog') ? 'text-zinc-900 border-b-2 border-zinc-900 pb-1' : 'text-zinc-500 hover:text-zinc-900'}`}
-              >
-                Catalog
-              </a>
-              <a 
-                href="/about" 
-                onClick={(e) => { e.preventDefault(); navigate('/about'); }}
-                className={`font-['Manrope'] text-sm font-medium tracking-wide uppercase transition-all duration-300 ${activeRoute.startsWith('/about') ? 'text-zinc-900 border-b-2 border-zinc-900 pb-1' : 'text-zinc-500 hover:text-zinc-900'}`}
-              >
-                About
-              </a>
-              <a 
-                href="/#contacto" 
-                onClick={(e) => { e.preventDefault(); navigate('/#contacto'); }}
-                className="font-['Manrope'] text-sm font-medium tracking-wide uppercase text-zinc-500 hover:text-zinc-900 transition-all duration-300"
-              >
-                Contact
-              </a>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-6">
-            {showSearch && (
+          {showSearch ? (
+            <label className="relative order-3 w-full md:order-none md:flex-1 md:max-w-[520px]">
+              <input
+                className="h-11 w-full rounded-none border border-[#e4e9ef] bg-[#f7f8fa] pl-4 pr-12 text-sm text-[#1f2937] placeholder:text-[#9ca3af] focus:border-[color:var(--color-primary,#0099e5)] focus:outline-none dark:border-[#3d2f21] dark:bg-[#1a130c] dark:text-[#f8f7f5] dark:placeholder:text-[#a59280]"
+                placeholder={searchPlaceholder}
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={handleSearchKey}
+              />
               <button
                 type="button"
                 onClick={() => navigate("/catalog")}
-                className="p-2 text-zinc-900 dark:text-zinc-50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 transition-all duration-300 active:scale-95 hidden lg:block"
+                className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center text-[color:var(--color-primary,#0099e5)]"
                 aria-label="Buscar"
               >
-                <SearchIcon className="size-6" />
+                <SearchIcon />
               </button>
-            )}
+            </label>
+          ) : (
+            <div className="hidden md:block md:flex-1" />
+          )}
 
-            <div className="flex items-center gap-4">
-              {showCart && (
-                <button
-                  type="button"
-                  onClick={() => navigate("/cart")}
-                  className="relative p-2 text-zinc-900 dark:text-zinc-50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 transition-all duration-300 active:scale-95"
-                  aria-label="Carrito"
-                >
-                  <CartIcon className="size-6" />
-                  {cartCount > 0 && (
-                    <span className="absolute top-0 right-0 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-black text-white text-[10px] font-bold">
-                      {cartCount}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {showAccount && (
-                <button
-                  type="button"
-                  onClick={handleAccountClick}
-                  className="hidden lg:block bg-primary text-on-primary px-6 py-2.5 rounded-lg font-['Manrope'] text-sm font-medium tracking-wide uppercase hover:opacity-90 transition-all active:scale-95"
-                >
-                  {user ? 'Profile' : 'Sign In'}
-                </button>
-              )}
-
+          <div className="ml-auto hidden items-center gap-7 text-[10px] font-semibold uppercase text-[#4a4a4a] dark:text-[#cdbca9] lg:flex">
+            {showCart ? (
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen((current) => !current)}
-                className="lg:hidden p-2 text-zinc-900 dark:text-zinc-50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 transition-all duration-300 active:scale-95"
+                onClick={() => navigate("/cart")}
+                className="relative inline-flex flex-col items-center gap-0.5 hover:text-[color:var(--color-primary,#0099e5)]"
+                title="Carrito"
               >
-                {mobileMenuOpen ? <CloseIcon className="size-6" /> : <MenuIcon className="size-6" />}
+                <CartIcon className="size-5 text-[color:var(--color-primary,#0099e5)]" />
+                <span>Carrito</span>
+                {cartCount > 0 ? (
+                  <span className="absolute -right-3 -top-2 min-w-[16px] rounded-full bg-[#ef4444] px-1.5 text-center text-[10px] font-bold leading-[16px] text-white">
+                    {cartCount}
+                  </span>
+                ) : null}
               </button>
-            </div>
+            ) : null}
+
+            {showAccount ? (
+              <button
+                type="button"
+                onClick={handleAccountClick}
+                className="inline-flex flex-col items-center gap-0.5 hover:text-[color:var(--color-primary,#0099e5)]"
+                title={accountLabel}
+              >
+                <UserIcon className="size-5 text-[color:var(--color-primary,#0099e5)]" />
+                <span>{accountLabel}</span>
+              </button>
+            ) : null}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 lg:hidden">
+            {showCart ? (
+              <button
+                type="button"
+                onClick={() => navigate("/cart")}
+                className="relative flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:bg-[#1a130c]"
+                aria-label="Carrito"
+              >
+                <CartIcon />
+                {cartCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 min-w-[14px] rounded-full bg-[#ef4444] px-1 text-center text-[9px] font-bold leading-[14px] text-white">
+                    {cartCount}
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
+            {showAccount ? (
+              <button
+                type="button"
+                onClick={handleAccountClick}
+                className="flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:bg-[#1a130c]"
+                aria-label="Cuenta"
+              >
+                <UserIcon />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((current) => !current)}
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-[#e4e9ef] text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:bg-[#1a130c]"
+              aria-label={mobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
+            >
+              {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
+            </button>
           </div>
         </div>
+
+        <div className="border-t border-[#e4e9ef] dark:border-[#3d2f21]">
+          <nav className="hidden h-12 items-center justify-center gap-9 px-4 md:flex">
+            <div className="group relative h-full">
+              <button
+                type="button"
+                onClick={() => navigate("/catalog")}
+                className={`inline-flex h-full items-center gap-1 border-b-2 text-[13px] font-semibold uppercase tracking-[0.06em] transition-colors ${
+                  productsActive
+                    ? "border-[color:var(--color-primary,#0099e5)] text-[color:var(--color-primary,#0099e5)]"
+                    : "border-transparent text-[#1f2937] hover:text-[color:var(--color-primary,#0099e5)] dark:text-[#e7ddd3]"
+                }`}
+              >
+                Productos
+                <ChevronDown className="size-3" />
+              </button>
+
+              <div className="invisible absolute left-1/2 top-full z-50 mt-2 w-[min(95vw,1080px)] -translate-x-1/2 rounded-md border border-[#e4e9ef] bg-white p-6 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100 dark:border-[#3d2f21] dark:bg-[#1a130c]">
+                <div className="max-h-[68vh] overflow-y-auto pr-1">
+                  {categoryTree.length ? (
+                    <div className="grid gap-8 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+                      {categoryTree.map((parent) => (
+                        <div key={`parent-${parent.id}`}>
+                          <a
+                            href={`/catalog?category=${encodeURIComponent(parent.id)}`}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              navigate(`/catalog?category=${encodeURIComponent(parent.id)}`);
+                            }}
+                            className="block text-[12px] font-black uppercase tracking-[0.08em] text-[color:var(--color-primary,#0099e5)] hover:opacity-80"
+                          >
+                            {parent.name}
+                          </a>
+                          <div className="mt-2 space-y-1.5">
+                            {parent.children.length ? (
+                              parent.children.map((child) => (
+                                <a
+                                  key={`child-${child.id}`}
+                                  href={`/catalog?category=${encodeURIComponent(child.id)}`}
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    navigate(`/catalog?category=${encodeURIComponent(child.id)}`);
+                                  }}
+                                  className="block text-[15px] leading-tight text-[#4b5563] hover:text-[color:var(--color-primary,#0099e5)] dark:text-[#cdbca9]"
+                                >
+                                  {child.name}
+                                </a>
+                              ))
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#6b7280] dark:text-[#a59280]">No hay categorias disponibles.</p>
+                  )}
+
+                  {brandLinks.length ? (
+                    <div className="mt-6 border-t border-[#eef2f7] pt-4 dark:border-[#3d2f21]">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6b7280] dark:text-[#a59280]">Marcas</p>
+                      <div className="flex flex-wrap gap-2">
+                        {brandLinks.map((item) => (
+                          <a
+                            key={`brand-${item.href}`}
+                            href={item.href}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              navigate(item.href);
+                            }}
+                            className="rounded-full border border-[#dbe2ea] px-2.5 py-1 text-[12px] text-[#1f2937] hover:border-[color:var(--color-primary,#0099e5)] hover:text-[color:var(--color-primary,#0099e5)] dark:border-[#3d2f21] dark:text-[#e7ddd3]"
+                          >
+                            {item.label}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {staticLinks.map((item) => {
+              const normalizedTarget = item.external ? item.href : normalizeRoute(item.href);
+              const isActive = !item.external && normalizeRoute(activeRoute) === normalizedTarget;
+              return (
+                <MenuAnchor
+                  key={`${item.label}-${item.href}`}
+                  href={item.href}
+                  label={item.label}
+                  active={isActive}
+                  external={item.external}
+                  className="h-full"
+                />
+              );
+            })}
+
+            {extraLinks.map((item) => {
+              const target = item.href || "/";
+              const isExternalTarget = isExternalPath(target);
+              const normalizedTarget = isExternalTarget ? target : normalizeRoute(target);
+              const isActive = !isExternalTarget && normalizeRoute(activeRoute) === normalizedTarget;
+              return (
+                <MenuAnchor
+                  key={`${item.label}-${target}`}
+                  href={target}
+                  label={item.label}
+                  active={isActive}
+                  external={isExternalTarget}
+                  className="h-full"
+                />
+              );
+            })}
+          </nav>
 
 
           <div className="lg:hidden">
