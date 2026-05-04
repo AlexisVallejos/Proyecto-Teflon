@@ -74,7 +74,7 @@ export default function HeroBoutiqueSlider({ slides = [], styles = {}, editor = 
                     <img 
                         src={s.image} 
                         alt={s.title || "Slider Image"} 
-                        className={`w-full h-full object-cover transition-transform duration-[10s] ease-out ${index === activeIndex ? "scale-100" : "scale-110"}`}
+                        className={`w-full h-full object-cover transition-transform duration-[10000ms] ease-out ${index === activeIndex ? "scale-100" : "scale-110"}`}
                     />
                     <div 
                         className="absolute inset-0"

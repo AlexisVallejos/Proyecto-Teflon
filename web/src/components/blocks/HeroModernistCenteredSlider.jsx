@@ -69,7 +69,7 @@ export default function HeroModernistCenteredSlider({ slides = [], styles = {}, 
                         <img 
                             src={s.image} 
                             alt={s.title || "Slider Image"} 
-                            className={`w-full h-full object-cover transition-transform duration-[10s] ease-out ${index === activeIndex ? "scale-100 opacity-70" : "scale-110 opacity-0"}`}
+                            className={`w-full h-full object-cover transition-transform duration-[10000ms] ease-out ${index === activeIndex ? "scale-100 opacity-70" : "scale-110 opacity-0"}`}
                         />
                         <div 
                             className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"

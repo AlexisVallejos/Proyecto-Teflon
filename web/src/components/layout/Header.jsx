@@ -611,7 +611,6 @@ export default function Header({
             ) : null}
           </div>
         </div>
-      </div>
-    </header>
+      </header>
   );
 }
