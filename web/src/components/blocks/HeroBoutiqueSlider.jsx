@@ -74,7 +74,7 @@ export default function HeroBoutiqueSlider({ slides = [], styles = {}, editor = 
                     <img 
                         src={s.image} 
                         alt={s.title || "Slider Image"} 
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover transition-transform duration-[10s] ease-out ${index === activeIndex ? "scale-100" : "scale-110"}`}
                     />
                     <div 
                         className="absolute inset-0"
@@ -154,42 +154,48 @@ export default function HeroBoutiqueSlider({ slides = [], styles = {}, editor = 
                 </div>
             </div>
 
-            {/* Navigation Controls */}
+            {/* Navigation Arrows - Sides */}
             {slides.length > 1 ? (
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-12 z-30">
+                <div className="absolute inset-x-4 md:inset-x-8 top-1/2 -translate-y-1/2 flex justify-between items-center z-30 pointer-events-none">
                     <button 
                         onClick={() => goToSlide(activeIndex - 1)}
-                        className="w-12 h-12 rounded-full border border-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors"
+                        className="pointer-events-auto w-12 h-12 md:w-16 md:h-16 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 active:scale-90 group"
+                        aria-label="Anterior"
                     >
-                        <span className="material-symbols-outlined">arrow_back</span>
+                        <span className="material-symbols-outlined text-2xl md:text-3xl transition-transform group-hover:-translate-x-1">chevron_left</span>
                     </button>
+                    <button 
+                        onClick={() => goToSlide(activeIndex + 1)}
+                        className="pointer-events-auto w-12 h-12 md:w-16 md:h-16 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 active:scale-90 group"
+                        aria-label="Siguiente"
+                    >
+                        <span className="material-symbols-outlined text-2xl md:text-3xl transition-transform group-hover:translate-x-1">chevron_right</span>
+                    </button>
+                </div>
+            ) : null}
 
-                    {/* Progress Indicators */}
-                    <div className="flex gap-3">
-                        {slides.map((_, idx) => (
-                            <div 
-                                key={`ind-${idx}`} 
-                                className="w-16 h-0.5 bg-white/30 relative overflow-hidden cursor-pointer"
-                                onClick={() => goToSlide(idx)}
-                            >
+            {/* Progress Indicators - Bottom */}
+            {slides.length > 1 ? (
+                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30">
+                    {slides.map((_, idx) => (
+                        <button 
+                            key={`ind-${idx}`} 
+                            className="group py-4 px-1"
+                            onClick={() => goToSlide(idx)}
+                        >
+                            <div className="w-12 md:w-20 h-0.5 bg-white/20 relative overflow-hidden">
                                 <div 
                                     className="absolute inset-y-0 left-0 transition-all ease-linear"
                                     style={{ 
                                         width: idx === activeIndex ? "100%" : (idx < activeIndex ? "100%" : "0%"),
                                         transitionDuration: idx === activeIndex ? "5000ms" : "300ms",
-                                        backgroundColor: idx === activeIndex ? accentBgColor : "rgba(255,255,255,0.3)"
+                                        backgroundColor: idx === activeIndex ? (accentBgColor || "#ffffff") : "transparent"
                                     }}
                                 ></div>
+                                <div className={`absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity`} />
                             </div>
-                        ))}
-                    </div>
-
-                    <button 
-                        onClick={() => goToSlide(activeIndex + 1)}
-                        className="w-12 h-12 rounded-full border border-white/20 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors"
-                    >
-                        <span className="material-symbols-outlined">arrow_forward</span>
-                    </button>
+                        </button>
+                    ))}
                 </div>
             ) : null}
         </section>
