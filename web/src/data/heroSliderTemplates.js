@@ -159,16 +159,16 @@ const SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES = [
 
 const MODERNIST_DEFAULT_SLIDES = [
     {
-        label: 'Exclusive Experience',
-        title: 'Premium \n Architectural',
-        subtitle: 'LUXURY',
-        description: 'Where form meets function in its purest expression. Discover our curated collection of industrial design.',
-        featured: '',
-        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAsE3UyUs8hwy2ulbda_AkoJgM8Dt4ADPYbA-N4JuZyG7V0vY4q6cc-Tt89t4P27xMxKmcjbMRSj4N02izzDB8sxKnPwkQT6oyUKxlUSIDxrIG34D9wU86tDWjBT-0y3V2Z_OLjdxCgq5XnSZfNN_gaFHdyDgF3Yqu1LH2AdPc8uRelPjbm_EzN2gggEAeP5ZoaAymWqHgYvaOW7zs6nmpnzlMDbxoDHw2MGpOOxIcYt6nSxjDnngClgvhP9eojjcdPz_JpCIAFFZA',
-        primaryButtonLabel: 'Discover Now',
+        label: 'New Arrival',
+        title: 'The Obsidian \n Lounge',
+        subtitle: '$2,850.00',
+        description: 'An icon of adaptive modernism, blending ergonomic precision with sustainable oak and hand-stitched premium wool.',
+        featured: 'Free Worldwide Shipping',
+        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCmLfVe_lRk70frWnyjcp30xQQruP2IXrHkvjTh6l5A1S7Pf3mpsjgKxTLbsQSJfWiViyJwin5tCwOO8XLKzx3YfZXxjV8jarEarpXObaPjQkWmu4qO1N3lnR9j01QgsqD-t8kMJFLKfLdE8PnFq1mmt1diUhftANAPCU-RRmbnLgAXUthQBkX30C0je5TdnvQ-qruxKna254Y7ZjBdpvz3GXHoHCu8VafVSi5-A4nnagOiSnyhCVGPYHkKdgDmYkguWAIqFaHIu6j6',
+        primaryButtonLabel: 'Buy Now',
         primaryButtonLink: '/catalog',
-        secondaryButtonLabel: 'About Us',
-        secondaryButtonLink: '/about'
+        secondaryButtonLabel: 'Discover More',
+        secondaryButtonLink: '/catalog'
     }
 ];
 
@@ -202,15 +202,15 @@ const SLIDE_DEFAULTS_BY_VARIANT = {
 
 const STYLE_DEFAULTS_BY_VARIANT = {
     modernist: {
-        titleColor: '#ffffff',
-        textColor: '#d4d4d8',
-        labelColor: '#ffffff',
-        primaryButtonBgColor: '#ffffff',
-        primaryButtonTextColor: '#000000',
-        secondaryButtonBgColor: 'rgba(255, 255, 255, 0)',
-        secondaryButtonTextColor: '#ffffff',
-        secondaryButtonBorderColor: 'rgba(255, 255, 255, 0.3)',
-        overlayColor: '#000000',
+        titleColor: '#000000',
+        textColor: '#444748',
+        labelColor: '#1c1b1b',
+        primaryButtonBgColor: '#000000',
+        primaryButtonTextColor: '#ffffff',
+        secondaryButtonBgColor: 'transparent',
+        secondaryButtonTextColor: '#000000',
+        secondaryButtonBorderColor: '#000000',
+        overlayColor: 'rgba(0,0,0,0.2)',
     },
     fashion: {
         backgroundColor: '#f5f3f0',

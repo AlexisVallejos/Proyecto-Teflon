@@ -1,47 +1,75 @@
 import React from 'react';
 
 export default function FeaturesBento({ 
-    title = "Artisan Craftsmanship", 
-    description = "Sourced from the world's finest sustainable mills.",
-    mainImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuDnGd8JVdse1xXxynxTBBvF1KRTMd6s7gBMsfTlrYT2H1pwndJ25pjLbMS1PsBor0LVftmhxco9ugA5tc9eIM0mtuT8fOBA0-lwodyaYfflNff-bY9w3D7m7xxueq1Gds0HG1zaKKbvYjoXP7nNGz8k0n5lYoOWHi5ZeIvlRw32aBlC2QTYUkgdPodc4nsvvCFQ9b3F1YXV-Fmh6ulg7NdIbP82DcuBG47Olve9w648Wb0IaJ1yYBNTRkX6LOcNx-yIBKwHAfU60BUt",
-    sideTitle = "Lifetime Guarantee",
-    sideDescription = "We believe in pieces that last a lifetime, not just a season. Every Modernist item is backed by our heritage quality promise.",
-    sideCtaLabel = "LEARN MORE",
-    sideCtaLink = "#",
+    title = "Architectural Illumination", 
+    description = "Explore our curated collection of lighting that defines space.",
+    mainImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuAl3zjCR_7o7akmne4GXEWFmNjzYvJtp6gIpiT-pT98SykMNxY7bnNczgTXvKRzD4oYgiLMVvUuCSNvIgfw7p9k4JrSjGhBBB8EjRmDyeGFynCJQnB70JHqM25MORLouA5-7WlvVg7UKRqDGzF8fbW-gnY-Q3PwmVs0Bkvm4_CrvWT_ubaltuHgozDMjy6Jvev0Tu0l_BeAis_OJscCVJahV3UpCwAXgrWLDmobYUwmLWcxHDmsS7UiSP7ayRp5QJfyi1Lmc2MOC4Us",
+    sideTitle1 = "Craftsmanship",
+    sideDescription1 = "Each piece is hand-finished by master artisans in our Copenhagen studio.",
+    sideCta1 = "Learn More",
+    sideTitle2 = "Join The Circle",
+    sideDescription2 = "Get early access to exclusive collection drops and designer collaborations.",
     styles = {}
 }) {
     const { 
         backgroundColor = "#ffffff",
-        titleColor = "#18181b",
-        textColor = "#71717a",
+        titleColor = "#000000",
+        textColor = "#444748",
         accentColor = "#000000"
     } = styles;
 
     return (
-        <section className="py-20 max-w-7xl mx-auto px-8" style={{ backgroundColor }}>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                <div className="md:col-span-8 h-96 relative overflow-hidden rounded-xl border border-zinc-200">
+        <section className="max-w-7xl mx-auto px-8 py-24" style={{ backgroundColor }}>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                {/* Large Block */}
+                <div className="md:col-span-8 group relative overflow-hidden aspect-[16/9] border border-zinc-200">
                     <img 
                         alt={title} 
-                        className="w-full h-full object-cover" 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                         src={mainImage} 
                     />
-                    <div className="absolute bottom-0 left-0 p-8 w-full bg-gradient-to-t from-black/70 to-transparent">
-                        <h3 className="text-3xl font-bold text-white mb-2">{title}</h3>
-                        <p className="text-zinc-200">{description}</p>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+                    <div className="absolute bottom-8 left-8 text-white">
+                        <h3 className="text-3xl font-bold mb-2 font-['Manrope']">{title}</h3>
+                        <p className="text-zinc-200 mb-4 max-w-sm font-['Inter']">{description}</p>
+                        <a 
+                            className="text-[12px] font-bold uppercase tracking-widest border-b border-white pb-1 hover:text-zinc-300 hover:border-zinc-300 transition-colors" 
+                            href="/catalog"
+                        >
+                            Shop Collection
+                        </a>
                     </div>
                 </div>
-                <div className="md:col-span-4 h-96 bg-zinc-50 dark:bg-zinc-900 flex flex-col justify-center p-8 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                    <span className="material-symbols-outlined text-4xl mb-6" style={{ color: accentColor }}>verified</span>
-                    <h3 className="text-2xl font-bold mb-4" style={{ color: titleColor }}>{sideTitle}</h3>
-                    <p className="mb-8 leading-relaxed" style={{ color: textColor }}>{sideDescription}</p>
-                    <a 
-                        className="text-xs font-bold tracking-widest border-b-2 w-fit pb-1 hover:opacity-70 transition-opacity uppercase" 
-                        href={sideCtaLink}
-                        style={{ color: accentColor, borderColor: accentColor }}
-                    >
-                        {sideCtaLabel}
-                    </a>
+
+                {/* Side Stack */}
+                <div className="md:col-span-4 flex flex-col gap-8">
+                    {/* Small Block 1 */}
+                    <div className="flex-1 bg-zinc-50 border border-zinc-200 p-8 flex flex-col justify-center">
+                        <span className="material-symbols-outlined text-4xl mb-6" style={{ color: accentColor }}>auto_awesome</span>
+                        <h4 className="text-2xl font-bold mb-4 font-['Manrope']" style={{ color: titleColor }}>{sideTitle1}</h4>
+                        <p className="mb-6 font-['Inter']" style={{ color: textColor }}>{sideDescription1}</p>
+                        <a 
+                            className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-2 group transition-all" 
+                            href="/about"
+                            style={{ color: accentColor }}
+                        >
+                            {sideCta1} <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </a>
+                    </div>
+
+                    {/* Small Block 2 */}
+                    <div className="flex-1 bg-black text-white p-8 flex flex-col justify-center">
+                        <h4 className="text-2xl font-bold mb-4 font-['Manrope']">{sideTitle2}</h4>
+                        <p className="text-zinc-400 mb-6 font-['Inter']">{sideDescription2}</p>
+                        <div className="relative">
+                            <input 
+                                className="w-full bg-transparent border-b border-white/20 pb-2 outline-none focus:border-white transition-colors text-white placeholder:text-zinc-500 font-['Inter']" 
+                                placeholder="Email Address" 
+                                type="email"
+                            />
+                            <button className="absolute right-0 top-0 material-symbols-outlined">chevron_right</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
