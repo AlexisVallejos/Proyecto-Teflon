@@ -167,15 +167,21 @@ export default function HeroModernistCenteredSlider({ slides = [], styles = {}, 
                             <div className="hidden md:flex absolute inset-x-8 top-1/2 -translate-y-1/2 justify-between items-center pointer-events-none">
                                 <button 
                                     onClick={() => goToSlide(activeIndex - 1)}
-                                    className="pointer-events-auto h-12 w-12 rounded-full border border-white/20 bg-white/5 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 active:scale-90"
+                                    className="pointer-events-auto h-14 w-14 rounded-full border border-white/20 bg-black/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-500 active:scale-90 group"
+                                    aria-label="Anterior"
                                 >
-                                    <span className="material-symbols-outlined text-2xl">arrow_back_ios</span>
+                                    <svg className="size-6 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/>
+                                    </svg>
                                 </button>
                                 <button 
                                     onClick={() => goToSlide(activeIndex + 1)}
-                                    className="pointer-events-auto h-12 w-12 rounded-full border border-white/20 bg-white/5 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 active:scale-90"
+                                    className="pointer-events-auto h-14 w-14 rounded-full border border-white/20 bg-black/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-500 active:scale-90 group"
+                                    aria-label="Siguiente"
                                 >
-                                    <span className="material-symbols-outlined text-2xl">arrow_forward_ios</span>
+                                    <svg className="size-6 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
                                 </button>
                             </div>
                         )}
