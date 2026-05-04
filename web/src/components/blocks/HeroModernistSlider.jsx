@@ -57,8 +57,11 @@ export default function HeroModernistSlider({ slides = [], styles = {}, editor =
                                 <img 
                                     src={s.image} 
                                     alt={s.title || "Slider Image"} 
-                                    className="w-full h-full object-cover transition-transform duration-[10000ms] ease-out"
-                                    style={{ transform: index === activeIndex ? 'scale(1)' : 'scale(1.1)' }}
+                                    className="w-full h-full object-cover transition-transform ease-out"
+                                    style={{ 
+                                        transform: index === activeIndex ? 'scale(1)' : 'scale(1.1)',
+                                        transitionDuration: '10000ms'
+                                    }}
                                 />
                                 <div 
                                     className="absolute inset-0"
