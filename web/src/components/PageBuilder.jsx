@@ -10,6 +10,7 @@ import AboutValues from './blocks/AboutValues';
 import AboutTeam from './blocks/AboutTeam';
 import AboutCTA from './blocks/AboutCTA';
 import FeaturesBento from './blocks/FeaturesBento';
+import FeaturesBentoGrid from './blocks/FeaturesBentoGrid';
 
 const COMPONENT_MAP = {
     HeroSlider,
@@ -23,6 +24,7 @@ const COMPONENT_MAP = {
     AboutTeam,
     AboutCTA,
     FeaturesBento,
+    FeaturesBentoGrid,
 };
 
 const ANCHOR_MAP = {

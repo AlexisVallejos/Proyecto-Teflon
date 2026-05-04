@@ -3,11 +3,10 @@ import { navigate } from "../../utils/navigation";
 import FashionHeroSlider from "./FashionHeroSlider";
 import HomeDecorHeroSlider from "./HomeDecorHeroSlider";
 import SanitariosIndustrialHeroSlider from "./SanitariosIndustrialHeroSlider";
-import HeroGamingSlider from "./HeroGamingSlider";
-import HeroCorporateSlider from "./HeroCorporateSlider";
-import HeroSaleBurstSlider from "./HeroSaleBurstSlider";
 import HeroModernistSlider from "./HeroModernistSlider";
+import HeroModernistCenteredSlider from "./HeroModernistCenteredSlider";
 import HeroBoutiqueSlider from "./HeroBoutiqueSlider";
+import HeroCorporateSlider from "./HeroCorporateSlider";
 import { normalizeHeroSlides, normalizeHeroStyles, normalizeHeroVariant } from "../../data/heroSliderTemplates";
 
 function ClassicHeroSlider({
@@ -320,6 +319,16 @@ export default function HeroSlider(props) {
     );
   }
 
+  if (variant === "modernist_centered") {
+    return (
+      <HeroModernistCenteredSlider
+        slides={normalizeHeroSlides("modernist_centered", props?.slides)}
+        styles={normalizeHeroStyles("modernist_centered", props?.styles)}
+        editor={props?.editor}
+      />
+    );
+  }
+
   if (variant === "modern_boutique") {
     return (
       <HeroBoutiqueSlider
@@ -330,9 +339,7 @@ export default function HeroSlider(props) {
     );
   }
 
-  if (variant === "gaming") return <HeroGamingSlider slides={normalizeHeroSlides("gaming", props?.slides)} styles={normalizeHeroStyles("gaming", props?.styles)} editor={props?.editor} />;
   if (variant === "corporate") return <HeroCorporateSlider slides={normalizeHeroSlides("corporate", props?.slides)} styles={normalizeHeroStyles("corporate", props?.styles)} editor={props?.editor} />;
-  if (variant === "sale_burst") return <HeroSaleBurstSlider slides={normalizeHeroSlides("sale_burst", props?.slides)} styles={normalizeHeroStyles("sale_burst", props?.styles)} editor={props?.editor} />;
 
   return <ClassicHeroSlider {...props} />;
 }

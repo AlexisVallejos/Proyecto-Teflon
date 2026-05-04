@@ -172,9 +172,22 @@ const MODERNIST_DEFAULT_SLIDES = [
     }
 ];
 
-const GAMING_DEFAULT_SLIDES = [{ label: 'Gaming', title: 'Level Up', subtitle: 'Next Gen', description: 'Gaming accessories', featured: '', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070', primaryButtonLabel: 'Shop Now', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
+const MODERNIST_CENTERED_DEFAULT_SLIDES = [
+    {
+        label: 'PREMIUM EXPERIENCE',
+        title: 'Elevate Your \n Vision',
+        subtitle: '',
+        description: 'Precision-engineered solutions for the modern landscape. We blend architectural rigor with creative fluidity to define the future of premium aesthetics.',
+        featured: '',
+        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDawx2tUlvekFWrw8NIoVqwfipXyZA33w2tqo_4TcgFmuSSvynkQpzrq1GW4l69k0VayTrLDm5ucsUCazZy2fO0b51aU5k3Wj8oSVcsM0NjhafOs25VXm0SOr22-g8AWXBxRDkXGSvw-1GBcJtBOhTuMqZTr2pbMNGnTFUTZnlX3I7DHXrcaFxlc-u6r2u6jJuMmeEWET1uDRIbIAGDNXKTAKXqNgJnh34CscsbnXTotISwhCyU9ZdEHWTfwZLn0KuJev9ZOgx9XLtl',
+        primaryButtonLabel: 'Explore Portfolio',
+        primaryButtonLink: '/catalog',
+        secondaryButtonLabel: 'Our Process',
+        secondaryButtonLink: '/catalog'
+    }
+];
+
 const CORPORATE_DEFAULT_SLIDES = [{ label: 'Corporate', title: 'Elevate Business', subtitle: 'Enterprise solutions', description: 'Enterprise gear', featured: '', image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069', primaryButtonLabel: 'Contact Us', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
-const SALE_BURST_DEFAULT_SLIDES = [{ label: 'Limited Offer', title: 'MEGA SALE', subtitle: '50% OFF', description: 'Clearance sale', featured: '', image: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=2070', primaryButtonLabel: 'SHOP', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
 
 const BOUTIQUE_DEFAULT_SLIDES = [{
     label: 'EXCLUSIVE SALE',
@@ -191,13 +204,12 @@ const BOUTIQUE_DEFAULT_SLIDES = [{
 
 const SLIDE_DEFAULTS_BY_VARIANT = {
     modernist: MODERNIST_DEFAULT_SLIDES,
+    modernist_centered: MODERNIST_CENTERED_DEFAULT_SLIDES,
     modern_boutique: BOUTIQUE_DEFAULT_SLIDES,
     fashion: FASHION_DEFAULT_SLIDES,
     home_decor: HOME_DECOR_DEFAULT_SLIDES,
     sanitarios_industrial: SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES,
-    gaming: GAMING_DEFAULT_SLIDES,
     corporate: CORPORATE_DEFAULT_SLIDES,
-    sale_burst: SALE_BURST_DEFAULT_SLIDES,
 };
 
 const STYLE_DEFAULTS_BY_VARIANT = {
@@ -211,6 +223,17 @@ const STYLE_DEFAULTS_BY_VARIANT = {
         secondaryButtonTextColor: '#000000',
         secondaryButtonBorderColor: '#000000',
         overlayColor: 'rgba(0,0,0,0.2)',
+    },
+    modernist_centered: {
+        titleColor: '#ffffff',
+        textColor: '#d4d4d8',
+        labelColor: '#ffffff',
+        primaryButtonBgColor: '#ffffff',
+        primaryButtonTextColor: '#000000',
+        secondaryButtonBgColor: 'transparent',
+        secondaryButtonTextColor: '#ffffff',
+        secondaryButtonBorderColor: 'rgba(255, 255, 255, 0.3)',
+        overlayColor: '#000000',
     },
     fashion: {
         backgroundColor: '#f5f3f0',
