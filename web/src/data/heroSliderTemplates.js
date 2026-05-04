@@ -1,14 +1,27 @@
 export const HERO_VARIANT_OPTIONS = [
     { value: 'classic', label: 'Clasico (actual)' },
+    { value: 'modernist', label: 'Modernist Premium' },
     { value: 'fashion', label: 'Fashion' },
     { value: 'home_decor', label: 'Home Decor' },
     { value: 'sanitarios_industrial', label: 'Industrial Showcase' },
     { value: 'gaming', label: 'Gaming Neon' },
     { value: 'corporate', label: 'Corporate Clean' },
+    { value: 'modern_boutique', label: 'Modern Boutique' },
     { value: 'sale_burst', label: 'Liquidación Burst' },
 ];
 
 export const HERO_COLOR_FIELDS = {
+    modernist: [
+        { key: 'titleColor', label: 'Titulos' },
+        { key: 'textColor', label: 'Texto descriptivo' },
+        { key: 'labelColor', label: 'Etiqueta superior' },
+        { key: 'primaryButtonBgColor', label: 'Boton primario (fondo)' },
+        { key: 'primaryButtonTextColor', label: 'Boton primario (texto)' },
+        { key: 'secondaryButtonBgColor', label: 'Boton secundario (fondo)' },
+        { key: 'secondaryButtonTextColor', label: 'Boton secundario (texto)' },
+        { key: 'secondaryButtonBorderColor', label: 'Boton secundario (borde)' },
+        { key: 'overlayColor', label: 'Overlay (gradiente)' },
+    ],
     fashion: [
         { key: 'backgroundColor', label: 'Fondo' },
         { key: 'titleColor', label: 'Titulos' },
@@ -52,6 +65,20 @@ export const HERO_COLOR_FIELDS = {
         { key: 'specColor', label: 'Especificacion superior' },
         { key: 'dotActiveColor', label: 'Dot activo' },
         { key: 'dotInactiveColor', label: 'Dot inactivo' },
+    ],
+    modern_boutique: [
+        { key: 'titleColor', label: 'Titulos' },
+        { key: 'textColor', label: 'Texto descriptivo' },
+        { key: 'labelBgColor', label: 'Fondo etiqueta (Badge)' },
+        { key: 'labelTextColor', label: 'Texto etiqueta (Badge)' },
+        { key: 'primaryButtonBgColor', label: 'Boton primario (fondo)' },
+        { key: 'primaryButtonTextColor', label: 'Boton primario (texto)' },
+        { key: 'secondaryButtonBgColor', label: 'Boton secundario (fondo)' },
+        { key: 'secondaryButtonTextColor', label: 'Boton secundario (texto)' },
+        { key: 'secondaryButtonBorderColor', label: 'Boton secundario (borde)' },
+        { key: 'accentBgColor', label: 'Pill de oferta (fondo)' },
+        { key: 'accentTextColor', label: 'Pill de oferta (texto)' },
+        { key: 'overlayColor', label: 'Capa de oscuridad (Overlay)' },
     ],
 };
 
@@ -130,11 +157,41 @@ const SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES = [
     },
 ];
 
+const MODERNIST_DEFAULT_SLIDES = [
+    {
+        label: 'Exclusive Experience',
+        title: 'Premium \n Architectural',
+        subtitle: 'LUXURY',
+        description: 'Where form meets function in its purest expression. Discover our curated collection of industrial design.',
+        featured: '',
+        image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAsE3UyUs8hwy2ulbda_AkoJgM8Dt4ADPYbA-N4JuZyG7V0vY4q6cc-Tt89t4P27xMxKmcjbMRSj4N02izzDB8sxKnPwkQT6oyUKxlUSIDxrIG34D9wU86tDWjBT-0y3V2Z_OLjdxCgq5XnSZfNN_gaFHdyDgF3Yqu1LH2AdPc8uRelPjbm_EzN2gggEAeP5ZoaAymWqHgYvaOW7zs6nmpnzlMDbxoDHw2MGpOOxIcYt6nSxjDnngClgvhP9eojjcdPz_JpCIAFFZA',
+        primaryButtonLabel: 'Discover Now',
+        primaryButtonLink: '/catalog',
+        secondaryButtonLabel: 'About Us',
+        secondaryButtonLink: '/about'
+    }
+];
+
 const GAMING_DEFAULT_SLIDES = [{ label: 'Gaming', title: 'Level Up', subtitle: 'Next Gen', description: 'Gaming accessories', featured: '', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070', primaryButtonLabel: 'Shop Now', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
 const CORPORATE_DEFAULT_SLIDES = [{ label: 'Corporate', title: 'Elevate Business', subtitle: 'Enterprise solutions', description: 'Enterprise gear', featured: '', image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069', primaryButtonLabel: 'Contact Us', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
 const SALE_BURST_DEFAULT_SLIDES = [{ label: 'Limited Offer', title: 'MEGA SALE', subtitle: '50% OFF', description: 'Clearance sale', featured: '', image: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=2070', primaryButtonLabel: 'SHOP', primaryButtonLink: '/catalog', secondaryButtonLabel: '', secondaryButtonLink: '' }];
 
+const BOUTIQUE_DEFAULT_SLIDES = [{
+    label: 'EXCLUSIVE SALE',
+    title: 'Winter \n Collection',
+    subtitle: '30% OFF',
+    description: 'Experience the fusion of architectural precision and wearable art. Designed for those who demand quiet excellence.',
+    featured: '',
+    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAcciZH4gbXwBFVWmVGrhoKehFFOg-0D2O5GgS6DHuFs8q-WQGocQDz21shk9cnmvesxEmaPkgWpfJAnJi32HcXttBrd13i33S9TbSg2QUhHl_3XIDL1r5HJnrUtuKWOpbrZAZBuRRu6fd5KE5zF2YFXCGVyQD-TE3FQZBEMG6KgSL5pk60hlnC_RWc0T1ERlHE3PPO8v1oZqCr7RvAejZct6GWaVVh-d6djpl-bA8F7U0KBtNoVFTZ_q2Kfey5DxXattxuy5HoKwEJ',
+    primaryButtonLabel: 'Shop Now',
+    primaryButtonLink: '/catalog',
+    secondaryButtonLabel: 'View Collections',
+    secondaryButtonLink: '/catalog'
+}];
+
 const SLIDE_DEFAULTS_BY_VARIANT = {
+    modernist: MODERNIST_DEFAULT_SLIDES,
+    modern_boutique: BOUTIQUE_DEFAULT_SLIDES,
     fashion: FASHION_DEFAULT_SLIDES,
     home_decor: HOME_DECOR_DEFAULT_SLIDES,
     sanitarios_industrial: SANITARIOS_INDUSTRIAL_DEFAULT_SLIDES,
@@ -144,6 +201,17 @@ const SLIDE_DEFAULTS_BY_VARIANT = {
 };
 
 const STYLE_DEFAULTS_BY_VARIANT = {
+    modernist: {
+        titleColor: '#ffffff',
+        textColor: '#d4d4d8',
+        labelColor: '#ffffff',
+        primaryButtonBgColor: '#ffffff',
+        primaryButtonTextColor: '#000000',
+        secondaryButtonBgColor: 'rgba(255, 255, 255, 0)',
+        secondaryButtonTextColor: '#ffffff',
+        secondaryButtonBorderColor: 'rgba(255, 255, 255, 0.3)',
+        overlayColor: '#000000',
+    },
     fashion: {
         backgroundColor: '#f5f3f0',
         titleColor: '#111111',
@@ -191,6 +259,20 @@ const STYLE_DEFAULTS_BY_VARIANT = {
     gaming: { titleColor: '#ffffff', overlayOpacity: '0.9', overlayColor: '#0f0c29' },
     corporate: {},
     sale_burst: {},
+    modern_boutique: {
+        titleColor: '#ffffff',
+        textColor: '#f4f4f5',
+        labelBgColor: '#000000',
+        labelTextColor: '#ffffff',
+        primaryButtonBgColor: '#000000',
+        primaryButtonTextColor: '#ffffff',
+        secondaryButtonBgColor: 'rgba(255, 255, 255, 0)',
+        secondaryButtonTextColor: '#ffffff',
+        secondaryButtonBorderColor: 'rgba(255, 255, 255, 0.3)',
+        accentBgColor: '#ffffff',
+        accentTextColor: '#000000',
+        overlayColor: '#000000',
+    },
 };
 
 const EMPTY_SLIDE = {

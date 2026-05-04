@@ -148,7 +148,7 @@ function ClassicFeaturedProducts({
               className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-2 pb-2 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {products.map((product, index) => (
-                <div key={product.id || index} className="min-w-0 shrink-0 basis-[74%] max-w-[240px] snap-start">
+                <div key={product.id || index} className="min-w-0 shrink-0 basis-full snap-center px-4">
                   <ProductCard product={product} />
                 </div>
               ))}

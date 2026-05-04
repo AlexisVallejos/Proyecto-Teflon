@@ -6,6 +6,8 @@ import SanitariosIndustrialHeroSlider from "./SanitariosIndustrialHeroSlider";
 import HeroGamingSlider from "./HeroGamingSlider";
 import HeroCorporateSlider from "./HeroCorporateSlider";
 import HeroSaleBurstSlider from "./HeroSaleBurstSlider";
+import HeroModernistSlider from "./HeroModernistSlider";
+import HeroBoutiqueSlider from "./HeroBoutiqueSlider";
 import { normalizeHeroSlides, normalizeHeroStyles, normalizeHeroVariant } from "../../data/heroSliderTemplates";
 
 function ClassicHeroSlider({
@@ -304,6 +306,26 @@ export default function HeroSlider(props) {
       <SanitariosIndustrialHeroSlider
         slides={normalizeHeroSlides("sanitarios_industrial", props?.slides)}
         styles={normalizeHeroStyles("sanitarios_industrial", props?.styles)}
+      />
+    );
+  }
+
+  if (variant === "modernist") {
+    return (
+      <HeroModernistSlider
+        slides={normalizeHeroSlides("modernist", props?.slides)}
+        styles={normalizeHeroStyles("modernist", props?.styles)}
+        editor={props?.editor}
+      />
+    );
+  }
+
+  if (variant === "modern_boutique") {
+    return (
+      <HeroBoutiqueSlider
+        slides={normalizeHeroSlides("modern_boutique", props?.slides)}
+        styles={normalizeHeroStyles("modern_boutique", props?.styles)}
+        editor={props?.editor}
       />
     );
   }

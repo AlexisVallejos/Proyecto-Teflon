@@ -16,7 +16,7 @@ export default function FeaturedProductsSnap({ products, title, subtitle, ctaLab
             {products.length ? (
                 <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4 md:px-10 pb-8 hide-scrollbar">
                     {products.map((product) => (
-                        <div key={product.id} className="snap-start shrink-0 w-[280px] sm:w-[320px]">
+                        <div key={product.id} className="snap-center shrink-0 basis-full min-w-0 px-4">
                             <ProductCard product={product} />
                         </div>
                     ))}

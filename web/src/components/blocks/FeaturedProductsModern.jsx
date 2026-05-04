@@ -128,7 +128,7 @@ export default function FeaturedProductsModern({
                             {products.map((product, index) => (
                                 <article
                                     key={product.id}
-                                    className="min-w-0 shrink-0 basis-[74%] max-w-[238px] snap-start overflow-hidden rounded-2xl border border-slate-200 shadow-sm transition-all duration-300"
+                                    className="min-w-0 shrink-0 basis-full snap-center overflow-hidden rounded-2xl border border-slate-200 shadow-md transition-all duration-300"
                                     style={{ backgroundColor: colors.cardBackgroundColor }}
                                 >
                                     <button

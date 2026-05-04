@@ -1,4 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import StoreLayout from "../../components/layout/StoreLayout";
 import { formatCurrency } from "../../utils/format";
 import { getApiBase, getAuthHeaders, getTenantHeaders } from "../../utils/api";
@@ -11,8 +12,32 @@ import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/sto
 import { createPlaceholderImage } from "../../utils/productImage";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
-
 const FALLBACK_IMAGE = createPlaceholderImage({ label: "Producto", width: 720, height: 720 });
+const EXCLUDED_TERMS = [
+    "accesorios de gas",
+    "accesorios polietileno",
+    "accesorios polipropileno",
+    "accesorios sanitarios",
+    "alessitech",
+    "decca",
+    "ferrum",
+    "fogata"
+];
+
+const isNotExcluded = (name) => {
+    if (!name) return true;
+    const lowerName = name.toLowerCase();
+    return !EXCLUDED_TERMS.some(t => lowerName.includes(t));
+};
+
+const filterCategoryTree = (categories) => {
+    return categories
+        .filter(c => isNotExcluded(c.name))
+        .map(c => ({
+            ...c,
+            children: c.children ? filterCategoryTree(c.children) : []
+        }));
+};
 const DEFAULT_SORT = "name-asc";
 const SORT_OPTIONS = [
     { value: "name-asc", label: "Nombre A-Z" },
@@ -190,7 +215,7 @@ export default function CatalogPage() {
     const [loading, setLoading] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-    const limit = 24;
+    const limit = 9;
 
     useEffect(() => {
         setPage(1);
@@ -231,7 +256,7 @@ export default function CatalogPage() {
                 if (active && categoriesRes.ok) {
                     const categoriesData = await categoriesRes.json();
                     const normalizedCategories = Array.isArray(categoriesData)
-                        ? categoriesData.map(normalizeCategory).filter(Boolean)
+                        ? filterCategoryTree(categoriesData.map(normalizeCategory).filter(Boolean))
                         : [];
                     setCategories(normalizedCategories);
                 }
@@ -239,7 +264,7 @@ export default function CatalogPage() {
                 if (active && brandsRes.ok) {
                     const brandsData = await brandsRes.json();
                     const normalizedBrands = Array.isArray(brandsData)
-                        ? brandsData.map(normalizeBrand).filter(Boolean)
+                        ? brandsData.map(normalizeBrand).filter(Boolean).filter(b => isNotExcluded(b.name))
                         : [];
                     const uniqueBrands = [...new Map(normalizedBrands.map((item) => [item.id.toLowerCase(), item])).values()];
                     setBrands(uniqueBrands);
@@ -301,8 +326,18 @@ export default function CatalogPage() {
                 if (!active) return;
 
                 const items = Array.isArray(data.items) ? data.items : [];
-                setProducts(items);
-                setTotalItems(Number(data.total || items.length || 0));
+                const filteredItems = items.filter(product => {
+                    const categoryName = product.category?.name || "";
+                    const brandName = product.brand?.name || "";
+                    return isNotExcluded(categoryName) && isNotExcluded(brandName) && isNotExcluded(product.name);
+                });
+                
+                setProducts(filteredItems);
+                
+                // Adjust total items estimation based on filtered items difference
+                const removedCount = items.length - filteredItems.length;
+                const originalTotal = Number(data.total || items.length || 0);
+                setTotalItems(Math.max(0, originalTotal - removedCount));
             } catch (error) {
                 if (error.name !== "AbortError") {
                     console.error("No se pudieron cargar los productos", error);
@@ -533,20 +568,7 @@ export default function CatalogPage() {
                     />
                 ) : null}
 
-                {/* FAB Flotante para Filtros en Móvil */}
-                <button
-                    type="button"
-                    onClick={() => setMobileFiltersOpen(true)}
-                    className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2 rounded-full bg-[#181411] px-5 font-bold text-white shadow-2xl transition-transform hover:scale-105 active:scale-95 lg:hidden"
-                >
-                    <FilterIcon className="size-5" />
-                    <span>Filtros</span>
-                    {activeFilterCount > 0 ? (
-                        <span className="ml-1 flex size-5 items-center justify-center rounded-full bg-primary text-[11px] text-white">
-                            {activeFilterCount}
-                        </span>
-                    ) : null}
-                </button>
+
 
                 <section className="rounded-[28px] border p-5 shadow-sm md:p-8" style={CATALOG_STYLES.panel}>
                     <div className="flex flex-wrap items-center gap-2 text-sm" style={CATALOG_STYLES.muted}>
@@ -609,32 +631,7 @@ export default function CatalogPage() {
                                     <CloseIcon className="size-3.5" />
                                 </button>
                             ))
-                        ) : (
-                            <>
-                                {quickCategories.map((category) => (
-                                    <button
-                                        key={`quick-category-${category.id}`}
-                                        type="button"
-                                        onClick={() => applyFilters({ category: category.id })}
-                                        className="rounded-full border px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white"
-                                        style={CATALOG_STYLES.border}
-                                    >
-                                        {category.name}
-                                    </button>
-                                ))}
-                                {quickBrands.map((brand) => (
-                                    <button
-                                        key={`quick-brand-${brand.id}`}
-                                        type="button"
-                                        onClick={() => applyFilters({ brand: brand.id })}
-                                        className="rounded-full border px-4 py-2 text-sm font-medium text-[#181411] transition-colors hover:border-primary hover:text-primary dark:text-white"
-                                        style={CATALOG_STYLES.border}
-                                    >
-                                        {brand.name}
-                                    </button>
-                                ))}
-                            </>
-                        )}
+                        ) : null}
                     </div>
                 </section>
 
@@ -678,19 +675,20 @@ export default function CatalogPage() {
                     ) : null}
 
                     <section className="mt-6 min-w-0 lg:mt-0">
-                        <div className="mb-5 flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:flex-row sm:items-center sm:justify-between" style={CATALOG_STYLES.surface}>
-                            <div>
-                                <p className="text-xs font-bold uppercase tracking-[0.14em]" style={CATALOG_STYLES.muted}>Resultados</p>
-                                <h2 className="mt-1 text-lg font-bold text-[#181411] dark:text-white">
-                                    {totalItems === 1 ? "1 raiz o producto" : `${totalItems} raices o productos`}
-                                </h2>
-                            </div>
-                            <p className="text-sm" style={CATALOG_STYLES.muted}>
-                                {activeFilterCount > 0
-                                    ? "Filtra por categoria, marca, rango de precios, stock y orden para acotar mejor la grilla."
-                                    : "Usa el buscador, categorias, marcas y orden para encontrar mas rapido lo que necesitas."}
-                            </p>
+                        <div className="sticky top-20 z-30 mb-5 flex items-center justify-between rounded-2xl border bg-white/90 px-4 py-4 shadow-sm backdrop-blur-md lg:hidden" style={CATALOG_STYLES.border}>
+                            <button
+                                type="button"
+                                onClick={() => setMobileFiltersOpen(true)}
+                                className="flex items-center gap-2 text-sm font-bold text-[#181411] dark:text-white"
+                            >
+                                <FilterIcon className="size-5" />
+                                Filtrar {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+                            </button>
+                            <span className="text-xs font-bold uppercase tracking-[0.14em]" style={CATALOG_STYLES.muted}>
+                                {totalItems} {totalItems === 1 ? "resultado" : "resultados"}
+                            </span>
                         </div>
+
 
                         {loading ? (
                             <StoreSkeleton variant="catalog" />
@@ -700,7 +698,7 @@ export default function CatalogPage() {
                                 <p className="mt-2 text-sm">Prueba con otra categoria, otra marca o limpia los filtros activos.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
                                 {catalogProducts.map((product) => (
                                     <CatalogProductCard
                                         key={product.id}
@@ -789,6 +787,15 @@ function CatalogFilters({
     const [draftMaxPrice, setDraftMaxPrice] = useState(selectedMaxPrice || "");
     const [draftInStockOnly, setDraftInStockOnly] = useState(Boolean(inStockOnly));
     const [draftSort, setDraftSort] = useState(normalizeSortValue(sort));
+    const [showAllCategoriesModal, setShowAllCategoriesModal] = useState(false);
+    const [showAllBrandsModal, setShowAllBrandsModal] = useState(false);
+    
+    const visibleCategories = categoryTree.slice(0, 6);
+    const hasMoreCategories = categoryTree.length > 6;
+    
+    const visibleBrands = brands.slice(0, 4);
+    const hasMoreBrands = brands.length > 4;
+
     const [expandedCategories, setExpandedCategories] = useState(() => {
         const next = {};
         categoryTree.forEach((category) => {
@@ -830,7 +837,7 @@ function CatalogFilters({
     }, [categoryTree, selectedCategory]);
 
     return (
-        <div className={`rounded-[24px] border p-5 shadow-sm ${mobile ? "min-h-full" : "sticky top-24"}`} style={CATALOG_STYLES.panel}>
+        <div className={`rounded-[24px] border p-5 shadow-sm relative z-20 ${mobile ? "min-h-full" : ""}`} style={CATALOG_STYLES.panel}>
             <div className="flex items-center justify-between gap-3">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-[0.14em]" style={CATALOG_STYLES.muted}>Explorar</p>
@@ -873,70 +880,75 @@ function CatalogFilters({
                             </button>
                         ) : null}
                     </div>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2 lg:flex lg:flex-col lg:gap-1">
                         {categoryTree.length ? (
-                            categoryTree.map((category) => {
-                                const parentActive = selectedCategory === category.id || selectedCategory === category.slug;
-                                const hasChildren = category.children.length > 0;
-                                const expanded = expandedCategories[category.id] ?? false;
-                                return (
-                                    <div key={`category-${category.id}`} className="rounded-2xl border p-3" style={CATALOG_STYLES.surface}>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => onSelectCategory(category.id)}
-                                                className={`flex min-w-0 flex-1 items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors ${parentActive
-                                                        ? "bg-primary text-white"
-                                                        : "text-[#181411] hover:bg-[#f5f2f0] dark:text-white dark:hover:bg-[#21160e]"
-                                                    }`}
-                                            >
-                                                <span className="truncate">{category.name}</span>
-                                            </button>
-                                            {hasChildren ? (
+                            <>
+                                {visibleCategories.map((category) => {
+                                    const parentActive = selectedCategory === category.id || selectedCategory === category.slug;
+                                    const hasChildren = category.children.length > 0;
+                                    const expanded = expandedCategories[category.id] ?? false;
+                                    return (
+                                        <div key={`category-${category.id}`} className="flex flex-col">
+                                            <div className="flex h-full items-center justify-between">
                                                 <button
                                                     type="button"
-                                                    onClick={() =>
-                                                        setExpandedCategories((prev) => ({
-                                                            ...prev,
-                                                            [category.id]: !expanded,
-                                                        }))
-                                                    }
-                                                    className={`inline-flex size-10 items-center justify-center rounded-xl border transition-colors ${expanded
-                                                            ? "border-primary bg-primary/10 text-primary"
-                                                            : "text-[#6f5f50] hover:border-primary hover:text-primary dark:text-[#d6c4b4]"
+                                                    onClick={() => onSelectCategory(category.id)}
+                                                    className={`flex min-w-0 flex-1 h-full items-center justify-center lg:justify-start rounded-xl border lg:border-none px-1 py-2 lg:p-1 text-center lg:text-left text-[11px] leading-tight lg:text-sm transition-colors ${parentActive
+                                                            ? "border-primary bg-primary/10 font-bold text-primary lg:bg-transparent"
+                                                            : "border-[#e5e1de] text-[#181411] hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
                                                         }`}
-                                                    style={expanded ? undefined : { ...CATALOG_STYLES.border, ...CATALOG_STYLES.muted }}
-                                                    aria-label={expanded ? `Ocultar subcategorias de ${category.name}` : `Mostrar subcategorias de ${category.name}`}
                                                 >
-                                                    <ChevronRightIcon className={`size-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                                    <span className="line-clamp-2">{category.name}</span>
                                                 </button>
+                                                {hasChildren ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setExpandedCategories((prev) => ({
+                                                                ...prev,
+                                                                [category.id]: !expanded,
+                                                            }))
+                                                        }
+                                                        className="hidden lg:block ml-2 p-1 text-[#6f5f50] transition-colors hover:text-primary dark:text-[#d6c4b4]"
+                                                        aria-label={expanded ? `Ocultar subcategorias de ${category.name}` : `Mostrar subcategorias de ${category.name}`}
+                                                    >
+                                                        <ChevronRightIcon className={`size-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                            {hasChildren && expanded ? (
+                                                <div className="hidden lg:flex mt-1 flex-col space-y-1 border-l pl-3" style={CATALOG_STYLES.border}>
+                                                    {category.children.map((child) => {
+                                                        const childActive = selectedCategory === child.id || selectedCategory === child.slug;
+                                                        return (
+                                                            <button
+                                                                key={`category-child-${child.id}`}
+                                                                type="button"
+                                                                onClick={() => onSelectCategory(child.id)}
+                                                                className={`py-1 text-left text-sm transition-colors ${childActive
+                                                                        ? "font-bold text-primary"
+                                                                        : "text-[#6f5f50] hover:text-[#181411] dark:text-[#d6c4b4] dark:hover:text-white"
+                                                                    }`}
+                                                            >
+                                                                <span className="truncate">{child.name}</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             ) : null}
                                         </div>
-                                        {hasChildren && expanded ? (
-                                            <div className="mt-2 space-y-1 border-l pl-3" style={CATALOG_STYLES.border}>
-                                                {category.children.map((child) => {
-                                                    const childActive = selectedCategory === child.id || selectedCategory === child.slug;
-                                                    return (
-                                                        <button
-                                                            key={`category-child-${child.id}`}
-                                                            type="button"
-                                                            onClick={() => onSelectCategory(child.id)}
-                                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${childActive
-                                                                    ? "bg-primary/12 font-bold text-primary"
-                                                                    : "text-[#6f5f50] hover:bg-[#f7f4f1] hover:text-[#181411] dark:text-[#d6c4b4] dark:hover:bg-[#1d140d] dark:hover:text-white"
-                                                                }`}
-                                                            style={childActive ? undefined : CATALOG_STYLES.muted}
-                                                        >
-                                                            <span>{child.name}</span>
-                                                            <ChevronRightIcon className="size-4" />
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                );
-                            })
+                                    );
+                                })}
+                                {hasMoreCategories ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllCategoriesModal(true)}
+                                        className="col-span-3 mt-2 text-sm font-semibold text-primary hover:underline lg:mt-1 lg:text-left"
+                                    >
+                                        Ver todas las categorías
+                                    </button>
+                                ) : null}
+                            </>
                         ) : (
                             <p className="text-sm" style={CATALOG_STYLES.muted}>No hay categorias disponibles.</p>
                         )}
@@ -1069,29 +1081,165 @@ function CatalogFilters({
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {brands.length ? (
-                            brands.map((brand) => {
-                                const active = selectedBrand === brand.id || selectedBrand === brand.name;
-                                return (
+                            <>
+                                {visibleBrands.map((brand) => {
+                                    const active = selectedBrand === brand.id || selectedBrand === brand.name;
+                                    return (
+                                        <button
+                                            key={`brand-${brand.id}`}
+                                            type="button"
+                                            onClick={() => onSelectBrand(brand.id)}
+                                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
+                                                    ? "bg-primary text-white"
+                                                    : "border text-[#181411] hover:border-primary hover:text-primary dark:text-white"
+                                                }`}
+                                            style={active ? undefined : CATALOG_STYLES.border}
+                                        >
+                                            {brand.name}
+                                        </button>
+                                    );
+                                })}
+                                {hasMoreBrands ? (
                                     <button
-                                        key={`brand-${brand.id}`}
                                         type="button"
-                                        onClick={() => onSelectBrand(brand.id)}
-                                        className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
-                                                ? "bg-primary text-white"
-                                                : "border text-[#181411] hover:border-primary hover:text-primary dark:text-white"
-                                            }`}
-                                        style={active ? undefined : CATALOG_STYLES.border}
+                                        onClick={() => setShowAllBrandsModal(true)}
+                                        className="mt-1 text-sm font-semibold text-primary hover:underline w-full text-left"
                                     >
-                                        {brand.name}
+                                        Ver todas las marcas
                                     </button>
-                                );
-                            })
+                                ) : null}
+                            </>
                         ) : (
                             <p className="text-sm" style={CATALOG_STYLES.muted}>No hay marcas disponibles.</p>
                         )}
                     </div>
                 </section>
             </div>
+
+            {showAllCategoriesModal ? createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="relative w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#181411]">
+                        <div className="mb-4 flex items-center justify-between border-b border-[#ebebf0] pb-4 dark:border-[#3d2f21]">
+                            <h3 className="text-xl font-black text-[#181411] dark:text-white">Todas las categorías</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowAllCategoriesModal(false)}
+                                className="rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-[#2a1f16] dark:text-gray-400 dark:hover:bg-[#3d2f21]"
+                            >
+                                <CloseIcon className="size-5" />
+                            </button>
+                        </div>
+                        <div className="max-h-[60vh] overflow-y-auto pr-2">
+                            <div className="grid grid-cols-1 gap-3 items-start sm:grid-cols-2 md:grid-cols-3">
+                                {categoryTree.map((category) => {
+                                    const active = selectedCategory === category.id || selectedCategory === category.slug;
+                                    const hasChildren = category.children.length > 0;
+                                    const expanded = expandedCategories[category.id] ?? false;
+                                    
+                                    return (
+                                        <div key={`modal-cat-${category.id}`} className="flex flex-col">
+                                            <div className={`flex items-center justify-between rounded-xl border transition-colors hover:border-primary ${
+                                                active ? "border-primary bg-primary/5 font-bold text-primary" : "border-[#e5e1de] dark:border-[#3d2f21]"
+                                            }`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onSelectCategory(category.id);
+                                                        setShowAllCategoriesModal(false);
+                                                    }}
+                                                    className={`flex flex-1 items-center justify-between p-4 text-left ${
+                                                        active ? "text-primary" : "text-[#181411] dark:text-white"
+                                                    }`}
+                                                >
+                                                    <span className="line-clamp-2 text-sm">{category.name}</span>
+                                                </button>
+                                                {hasChildren ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setExpandedCategories((prev) => ({
+                                                                ...prev,
+                                                                [category.id]: !expanded,
+                                                            }))
+                                                        }
+                                                        className="p-4 text-[#6f5f50] hover:text-primary dark:text-[#d6c4b4]"
+                                                        aria-label={expanded ? `Ocultar subcategorias de ${category.name}` : `Mostrar subcategorias de ${category.name}`}
+                                                    >
+                                                        <ChevronRightIcon className={`size-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                            {hasChildren && expanded ? (
+                                                <div className="mt-2 flex flex-col space-y-1 border-l pl-3" style={CATALOG_STYLES.border}>
+                                                    {category.children.map((child) => {
+                                                        const childActive = selectedCategory === child.id || selectedCategory === child.slug;
+                                                        return (
+                                                            <button
+                                                                key={`modal-category-child-${child.id}`}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    onSelectCategory(child.id);
+                                                                    setShowAllCategoriesModal(false);
+                                                                }}
+                                                                className={`rounded-lg px-3 py-2 text-left text-sm transition-colors ${childActive
+                                                                        ? "bg-primary/10 font-bold text-primary"
+                                                                        : "text-[#6f5f50] hover:bg-[#f7f4f1] hover:text-[#181411] dark:text-[#d6c4b4] dark:hover:bg-[#1d140d] dark:hover:text-white"
+                                                                    }`}
+                                                            >
+                                                                <span className="truncate">{child.name}</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            , document.body) : null}
+
+            {showAllBrandsModal ? createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#181411]">
+                        <div className="mb-4 flex items-center justify-between border-b border-[#ebebf0] pb-4 dark:border-[#3d2f21]">
+                            <h3 className="text-xl font-black text-[#181411] dark:text-white">Todas las marcas</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowAllBrandsModal(false)}
+                                className="rounded-full bg-gray-100 p-2 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-[#2a1f16] dark:text-gray-400 dark:hover:bg-[#3d2f21]"
+                            >
+                                <CloseIcon className="size-5" />
+                            </button>
+                        </div>
+                        <div className="max-h-[60vh] overflow-y-auto pr-2">
+                            <div className="flex flex-wrap gap-2">
+                                {brands.map((brand) => {
+                                    const active = selectedBrand === brand.id || selectedBrand === brand.name;
+                                    return (
+                                        <button
+                                            key={`modal-brand-${brand.id}`}
+                                            type="button"
+                                            onClick={() => {
+                                                onSelectBrand(brand.id);
+                                                setShowAllBrandsModal(false);
+                                            }}
+                                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${active
+                                                    ? "bg-primary text-white"
+                                                    : "border border-gray-200 text-[#181411] hover:border-primary hover:text-primary dark:border-[#3d2f21] dark:text-white"
+                                                }`}
+                                        >
+                                            {brand.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            , document.body) : null}
         </div>
     );
 }
@@ -1119,7 +1267,7 @@ function CatalogProductCard({
     const openProduct = () => navigate(`/product/${product.id}`);
 
     return (
-        <article className="group overflow-hidden rounded-[24px] border shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl" style={CATALOG_STYLES.card}>
+        <article className="group overflow-hidden rounded-[16px] md:rounded-[24px] border shadow-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl" style={CATALOG_STYLES.card}>
             <div className="relative aspect-square cursor-pointer overflow-hidden" style={CATALOG_STYLES.media} onClick={openProduct}>
                 <img
                     alt={name}
@@ -1166,14 +1314,14 @@ function CatalogProductCard({
                 ) : null}
             </div>
 
-            <div className="flex flex-col gap-4 p-5">
+            <div className="flex flex-col gap-3 md:gap-4 p-3 md:p-5">
                 <div className="space-y-2">
                     <button type="button" onClick={openProduct} className="text-left">
-                        <h3 className="text-lg font-black leading-tight text-[#181411] transition-colors group-hover:text-primary dark:text-white">
+                        <h3 className="text-sm md:text-lg font-black leading-tight text-[#181411] transition-colors group-hover:text-primary dark:text-white">
                             {name}
                         </h3>
                     </button>
-                    <p className="line-clamp-2 text-sm leading-6" style={CATALOG_STYLES.muted}>{desc || "Producto profesional listo para tu obra."}</p>
+                    <p className="hidden md:block line-clamp-2 text-sm leading-6" style={CATALOG_STYLES.muted}>{desc || "Producto profesional listo para tu obra."}</p>
                     {stockStatus ? (
                         <span
                             className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${stockStatus.bg} ${stockStatus.tone}`}
@@ -1202,13 +1350,13 @@ function CatalogProductCard({
                                         <span className="text-sm font-semibold text-slate-400 line-through mb-1">{formatCurrency(oldPrice, currency, locale)}</span>
                                     ) : null}
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-2xl font-black text-primary">
+                                        <span className="text-lg md:text-2xl font-black text-primary">
                                             {hasPriceRange
                                                 ? `Desde ${formatCurrency(minPrice, currency, locale)}`
                                                 : formatCurrency(price, currency, locale)}
                                         </span>
                                         <span
-                                            className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${product.isWholesaleItem
+                                            className={`rounded-full px-2 py-1 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.12em] ${product.isWholesaleItem
                                                     ? "bg-primary/10 text-primary"
                                                     : "bg-[#181411]/10 text-[#181411] dark:bg-white/10 dark:text-white"
                                                 }`}
@@ -1236,7 +1384,7 @@ function CatalogProductCard({
                         <button
                             type="button"
                             onClick={() => setExpanded((current) => !current)}
-                            className="inline-flex h-12 md:h-11 w-full md:w-auto items-center justify-center rounded-xl px-4 text-base md:text-sm font-bold text-white transition-all hover:bg-primary"
+                            className="inline-flex h-10 md:h-9 w-full md:w-auto items-center justify-center rounded-xl px-4 text-sm md:text-xs font-bold text-white transition-all hover:bg-primary"
                             style={{ backgroundColor: "var(--color-accent, #181411)" }}
                         >
                             {expanded ? "Ocultar" : "Ver variantes"}
@@ -1246,9 +1394,9 @@ function CatalogProductCard({
                             type="button"
                             onClick={() => addToCart(product, 1)}
                             disabled={!inStock}
-                            className="inline-flex h-12 md:h-11 w-full md:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base md:text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-10 md:h-10 w-full md:w-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 md:px-0 text-sm md:text-xs font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            <CartPlusIcon className="size-5" />
+                            <CartPlusIcon className="size-5 md:size-4" />
                             <span className="md:hidden">Agregar al carrito</span>
                         </button>
                     )}

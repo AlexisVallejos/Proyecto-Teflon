@@ -13,9 +13,9 @@ export default function FeaturedProductsMasonry({ products, title, subtitle, cta
                 </div>
 
                 {products.length ? (
-                    <div className="columns-1 sm:columns-2 lg:columns-4 gap-6 space-y-6">
+                    <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-8 md:columns-1 md:sm:columns-2 md:lg:columns-4 md:space-y-6 hide-scrollbar">
                         {products.map((product, idx) => (
-                            <div key={product.id} className={`break-inside-avoid ${idx % 2 === 0 ? 'mt-0' : 'lg:mt-8'}`}>
+                            <div key={product.id} className={`flex-none w-full basis-full snap-center break-inside-avoid md:w-auto px-4 ${idx % 2 === 0 ? 'mt-0' : 'md:lg:mt-8'}`}>
                                 <ProductCard product={product} />
                             </div>
                         ))}
