@@ -221,15 +221,16 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
 
     let targetTenantId = req.tenant?.id;
     
-    // Contingencia: si no hay tenant por host/header, pero el usuario es admin y envía el ID en el body
-    if (!targetTenantId && req.user?.role === 'master_admin' && req.body?.tenant_id) {
+    // Contingencia: si no hay tenant por host/header, permitir que el administrador lo envíe en el body
+    const isAdmin = ['master_admin', 'tenant_admin'].includes(req.user?.role);
+    if (!targetTenantId && isAdmin && req.body?.tenant_id) {
       targetTenantId = req.body.tenant_id;
     }
 
     if (!targetTenantId) {
       return res.status(400).json({ 
         error: 'missing_tenant_id',
-        details: 'No se detectó el ID de la tienda. Intenta usar el botón Gestionar o contacta a soporte.'
+        details: `No se detectó el ID. Tu rol actual es: ${req.user?.role || 'desconocido'}. Por favor, usa el botón Gestionar en Empresas.`
       });
     }
 
