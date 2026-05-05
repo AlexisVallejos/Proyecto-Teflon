@@ -218,6 +218,13 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
       return res.status(400).json({ error: 'settings_required' });
     }
 
+    if (!req.tenant?.id) {
+      return res.status(400).json({ 
+        error: 'missing_tenant_id',
+        details: 'No se ha seleccionado una tienda activa. Por favor, ve a la sección de Empresas y haz clic en Gestionar.'
+      });
+    }
+
     const upsertRes = await pool.query(
       [
         'insert into tenant_settings (tenant_id, commerce, updated_at)',
