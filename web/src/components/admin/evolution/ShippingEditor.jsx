@@ -499,42 +499,59 @@ const ShippingEditor = ({ settings, setSettings, onSave, isSaving }) => {
                 <div className="space-y-2">
                     {branches.map((branch, index) => (
                         <div key={branch.id || index} className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
-                            <input
-                                type="text"
-                                value={branch.name || ''}
-                                placeholder="Nombre"
-                                onChange={(e) => updateBranch(index, 'name', e.target.value)}
-                                className={compactFieldClass}
-                            />
-                            <input
-                                type="text"
-                                value={branch.address || ''}
-                                placeholder="Direccion"
-                                onChange={(e) => updateBranch(index, 'address', e.target.value)}
-                                className={compactFieldClass}
-                            />
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Nombre de la sucursal</label>
+                                <input
+                                    type="text"
+                                    value={branch.name || ''}
+                                    placeholder="Ej: Sucursal Centro"
+                                    onChange={(e) => updateBranch(index, 'name', e.target.value)}
+                                    className={compactFieldClass}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Dirección completa</label>
+                                <input
+                                    type="text"
+                                    value={branch.address || ''}
+                                    placeholder="Ej: Av. Siempreviva 742"
+                                    onChange={(e) => updateBranch(index, 'address', e.target.value)}
+                                    className={compactFieldClass}
+                                />
+                            </div>
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                                <input
-                                    type="text"
-                                    value={branch.hours || ''}
-                                    placeholder="Horario"
-                                    onChange={(e) => updateBranch(index, 'hours', e.target.value)}
-                                    className={compactFieldClass}
-                                />
-                                <input
-                                    type="text"
-                                    value={branch.phone || ''}
-                                    placeholder="Telefono"
-                                    onChange={(e) => updateBranch(index, 'phone', e.target.value)}
-                                    className={compactFieldClass}
-                                />
-                                <input
-                                    type="number"
-                                    value={branch.pickup_fee ?? 0}
-                                    placeholder="Costo retiro"
-                                    onChange={(e) => updateBranch(index, 'pickup_fee', Number(e.target.value || 0))}
-                                    className={compactFieldClass}
-                                />
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Horarios</label>
+                                    <input
+                                        type="text"
+                                        value={branch.hours || ''}
+                                        placeholder="Ej: Lun a Vie 9-18hs"
+                                        onChange={(e) => updateBranch(index, 'hours', e.target.value)}
+                                        className={compactFieldClass}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Teléfono</label>
+                                    <input
+                                        type="text"
+                                        value={branch.phone || ''}
+                                        placeholder="Ej: +54 9 11..."
+                                        onChange={(e) => updateBranch(index, 'phone', e.target.value)}
+                                        className={compactFieldClass}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500" title="Costo adicional que se cobra si el cliente elige retirar en esta sucursal.">
+                                        Costo Retiro (?)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={branch.pickup_fee ?? 0}
+                                        placeholder="Costo retiro"
+                                        onChange={(e) => updateBranch(index, 'pickup_fee', Number(e.target.value || 0))}
+                                        className={compactFieldClass}
+                                    />
+                                </div>
                             </div>
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                                 <input

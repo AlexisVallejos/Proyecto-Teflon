@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import PageBuilder from '../../components/PageBuilder';
 import Footer from '../../components/layout/Footer';
@@ -204,16 +204,8 @@ export default function EditorPage() {
             reviews_enabled: true,
             tax_rate: 0.21,
             payment_methods: ['transfer', 'cash_on_pickup'],
-            default_delivery: 'zone:arg-general',
-            shipping_zones: [
-                {
-                    id: 'arg-general',
-                    name: 'Argentina',
-                    description: 'Cobertura nacional',
-                    price: 1500,
-                    enabled: true,
-                },
-            ],
+            default_delivery: '',
+            shipping_zones: [],
             branches: [
                 {
                     id: 'branch-mdq',

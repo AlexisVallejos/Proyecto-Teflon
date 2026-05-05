@@ -188,26 +188,7 @@ export const normalizeShippingZones = (source = [], shippingFlat = 0) => {
         })
         .filter((zone) => zone.enabled !== false);
 
-    if (parsed.length) return parsed;
-
-    return [
-        {
-            id: 'arg-general',
-            name: 'Argentina',
-            description: 'Cobertura nacional',
-            price: toNumber(shippingFlat, 0),
-            price_per_km: 0,
-            enabled: true,
-            type: 'flat',
-            distance_pricing_mode: 'fixed',
-            branch_id: null,
-            polygon: [],
-            coverage_mode: 'manual',
-            centroid: null,
-            min_distance_km: 0,
-            max_distance_km: null,
-        },
-    ];
+    return parsed;
 };
 
 export const haversineKm = (from, to) => {

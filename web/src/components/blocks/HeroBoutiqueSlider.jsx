@@ -162,17 +162,21 @@ export default function HeroBoutiqueSlider({ slides = [], styles = {}, editor = 
                         <div className="absolute inset-x-4 md:inset-x-8 top-1/2 -translate-y-1/2 flex justify-between items-center z-30 pointer-events-none">
                             <button 
                                 onClick={() => goToSlide(activeIndex - 1)}
-                                className="pointer-events-auto w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 active:scale-90 group"
+                                className="pointer-events-auto w-12 h-12 md:w-14 md:h-14 rounded-full border border-white/20 bg-black/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-500 active:scale-90 group"
                                 aria-label="Anterior"
                             >
-                                <span className="material-symbols-outlined text-xl md:text-2xl transition-transform group-hover:-translate-x-1">chevron_left</span>
+                                <svg className="size-6 transition-transform group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/>
+                                </svg>
                             </button>
                             <button 
                                 onClick={() => goToSlide(activeIndex + 1)}
-                                className="pointer-events-auto w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-300 active:scale-90 group"
+                                className="pointer-events-auto w-12 h-12 md:w-14 md:h-14 rounded-full border border-white/20 bg-black/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white hover:text-black transition-all duration-500 active:scale-90 group"
                                 aria-label="Siguiente"
                             >
-                                <span className="material-symbols-outlined text-xl md:text-2xl transition-transform group-hover:translate-x-1">chevron_right</span>
+                                <svg className="size-6 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                                </svg>
                             </button>
                         </div>
                     ) : null}
