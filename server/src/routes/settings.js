@@ -212,6 +212,7 @@ settingsRouter.get('/checkout', async (req, res, next) => {
 });
 
 settingsAdminRouter.put('/checkout', async (req, res, next) => {
+  let targetTenantId = null;
   try {
     const updates = sanitizeCheckoutPayload(req.body || {});
     if (!Object.keys(updates).length) {
@@ -219,7 +220,7 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
     }
 
 
-    let targetTenantId = req.tenant?.id;
+    targetTenantId = req.tenant?.id;
     
     // Contingencia: si no hay tenant por host/header, permitir que el administrador lo envíe en el body
     const isAdmin = ['master_admin', 'tenant_admin'].includes(req.user?.role);
@@ -239,7 +240,7 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
         'insert into tenant_settings (tenant_id, commerce, updated_at)',
         'values ($1, $2::jsonb, now())',
         'on conflict (tenant_id) do update',
-        'set commerce = excluded.commerce,',
+        "set commerce = coalesce(tenant_settings.commerce, '{}'::jsonb) || excluded.commerce,",
         'updated_at = now()',
         'returning commerce',
       ].join(' '),
@@ -250,7 +251,7 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
   } catch (err) {
     console.error('Error saving checkout settings:', err);
     return res.status(500).json({ 
-      error: `ID [${targetTenantId}]: ${err.message}`,
+      error: `ID [${targetTenantId || 'unknown'}]: ${err.message}`,
       code: err.code
     });
   }
