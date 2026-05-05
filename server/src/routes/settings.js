@@ -246,10 +246,6 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
       [targetTenantId, updates]
     );
     
-    if (!upsertRes.rowCount) {
-      return res.status(500).json({ error: 'failed_to_save_settings' });
-    }
-
     return res.json(normalizeCheckoutSettings(upsertRes.rows[0].commerce));
   } catch (err) {
     console.error('Error saving checkout settings:', err);
