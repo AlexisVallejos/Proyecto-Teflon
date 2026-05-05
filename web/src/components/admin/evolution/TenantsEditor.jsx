@@ -27,9 +27,27 @@ const TenantsEditor = ({ manager }) => {
                     <p className="text-sm text-zinc-400">No hay empresas registradas.</p>
                 ) : null}
                 {tenants.map((tenant) => (
-                    <div key={tenant.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
-                        <p className="text-sm font-bold text-white">{tenant.name}</p>
-                        <p className="text-xs text-zinc-400">ID: {tenant.id}</p>
+                    <div key={tenant.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 p-3">
+                        <div>
+                            <p className="text-sm font-bold text-white">{tenant.name}</p>
+                            <p className="text-xs text-zinc-400">ID: {tenant.id}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const raw = localStorage.getItem('teflon_user');
+                                if (raw) {
+                                    const user = JSON.parse(raw);
+                                    user.tenant_id = tenant.id;
+                                    user.tenantId = tenant.id;
+                                    localStorage.setItem('teflon_user', JSON.stringify(user));
+                                    window.location.reload();
+                                }
+                            }}
+                            className="rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-white/10 transition-colors"
+                        >
+                            Gestionar
+                        </button>
                     </div>
                 ))}
             </div>
