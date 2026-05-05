@@ -236,6 +236,11 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
 
     return res.json(normalizeCheckoutSettings(upsertRes.rows[0].commerce));
   } catch (err) {
-    return next(err);
+    console.error('Error saving checkout settings:', err);
+    return res.status(500).json({ 
+      error: 'failed_to_save_settings',
+      details: err.message,
+      code: err.code
+    });
   }
 });

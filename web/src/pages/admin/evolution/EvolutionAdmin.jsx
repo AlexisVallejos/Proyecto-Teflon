@@ -452,7 +452,7 @@ const EvolutionAdmin = () => {
                 addToast(result.published ? 'Cambios guardados y publicados' : 'Guardado como borrador', 'success');
             }
         } else {
-            const errorMsg = typeof result.error === 'string' ? result.error : 'Error desconocido';
+            const errorMsg = result.details || (typeof result.error === 'string' ? result.error : 'Error desconocido');
             addToast(`Error al guardar: ${errorMsg}`, 'error');
         }
     };
