@@ -467,7 +467,7 @@ const ShippingEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                 </div>
                             </div>
 
-                            {zone.type !== 'distance' ? (
+                            {zone.type !== 'distance' && (
                                 <div className="space-y-2">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <p className="text-xs text-zinc-500">
