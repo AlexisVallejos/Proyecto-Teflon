@@ -33,5 +33,8 @@ export function getTenantHeaders() {
 
 export function getAuthHeaders() {
     const token = localStorage.getItem('teflon_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return {
+        ...getTenantHeaders(),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
 }

@@ -47,7 +47,22 @@ export async function resolveTenant(req, res, next) {
     }
 
     if (!tenant) {
-      console.warn(`Tenant not found for header: ${headerTenant} and host: ${req.hostname}`);
+      const currentHost = String(
+        req.get('x-original-host') ||
+        req.get('x-forwarded-host') ||
+        req.get('host') ||
+        req.hostname ||
+        ''
+      ).toLowerCase();
+      const isEditor = currentHost.startsWith('editor.');
+
+      if (isEditor) {
+        console.log(`Editor host detected without explicit tenant (${currentHost}). Proceeding with null tenant for ${req.path}`);
+        req.tenant = { id: null, name: 'Editor' };
+        return next();
+      }
+
+      console.warn(`Tenant not found for header: ${headerTenant} and host: ${currentHost}`);
       return res.status(404).json({ error: 'tenant_not_found' });
     }
 
