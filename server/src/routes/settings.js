@@ -250,8 +250,7 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
   } catch (err) {
     console.error('Error saving checkout settings:', err);
     return res.status(500).json({ 
-      error: 'failed_to_save_settings',
-      details: err.message,
+      error: err.message || 'failed_to_save_settings',
       code: err.code
     });
   }
