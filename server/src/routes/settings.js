@@ -250,7 +250,7 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
   } catch (err) {
     console.error('Error saving checkout settings:', err);
     return res.status(500).json({ 
-      error: err.message || 'failed_to_save_settings',
+      error: `ID [${targetTenantId}]: ${err.message}`,
       code: err.code
     });
   }
