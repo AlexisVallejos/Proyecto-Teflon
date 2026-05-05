@@ -6,6 +6,13 @@ function getStoredTenantId() {
     }
 
     try {
+        // Prioridad 1: Tenant seleccionado explícitamente para gestión
+        const activeTenant = localStorage.getItem('teflon_active_tenant');
+        if (activeTenant && activeTenant !== 'undefined' && activeTenant !== 'null') {
+            return String(activeTenant).trim();
+        }
+
+        // Prioridad 2: Tenant asociado al usuario
         const rawUser = localStorage.getItem('teflon_user');
         if (!rawUser) return '';
         const parsedUser = JSON.parse(rawUser);

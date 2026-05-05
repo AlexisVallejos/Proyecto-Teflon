@@ -35,14 +35,8 @@ const TenantsEditor = ({ manager }) => {
                         <button
                             type="button"
                             onClick={() => {
-                                const raw = localStorage.getItem('teflon_user');
-                                if (raw) {
-                                    const user = JSON.parse(raw);
-                                    user.tenant_id = tenant.id;
-                                    user.tenantId = tenant.id;
-                                    localStorage.setItem('teflon_user', JSON.stringify(user));
-                                    window.location.reload();
-                                }
+                                localStorage.setItem('teflon_active_tenant', tenant.id);
+                                window.location.reload();
                             }}
                             className="rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-white/10 transition-colors"
                         >
