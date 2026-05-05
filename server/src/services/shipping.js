@@ -125,6 +125,7 @@ function getPolygonCentroid(polygon = []) {
 }
 
 function normalizeDistanceValue(value) {
+  if (value === '' || value == null) return null;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return null;
   return parsed;
@@ -158,39 +159,40 @@ export function normalizeBranches(settings = {}) {
 
 export function normalizeShippingZone(entry = {}, index = 0) {
   const id = String(entry.id || '').trim() || `zone-${index + 1}`;
-  const type = String(entry.type || entry.pricing_mode || 'flat').trim().toLowerCase() === DISTANCE_ZONE_TYPE
-    ? DISTANCE_ZONE_TYPE
-    : 'flat';
-  const distancePricingMode = type === DISTANCE_ZONE_TYPE
-    ? normalizeDistancePricingMode(
-        entry.distance_pricing_mode ??
-        entry.distancePricingMode ??
-        entry.distance_pricing ??
-        entry.distancePricing
-      )
-    : 'fixed';
-  const polygon = type === DISTANCE_ZONE_TYPE
-    ? []
-    : normalizeZonePolygon(
-        entry.polygon ??
-          entry.coverage_polygon ??
-          entry.coveragePolygon ??
-          entry.geometry?.polygon ??
-          entry.geometry?.coordinates
-      );
-  const minDistanceKm = type === DISTANCE_ZONE_TYPE
-    ? normalizeDistanceValue(entry.min_distance_km ?? entry.minDistanceKm) ?? 0
-    : 0;
-  const maxDistanceRaw = type === DISTANCE_ZONE_TYPE
-    ? normalizeDistanceValue(entry.max_distance_km ?? entry.maxDistanceKm ?? entry.radius_km ?? entry.radiusKm)
-    : null;
+  const type =
+    String(entry.type || entry.pricing_mode || 'flat').trim().toLowerCase() === DISTANCE_ZONE_TYPE
+      ? DISTANCE_ZONE_TYPE
+      : 'flat';
+
+  const distancePricingMode = normalizeDistancePricingMode(
+    entry.distance_pricing_mode ??
+      entry.distancePricingMode ??
+      entry.distance_pricing ??
+      entry.distancePricing
+  );
+
+  const polygon =
+    type === DISTANCE_ZONE_TYPE
+      ? []
+      : normalizeZonePolygon(
+          entry.polygon ??
+            entry.coverage_polygon ??
+            entry.coveragePolygon ??
+            entry.geometry?.polygon ??
+            entry.geometry?.coordinates
+        );
+
+  const minDistanceKm = normalizeDistanceValue(entry.min_distance_km ?? entry.minDistanceKm) ?? 0;
+  const maxDistanceRaw = normalizeDistanceValue(
+    entry.max_distance_km ?? entry.maxDistanceKm ?? entry.radius_km ?? entry.radiusKm
+  );
 
   return {
     id,
     name: String(entry.name || '').trim() || `Zona ${index + 1}`,
     description: String(entry.description || '').trim(),
     price: toNumber(entry.price, 0),
-    price_per_km: type === DISTANCE_ZONE_TYPE ? Math.max(0, toNumber(entry.price_per_km ?? entry.pricePerKm, 0)) : 0,
+    price_per_km: Math.max(0, toNumber(entry.price_per_km ?? entry.pricePerKm, 0)),
     enabled: entry.enabled !== false,
     type,
     distance_pricing_mode: distancePricingMode,
@@ -200,10 +202,7 @@ export function normalizeShippingZone(entry = {}, index = 0) {
       type === DISTANCE_ZONE_TYPE ? 'distance' : polygon.length >= 3 ? 'polygon' : 'manual',
     centroid: polygon.length >= 3 ? getPolygonCentroid(polygon) : null,
     min_distance_km: minDistanceKm,
-    max_distance_km:
-      type === DISTANCE_ZONE_TYPE && maxDistanceRaw != null
-        ? Math.max(maxDistanceRaw, minDistanceKm)
-        : null,
+    max_distance_km: maxDistanceRaw != null ? Math.max(maxDistanceRaw, minDistanceKm) : null,
   };
 }
 
@@ -212,32 +211,32 @@ export function normalizeShippingZones(settings = {}) {
     ? settings.shipping_zones
     : Array.isArray(settings)
       ? settings
-      : [];
+      : null;
 
-  const parsed = zones
+  if (zones === null) {
+    return [
+      {
+        id: 'arg-general',
+        name: 'Argentina',
+        description: 'Cobertura nacional',
+        price: toNumber(settings?.shipping_flat, 0),
+        price_per_km: 0,
+        enabled: true,
+        type: 'flat',
+        distance_pricing_mode: 'fixed',
+        branch_id: null,
+        polygon: [],
+        coverage_mode: 'manual',
+        centroid: null,
+        min_distance_km: 0,
+        max_distance_km: null,
+      },
+    ];
+  }
+
+  return zones
     .map((zone, index) => normalizeShippingZone(zone, index))
     .filter((zone) => zone.enabled !== false && zone.id);
-
-  if (parsed.length) return parsed;
-
-  return [
-    {
-      id: 'arg-general',
-      name: 'Argentina',
-      description: 'Cobertura nacional',
-      price: toNumber(settings?.shipping_flat, 0),
-      price_per_km: 0,
-      enabled: true,
-      type: 'flat',
-      distance_pricing_mode: 'fixed',
-      branch_id: null,
-      polygon: [],
-      coverage_mode: 'manual',
-      centroid: null,
-      min_distance_km: 0,
-      max_distance_km: null,
-    },
-  ];
 }
 
 function readCustomerLocation(customer = {}) {

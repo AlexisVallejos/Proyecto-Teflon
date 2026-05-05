@@ -20,7 +20,7 @@ const EvolutionInspector = ({ onDataChange, onSave, isSaving, catalogContext, us
     } = useEvolutionStore();
 
     const hideFooterModules = ['catalog', 'categories', 'pricing', 'checkout', 'users', 'customers', 'tenants', 'notifications'];
-    const allowSaveWithoutSelectionModules = ['design_live', 'settings_live'];
+    const allowSaveWithoutSelectionModules = ['design_live', 'settings_live', 'shipping', 'checkout'];
     const isWideInspector = activeModule === 'catalog' || activeModule === 'users';
 
     if (!isInspectorOpen) return null;
