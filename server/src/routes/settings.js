@@ -218,22 +218,23 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
       return res.status(400).json({ error: 'settings_required' });
     }
 
-    const updateRes = await pool.query(
+    const upsertRes = await pool.query(
       [
-        'update tenant_settings',
-        'set commerce = commerce || $2::jsonb,',
+        'insert into tenant_settings (tenant_id, commerce, updated_at)',
+        'values ($1, $2::jsonb, now())',
+        'on conflict (tenant_id) do update',
+        'set commerce = tenant_settings.commerce || excluded.commerce,',
         'updated_at = now()',
-        'where tenant_id = $1',
         'returning commerce',
       ].join(' '),
       [req.tenant.id, updates]
     );
-
-    if (!updateRes.rowCount) {
-      return res.status(404).json({ error: 'tenant_settings_not_found' });
+    
+    if (!upsertRes.rowCount) {
+      return res.status(500).json({ error: 'failed_to_save_settings' });
     }
 
-    return res.json(normalizeCheckoutSettings(updateRes.rows[0].commerce));
+    return res.json(normalizeCheckoutSettings(upsertRes.rows[0].commerce));
   } catch (err) {
     return next(err);
   }
