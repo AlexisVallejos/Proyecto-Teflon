@@ -363,10 +363,14 @@ export function useEditorState(user) {
                 'Authorization': `Bearer ${token}`
             };
 
+            const currentTenantId = getTenantHeaders()['X-Tenant-Id'];
             const response = await fetch(`${getApiBase()}/api/admin/settings/checkout`, {
                 method: 'PUT',
                 headers,
-                body: JSON.stringify(settings?.commerce || {})
+                body: JSON.stringify({
+                    ...(settings?.commerce || {}),
+                    tenant_id: currentTenantId
+                })
             });
 
             if (!response.ok) {

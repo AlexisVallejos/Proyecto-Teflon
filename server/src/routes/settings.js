@@ -218,10 +218,18 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
       return res.status(400).json({ error: 'settings_required' });
     }
 
-    if (!req.tenant?.id) {
+
+    let targetTenantId = req.tenant?.id;
+    
+    // Contingencia: si no hay tenant por host/header, pero el usuario es admin y envía el ID en el body
+    if (!targetTenantId && req.user?.role === 'master_admin' && req.body?.tenant_id) {
+      targetTenantId = req.body.tenant_id;
+    }
+
+    if (!targetTenantId) {
       return res.status(400).json({ 
         error: 'missing_tenant_id',
-        details: 'No se ha seleccionado una tienda activa. Por favor, ve a la sección de Empresas y haz clic en Gestionar.'
+        details: 'No se detectó el ID de la tienda. Intenta usar el botón Gestionar o contacta a soporte.'
       });
     }
 
@@ -234,7 +242,7 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
         'updated_at = now()',
         'returning commerce',
       ].join(' '),
-      [req.tenant.id, updates]
+      [targetTenantId, updates]
     );
     
     if (!upsertRes.rowCount) {
