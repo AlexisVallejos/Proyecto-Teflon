@@ -272,12 +272,22 @@ export const resolveFixedZoneQuote = ({ shippingZones = [], branches = [], locat
 
     const matches = fixedZones
         .filter((zone) => pointInPolygon(location, zone.polygon))
-        .map((zone) => ({
-            zone,
-            branch: findBranchForZone(zone, branches, location, preferredBranchId),
-            price: toNumber(zone.price, 0),
-            areaScore: polygonAreaScore(zone.polygon),
-        }))
+        .map((zone) => {
+            const branch = findBranchForZone(zone, branches, location, preferredBranchId);
+            const distanceKm = branch
+                ? haversineKm(location, {
+                      latitude: branch.latitude,
+                      longitude: branch.longitude,
+                  })
+                : 0;
+
+            return {
+                zone,
+                branch,
+                distanceKm,
+                areaScore: polygonAreaScore(zone.polygon),
+            };
+        })
         .sort((a, b) => a.areaScore - b.areaScore);
 
     if (!matches.length) {
@@ -287,14 +297,15 @@ export const resolveFixedZoneQuote = ({ shippingZones = [], branches = [], locat
     const best = matches[0];
     const breakdown = getShippingBreakdown({
         zone: best.zone,
-        pricingMode: 'fixed',
+        distanceKm: best.distanceKm,
+        pricingMode: best.zone.distance_pricing_mode || 'fixed',
     });
 
     return {
         ok: true,
         zone: best.zone,
         branch: best.branch,
-        distance_km: null,
+        distance_km: best.distanceKm,
         price: breakdown.final_price,
         zone_amount: breakdown.zone_amount,
         freight_amount: breakdown.freight_amount,

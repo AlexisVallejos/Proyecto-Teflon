@@ -363,34 +363,26 @@ const ShippingEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                         onChange={(e) => updateShippingZone(index, 'type', e.target.value)}
                                         className={compactFieldClass}
                                     >
-                                        <option value="flat" className="bg-zinc-900">Zona fija</option>
-                                        <option value="distance" className="bg-zinc-900">Por distancia</option>
+                                        <option value="flat" className="bg-zinc-900">Zona fija (Mapa/Manual)</option>
+                                        <option value="distance" className="bg-zinc-900">Por distancia (Radio)</option>
                                     </select>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                                        {zone.type === 'distance' ? 'Sucursal de origen' : 'Ubicación'}
+                                        Sucursal de origen
                                     </label>
-                                    {zone.type === 'distance' ? (
-                                        <select
-                                            value={zone.branch_id || ''}
-                                            onChange={(e) => updateShippingZone(index, 'branch_id', e.target.value)}
-                                            className={compactFieldClass}
-                                        >
-                                            <option value="" className="bg-zinc-900">Sucursal mas cercana</option>
-                                            {branches.map((branch) => (
-                                                <option key={branch.id} value={branch.id} className="bg-zinc-900">
-                                                    {branch.name || branch.id}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-1.5 text-xs text-zinc-400">
-                                            {hasZonePolygon(zone)
-                                                ? 'Zona activa por mapa'
-                                                : 'Zona de selección manual'}
-                                        </div>
-                                    )}
+                                    <select
+                                        value={zone.branch_id || ''}
+                                        onChange={(e) => updateShippingZone(index, 'branch_id', e.target.value)}
+                                        className={compactFieldClass}
+                                    >
+                                        <option value="" className="bg-zinc-900">Sucursal mas cercana</option>
+                                        {branches.map((branch) => (
+                                            <option key={branch.id} value={branch.id} className="bg-zinc-900">
+                                                {branch.name || branch.id}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                             <div className="space-y-1">
@@ -403,9 +395,14 @@ const ShippingEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                     className={compactFieldClass}
                                 />
                             </div>
-                            {zone.type === 'distance' ? (
-                                <div className="space-y-2">
-                                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+
+                            <div className="space-y-2 rounded-lg border border-white/5 bg-white/5 p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-evolution-indigo">Configuración del Flete</span>
+                                </div>
+                                
+                                {zone.type === 'distance' && (
+                                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 mb-2">
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Desde (km)</label>
                                             <input
@@ -433,41 +430,44 @@ const ShippingEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Modo de cálculo</label>
-                                            <select
-                                                value={zone.distance_pricing_mode || 'fixed'}
-                                                onChange={(e) => updateShippingZone(index, 'distance_pricing_mode', e.target.value)}
-                                                className={compactFieldClass}
-                                            >
-                                                <option value="fixed" className="bg-zinc-900">Costo fijo por rango</option>
-                                                <option value="per_km" className="bg-zinc-900">Flete por kilometro</option>
-                                            </select>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500" title="Monto que se suma por cada kilómetro de distancia entre la sucursal y el cliente.">
-                                                Costo por KM (?)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={zone.price_per_km ?? 0}
-                                                placeholder="Costo por km"
-                                                onChange={(e) => updateShippingZone(index, 'price_per_km', Number(e.target.value || 0))}
-                                                className={compactFieldClass}
-                                                disabled={(zone.distance_pricing_mode || 'fixed') !== 'per_km'}
-                                            />
-                                        </div>
+                                )}
+
+                                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Modo de cálculo</label>
+                                        <select
+                                            value={zone.distance_pricing_mode || 'fixed'}
+                                            onChange={(e) => updateShippingZone(index, 'distance_pricing_mode', e.target.value)}
+                                            className={compactFieldClass}
+                                        >
+                                            <option value="fixed" className="bg-zinc-900">Costo fijo para esta zona</option>
+                                            <option value="per_km" className="bg-zinc-900">Flete por kilometro (+ base)</option>
+                                        </select>
                                     </div>
-                                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-400">
-                                        {(zone.distance_pricing_mode || 'fixed') === 'per_km'
-                                            ? 'El sistema calcula: Precio Base + (Kilómetros x Costo por KM).'
-                                            : 'El sistema cobra el "Precio / Base" fijo cuando la distancia está en este rango.'}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500" title="Monto que se suma por cada kilómetro de distancia entre la sucursal y el cliente.">
+                                            Costo por KM (?)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={zone.price_per_km ?? 0}
+                                            placeholder="Costo por km"
+                                            onChange={(e) => updateShippingZone(index, 'price_per_km', Number(e.target.value || 0))}
+                                            className={compactFieldClass}
+                                            disabled={(zone.distance_pricing_mode || 'fixed') !== 'per_km'}
+                                        />
                                     </div>
                                 </div>
-                            ) : (
+                                <div className="mt-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-400">
+                                    {(zone.distance_pricing_mode || 'fixed') === 'per_km'
+                                        ? 'El sistema calcula: Precio Base + (Kilómetros x Costo por KM).'
+                                        : 'El sistema cobra el "Precio / Base" fijo para cualquier entrega en esta zona.'}
+                                </div>
+                            </div>
+
+                            {zone.type !== 'distance' ? (
                                 <div className="space-y-2">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <p className="text-xs text-zinc-500">
