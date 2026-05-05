@@ -4,15 +4,22 @@ import { normalizeDomainInput } from '../services/tenantDomains.js';
 export async function resolveTenant(req, res, next) {
   try {
     const headerTenant = req.get('x-tenant-id');
+    const queryTenant = req.query.tenantId;
+    const bodyTenant = req.body?.tenant_id;
+    const userTenant = req.user?.tenantId;
+
+    const rawTenantId = headerTenant || queryTenant || bodyTenant || userTenant;
     let tenant;
 
-    if (headerTenant) {
+    if (rawTenantId) {
       // Validate UUID to prevent DB crash
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(headerTenant)) {
+      const targetId = String(rawTenantId).trim();
+
+      if (uuidRegex.test(targetId)) {
         const result = await pool.query(
           'select id, name from tenants where id = $1 and status = $2',
-          [headerTenant, 'active']
+          [targetId, 'active']
         );
         tenant = result.rows[0];
       }

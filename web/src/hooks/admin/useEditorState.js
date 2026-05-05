@@ -251,6 +251,10 @@ export function useEditorState(user) {
                     branding: {
                         ...prev.branding,
                         ...(data.settings?.branding || {}),
+                        footer: {
+                            ...(prev.branding?.footer || {}),
+                            ...(data.settings?.branding?.footer || {}),
+                        },
                         admin_panel: {
                             ...DEFAULT_ADMIN_PANEL_BRANDING,
                             ...(prev.branding?.admin_panel || {}),

@@ -26,7 +26,11 @@ const webIndexPath = path.join(webDistPath, 'index.html');
 const hasWebBuild = fs.existsSync(webIndexPath);
 
 const corsOrigin = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN : true;
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cors({ 
+  origin: corsOrigin, 
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Requested-With', 'Accept', 'Origin']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
