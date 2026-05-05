@@ -326,110 +326,145 @@ const ShippingEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                 </div>
                             ) : null}
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                <input
-                                    type="text"
-                                    value={zone.name || ''}
-                                    placeholder={zone.type === 'distance' ? 'Ej: Radio centro' : 'Ej: Guemes'}
-                                    onChange={(e) => updateShippingZone(index, 'name', e.target.value)}
-                                    className={compactFieldClass}
-                                />
-                                <input
-                                    type="number"
-                                    value={zone.price ?? 0}
-                                    placeholder={
-                                        zone.type === 'distance'
-                                            ? zone.distance_pricing_mode === 'per_km'
-                                                ? 'Base del flete'
-                                                : 'Costo fijo'
-                                            : 'Ej: 2500'
-                                    }
-                                    onChange={(e) => updateShippingZone(index, 'price', Number(e.target.value || 0))}
-                                    className={compactFieldClass}
-                                />
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Nombre de la zona</label>
+                                    <input
+                                        type="text"
+                                        value={zone.name || ''}
+                                        placeholder={zone.type === 'distance' ? 'Ej: Radio centro' : 'Ej: Guemes'}
+                                        onChange={(e) => updateShippingZone(index, 'name', e.target.value)}
+                                        className={compactFieldClass}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500" title="Costo fijo de la zona o base del flete si es por distancia.">
+                                        Precio / Base (?)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={zone.price ?? 0}
+                                        placeholder={
+                                            zone.type === 'distance'
+                                                ? zone.distance_pricing_mode === 'per_km'
+                                                    ? 'Base del flete'
+                                                    : 'Costo fijo'
+                                                : 'Ej: 2500'
+                                        }
+                                        onChange={(e) => updateShippingZone(index, 'price', Number(e.target.value || 0))}
+                                        className={compactFieldClass}
+                                    />
+                                </div>
                             </div>
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                <select
-                                    value={zone.type || 'flat'}
-                                    onChange={(e) => updateShippingZone(index, 'type', e.target.value)}
-                                    className={compactFieldClass}
-                                >
-                                    <option value="flat" className="bg-zinc-900">Zona fija</option>
-                                    <option value="distance" className="bg-zinc-900">Por distancia</option>
-                                </select>
-                                {zone.type === 'distance' ? (
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Tipo de zona</label>
                                     <select
-                                        value={zone.branch_id || ''}
-                                        onChange={(e) => updateShippingZone(index, 'branch_id', e.target.value)}
+                                        value={zone.type || 'flat'}
+                                        onChange={(e) => updateShippingZone(index, 'type', e.target.value)}
                                         className={compactFieldClass}
                                     >
-                                        <option value="" className="bg-zinc-900">Sucursal mas cercana</option>
-                                        {branches.map((branch) => (
-                                            <option key={branch.id} value={branch.id} className="bg-zinc-900">
-                                                {branch.name || branch.id}
-                                            </option>
-                                        ))}
+                                        <option value="flat" className="bg-zinc-900">Zona fija</option>
+                                        <option value="distance" className="bg-zinc-900">Por distancia</option>
                                     </select>
-                                ) : (
-                                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-400">
-                                        {hasZonePolygon(zone)
-                                            ? 'Esta zona se cotiza por ubicacion del cliente.'
-                                            : 'Esta zona queda manual hasta que le dibujes un area.'}
-                                    </div>
-                                )}
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                        {zone.type === 'distance' ? 'Sucursal de origen' : 'Ubicación'}
+                                    </label>
+                                    {zone.type === 'distance' ? (
+                                        <select
+                                            value={zone.branch_id || ''}
+                                            onChange={(e) => updateShippingZone(index, 'branch_id', e.target.value)}
+                                            className={compactFieldClass}
+                                        >
+                                            <option value="" className="bg-zinc-900">Sucursal mas cercana</option>
+                                            {branches.map((branch) => (
+                                                <option key={branch.id} value={branch.id} className="bg-zinc-900">
+                                                    {branch.name || branch.id}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-1.5 text-xs text-zinc-400">
+                                            {hasZonePolygon(zone)
+                                                ? 'Zona activa por mapa'
+                                                : 'Zona de selección manual'}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <input
-                                type="text"
-                                value={zone.description || ''}
-                                placeholder={zone.type === 'distance' ? 'Ej: Entrega hasta 8 km desde la sucursal' : 'Ej: Entrega dentro de Guemes'}
-                                onChange={(e) => updateShippingZone(index, 'description', e.target.value)}
-                                className={compactFieldClass}
-                            />
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Descripción / Info para el cliente</label>
+                                <input
+                                    type="text"
+                                    value={zone.description || ''}
+                                    placeholder={zone.type === 'distance' ? 'Ej: Entrega hasta 8 km desde la sucursal' : 'Ej: Entrega dentro de Guemes'}
+                                    onChange={(e) => updateShippingZone(index, 'description', e.target.value)}
+                                    className={compactFieldClass}
+                                />
+                            </div>
                             {zone.type === 'distance' ? (
                                 <div className="space-y-2">
                                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.1"
-                                            value={zone.min_distance_km ?? 0}
-                                            placeholder="Desde km"
-                                            onChange={(e) => updateShippingZone(index, 'min_distance_km', Number(e.target.value || 0))}
-                                            className={compactFieldClass}
-                                        />
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.1"
-                                            value={zone.max_distance_km ?? ''}
-                                            placeholder="Hasta km"
-                                            onChange={(e) => updateShippingZone(index, 'max_distance_km', e.target.value === '' ? '' : Number(e.target.value))}
-                                            className={compactFieldClass}
-                                        />
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Desde (km)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.1"
+                                                value={zone.min_distance_km ?? 0}
+                                                placeholder="Desde km"
+                                                onChange={(e) => updateShippingZone(index, 'min_distance_km', Number(e.target.value || 0))}
+                                                className={compactFieldClass}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500" title="Distancia máxima permitida para este rango. Dejar vacío si no tiene límite.">
+                                                Hasta (km) (?)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.1"
+                                                value={zone.max_distance_km ?? ''}
+                                                placeholder="Hasta km"
+                                                onChange={(e) => updateShippingZone(index, 'max_distance_km', e.target.value === '' ? '' : Number(e.target.value))}
+                                                className={compactFieldClass}
+                                            />
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                        <select
-                                            value={zone.distance_pricing_mode || 'fixed'}
-                                            onChange={(e) => updateShippingZone(index, 'distance_pricing_mode', e.target.value)}
-                                            className={compactFieldClass}
-                                        >
-                                            <option value="fixed" className="bg-zinc-900">Costo fijo por rango</option>
-                                            <option value="per_km" className="bg-zinc-900">Flete por kilometro</option>
-                                        </select>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={zone.price_per_km ?? 0}
-                                            placeholder="Costo por km"
-                                            onChange={(e) => updateShippingZone(index, 'price_per_km', Number(e.target.value || 0))}
-                                            className={compactFieldClass}
-                                            disabled={(zone.distance_pricing_mode || 'fixed') !== 'per_km'}
-                                        />
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Modo de cálculo</label>
+                                            <select
+                                                value={zone.distance_pricing_mode || 'fixed'}
+                                                onChange={(e) => updateShippingZone(index, 'distance_pricing_mode', e.target.value)}
+                                                className={compactFieldClass}
+                                            >
+                                                <option value="fixed" className="bg-zinc-900">Costo fijo por rango</option>
+                                                <option value="per_km" className="bg-zinc-900">Flete por kilometro</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500" title="Monto que se suma por cada kilómetro de distancia entre la sucursal y el cliente.">
+                                                Costo por KM (?)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={zone.price_per_km ?? 0}
+                                                placeholder="Costo por km"
+                                                onChange={(e) => updateShippingZone(index, 'price_per_km', Number(e.target.value || 0))}
+                                                className={compactFieldClass}
+                                                disabled={(zone.distance_pricing_mode || 'fixed') !== 'per_km'}
+                                            />
+                                        </div>
                                     </div>
                                     <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-zinc-400">
                                         {(zone.distance_pricing_mode || 'fixed') === 'per_km'
-                                            ? 'El sistema calcula base del flete + kilometros recorridos x costo por km.'
-                                            : 'El sistema cobra un valor fijo cuando la distancia cae dentro de este rango.'}
+                                            ? 'El sistema calcula: Precio Base + (Kilómetros x Costo por KM).'
+                                            : 'El sistema cobra el "Precio / Base" fijo cuando la distancia está en este rango.'}
                                     </div>
                                 </div>
                             ) : (
