@@ -239,7 +239,7 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
         'insert into tenant_settings (tenant_id, commerce, updated_at)',
         'values ($1, $2::jsonb, now())',
         'on conflict (tenant_id) do update',
-        'set commerce = tenant_settings.commerce || excluded.commerce,',
+        'set commerce = excluded.commerce,',
         'updated_at = now()',
         'returning commerce',
       ].join(' '),
