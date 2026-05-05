@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Buildings,
     MapPin,
@@ -372,8 +372,8 @@ const ShippingZonesMapPreview = ({ branches = [], shippingZones = [] }) => {
                 ...zone,
                 labelBearing: LABEL_BEARINGS[branchIndex % LABEL_BEARINGS.length],
                 labelDistanceKm: getZoneLabelDistanceKm(zone),
-                        priceLabel: formatDistanceZonePrice(zone),
-                    };
+                priceLabel: formatZonePrice(getDistanceZoneBreakdown(zone, getDistanceZonePreviewDistanceKm(zone)).final_price),
+            };
         });
     }, [distanceZones]);
 
