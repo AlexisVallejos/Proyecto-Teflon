@@ -884,6 +884,19 @@ tenantRouter.put('/settings', async (req, res, next) => {
       price_tier_labels: normalizePriceTierLabels(rawCommerce.price_tier_labels),
     };
 
+    const tenantCheck = await pool.query(
+      'select id from tenants where id = $1',
+      [tenantId]
+    );
+    if (!tenantCheck.rowCount) {
+      return res.status(404).json({
+        error: 'tenant_not_found',
+        code: 'tenant_not_found',
+        tenant_id: tenantId,
+        details: `El sitio seleccionado (${tenantId}) ya no existe. Volve a Empresas y elegi un sitio valido.`,
+      });
+    }
+
     const existing = await pool.query(
       'select tenant_id from tenant_settings where tenant_id = $1',
       [tenantId]
@@ -912,6 +925,14 @@ tenantRouter.put('/settings', async (req, res, next) => {
 
     return res.json({ tenant_id: tenantId, settings: normalizeTenantSettingsPayload(updateRes.rows[0]) });
   } catch (err) {
+    if (err && err.code === '23503') {
+      return res.status(404).json({
+        error: 'tenant_not_found',
+        code: 'tenant_not_found',
+        tenant_id: tenantId,
+        details: `El sitio (${tenantId}) ya no existe en la base. Volve a Empresas y elegi un sitio valido.`,
+      });
+    }
     return next(err);
   }
 });

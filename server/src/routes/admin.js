@@ -98,6 +98,19 @@ adminRouter.put('/tenants/:id/settings', async (req, res, next) => {
     const theme = req.body.theme || {};
     const commerce = req.body.commerce || {};
 
+    const tenantCheck = await pool.query(
+      'select id from tenants where id = $1',
+      [req.params.id]
+    );
+    if (!tenantCheck.rowCount) {
+      return res.status(404).json({
+        error: 'tenant_not_found',
+        code: 'tenant_not_found',
+        tenant_id: req.params.id,
+        details: `El sitio (${req.params.id}) no existe.`,
+      });
+    }
+
     const existing = await pool.query(
       'select tenant_id from tenant_settings where tenant_id = $1',
       [req.params.id]
@@ -126,6 +139,14 @@ adminRouter.put('/tenants/:id/settings', async (req, res, next) => {
 
     return res.json({ tenant_id: req.params.id, settings: updateRes.rows[0] });
   } catch (err) {
+    if (err && err.code === '23503') {
+      return res.status(404).json({
+        error: 'tenant_not_found',
+        code: 'tenant_not_found',
+        tenant_id: req.params.id,
+        details: `El sitio (${req.params.id}) ya no existe en la base.`,
+      });
+    }
     return next(err);
   }
 });

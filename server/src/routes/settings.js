@@ -211,6 +211,8 @@ settingsRouter.get('/checkout', async (req, res, next) => {
   }
 });
 
+const UUID_REGEX_SETTINGS = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 settingsAdminRouter.put('/checkout', async (req, res, next) => {
   let targetTenantId = null;
   try {
@@ -219,19 +221,39 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
       return res.status(400).json({ error: 'settings_required' });
     }
 
-
     targetTenantId = req.tenant?.id;
-    
-    // Contingencia: si no hay tenant por host/header, permitir que el administrador lo envíe en el body
+
     const isAdmin = ['master_admin', 'tenant_admin'].includes(req.user?.role);
     if (!targetTenantId && isAdmin && req.body?.tenant_id) {
-      targetTenantId = req.body.tenant_id;
+      targetTenantId = String(req.body.tenant_id).trim();
     }
 
     if (!targetTenantId) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'missing_tenant_id',
-        details: `No se detectó el ID. Tu rol actual es: ${req.user?.role || 'desconocido'}. Por favor, usa el botón Gestionar en Empresas.`
+        code: 'missing_tenant_id',
+        details: `No se detecto el ID del sitio. Rol actual: ${req.user?.role || 'desconocido'}. Usa el boton Gestionar en Empresas.`,
+      });
+    }
+
+    if (!UUID_REGEX_SETTINGS.test(targetTenantId)) {
+      return res.status(400).json({
+        error: 'invalid_tenant_id',
+        code: 'invalid_tenant_id',
+        details: `El ID del sitio no tiene formato valido: ${targetTenantId}`,
+      });
+    }
+
+    const tenantCheck = await pool.query(
+      'select id from tenants where id = $1',
+      [targetTenantId]
+    );
+    if (!tenantCheck.rowCount) {
+      return res.status(404).json({
+        error: 'tenant_not_found',
+        code: 'tenant_not_found',
+        tenant_id: targetTenantId,
+        details: `El sitio seleccionado (${targetTenantId}) ya no existe. Volve a Empresas y elegi un sitio valido.`,
       });
     }
 
@@ -246,13 +268,21 @@ settingsAdminRouter.put('/checkout', async (req, res, next) => {
       ].join(' '),
       [targetTenantId, updates]
     );
-    
+
     return res.json(normalizeCheckoutSettings(upsertRes.rows[0].commerce));
   } catch (err) {
     console.error('Error saving checkout settings:', err);
-    return res.status(500).json({ 
+    if (err && err.code === '23503') {
+      return res.status(404).json({
+        error: 'tenant_not_found',
+        code: 'tenant_not_found',
+        tenant_id: targetTenantId,
+        details: `El sitio (${targetTenantId}) ya no existe en la base. Volve a Empresas y elegi un sitio valido.`,
+      });
+    }
+    return res.status(500).json({
       error: `ID [${targetTenantId || 'unknown'}]: ${err.message}`,
-      code: err.code
+      code: err.code,
     });
   }
 });

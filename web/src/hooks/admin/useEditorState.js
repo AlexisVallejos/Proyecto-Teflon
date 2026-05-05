@@ -379,7 +379,30 @@ export function useEditorState(user) {
 
             if (!response.ok) {
                 const payload = await response.json().catch(() => null);
-                return { success: false, error: payload?.error || `checkout_save_${response.status}` };
+                const code = payload?.code || payload?.error;
+
+                if (code === 'tenant_not_found' || response.status === 404) {
+                    try {
+                        localStorage.removeItem('teflon_active_tenant');
+                    } catch (storageErr) {
+                        console.warn('No se pudo limpiar teflon_active_tenant', storageErr);
+                    }
+                    return {
+                        success: false,
+                        code: 'tenant_not_found',
+                        error: 'tenant_not_found',
+                        details:
+                            payload?.details ||
+                            'El sitio seleccionado ya no existe. Volve a Empresas y elegi un sitio valido.',
+                    };
+                }
+
+                return {
+                    success: false,
+                    code,
+                    error: payload?.error || `checkout_save_${response.status}`,
+                    details: payload?.details,
+                };
             }
 
             await refreshTenantSettings();

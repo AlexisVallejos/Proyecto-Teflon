@@ -451,6 +451,15 @@ const EvolutionAdmin = () => {
             } else {
                 addToast(result.published ? 'Cambios guardados y publicados' : 'Guardado como borrador', 'success');
             }
+        } else if (result.code === 'tenant_not_found') {
+            addToast(
+                result.details ||
+                    'El sitio seleccionado ya no existe. Volve a Empresas y elegi un sitio valido.',
+                'error'
+            );
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
             const errorMsg = result.details || (typeof result.error === 'string' ? result.error : 'Error desconocido');
             addToast(`Error al guardar: ${errorMsg}`, 'error');
