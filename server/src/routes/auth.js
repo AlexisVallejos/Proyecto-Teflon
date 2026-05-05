@@ -572,7 +572,7 @@ export async function getMeHandler(req, res, next) {
     }
 
     const user = userRes.rows[0];
-    let tenantId = req.user.tenantId || null;
+    let tenantId = req.tenant?.id || req.user.tenantId || null;
     let role = user.role;
     let status = user.status || 'active';
 
