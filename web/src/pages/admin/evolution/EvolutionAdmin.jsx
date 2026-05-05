@@ -452,7 +452,8 @@ const EvolutionAdmin = () => {
                 addToast(result.published ? 'Cambios guardados y publicados' : 'Guardado como borrador', 'success');
             }
         } else {
-            addToast('Error al guardar los cambios', 'error');
+            const errorMsg = typeof result.error === 'string' ? result.error : 'Error desconocido';
+            addToast(`Error al guardar: ${errorMsg}`, 'error');
         }
     };
 
