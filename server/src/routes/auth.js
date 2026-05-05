@@ -343,16 +343,63 @@ authRouter.post('/exchange-vase', async (req, res, next) => {
   }
 });
 
+async function resolveTenantIdFromRequest(req) {
+  const bodyId = String(req.body?.tenant_id || '').trim();
+  if (bodyId) return bodyId;
+
+  const headerId = String(req.get('x-tenant-id') || '').trim();
+  if (headerId) return headerId;
+
+  const forwardedHost = String(
+    req.get('x-original-host') ||
+    req.get('x-forwarded-host') ||
+    req.hostname ||
+    req.get('host') ||
+    ''
+  ).split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+
+  if (!forwardedHost) return '';
+
+  const candidates = forwardedHost.startsWith('www.')
+    ? [forwardedHost, forwardedHost.slice(4)]
+    : [forwardedHost];
+
+  try {
+    const result = await pool.query(
+      [
+        'select t.id from tenant_domains d',
+        'join tenants t on t.id = d.tenant_id',
+        'where d.domain = any($1::text[]) and t.status = $2',
+        'order by array_position($1::text[], d.domain) asc',
+        'limit 1',
+      ].join(' '),
+      [candidates, 'active']
+    );
+    return result.rows[0]?.id || '';
+  } catch (err) {
+    console.warn('resolveTenantIdFromRequest host lookup failed:', err.message);
+    return '';
+  }
+}
+
 async function handleSignup(req, res, next) {
   try {
     await ensureEmailVerificationSchema();
-    const { email, password, role, tenant_id, name } = req.body;
-    if (!email || !password || !tenant_id) {
-      return res.status(400).json({ error: 'missing_fields' });
+    const { email, password, role, name } = req.body;
+    const tenant_id = await resolveTenantIdFromRequest(req);
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'missing_fields', details: 'email y password son obligatorios' });
+    }
+    if (!tenant_id) {
+      return res.status(400).json({
+        error: 'missing_fields',
+        details: 'No se pudo identificar el sitio. Verifica que el dominio esta asociado a un tenant.',
+      });
     }
     const normalizedEmail = normalizeEmailInput(email);
     if (!normalizedEmail) {
-      return res.status(400).json({ error: 'missing_fields' });
+      return res.status(400).json({ error: 'missing_fields', details: 'email invalido' });
     }
 
     const validRoles = ['retail', 'wholesale'];

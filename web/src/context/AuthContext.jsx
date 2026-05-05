@@ -181,15 +181,23 @@ export const AuthProvider = ({ children }) => {
             throw new Error('external_auth_enabled');
         }
 
+        const tenantHeaders = getTenantHeaders();
+        const envTenant = String(import.meta.env.VITE_TENANT_ID || '').trim();
+        const headerTenant = String(tenantHeaders['X-Tenant-Id'] || '').trim();
+        const tenantId = headerTenant || envTenant || '';
+
         const response = await fetch(`${getApiBase()}/auth/signup`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(tenantId ? { 'X-Tenant-Id': tenantId } : {}),
+            },
             body: JSON.stringify({
                 email,
                 password,
                 role,
                 name,
-                tenant_id: import.meta.env.VITE_TENANT_ID
+                ...(tenantId ? { tenant_id: tenantId } : {}),
             }),
         });
 
