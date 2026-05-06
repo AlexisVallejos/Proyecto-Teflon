@@ -701,9 +701,9 @@ export default function ProfilePage() {
         <StoreLayout>
             <div className="mx-auto w-full max-w-[1400px] px-4 md:px-10 py-8">
                 <div className="flex flex-col lg:flex-row gap-8">
-                    <aside className="w-full lg:w-64 border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] rounded-2xl p-5 flex flex-col justify-between">
+                    <aside className="w-full lg:w-64 border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] rounded-2xl p-3 lg:p-5 flex flex-col justify-between">
                         <div>
-                            <div className="flex items-center gap-3 mb-8 px-2">
+                            <div className="hidden lg:flex items-center gap-3 mb-8 px-2">
                                 <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center text-primary overflow-hidden border border-primary/20">
                                     {profilePhoto ? (
                                         <img src={profilePhoto} alt="Foto de perfil" className="w-full h-full object-cover" />
@@ -717,7 +717,7 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            <nav className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 lg:pb-0 lg:flex-col lg:space-y-1 hide-scrollbar -mx-5 px-5 lg:mx-0 lg:px-0 mt-4 lg:mt-0">
+                            <nav className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 lg:pb-0 lg:flex-col lg:space-y-1 hide-scrollbar -mx-3 px-3 lg:mx-0 lg:px-0 lg:mt-0">
                                 <button
                                     className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'account' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('account')}
@@ -759,7 +759,7 @@ export default function ProfilePage() {
                             </nav>
                         </div>
 
-                        <div className="pt-6 border-t border-[#e5e1de] dark:border-[#3d2f21]">
+                        <div className="hidden lg:block pt-6 border-t border-[#e5e1de] dark:border-[#3d2f21]">
                             <button
                                 onClick={handleLogout}
                                 className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all font-medium"
@@ -780,23 +780,23 @@ export default function ProfilePage() {
                         </div>
 
                         {activeSection === 'account' ? (
-                            <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-6 md:p-8 mb-8 flex flex-col lg:flex-row justify-between gap-6 shadow-sm">
-                                <div className="flex items-center gap-5">
-                                    <div className="size-16 rounded-full border-4 border-primary/10 overflow-hidden flex items-center justify-center bg-primary/5 text-primary">
+                            <div className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-4 sm:p-6 md:p-8 mb-8 flex flex-col items-center text-center lg:items-stretch lg:text-left lg:flex-row justify-between gap-4 lg:gap-6 shadow-sm">
+                                <div className="flex flex-col items-center text-center sm:flex-row sm:items-center sm:text-left gap-4 sm:gap-5">
+                                    <div className="size-20 sm:size-16 rounded-full border-4 border-primary/10 overflow-hidden flex items-center justify-center bg-primary/5 text-primary shrink-0">
                                         {profilePhoto ? (
                                             <img src={profilePhoto} alt="Foto de perfil" className="w-full h-full object-cover" />
                                         ) : (
                                             <User className="h-8 w-8" />
                                         )}
                                     </div>
-                                    <div>
-                                        <h1 className="text-2xl font-black text-[#181411] dark:text-white leading-tight">
+                                    <div className="min-w-0">
+                                        <h1 className="text-xl sm:text-2xl font-black text-[#181411] dark:text-white leading-tight">
                                             Hola, {profileName}!
                                         </h1>
                                         <p className="text-[#8a7560] mt-1 text-sm">
                                             Administra tu cuenta, revisa tus pedidos y actualiza tus datos.
                                         </p>
-                                        <div className="flex flex-wrap gap-3 mt-3">
+                                        <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-3 mt-3">
                                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                                                 Cuenta activa
                                             </span>
@@ -806,7 +806,7 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto">
                                     <label className="px-5 py-2.5 bg-white border border-[#e5e1de] text-[#181411] font-bold text-sm rounded-lg hover:bg-[#f5f2f0] transition-all shadow-sm flex items-center gap-2 cursor-pointer">
                                         <Camera className="w-4 h-4" />
                                         Subir foto
