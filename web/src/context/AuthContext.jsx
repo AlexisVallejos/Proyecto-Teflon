@@ -228,6 +228,85 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
+    const refreshUser = async () => {
+        const token = localStorage.getItem('teflon_token');
+        if (!token) return null;
+        try {
+            const response = await fetch(`${getApiBase()}/api/me`, {
+                headers: {
+                    ...getTenantHeaders(),
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (data?.user) {
+                setUser(data.user);
+                localStorage.setItem('teflon_user', JSON.stringify(data.user));
+            }
+            return data?.user || null;
+        } catch (err) {
+            console.error('refreshUser failed', err);
+            return null;
+        }
+    };
+
+    const updateProfile = async (profileFields) => {
+        const token = localStorage.getItem('teflon_token');
+        if (!token) throw new Error('not_authenticated');
+
+        const response = await fetch(`${getApiBase()}/api/me/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(profileFields || {}),
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => null);
+            throw new Error(err?.error || `profile_update_${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data?.user) {
+            setUser(data.user);
+            localStorage.setItem('teflon_user', JSON.stringify(data.user));
+        }
+        return data?.user || null;
+    };
+
+    const uploadProfilePhoto = async (file) => {
+        const token = localStorage.getItem('teflon_token');
+        if (!token) throw new Error('not_authenticated');
+        if (!file) throw new Error('photo_required');
+
+        const formData = new FormData();
+        formData.append('photo', file);
+
+        const response = await fetch(`${getApiBase()}/api/me/photo`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => null);
+            throw new Error(err?.details || err?.error || `photo_upload_${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data?.photo_url) {
+            setUser((prev) => {
+                const nextUser = { ...(prev || {}), photo_url: data.photo_url };
+                localStorage.setItem('teflon_user', JSON.stringify(nextUser));
+                return nextUser;
+            });
+        }
+        return data?.photo_url || null;
+    };
+
     const verifyEmailCode = async (email, code) => {
         if (isExternalAuthEnabled()) {
             throw new Error('external_auth_enabled');
@@ -280,7 +359,7 @@ export const AuthProvider = ({ children }) => {
     const isAdmin = user?.role === 'tenant_admin' || user?.role === 'master_admin';
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, verifyEmailCode, resendVerificationCode, logout, isWholesale, isWholesalePending, isAdmin, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, verifyEmailCode, resendVerificationCode, logout, isWholesale, isWholesalePending, isAdmin, loading, refreshUser, updateProfile, uploadProfilePhoto }}>
             {children}
         </AuthContext.Provider>
     );
