@@ -304,6 +304,21 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                 </div>
             </div>
 
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Informacion legal</p>
+                <p className="text-xs text-zinc-500">Se usa en la pagina de Terminos y Condiciones para identificar a la empresa responsable.</p>
+                <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Razon social / Nombre legal</label>
+                    <input
+                        type="text"
+                        value={settings?.commerce?.legal_company_name || ''}
+                        placeholder="Sanitarios El Teflon S.R.L."
+                        onChange={(e) => updateCommerceField('legal_company_name', e.target.value)}
+                        className={fieldClass}
+                    />
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)]">
                 <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Impuestos y resumen</p>

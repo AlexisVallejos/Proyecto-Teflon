@@ -312,13 +312,11 @@ export default function Header({
 
   const staticLinks = [
     { label: "Sobre nosotros", href: "/about", external: false },
-    { label: "Contactanos", href: "/#contacto", external: false },
-    ...(whatsappHref ? [{ label: "WhatsApp", href: whatsappHref, external: true }] : []),
   ];
 
   const extraLinks = links.filter((item) => {
     const key = normalizeLabel(item?.label);
-    return !["inicio", "home", "catalogo", "catalog", "productos", "sobre nosotros", "nosotros", "contactanos", "contacto", "whatsapp"].includes(key);
+    return !["inicio", "home", "catalogo", "catalog", "productos", "sobre nosotros", "nosotros", "contactanos", "contacto", "whatsapp", "ofertas"].includes(key);
   });
 
   const productsActive = activeRoute.startsWith("/catalog");
@@ -564,6 +562,20 @@ export default function Header({
                 />
               );
             })}
+
+            {whatsappHref ? (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-[#25d366] px-4 h-9 text-[12px] font-bold uppercase tracking-[0.06em] text-white shadow-sm hover:opacity-90 transition-opacity"
+              >
+                <svg className="size-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12.031 6.172c-2.335 0-4.241 1.906-4.241 4.241 0 .741.194 1.436.53 2.031l-.564 2.057 2.106-.552c.571.31 1.221.495 1.914.495 2.335 0 4.241-1.906 4.241-4.241 0-2.335-1.906-4.241-4.241-4.241zM12 2C6.477 2 2 6.477 2 12c0 1.891.526 3.658 1.438 5.161l-1.438 5.243 5.362-1.407C8.749 21.65 10.309 22 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.558 0-3.007-.432-4.241-1.178l-3.041.798.814-2.964C4.782 15.656 4 14.075 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z" />
+                </svg>
+                Contactanos
+              </a>
+            ) : null}
           </nav>
 
 

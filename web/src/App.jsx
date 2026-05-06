@@ -20,6 +20,7 @@ import SignupPage from './pages/store/SignupPage';
 import ProfilePage from './pages/store/ProfilePage';
 import OrderSuccessPage from './pages/store/OrderSuccessPage';
 import OrderDetailPage from './pages/store/OrderDetailPage';
+import TermsPage from './pages/store/TermsPage';
 
 // Admin pages
 import EditorPage from './pages/admin/EditorPage';
@@ -86,6 +87,7 @@ function AppContent() {
     else if (route === '/checkout') Component = CheckoutPage;
     else if (route === '/order-success') Component = OrderSuccessPage;
     else if (route === '/order-details') Component = OrderDetailPage;
+    else if (route === '/terms') Component = TermsPage;
     else if (route.startsWith('/product')) Component = ProductDetail;
     else if (route === '/login') Component = LoginPage;
     else if (route === '/signup') Component = SignupPage;
