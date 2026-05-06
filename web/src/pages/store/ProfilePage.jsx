@@ -247,7 +247,7 @@ const ProfileIcon = ({ name, className = "h-5 w-5" }) => {
 };
 
 export default function ProfilePage() {
-    const { user, logout, loading, isAdmin, uploadProfilePhoto } = useAuth();
+    const { user, logout, loading, isAdmin, uploadProfilePhoto, updateProfile } = useAuth();
     const { favorites, removeFavorite, addToCart } = useStore();
     const { settings } = useTenant();
     const currency = settings?.commerce?.currency || 'ARS';
@@ -585,7 +585,7 @@ export default function ProfilePage() {
         window.open(wholesaleQuoteUrl, '_blank', 'noopener,noreferrer');
     };
 
-    const saveAddress = () => {
+    const saveAddress = async () => {
         if (!user) return;
         const next = normalizeProfileAddress(addressDraft, defaultAddress);
         setAddress(next);
@@ -594,7 +594,32 @@ export default function ProfilePage() {
                 localStorage.setItem(key, JSON.stringify(next));
             });
         } catch (err) {
-            console.warn('No se pudo guardar la direccion', err);
+            console.warn('No se pudo guardar la direccion en cache', err);
+        }
+        try {
+            const billingInfo = {
+                document_type: next.document_type,
+                document_number: next.document_number,
+                vat_condition: next.vat_condition,
+                business_name: next.business_name,
+                cuit: next.cuit,
+                company: next.company,
+            };
+            await updateProfile({
+                name: next.fullName,
+                phone: next.phoneNumber || next.phone,
+                address: next.line1,
+                country_code: next.countryCode,
+                country_label: next.country,
+                province: next.region,
+                city: next.city,
+                postal_code: next.postal,
+                billing_info: billingInfo,
+            });
+        } catch (err) {
+            console.error('No se pudo guardar el perfil en el servidor', err);
+            window.alert('No se pudo guardar el perfil. Intenta nuevamente.');
+            return;
         }
         setIsEditingAddress(false);
     };
