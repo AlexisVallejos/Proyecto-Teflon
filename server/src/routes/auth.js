@@ -10,7 +10,7 @@ import {
   sendSmtpEmail,
 } from '../services/mailer.js';
 import { exchangeVaseLaunchToken } from '../services/vaseBridge.js';
-import { ensureUserProfileSchema, profileColumnsToSelect } from '../services/userProfile.js';
+import { ensureUserProfileSchema, normalizeProfileFields, profileColumnsToSelect } from '../services/userProfile.js';
 
 export const authRouter = express.Router();
 const VERIFICATION_CODE_TTL_MINUTES = Math.max(5, Number(process.env.EMAIL_VERIFICATION_TTL_MINUTES || 15));
@@ -406,6 +406,10 @@ async function handleSignup(req, res, next) {
     const validRoles = ['retail', 'wholesale'];
     const assignedRole = validRoles.includes(role) ? role : 'retail';
 
+    await ensureUserProfileSchema();
+    const profile = normalizeProfileFields(req.body);
+    const displayName = String(name || '').trim() || null;
+
     const existingUserRes = await pool.query(
       [
         'select id, email, role, status, email_verified_at, requires_email_verification',
@@ -458,11 +462,21 @@ async function handleSignup(req, res, next) {
     const passwordHash = await bcrypt.hash(password, 10);
     const userRes = await pool.query(
       [
-        'insert into users (email, password_hash, role, status, email_verified_at, requires_email_verification)',
-        'values ($1, $2, $3, $4, $5, $6)',
-        'returning id, email, role, status, email_verified_at, requires_email_verification',
+        'insert into users (',
+        '  email, password_hash, role, status, email_verified_at, requires_email_verification,',
+        '  display_name, phone, address, address_extra, country_code, country_label,',
+        '  province, city, postal_code',
+        ') values (',
+        '  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15',
+        ') returning id, email, role, status, email_verified_at, requires_email_verification',
       ].join(' '),
-      [normalizedEmail, passwordHash, assignedRole, 'active', null, true]
+      [
+        normalizedEmail, passwordHash, assignedRole, 'active', null, true,
+        displayName,
+        profile.phone, profile.address, profile.address_extra,
+        profile.country_code, profile.country_label,
+        profile.province, profile.city, profile.postal_code,
+      ]
     );
 
     const user = userRes.rows[0];
