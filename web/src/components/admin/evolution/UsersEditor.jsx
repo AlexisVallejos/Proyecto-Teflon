@@ -213,6 +213,33 @@ const UsersEditor = ({ manager, offersManager }) => {
                 </p>
             ) : null}
 
+            {(() => {
+                const pendingCount = users.filter(
+                    (u) => (u.role || '') === 'wholesale' && (u.status || '') === 'pending'
+                ).length;
+                if (!pendingCount) return null;
+                return (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/25 text-amber-200 text-lg" aria-hidden>!</span>
+                            <div>
+                                <p className="text-sm font-bold text-white">
+                                    Tenes {pendingCount} {pendingCount === 1 ? 'mayorista pendiente' : 'mayoristas pendientes'} de aprobacion
+                                </p>
+                                <p className="text-xs text-amber-200/80">Revisa los datos del cliente y aprobalos con el boton verde.</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setSearch('pending')}
+                            className="self-start rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold uppercase tracking-widest text-white hover:bg-amber-600 sm:self-auto"
+                        >
+                            Ver pendientes
+                        </button>
+                    </div>
+                );
+            })()}
+
             {!usersLoading && visibleUsers.length > 0 ? (
                 <div className="space-y-3">
                     {visibleUsers.map((item) => {
@@ -247,7 +274,14 @@ const UsersEditor = ({ manager, offersManager }) => {
                                         }}
                                         className="min-w-0 text-left"
                                     >
-                                        <p className="truncate text-sm font-bold text-white">{item.email}</p>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="truncate text-sm font-bold text-white">{item.email}</p>
+                                            {needsWholesaleApproval ? (
+                                                <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+                                                    Pendiente
+                                                </span>
+                                            ) : null}
+                                        </div>
                                         <p className="text-xs text-zinc-400">
                                             Rol: {item.role || 'retail'} · Estado: {item.status || 'active'}
                                         </p>
