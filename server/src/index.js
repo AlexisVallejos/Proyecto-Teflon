@@ -6,6 +6,7 @@ import { pool } from './db.js';
 import app from './app.js';
 import { ensureBaseSchema } from './services/bootstrapSchema.js';
 import { ensurePricingSchema } from './services/userPricing.js';
+import { ensureUserProfileSchema } from './services/userProfile.js';
 import { ensureProductSyncSchema } from './services/integration.service.js';
 
 async function runStartupMigrations() {
@@ -82,6 +83,8 @@ async function bootstrapDb() {
     console.log('DB Connection OK');
     await ensurePricingSchema();
     console.log('Pricing schema ready');
+    await ensureUserProfileSchema();
+    console.log('User profile schema ready');
   } catch (err) {
     console.error('DB bootstrap warning:', err?.message || err);
     throw err;

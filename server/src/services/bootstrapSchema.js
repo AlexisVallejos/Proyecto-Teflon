@@ -3,7 +3,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { pool } from '../db.js';
-import { ensureUserProfileSchema } from './userProfile.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,8 +51,6 @@ export async function ensureBaseSchema() {
   console.log(`Base schema missing tables detected: ${missingTables.join(', ')}`);
   await pool.query(schemaSql);
   console.log('Base schema initialized from db/schema.sql');
-
-  await ensureUserProfileSchema();
 
   return { initialized: true, missingTables };
 }
