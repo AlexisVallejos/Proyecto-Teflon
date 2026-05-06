@@ -10,6 +10,7 @@ import {
   sendSmtpEmail,
 } from '../services/mailer.js';
 import { exchangeVaseLaunchToken } from '../services/vaseBridge.js';
+import { ensureUserProfileSchema, profileColumnsToSelect } from '../services/userProfile.js';
 
 export const authRouter = express.Router();
 const VERIFICATION_CODE_TTL_MINUTES = Math.max(5, Number(process.env.EMAIL_VERIFICATION_TTL_MINUTES || 15));
@@ -610,8 +611,9 @@ authRouter.post('/logout', (req, res) => {
 
 export async function getMeHandler(req, res, next) {
   try {
+    await ensureUserProfileSchema();
     const userRes = await pool.query(
-      'select id, email, role, status from users where id = $1',
+      `select id, email, role, status, display_name, ${profileColumnsToSelect()} from users where id = $1`,
       [req.user.id]
     );
     if (!userRes.rowCount) {
@@ -639,6 +641,18 @@ export async function getMeHandler(req, res, next) {
         role,
         status,
         tenant_id: tenantId,
+        display_name: user.display_name,
+        name: user.display_name,
+        phone: user.phone,
+        address: user.address,
+        address_extra: user.address_extra,
+        country_code: user.country_code,
+        country_label: user.country_label,
+        province: user.province,
+        city: user.city,
+        postal_code: user.postal_code,
+        photo_url: user.photo_url,
+        billing_info: user.billing_info || {},
       },
     });
   } catch (err) {
