@@ -160,6 +160,10 @@ function mergeTenantSettings(rawSettings = {}) {
         theme: {
             ...DEFAULT_SETTINGS.theme,
             ...(rawSettings.theme || {}),
+            catalog: {
+                ...(DEFAULT_SETTINGS.theme.catalog || {}),
+                ...(rawSettings.theme?.catalog || {}),
+            },
         },
         commerce: {
             ...DEFAULT_SETTINGS.commerce,

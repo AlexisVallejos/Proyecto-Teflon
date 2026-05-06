@@ -36,15 +36,17 @@ export const DEFAULT_STOREFRONT_DARK_THEME = {
 
 export const getCatalogThemePreset = (mode, currentTheme = {}) => {
     const preset = mode === 'dark' ? DEFAULT_STOREFRONT_DARK_THEME.catalog : DEFAULT_STOREFRONT_LIGHT_THEME.catalog;
-    return { ...preset };
+    const overrides = (currentTheme?.catalog && typeof currentTheme.catalog === 'object') ? currentTheme.catalog : {};
+    return { ...preset, ...overrides };
 };
 
 export const getStorefrontThemePreset = (mode, currentTheme = {}) => {
     const preset = mode === 'light' ? DEFAULT_STOREFRONT_LIGHT_THEME : DEFAULT_STOREFRONT_DARK_THEME;
     return {
         ...preset,
+        ...currentTheme,
         mode,
         font_family: currentTheme?.font_family || currentTheme?.fontFamily || preset.font_family,
-        catalog: getCatalogThemePreset(mode),
+        catalog: getCatalogThemePreset(mode, currentTheme),
     };
 };

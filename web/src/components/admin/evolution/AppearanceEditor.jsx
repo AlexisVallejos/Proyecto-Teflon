@@ -7,6 +7,7 @@ import {
 } from '../../../utils/adminPanelTheme';
 import {
     getStorefrontThemePreset,
+    DEFAULT_STOREFRONT_LIGHT_THEME,
 } from '../../../utils/storefrontTheme';
 
 const fieldClass =
@@ -123,7 +124,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const quickLinks = Array.isArray(footer?.quickLinks) ? footer.quickLinks : [];
     const storefrontMode = theme?.mode === 'dark' ? 'dark' : 'light';
     const adminMode = adminTheme?.mode === 'light' ? 'light' : 'dark';
-    const storefrontPreview = getStorefrontThemePreset(storefrontMode);
+    const storefrontPreview = getStorefrontThemePreset(storefrontMode, theme);
     const adminPreview = adminMode === 'light' ? LIGHT_ADMIN_PANEL_THEME : DEFAULT_ADMIN_PANEL_THEME;
 
     const updateTheme = (patch) => {
@@ -317,33 +318,45 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         <div className="grid gap-2 sm:grid-cols-2">
                             <ColorField
                                 label="Acento"
-                                value={theme.primary || DEFAULT_STOREFRONT_LIGHT_THEME.primary}
+                                value={storefrontPreview.primary}
                                 onChange={(val) => updateTheme({ mode: 'light', primary: val, accent: val })}
                             />
                             <ColorField
                                 label="Fondo"
-                                value={theme.background || DEFAULT_STOREFRONT_LIGHT_THEME.background}
+                                value={storefrontPreview.background}
                                 onChange={(val) => updateTheme({ mode: 'light', background: val })}
                             />
                             <ColorField
                                 label="Texto"
-                                value={theme.text || DEFAULT_STOREFRONT_LIGHT_THEME.text}
+                                value={storefrontPreview.text}
                                 onChange={(val) => updateTheme({ mode: 'light', text: val })}
                             />
                             <ColorField
                                 label="Texto sec."
-                                value={theme.secondary || DEFAULT_STOREFRONT_LIGHT_THEME.secondary}
+                                value={storefrontPreview.secondary}
                                 onChange={(val) => updateTheme({ mode: 'light', secondary: val })}
                             />
                             <ColorField
                                 label="Paneles"
-                                value={theme.catalog?.panel_bg || DEFAULT_STOREFRONT_LIGHT_THEME.catalog.panel_bg}
-                                onChange={(val) => updateTheme({ mode: 'light', catalog: { ...(theme.catalog || DEFAULT_STOREFRONT_LIGHT_THEME.catalog), panel_bg: val } })}
+                                value={storefrontPreview.catalog.panel_bg}
+                                onChange={(val) => updateTheme({ 
+                                    mode: 'light', 
+                                    catalog: { 
+                                        ...(theme.catalog || DEFAULT_STOREFRONT_LIGHT_THEME.catalog), 
+                                        panel_bg: val 
+                                    } 
+                                })}
                             />
                             <ColorField
                                 label="Cartas"
-                                value={theme.catalog?.card_bg || DEFAULT_STOREFRONT_LIGHT_THEME.catalog.card_bg}
-                                onChange={(val) => updateTheme({ mode: 'light', catalog: { ...(theme.catalog || DEFAULT_STOREFRONT_LIGHT_THEME.catalog), card_bg: val } })}
+                                value={storefrontPreview.catalog.card_bg}
+                                onChange={(val) => updateTheme({ 
+                                    mode: 'light', 
+                                    catalog: { 
+                                        ...(theme.catalog || DEFAULT_STOREFRONT_LIGHT_THEME.catalog), 
+                                        card_bg: val 
+                                    } 
+                                })}
                             />
                         </div>
                     </div>
