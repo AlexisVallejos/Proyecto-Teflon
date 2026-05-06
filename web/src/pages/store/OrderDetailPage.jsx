@@ -179,8 +179,8 @@ export default function OrderDetailPage() {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="lg:col-span-2 space-y-4 sm:space-y-6">
                         <section className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-6">
                             <div className="flex flex-wrap items-center justify-between gap-4">
                                 <div>
@@ -209,19 +209,19 @@ export default function OrderDetailPage() {
                             </div>
                             <div className="space-y-3">
                                 {(order.items || []).map((item) => (
-                                    <div key={item.product_id || item.id} className="flex items-center justify-between gap-4 border-b border-[#f0ebe7] dark:border-[#3d2f21] pb-3">
-                                        <div>
-                                            <p className="text-sm font-bold text-[#181411] dark:text-white">{item.name}</p>
-                                            <p className="text-xs text-[#8a7560]">SKU {item.sku || item.product_id}</p>
+                                    <div key={item.product_id || item.id} className="flex items-center justify-between gap-3 border-b border-[#f0ebe7] dark:border-[#3d2f21] pb-3 last:border-0 last:pb-0">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-bold text-[#181411] dark:text-white truncate">{item.name}</p>
+                                            <p className="text-xs text-[#8a7560] truncate">SKU {item.sku || item.product_id}</p>
                                         </div>
-                                        <div className="text-sm font-bold text-[#181411] dark:text-white">x{item.qty}</div>
+                                        <div className="text-sm font-bold text-[#181411] dark:text-white shrink-0">x{item.qty}</div>
                                     </div>
                                 ))}
                             </div>
                         </section>
                     </div>
 
-                    <aside className="space-y-6">
+                    <aside className="space-y-4 sm:space-y-6 lg:sticky lg:top-6 lg:self-start">
                         <section className="bg-white dark:bg-[#1a130c] rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] p-6 space-y-3">
                             <p className="text-sm font-bold text-[#181411] dark:text-white">Pago</p>
                             <div>
