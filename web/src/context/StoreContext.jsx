@@ -66,6 +66,10 @@ export const StoreProvider = ({ children }) => {
     }, [cartItems]);
 
     useEffect(() => {
+        if (!user) {
+            setFavorites([]);
+            return;
+        }
         try {
             const raw = localStorage.getItem(favoritesKey);
             setFavorites(raw ? JSON.parse(raw) : []);
@@ -73,15 +77,16 @@ export const StoreProvider = ({ children }) => {
             console.warn("No se pudo cargar favoritos del usuario", err);
             setFavorites([]);
         }
-    }, [favoritesKey]);
+    }, [favoritesKey, user]);
 
     useEffect(() => {
+        if (!user) return;
         try {
             localStorage.setItem(favoritesKey, JSON.stringify(favorites));
         } catch (err) {
             console.warn("No se pudo guardar favoritos", err);
         }
-    }, [favorites, favoritesKey]);
+    }, [favorites, favoritesKey, user]);
 
     useEffect(() => {
         return () => {
@@ -185,20 +190,28 @@ export const StoreProvider = ({ children }) => {
         [favorites]
     );
 
+    const requireAuthForFavorites = useCallback(() => {
+        if (user) return true;
+        showToast("Inicia sesión para guardar favoritos");
+        return false;
+    }, [user, showToast]);
+
     const addFavorite = useCallback((product) => {
+        if (!requireAuthForFavorites()) return;
         const normalized = normalizeFavorite(product);
         if (!normalized) return;
         setFavorites((prev) => {
             if (prev.some((item) => item.id === normalized.id)) return prev;
             return [...prev, normalized];
         });
-    }, []);
+    }, [requireAuthForFavorites]);
 
     const removeFavorite = useCallback((id) => {
         setFavorites((prev) => prev.filter((item) => item.id !== id));
     }, []);
 
     const toggleFavorite = useCallback((product) => {
+        if (!requireAuthForFavorites()) return false;
         const normalized = normalizeFavorite(product);
         if (!normalized) return false;
         let added = false;
@@ -211,7 +224,7 @@ export const StoreProvider = ({ children }) => {
             return [...prev, normalized];
         });
         return added;
-    }, []);
+    }, [requireAuthForFavorites]);
 
     return (
         <StoreContext.Provider

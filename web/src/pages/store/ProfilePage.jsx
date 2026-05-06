@@ -717,44 +717,44 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            <nav className="flex overflow-x-auto snap-x snap-mandatory gap-2 pb-2 lg:pb-0 lg:flex-col lg:space-y-1 hide-scrollbar -mx-3 px-3 lg:mx-0 lg:px-0 lg:mt-0">
+                            <nav className="grid grid-cols-5 gap-1 lg:flex lg:flex-col lg:gap-0 lg:space-y-1">
                                 <button
-                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'account' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-1 py-2 lg:px-3 lg:py-2.5 rounded-lg transition-all ${activeSection === 'account' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('account')}
                                 >
                                     <User className="h-5 w-5 shrink-0" />
-                                    <span className="text-sm">Mi cuenta</span>
+                                    <span className="text-[10px] leading-tight lg:text-sm text-center lg:text-left">Cuenta</span>
                                 </button>
                                 <button
-                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'orders' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-1 py-2 lg:px-3 lg:py-2.5 rounded-lg transition-all ${activeSection === 'orders' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('orders')}
                                 >
                                     <Package className="h-5 w-5 shrink-0" />
-                                    <span className="text-sm">Historial de pedidos</span>
+                                    <span className="text-[10px] leading-tight lg:text-sm text-center lg:text-left">Pedidos</span>
                                 </button>
                                 <button
-                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'addresses' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-1 py-2 lg:px-3 lg:py-2.5 rounded-lg transition-all ${activeSection === 'addresses' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('addresses')}
                                 >
                                     <MapPin className="h-5 w-5 shrink-0" />
-                                    <span className="text-sm">Direcciones</span>
+                                    <span className="text-[10px] leading-tight lg:text-sm text-center lg:text-left">Direcciones</span>
                                 </button>
                                 <button
-                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'favorites' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-1 py-2 lg:px-3 lg:py-2.5 rounded-lg transition-all ${activeSection === 'favorites' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('favorites')}
                                 >
                                     <Heart className="h-5 w-5 shrink-0" />
-                                    <span className="text-sm">Favoritos</span>
+                                    <span className="text-[10px] leading-tight lg:text-sm text-center lg:text-left">Favoritos</span>
                                     {favorites?.length ? (
-                                        <span className="ml-auto size-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#2c2116]" />
+                                        <span className="absolute top-1 right-1 lg:static lg:ml-auto size-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#2c2116]" />
                                     ) : null}
                                 </button>
                                 <button
-                                    className={`shrink-0 snap-start lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-lg transition-all ${activeSection === 'security' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
+                                    className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-1 py-2 lg:px-3 lg:py-2.5 rounded-lg transition-all ${activeSection === 'security' ? 'bg-primary/10 text-primary font-semibold' : 'text-[#181411] dark:text-gray-300 hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]'}`}
                                     onClick={() => setActiveSection('security')}
                                 >
                                     <Shield className="h-5 w-5 shrink-0" />
-                                    <span className="text-sm">Seguridad</span>
+                                    <span className="text-[10px] leading-tight lg:text-sm text-center lg:text-left">Seguridad</span>
                                 </button>
                             </nav>
                         </div>
@@ -873,15 +873,15 @@ export default function ProfilePage() {
                                                 <div className="text-center text-[#8a7560] text-sm py-4">No hay pedidos recientes.</div>
                                             )}
                                         </div>
-                                        <div className="hidden lg:block overflow-x-auto">
-                                            <table className="w-full text-left min-w-[760px]">
+                                        <div className="hidden lg:block">
+                                            <table className="w-full text-left table-fixed">
                                                 <thead>
                                                     <tr className="bg-[#f5f2f0]/60 dark:bg-[#2d241c] text-xs font-bold text-[#8a7560] uppercase tracking-wider">
-                                                        <th className="px-6 py-4">Pedido</th>
-                                                        <th className="px-6 py-4">Fecha</th>
-                                                        <th className="px-6 py-4">Estado</th>
-                                                        <th className="px-6 py-4">Total</th>
-                                                        <th className="px-6 py-4">Accion</th>
+                                                        <th className="px-3 py-3 w-[20%]">Pedido</th>
+                                                        <th className="px-3 py-3 w-[18%]">Fecha</th>
+                                                        <th className="px-3 py-3 w-[24%]">Estado</th>
+                                                        <th className="px-3 py-3 w-[18%]">Total</th>
+                                                        <th className="px-3 py-3 w-[20%]">Accion</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-[#e5e1de] dark:divide-[#3d2e21] text-sm">
@@ -891,28 +891,28 @@ export default function ProfilePage() {
                                                             const isPending = statusLabel === 'Pendiente' || statusLabel === 'Pendiente de pago';
                                                             return (
                                                                 <tr key={order.id} className="hover:bg-[#f5f2f0]/40 transition-colors">
-                                                                    <td className="px-6 py-5 font-mono font-medium break-all">#{order.id}</td>
-                                                                    <td className="px-6 py-5">{formatOrderDate(order.createdAt)}</td>
-                                                                    <td className="px-6 py-5">
-                                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_STYLES[statusLabel] || STATUS_STYLES.Pendiente} flex items-center gap-1 w-fit`}>
+                                                                    <td className="px-3 py-3 font-mono font-medium truncate" title={`#${order.id}`}>#{order.id}</td>
+                                                                    <td className="px-3 py-3 truncate">{formatOrderDate(order.createdAt)}</td>
+                                                                    <td className="px-3 py-3">
+                                                                        <span className={`px-2 py-1 rounded-full text-[11px] font-bold ${STATUS_STYLES[statusLabel] || STATUS_STYLES.Pendiente} inline-flex items-center gap-1 w-fit max-w-full`}>
                                                                             {(() => {
                                                                                 const Icon = STATUS_ICONS[statusLabel] || STATUS_ICONS.Pendiente;
-                                                                                return <Icon className="w-3 h-3" />;
+                                                                                return <Icon className="w-3 h-3 shrink-0" />;
                                                                             })()}
-                                                                            {statusLabel}
+                                                                            <span className="truncate">{statusLabel}</span>
                                                                         </span>
                                                                     </td>
-                                                                    <td className="px-6 py-5 font-bold">
+                                                                    <td className="px-3 py-3 font-bold truncate">
                                                                         {order.total != null
                                                                             ? formatCurrency(order.total, order.currency || currency, order.locale || locale)
                                                                             : '-'}
                                                                     </td>
-                                                                    <td className="px-6 py-5">
-                                                                        <div className="flex flex-col items-start gap-2">
+                                                                    <td className="px-3 py-3">
+                                                                        <div className="flex flex-col items-start gap-1">
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => handleViewOrder(order)}
-                                                                                className="text-primary hover:text-primary/70 font-semibold underline decoration-2 flex items-center gap-1"
+                                                                                className="text-primary hover:text-primary/70 font-semibold underline decoration-2 inline-flex items-center gap-1 text-xs"
                                                                             >
                                                                                 Detalles
                                                                                 <ExternalLink className="w-3 h-3" />
@@ -921,9 +921,9 @@ export default function ProfilePage() {
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => updateOrderStatus(order.id, 'Pagado')}
-                                                                                    className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-600"
+                                                                                    className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-600 text-left"
                                                                                 >
-                                                                                    Marcar como pagado
+                                                                                    Marcar pagado
                                                                                 </button>
                                                                             ) : null}
                                                                         </div>
