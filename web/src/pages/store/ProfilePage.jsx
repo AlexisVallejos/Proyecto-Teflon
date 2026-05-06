@@ -247,7 +247,7 @@ const ProfileIcon = ({ name, className = "h-5 w-5" }) => {
 };
 
 export default function ProfilePage() {
-    const { user, logout, loading, isAdmin } = useAuth();
+    const { user, logout, loading, isAdmin, uploadProfilePhoto } = useAuth();
     const { favorites, removeFavorite, addToCart } = useStore();
     const { settings } = useTenant();
     const currency = settings?.commerce?.currency || 'ARS';
@@ -369,7 +369,18 @@ export default function ProfilePage() {
     }, [user, defaultAddress, displayName, addressStorageKeys]);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setProfilePhoto('');
+            return;
+        }
+        if (user.photo_url) {
+            const next = user.photo_url.startsWith('http')
+                ? user.photo_url
+                : `${getApiBase()}${user.photo_url}`;
+            setProfilePhoto(next);
+            return;
+        }
+        // Legacy fallback: read from localStorage if user has no server photo yet
         const key = `teflon_profile_photo_${user.id || user.email}`;
         try {
             const raw = localStorage.getItem(key);
@@ -609,28 +620,49 @@ export default function ProfilePage() {
         setIsEditingAddress(false);
     };
 
-    const handleProfilePhotoChange = (event) => {
+    const handleProfilePhotoChange = async (event) => {
         const file = event.target.files?.[0];
         if (!file || !user) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = typeof reader.result === 'string' ? reader.result : '';
-            setProfilePhoto(result);
-            const key = `teflon_profile_photo_${user.id || user.email}`;
-            try {
-                if (result) {
-                    localStorage.setItem(key, result);
-                }
-            } catch (err) {
-                console.warn('No se pudo guardar la foto de perfil', err);
-            }
-        };
-        reader.readAsDataURL(file);
         event.target.value = '';
+
+        let previewUrl = '';
+        try {
+            previewUrl = URL.createObjectURL(file);
+            setProfilePhoto(previewUrl);
+            const photoUrl = await uploadProfilePhoto(file);
+            if (photoUrl) {
+                const finalUrl = photoUrl.startsWith('http')
+                    ? photoUrl
+                    : `${getApiBase()}${photoUrl}`;
+                setProfilePhoto(finalUrl);
+                try {
+                    const key = `teflon_profile_photo_${user.id || user.email}`;
+                    localStorage.removeItem(key);
+                } catch {}
+            }
+        } catch (err) {
+            console.error('Photo upload failed', err);
+            const message = typeof err?.message === 'string' ? err.message : 'No se pudo subir la foto';
+            window.alert(message);
+            if (user.photo_url) {
+                setProfilePhoto(user.photo_url.startsWith('http')
+                    ? user.photo_url
+                    : `${getApiBase()}${user.photo_url}`);
+            } else {
+                setProfilePhoto('');
+            }
+        } finally {
+            if (previewUrl) {
+                setTimeout(() => URL.revokeObjectURL(previewUrl), 1000);
+            }
+        }
     };
 
-    const handleRemovePhoto = () => {
+    const handleRemovePhoto = async () => {
         if (!user) return;
+        try {
+            await uploadProfilePhoto(null).catch(() => null);
+        } catch {}
         setProfilePhoto('');
         const key = `teflon_profile_photo_${user.id || user.email}`;
         try {
