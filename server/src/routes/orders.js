@@ -1100,6 +1100,21 @@ ordersRouter.post('/submit', async (req, res, next) => {
     const orderId = orderRes.rows[0].id;
 
     for (const item of validation.items) {
+      // Atomic stock decrement
+      const stockRes = await client.query(
+        [
+          'update product_cache',
+          'set stock = case when stock is null then null else stock - $1 end, updated_at = now()',
+          'where tenant_id = $2 and id = $3 and (stock is null or stock >= $1)',
+          'returning stock',
+        ].join(' '),
+        [item.qty, req.tenant.id, item.product_id]
+      );
+
+      if (!stockRes.rowCount) {
+        throw new Error(`insufficient_stock:${item.product_id}`);
+      }
+
       await client.query(
         [
           'insert into order_items (order_id, product_id, sku, name, qty, unit_price, total)',
@@ -1474,7 +1489,49 @@ adminOrdersRouter.patch('/:id/status', async (req, res, next) => {
       return res.status(404).json({ error: 'order_not_found' });
     }
 
+    const oldStatus = currentOrderRes.rows[0].status;
+
     await client.query('BEGIN');
+
+    // Handle stock returns or re-reservations
+    if (rawStatus === 'cancelled' && oldStatus !== 'cancelled') {
+      // Returning stock to inventory
+      const itemsRes = await client.query(
+        'select product_id, qty from order_items where order_id = $1',
+        [orderId]
+      );
+      for (const item of itemsRes.rows) {
+        await client.query(
+          [
+            'update product_cache',
+            'set stock = case when stock is null then null else stock + $1 end, updated_at = now()',
+            'where tenant_id = $2 and id = $3',
+          ].join(' '),
+          [item.qty, req.tenant.id, item.product_id]
+        );
+      }
+    } else if (rawStatus !== 'cancelled' && oldStatus === 'cancelled') {
+      // Re-reserving stock
+      const itemsRes = await client.query(
+        'select product_id, qty from order_items where order_id = $1',
+        [orderId]
+      );
+      for (const item of itemsRes.rows) {
+        const stockRes = await client.query(
+          [
+            'update product_cache',
+            'set stock = case when stock is null then null else stock - $1 end, updated_at = now()',
+            'where tenant_id = $2 and id = $3 and (stock is null or stock >= $1)',
+            'returning stock',
+          ].join(' '),
+          [item.qty, req.tenant.id, item.product_id]
+        );
+        if (!stockRes.rowCount) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `insufficient_stock:${item.product_id}` });
+        }
+      }
+    }
 
     const result = await client.query(
       [
