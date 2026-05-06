@@ -434,6 +434,30 @@ const UsersEditor = ({ manager, offersManager }) => {
             ) : null}
 
             {selectedUser ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-zinc-400">Datos del cliente</h3>
+                    <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                        {[
+                            ['Nombre', selectedUser.name || selectedUser.display_name],
+                            ['Email', selectedUser.email],
+                            ['Telefono', selectedUser.phone],
+                            ['Direccion', [selectedUser.address, selectedUser.address_extra].filter(Boolean).join(' · ')],
+                            ['Ciudad', [selectedUser.city, selectedUser.province].filter(Boolean).join(', ')],
+                            ['Pais', selectedUser.country_label || selectedUser.country_code],
+                            ['Codigo postal', selectedUser.postal_code],
+                        ].map(([label, value]) => (
+                            <div key={label} className="flex items-start justify-between gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2">
+                                <dt className="text-zinc-500 text-xs uppercase tracking-wider">{label}</dt>
+                                <dd className="text-right font-medium text-white">
+                                    {value && String(value).trim() ? value : <span className="text-zinc-600">—</span>}
+                                </dd>
+                            </div>
+                        ))}
+                    </dl>
+                </div>
+            ) : null}
+
+            {selectedUser ? (
                 <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="min-w-0">

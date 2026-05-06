@@ -1606,6 +1606,9 @@ tenantRouter.get('/users', async (req, res, next) => {
     const usersRes = await pool.query(
       [
         'select u.id, u.email, u.role as global_role, u.status as user_status,',
+        'u.display_name as name, u.phone, u.address, u.address_extra,',
+        'u.country_code, u.country_label, u.province, u.city, u.postal_code,',
+        'u.photo_url,',
         'ut.role as role, ut.status as status, u.created_at,',
         'upl.price_list_id, pl.name as price_list_name, pl.type as price_list_type',
         'from user_tenants ut',
