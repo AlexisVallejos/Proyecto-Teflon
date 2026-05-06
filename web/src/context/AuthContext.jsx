@@ -176,7 +176,7 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
-    const signup = async (email, password, role, name = '') => {
+    const signup = async (input = {}) => {
         if (isExternalAuthEnabled()) {
             throw new Error('external_auth_enabled');
         }
@@ -186,19 +186,29 @@ export const AuthProvider = ({ children }) => {
         const headerTenant = String(tenantHeaders['X-Tenant-Id'] || '').trim();
         const tenantId = headerTenant || envTenant || '';
 
+        const payload = {
+            email: input.email,
+            password: input.password,
+            role: input.role,
+            name: input.name,
+            phone: input.phone,
+            address: input.address,
+            address_extra: input.address_extra,
+            country_code: input.country_code,
+            country_label: input.country_label,
+            province: input.province,
+            city: input.city,
+            postal_code: input.postal_code,
+            ...(tenantId ? { tenant_id: tenantId } : {}),
+        };
+
         const response = await fetch(`${getApiBase()}/auth/signup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 ...(tenantId ? { 'X-Tenant-Id': tenantId } : {}),
             },
-            body: JSON.stringify({
-                email,
-                password,
-                role,
-                name,
-                ...(tenantId ? { tenant_id: tenantId } : {}),
-            }),
+            body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -214,8 +224,6 @@ export const AuthProvider = ({ children }) => {
             setUser(data.user);
             localStorage.setItem('teflon_token', data.token);
             localStorage.setItem('teflon_user', JSON.stringify(data.user));
-        } else {
-            clearSession();
         }
         return data;
     };

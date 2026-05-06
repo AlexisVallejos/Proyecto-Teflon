@@ -574,12 +574,20 @@ export default function SignupPage() {
         setError('');
         setLoading(true);
         try {
-            const data = await signup(
-                formData.email.trim(),
-                formData.password,
-                roleForApi,
-                formData.name.trim(),
-            );
+            const data = await signup({
+                email: formData.email.trim(),
+                password: formData.password,
+                role: roleForApi,
+                name: formData.name.trim(),
+                phone: formData.phone,
+                address: formData.address,
+                address_extra: '',
+                country_code: formData.country ?? '',
+                country_label: getCountryLabelByCode(formData.country, countryOptions) ?? '',
+                province: formData.province,
+                city: formData.city,
+                postal_code: formData.postalCode ?? '',
+            });
             const normalizedEmail = formData.email.trim().toLowerCase();
             const requiresVerification = data?.requires_email_verification !== false;
             persistProfileAddress(normalizedEmail);
