@@ -353,8 +353,21 @@ export default function CheckoutPage() {
         setCustomerInfo((prev) => ({
             ...prev,
             email: prev.email || user.email,
-            fullName: prev.fullName || user.email.split("@")[0] || "",
+            fullName: prev.fullName || user.display_name || user.name || user.email.split("@")[0] || "",
+            phone: prev.phone || user.phone || "",
         }));
+        setShippingInfo((prev) => ({
+            ...prev,
+            fullAddress: prev.fullAddress || user.address || "",
+            country: prev.country || user.country_label || "",
+            countryCode: prev.countryCode || user.country_code || "",
+            province: prev.province || user.province || "",
+            city: prev.city || user.city || "",
+            postalCode: prev.postalCode || user.postal_code || "",
+        }));
+        if (user.billing_info && typeof user.billing_info === 'object' && Object.keys(user.billing_info).length) {
+            setBillingInfo((prev) => normalizeBillingInfo({ ...prev, ...user.billing_info }));
+        }
     }, [user]);
 
     useEffect(() => {
