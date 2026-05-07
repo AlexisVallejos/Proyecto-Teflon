@@ -382,14 +382,104 @@ export const normalizeHeroSlides = (variant, slides) => {
     return normalized.length > 0 ? normalized : [normalizeSlide(createEmptyHeroSlide(normalizedVariant))];
 };
 
-export const normalizeHeroStyles = (variant, styles) => {
+// Slot de color → token de tema. Slots ausentes no heredan del tema (solo hardcoded).
+export const HERO_THEME_TOKEN_MAP = {
+    classic: {
+        titleColor: 'text',
+        textColor: 'secondary',
+        primaryButtonBgColor: 'primary',
+        primaryButtonTextColor: 'background',
+    },
+    modernist: {
+        titleColor: 'text',
+        textColor: 'secondary',
+        labelColor: 'text',
+        primaryButtonBgColor: 'primary',
+        primaryButtonTextColor: 'background',
+        secondaryButtonTextColor: 'text',
+        secondaryButtonBorderColor: 'text',
+    },
+    modernist_centered: {
+        titleColor: 'text',
+        textColor: 'secondary',
+        labelColor: 'text',
+        primaryButtonBgColor: 'primary',
+        primaryButtonTextColor: 'background',
+        secondaryButtonTextColor: 'text',
+        secondaryButtonBorderColor: 'text',
+    },
+    modern_boutique: {
+        titleColor: 'text',
+        textColor: 'secondary',
+        labelBgColor: 'primary',
+        labelTextColor: 'background',
+        primaryButtonBgColor: 'primary',
+        primaryButtonTextColor: 'background',
+        secondaryButtonTextColor: 'text',
+        secondaryButtonBorderColor: 'text',
+        accentBgColor: 'accent',
+        accentTextColor: 'background',
+    },
+    fashion: {
+        backgroundColor: 'background',
+        titleColor: 'text',
+        textColor: 'secondary',
+        labelColor: 'text',
+        accentColor: 'accent',
+        primaryButtonBgColor: 'primary',
+        primaryButtonTextColor: 'background',
+        secondaryButtonTextColor: 'text',
+        secondaryButtonBorderColor: 'text',
+    },
+    home_decor: {
+        backgroundColor: 'background',
+        titleColor: 'text',
+        textColor: 'secondary',
+        labelColor: 'text',
+        accentColor: 'accent',
+        primaryButtonBgColor: 'primary',
+        primaryButtonTextColor: 'background',
+        secondaryButtonTextColor: 'text',
+        secondaryButtonBorderColor: 'text',
+    },
+    sanitarios_industrial: {
+        titleColor: 'text',
+        labelColor: 'secondary',
+        cardTitleColor: 'text',
+        cardSubtitleColor: 'secondary',
+        textColor: 'secondary',
+        primaryButtonBgColor: 'primary',
+        primaryButtonTextColor: 'background',
+        secondaryButtonTextColor: 'text',
+        secondaryButtonBorderColor: 'text',
+        specColor: 'accent',
+        dotActiveColor: 'primary',
+    },
+    corporate: {
+        titleColor: 'text',
+        textColor: 'secondary',
+        labelColor: 'accent',
+    },
+};
+
+export const normalizeHeroStyles = (variant, styles, themeColors = null) => {
+    const normalizedVariant = normalizeHeroVariant(variant);
     const defaults = getDefaultHeroStyles(variant);
     const source = styles && typeof styles === 'object' ? styles : {};
+    const themeMap = HERO_THEME_TOKEN_MAP[normalizedVariant] || {};
     const next = { ...defaults };
+
     Object.keys(defaults).forEach((key) => {
-        if (typeof source[key] === 'string' && source[key].trim().length > 0) {
-            next[key] = source[key];
+        const override = source[key];
+        if (typeof override === 'string' && override.trim().length > 0) {
+            next[key] = override;
+            return;
+        }
+        const tokenName = themeMap[key];
+        if (tokenName && themeColors && typeof themeColors[tokenName] === 'string' && themeColors[tokenName].length > 0) {
+            next[key] = themeColors[tokenName];
         }
     });
+
     return next;
 };
