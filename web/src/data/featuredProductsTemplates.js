@@ -104,14 +104,70 @@ export const getDefaultFeaturedStyles = (variant) => {
     return { ...(STYLE_DEFAULTS_BY_VARIANT[normalizedVariant] || {}) };
 };
 
-export const normalizeFeaturedStyles = (variant, styles) => {
+// Slot de color → token de tema. Slots ausentes no heredan del tema.
+export const FEATURED_THEME_TOKEN_MAP = {
+    classic: {
+        titleColor: 'text',
+        accentColor: 'primary',
+        ctaBg: 'primary',
+        ctaTextColor: 'background',
+        cardBg: 'card_bg',
+        borderColor: 'border',
+    },
+    modern: {
+        titleColor: 'text',
+        accentColor: 'primary',
+        ctaBg: 'primary',
+        ctaTextColor: 'background',
+        cardBg: 'card_bg',
+        borderColor: 'border',
+        sectionBg: 'background',
+    },
+    high_energy: {
+        titleColor: 'text',
+        accentColor: 'accent',
+        ctaBg: 'primary',
+        ctaTextColor: 'background',
+    },
+    luxury: {
+        titleColor: 'text',
+        accentColor: 'accent',
+        buttonBackgroundColor: 'primary',
+        buttonTextColor: 'background',
+        borderColor: 'border',
+    },
+    masonry: {
+        titleColor: 'text',
+        accentColor: 'primary',
+    },
+    snap: {
+        titleColor: 'text',
+        accentColor: 'primary',
+    },
+    minimal: {
+        titleColor: 'text',
+        accentColor: 'primary',
+    },
+};
+
+export const normalizeFeaturedStyles = (variant, styles, themeColors = null) => {
+    const normalizedVariant = normalizeFeaturedVariant(variant);
     const defaults = getDefaultFeaturedStyles(variant);
     const source = styles && typeof styles === 'object' ? styles : {};
+    const themeMap = FEATURED_THEME_TOKEN_MAP[normalizedVariant] || {};
     const next = { ...defaults };
+
     Object.keys(defaults).forEach((key) => {
-        if (typeof source[key] === 'string' && source[key].trim().length > 0) {
-            next[key] = source[key];
+        const override = source[key];
+        if (typeof override === 'string' && override.trim().length > 0) {
+            next[key] = override;
+            return;
+        }
+        const tokenName = themeMap[key];
+        if (tokenName && themeColors && typeof themeColors[tokenName] === 'string' && themeColors[tokenName].length > 0) {
+            next[key] = themeColors[tokenName];
         }
     });
+
     return next;
 };
