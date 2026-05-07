@@ -15,19 +15,19 @@ import {
 } from '@phosphor-icons/react';
 
 const HOME_SECTION_TYPES = [
-    { type: 'HeroSlider', label: 'Hero Slider' },
-    { type: 'BrandMarquee', label: 'Marcas en movimiento' },
+    { type: 'HeroSlider', label: 'Banner Principal' },
+    { type: 'BrandMarquee', label: 'Marcas en Movimiento' },
     { type: 'FeaturedProducts', label: 'Productos Destacados' },
     { type: 'Services', label: 'Servicios / Beneficios' },
 ];
 
 const ABOUT_SECTION_TYPES = [
-    { type: 'AboutHero', label: 'Hero Sobre Nosotros' },
+    { type: 'AboutHero', label: 'Portada Sobre Nosotros' },
     { type: 'AboutMission', label: 'Mision' },
     { type: 'AboutStats', label: 'Numeros' },
     { type: 'AboutValues', label: 'Valores' },
     { type: 'AboutTeam', label: 'Equipo' },
-    { type: 'AboutCTA', label: 'CTA' },
+    { type: 'AboutCTA', label: 'Llamada a la Accion' },
 ];
 
 const createLocalId = () =>

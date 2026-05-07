@@ -1,10 +1,10 @@
 export const FEATURED_VARIANT_OPTIONS = [
-    { value: 'classic', label: 'Clasico (actual)' },
-    { value: 'modern', label: 'Grid moderno' },
-    { value: 'high_energy', label: 'Grid alta energia' },
-    { value: 'luxury', label: 'Grid luxury' },
-    { value: 'masonry', label: 'Masonry Asimétrico' },
-    { value: 'snap', label: 'Carrusel Snap' },
+    { value: 'classic', label: 'Clasico' },
+    { value: 'modern', label: 'Grilla Moderna' },
+    { value: 'high_energy', label: 'Grilla Alta Energia' },
+    { value: 'luxury', label: 'Grilla Lujo' },
+    { value: 'masonry', label: 'Mosaico Asimetrico' },
+    { value: 'snap', label: 'Carrusel Deslizante' },
     { value: 'minimal', label: 'Lista Minimalista' },
 ];
 

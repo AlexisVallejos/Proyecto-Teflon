@@ -1,12 +1,12 @@
 export const HERO_VARIANT_OPTIONS = [
-    { value: 'classic', label: 'Clásico (Estandar)' },
-    { value: 'modernist', label: 'Modernist Premium' },
-    { value: 'modernist_centered', label: 'Modernist Centered' },
-    { value: 'modern_boutique', label: 'Modern Boutique' },
-    { value: 'fashion', label: 'Fashion Minimal' },
-    { value: 'home_decor', label: 'Home Decor' },
-    { value: 'sanitarios_industrial', label: 'Industrial Showcase' },
-    { value: 'corporate', label: 'Corporate Clean' },
+    { value: 'classic', label: 'Clasico' },
+    { value: 'modernist', label: 'Moderno Premium' },
+    { value: 'modernist_centered', label: 'Moderno Centrado' },
+    { value: 'modern_boutique', label: 'Boutique Moderno' },
+    { value: 'fashion', label: 'Moda Minimal' },
+    { value: 'home_decor', label: 'Decoracion Hogar' },
+    { value: 'sanitarios_industrial', label: 'Industrial Vitrina' },
+    { value: 'corporate', label: 'Corporativo Limpio' },
 ];
 
 export const HERO_COLOR_FIELDS = {
@@ -91,10 +91,17 @@ export const HERO_COLOR_FIELDS = {
         { key: 'overlayColor', label: 'Overlay (gradiente)' },
     ],
     classic: [
-        { key: 'titleColor', label: 'Titulos' },
-        { key: 'textColor', label: 'Texto descriptivo' },
-        { key: 'primaryButtonBgColor', label: 'Boton (fondo)' },
-        { key: 'primaryButtonTextColor', label: 'Boton (texto)' },
+        { key: 'titleHexColor', label: 'Titulo' },
+        { key: 'subtitleHexColor', label: 'Subtitulo' },
+        { key: 'overlayColor', label: 'Overlay del fondo' },
+        { key: 'tagTextColor', label: 'Etiqueta (texto)' },
+        { key: 'tagBgColor', label: 'Etiqueta (fondo)' },
+        { key: 'tagBorderColor', label: 'Etiqueta (borde)' },
+        { key: 'primaryButtonBgColor', label: 'Boton primario (fondo)' },
+        { key: 'primaryButtonTextColor', label: 'Boton primario (texto)' },
+        { key: 'secondaryButtonBgColor', label: 'Boton secundario (fondo)' },
+        { key: 'secondaryButtonTextColor', label: 'Boton secundario (texto)' },
+        { key: 'secondaryButtonBorderColor', label: 'Boton secundario (borde)' },
     ],
     corporate: [
         { key: 'titleColor', label: 'Titulos' },
@@ -234,6 +241,19 @@ const SLIDE_DEFAULTS_BY_VARIANT = {
 };
 
 const STYLE_DEFAULTS_BY_VARIANT = {
+    classic: {
+        titleHexColor: '#ffffff',
+        subtitleHexColor: '#f4f4f5',
+        overlayColor: '#000000',
+        tagTextColor: '#ea580c',
+        tagBgColor: 'rgba(234, 88, 12, 0.2)',
+        tagBorderColor: 'transparent',
+        primaryButtonBgColor: '#ea580c',
+        primaryButtonTextColor: '#ffffff',
+        secondaryButtonBgColor: 'transparent',
+        secondaryButtonTextColor: '#ffffff',
+        secondaryButtonBorderColor: '#ffffff',
+    },
     modernist: {
         titleColor: '#000000',
         textColor: '#444748',
@@ -385,10 +405,16 @@ export const normalizeHeroSlides = (variant, slides) => {
 // Slot de color → token de tema. Slots ausentes no heredan del tema (solo hardcoded).
 export const HERO_THEME_TOKEN_MAP = {
     classic: {
-        titleColor: 'text',
-        textColor: 'secondary',
+        titleHexColor: 'text',
+        subtitleHexColor: 'secondary',
+        overlayColor: 'background',
+        tagTextColor: 'primary',
+        tagBgColor: 'primary',
+        tagBorderColor: 'primary',
         primaryButtonBgColor: 'primary',
         primaryButtonTextColor: 'background',
+        secondaryButtonTextColor: 'text',
+        secondaryButtonBorderColor: 'text',
     },
     modernist: {
         titleColor: 'text',

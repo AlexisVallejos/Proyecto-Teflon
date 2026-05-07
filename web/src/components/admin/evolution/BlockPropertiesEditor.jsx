@@ -47,17 +47,17 @@ const compactFieldClass =
     'admin-input-field w-full rounded-lg border px-2.5 py-2 text-xs outline-none transition-all duration-200';
 
 const HERO_EXAMPLE_BY_VARIANT = {
-    classic: 'Hero clasico de portada',
+    classic: 'Banner clasico de portada',
     fashion: 'Plantilla editorial de moda',
-    home_decor: 'Plantilla estilo hogar/deco',
-    sanitarios_industrial: 'Plantilla industrial tipo showcase',
+    home_decor: 'Plantilla estilo hogar / decoracion',
+    sanitarios_industrial: 'Plantilla industrial tipo vitrina',
 };
 
 const FEATURED_EXAMPLE_BY_VARIANT = {
-    classic: 'Grid clasico de productos',
-    modern: 'Grid moderno minimal',
-    high_energy: 'Grid dinamico alta energia',
-    luxury: 'Grid estilo premium/luxury',
+    classic: 'Grilla clasica de productos',
+    modern: 'Grilla moderna minimalista',
+    high_energy: 'Grilla dinamica alta energia',
+    luxury: 'Grilla estilo premium / lujo',
 };
 
 const HERO_CLASSIC_COLOR_FIELDS = [
