@@ -452,8 +452,8 @@ export default function Header({
         </div>
 
         <div className="border-t border-[#e4e9ef] dark:border-[#3d2f21]">
-          <nav className="hidden h-12 items-center justify-center gap-9 px-4 md:flex">
-            <div className="group relative h-full">
+          <nav className="relative hidden h-12 items-center justify-center gap-9 px-4 md:flex">
+            <div className="group h-full">
               <button
                 type="button"
                 onClick={() => navigate("/catalog")}
