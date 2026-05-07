@@ -1,7 +1,11 @@
 import React from "react";
 import { navigate } from "../../utils/navigation";
+import { useStorefrontThemeColors } from "../../context/ThemeContext";
+import { normalizeHeroStyles } from "../../data/heroSliderTemplates";
 
-export default function HeroCorporateSlider({ slides = [], styles = {}, editor = null }) {
+export default function HeroCorporateSlider({ slides = [], styles: rawStyles = {}, editor = null }) {
+    const themeColors = useStorefrontThemeColors();
+    const styles = normalizeHeroStyles('corporate', rawStyles, themeColors);
     const slide = slides[0] || {};
     const { title = "Elevate Your Business", subtitle = "Enterprise-grade solutions for modern demands.", image = "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop", primaryButtonLabel = "Contact Us" } = slide;
 

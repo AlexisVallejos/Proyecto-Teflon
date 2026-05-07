@@ -8,6 +8,7 @@ import HeroModernistCenteredSlider from "./HeroModernistCenteredSlider";
 import HeroBoutiqueSlider from "./HeroBoutiqueSlider";
 import HeroCorporateSlider from "./HeroCorporateSlider";
 import { normalizeHeroSlides, normalizeHeroStyles, normalizeHeroVariant } from "../../data/heroSliderTemplates";
+import { useStorefrontThemeColors } from "../../context/ThemeContext";
 
 function ClassicHeroSlider({
   title = "Tu negocio online, listo para vender",
@@ -16,9 +17,11 @@ function ClassicHeroSlider({
   image = "https://lh3.googleusercontent.com/aida-public/AB6AXuAsE3UyUs8hwy2ulbda_AkoJgM8Dt4ADPYbA-N4JuZyG7V0vY4q6cc-Tt89t4P27xMxKmcjbMRSj4N02izzDB8sxKnPwkQT6oyUKxlUSIDxrIG34D9wU86tDWjBT-0y3V2Z_OLjdxCgq5XnSZfNN_gaFHdyDgF3Yqu1LH2AdPc8uRelPjbm_EzN2gggEAeP5ZoaAymWqHgYvaOW7zs6nmpnzlMDbxoDHw2MGpOOxIcYt6nSxjDnngClgvhP9eojjcdPz_JpCIAFFZA",
   primaryButton = { label: "Ver catalogo", link: "/catalog" },
   secondaryButton = { label: "Conocer la marca", link: "/about" },
-  styles = {},
+  styles: rawStyles = {},
   editor = null,
 }) {
+  const themeColors = useStorefrontThemeColors();
+  const styles = { ...(rawStyles || {}), ...normalizeHeroStyles('classic', rawStyles, themeColors) };
   const {
     titleSize = "text-5xl lg:text-6xl",
     titleColor = "text-white",
@@ -281,12 +284,13 @@ function ClassicHeroSlider({
 
 export default function HeroSlider(props) {
   const variant = normalizeHeroVariant(props?.variant);
+  const rawStyles = props?.styles;
 
   if (variant === "fashion") {
     return (
       <FashionHeroSlider
         slides={normalizeHeroSlides("fashion", props?.slides)}
-        styles={normalizeHeroStyles("fashion", props?.styles)}
+        styles={rawStyles}
       />
     );
   }
@@ -295,7 +299,7 @@ export default function HeroSlider(props) {
     return (
       <HomeDecorHeroSlider
         slides={normalizeHeroSlides("home_decor", props?.slides)}
-        styles={normalizeHeroStyles("home_decor", props?.styles)}
+        styles={rawStyles}
       />
     );
   }
@@ -304,7 +308,7 @@ export default function HeroSlider(props) {
     return (
       <SanitariosIndustrialHeroSlider
         slides={normalizeHeroSlides("sanitarios_industrial", props?.slides)}
-        styles={normalizeHeroStyles("sanitarios_industrial", props?.styles)}
+        styles={rawStyles}
       />
     );
   }
@@ -313,7 +317,7 @@ export default function HeroSlider(props) {
     return (
       <HeroModernistSlider
         slides={normalizeHeroSlides("modernist", props?.slides)}
-        styles={normalizeHeroStyles("modernist", props?.styles)}
+        styles={rawStyles}
         editor={props?.editor}
       />
     );
@@ -323,7 +327,7 @@ export default function HeroSlider(props) {
     return (
       <HeroModernistCenteredSlider
         slides={normalizeHeroSlides("modernist_centered", props?.slides)}
-        styles={normalizeHeroStyles("modernist_centered", props?.styles)}
+        styles={rawStyles}
         editor={props?.editor}
       />
     );
@@ -333,13 +337,13 @@ export default function HeroSlider(props) {
     return (
       <HeroBoutiqueSlider
         slides={normalizeHeroSlides("modern_boutique", props?.slides)}
-        styles={normalizeHeroStyles("modern_boutique", props?.styles)}
+        styles={rawStyles}
         editor={props?.editor}
       />
     );
   }
 
-  if (variant === "corporate") return <HeroCorporateSlider slides={normalizeHeroSlides("corporate", props?.slides)} styles={normalizeHeroStyles("corporate", props?.styles)} editor={props?.editor} />;
+  if (variant === "corporate") return <HeroCorporateSlider slides={normalizeHeroSlides("corporate", props?.slides)} styles={rawStyles} editor={props?.editor} />;
 
   return <ClassicHeroSlider {...props} />;
 }

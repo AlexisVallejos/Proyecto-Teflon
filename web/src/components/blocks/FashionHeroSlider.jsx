@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { navigate } from '../../utils/navigation';
 import { normalizeHeroStyles } from '../../data/heroSliderTemplates';
+import { useStorefrontThemeColors } from '../../context/ThemeContext';
 
 const DEFAULT_SLIDES = [
     {
@@ -48,7 +49,8 @@ const cleanSlides = (slides) => {
 
 export default function FashionHeroSlider({ slides = [], styles = {} }) {
     const normalizedSlides = useMemo(() => cleanSlides(slides), [slides]);
-    const colors = useMemo(() => normalizeHeroStyles('fashion', styles), [styles]);
+    const themeColors = useStorefrontThemeColors();
+    const colors = useMemo(() => normalizeHeroStyles('fashion', styles, themeColors), [styles, themeColors]);
     const [current, setCurrent] = useState(0);
     const [animating, setAnimating] = useState(false);
     const [direction, setDirection] = useState('next');

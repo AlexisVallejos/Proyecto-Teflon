@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { navigate } from '../../utils/navigation';
 import { normalizeHeroStyles } from '../../data/heroSliderTemplates';
+import { useStorefrontThemeColors } from '../../context/ThemeContext';
 
 const DEFAULT_SLIDES = [
     {
@@ -73,7 +74,8 @@ const MOTION_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
 export default function SanitariosIndustrialHeroSlider({ slides = [], styles = {} }) {
     const normalizedSlides = useMemo(() => cleanSlides(slides), [slides]);
-    const colors = useMemo(() => normalizeHeroStyles('sanitarios_industrial', styles), [styles]);
+    const themeColors = useStorefrontThemeColors();
+    const colors = useMemo(() => normalizeHeroStyles('sanitarios_industrial', styles, themeColors), [styles, themeColors]);
     const [current, setCurrent] = useState(0);
     const [hovered, setHovered] = useState(false);
     const [direction, setDirection] = useState('next');

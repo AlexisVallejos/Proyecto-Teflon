@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { navigate } from "../../utils/navigation";
+import { useStorefrontThemeColors } from "../../context/ThemeContext";
+import { normalizeHeroStyles } from "../../data/heroSliderTemplates";
 
-export default function HeroModernistCenteredSlider({ slides = [], styles = {}, editor = null }) {
+export default function HeroModernistCenteredSlider({ slides = [], styles: rawStyles = {}, editor = null }) {
     const [activeIndex, setActiveIndex] = useState(0);
+    const themeColors = useStorefrontThemeColors();
+    const styles = normalizeHeroStyles('modernist_centered', rawStyles, themeColors);
 
     useEffect(() => {
         if (!slides.length || slides.length < 2 || editor?.enabled) return;
