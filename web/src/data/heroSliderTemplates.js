@@ -405,16 +405,13 @@ export const normalizeHeroSlides = (variant, slides) => {
 // Slot de color → token de tema. Slots ausentes no heredan del tema (solo hardcoded).
 export const HERO_THEME_TOKEN_MAP = {
     classic: {
-        titleHexColor: 'text',
-        subtitleHexColor: 'secondary',
-        overlayColor: 'background',
+        // titleHexColor y subtitleHexColor NO se enchufan al tema:
+        // el hero clasico va sobre imagen con overlay oscuro, default claro hardcoded.
         tagTextColor: 'primary',
         tagBgColor: 'primary',
         tagBorderColor: 'primary',
         primaryButtonBgColor: 'primary',
         primaryButtonTextColor: 'background',
-        secondaryButtonTextColor: 'text',
-        secondaryButtonBorderColor: 'text',
     },
     modernist: {
         titleColor: 'text',
