@@ -48,3 +48,20 @@ export const getStorefrontThemePreset = (mode, currentTheme = {}) => {
         catalog: getCatalogThemePreset(mode, currentTheme),
     };
 };
+
+export const getStorefrontThemeColorTokens = (theme = {}, mode = 'light') => {
+    const preset = getStorefrontThemePreset(mode, theme || {});
+    const catalog = preset.catalog || {};
+    return {
+        primary: preset.primary || '',
+        accent: preset.accent || preset.primary || '',
+        background: preset.background || '',
+        text: preset.text || '',
+        secondary: preset.secondary || '',
+        panel_bg: catalog.panel_bg || '',
+        card_bg: catalog.card_bg || '',
+        surface_bg: catalog.surface_bg || '',
+        border: catalog.border || '',
+        muted_text: catalog.muted_text || '',
+    };
+};
