@@ -177,6 +177,20 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
         updateTheme(getStorefrontThemePreset(mode));
     };
 
+    const resetStorefrontTheme = () => {
+        const confirmed = window.confirm(
+            '¿Restablecer la paleta a los valores predeterminados? Se perdera cualquier color personalizado del storefront.'
+        );
+        if (!confirmed) return;
+        setSettings((prev) => ({
+            ...prev,
+            theme: {
+                ...DEFAULT_STOREFRONT_LIGHT_THEME,
+                admin_panel: prev?.theme?.admin_panel,
+            },
+        }));
+    };
+
     const applyAdminThemePreset = (mode) => {
         updateAdminTheme(mode === 'light' ? LIGHT_ADMIN_PANEL_THEME : DEFAULT_ADMIN_PANEL_THEME);
     };
@@ -311,9 +325,19 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <div className="mb-4 space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Paleta base interactiva</p>
-                            <p className="text-xs text-zinc-500">Haz clic en los colores para personalizarlos.</p>
+                        <div className="mb-4 flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Paleta base interactiva</p>
+                                <p className="text-xs text-zinc-500">Haz clic en los colores para personalizarlos.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={resetStorefrontTheme}
+                                className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                                title="Vuelve los colores a los valores predeterminados"
+                            >
+                                Restablecer paleta
+                            </button>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                             <ColorField
