@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react';
 import {
     HERO_COLOR_FIELDS,
+    HERO_THEME_TOKEN_MAP,
     HERO_VARIANT_OPTIONS,
     createEmptyHeroSlide,
     getDefaultHeroSlides,
@@ -25,10 +26,13 @@ import {
 } from '../../../data/heroSliderTemplates';
 import {
     FEATURED_COLOR_FIELDS,
+    FEATURED_THEME_TOKEN_MAP,
     FEATURED_VARIANT_OPTIONS,
     normalizeFeaturedStyles,
     normalizeFeaturedVariant,
 } from '../../../data/featuredProductsTemplates';
+import { useStorefrontThemeColors } from '../../../context/ThemeContext';
+import ThemeAwareColorInput from './ThemeAwareColorInput';
 import {
     BRAND_MARQUEE_SPEED_OPTIONS,
     getDefaultBrandMarqueeProps,
@@ -343,7 +347,10 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
 
     const heroColorFields = HERO_COLOR_FIELDS[heroVariant] || [];
     const featuredColorFields = FEATURED_COLOR_FIELDS[featuredVariant] || [];
-    const featuredStyles = normalizeFeaturedStyles(featuredVariant, block.props?.styles);
+    const themeColors = useStorefrontThemeColors();
+    const featuredStyles = normalizeFeaturedStyles(featuredVariant, block.props?.styles, themeColors);
+    const heroThemeMap = HERO_THEME_TOKEN_MAP[heroVariant] || {};
+    const featuredThemeMap = FEATURED_THEME_TOKEN_MAP[featuredVariant] || {};
     const brandMarqueeDefaults = useMemo(() => getDefaultBrandMarqueeProps(), []);
     const brandMarqueeItems = useMemo(
         () => normalizeBrandMarqueeItems(block.props?.items),
@@ -672,15 +679,19 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                 <div className={panelClass}>
                     <SectionHeading icon={Palette}>Colores del slider</SectionHeading>
                     <div className="grid grid-cols-1 gap-2">
-                        {heroColorFields.map((field) => (
-                            <ColorField
-                                key={field.key}
-                                label={field.label}
-                                value={block.props?.styles?.[field.key]}
-                                defaultColor={normalizeHeroStyles(heroVariant, block.props?.styles)?.[field.key] || '#000000'}
-                                onChange={(value) => handleStyleChange(field.key, value)}
-                            />
-                        ))}
+                        {heroColorFields.map((field) => {
+                            const tokenName = heroThemeMap[field.key];
+                            const themeFallback = tokenName ? themeColors[tokenName] : '';
+                            return (
+                                <ThemeAwareColorInput
+                                    key={field.key}
+                                    label={field.label}
+                                    value={block.props?.styles?.[field.key] || ''}
+                                    themeFallback={themeFallback || normalizeHeroStyles(heroVariant, block.props?.styles, themeColors)?.[field.key] || '#000000'}
+                                    onChange={(value) => handleStyleChange(field.key, value)}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
             ) : null}
@@ -750,15 +761,19 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                 <div className={panelClass}>
                     <SectionHeading icon={Palette}>Colores del modulo</SectionHeading>
                     <div className="grid grid-cols-1 gap-2">
-                        {featuredColorFields.map((field) => (
-                            <ColorField
-                                key={field.key}
-                                label={field.label}
-                                value={block.props?.styles?.[field.key]}
-                                defaultColor={featuredStyles[field.key] || '#000000'}
-                                onChange={(value) => handleStyleChange(field.key, value)}
-                            />
-                        ))}
+                        {featuredColorFields.map((field) => {
+                            const tokenName = featuredThemeMap[field.key];
+                            const themeFallback = tokenName ? themeColors[tokenName] : '';
+                            return (
+                                <ThemeAwareColorInput
+                                    key={field.key}
+                                    label={field.label}
+                                    value={block.props?.styles?.[field.key] || ''}
+                                    themeFallback={themeFallback || featuredStyles[field.key] || '#000000'}
+                                    onChange={(value) => handleStyleChange(field.key, value)}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
             ) : null}
