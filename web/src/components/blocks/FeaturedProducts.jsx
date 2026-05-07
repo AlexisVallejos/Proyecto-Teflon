@@ -287,7 +287,7 @@ export default function FeaturedProducts({
         subtitle={subtitle}
         ctaLabel={ctaLabel}
         ctaLink={ctaLink}
-        styles={normalizeFeaturedStyles("modern", styles)}
+        styles={styles}
         onOpenProduct={openProduct}
         onAddToCart={addProductToCart}
         showPricesEnabled={showPricesEnabled}
@@ -305,7 +305,7 @@ export default function FeaturedProducts({
         subtitle={subtitle}
         ctaLabel={ctaLabel}
         ctaLink={ctaLink}
-        styles={normalizeFeaturedStyles("high_energy", styles)}
+        styles={styles}
         onOpenProduct={openProduct}
         onAddToCart={addProductToCart}
         showPricesEnabled={showPricesEnabled}
@@ -323,7 +323,7 @@ export default function FeaturedProducts({
         subtitle={subtitle}
         ctaLabel={ctaLabel}
         ctaLink={ctaLink}
-        styles={normalizeFeaturedStyles("luxury", styles)}
+        styles={styles}
         onOpenProduct={openProduct}
         onAddToCart={addProductToCart}
         showPricesEnabled={showPricesEnabled}

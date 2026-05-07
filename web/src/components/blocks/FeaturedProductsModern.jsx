@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../utils/navigation';
 import { normalizeFeaturedStyles } from '../../data/featuredProductsTemplates';
+import { useStorefrontThemeColors } from '../../context/ThemeContext';
 import PriceAccessPrompt from '../PriceAccessPrompt';
 
 const openLink = (value) => {
@@ -25,7 +26,8 @@ export default function FeaturedProductsModern({
     canViewPrices = true,
     authLoading = false,
 }) {
-    const colors = normalizeFeaturedStyles('modern', styles);
+    const themeColors = useStorefrontThemeColors();
+    const colors = normalizeFeaturedStyles('modern', styles, themeColors);
     const sliderRef = useRef(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [isMobile, setIsMobile] = useState(false);

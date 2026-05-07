@@ -136,18 +136,7 @@ export const FEATURED_THEME_TOKEN_MAP = {
         buttonTextColor: 'background',
         borderColor: 'border',
     },
-    masonry: {
-        titleColor: 'text',
-        accentColor: 'primary',
-    },
-    snap: {
-        titleColor: 'text',
-        accentColor: 'primary',
-    },
-    minimal: {
-        titleColor: 'text',
-        accentColor: 'primary',
-    },
+    // masonry, snap, minimal: usan clases Tailwind para colores (no hex), no soportan tokens de tema.
 };
 
 export const normalizeFeaturedStyles = (variant, styles, themeColors = null) => {
