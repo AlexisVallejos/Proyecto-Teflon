@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useTenant } from './TenantContext';
 import { getStorefrontThemePreset, getStorefrontThemeColorTokens } from '../utils/storefrontTheme';
 
-const ThemeContext = createContext(null);
+export const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
     const { tenant, settings } = useTenant();

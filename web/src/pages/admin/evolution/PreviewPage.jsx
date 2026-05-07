@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import PageBuilder from '../../../components/PageBuilder';
 import { TenantContext } from '../../../context/TenantContext';
+import { ThemeContext } from '../../../context/ThemeContext';
 import { getStorefrontThemePreset } from '../../../utils/storefrontTheme';
 
 const applyThemeCssVars = (theme = {}) => {
@@ -75,11 +76,26 @@ const PreviewPage = () => {
         [parentTenant?.tenant, parentTenant?.refreshTenantSettings, effectiveSettings]
     );
 
+    const themeValue = useMemo(() => {
+        const configuredTheme = effectiveSettings?.theme || {};
+        const mode = configuredTheme?.mode === 'dark' ? 'dark' : 'light';
+        return {
+            theme: getStorefrontThemePreset(mode, configuredTheme),
+            mode,
+            configuredMode: mode,
+            setMode: () => {},
+            toggleMode: () => {},
+            clearModePreference: () => {},
+        };
+    }, [effectiveSettings?.theme]);
+
     return (
         <TenantContext.Provider value={tenantValue}>
-            <div className="preview-mode bg-white min-h-screen">
-                <PageBuilder sections={sections} />
-            </div>
+            <ThemeContext.Provider value={themeValue}>
+                <div className="preview-mode bg-white min-h-screen">
+                    <PageBuilder sections={sections} />
+                </div>
+            </ThemeContext.Provider>
         </TenantContext.Provider>
     );
 };
