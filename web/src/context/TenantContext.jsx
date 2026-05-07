@@ -127,7 +127,7 @@ const DEFAULT_SETTINGS = {
     },
 };
 
-const TenantContext = createContext(null);
+export const TenantContext = createContext(null);
 
 function mergeTenantSettings(rawSettings = {}) {
     const rawBranding = rawSettings.branding || {};

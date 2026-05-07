@@ -1,43 +1,86 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import PageBuilder from '../../../components/PageBuilder';
-import { useAuth } from '../../../context/AuthContext';
-import { useTenant } from '../../../context/TenantContext';
+import { TenantContext } from '../../../context/TenantContext';
+import { getStorefrontThemePreset } from '../../../utils/storefrontTheme';
+
+const applyThemeCssVars = (theme = {}) => {
+    const root = document.documentElement;
+    const mode = theme?.mode === 'dark' ? 'dark' : 'light';
+    const effective = getStorefrontThemePreset(mode, theme);
+
+    root.classList.toggle('dark', mode === 'dark');
+    root.dataset.theme = mode;
+    root.style.colorScheme = mode;
+
+    const palette = {
+        primary: effective.primary,
+        accent: effective.accent || effective.primary,
+        background: effective.background,
+        text: effective.text,
+        secondary: effective.secondary,
+        ...(effective.colors || {}),
+    };
+    Object.entries(palette).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+            root.style.setProperty(`--color-${key}`, value);
+        }
+    });
+
+    const catalog = effective.catalog || {};
+    Object.entries(catalog).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+            root.style.setProperty(`--catalog-${key.replace(/_/g, '-')}`, value);
+        }
+    });
+
+    const fontFamily = effective.font_family || effective.fontFamily;
+    if (fontFamily) {
+        root.style.setProperty('--font-family', fontFamily);
+    }
+};
 
 const PreviewPage = () => {
     const [sections, setSections] = useState([]);
-    const [settings, setSettings] = useState(null);
+    const [livesSettings, setLiveSettings] = useState(null);
+    const parentTenant = useContext(TenantContext);
 
     useEffect(() => {
         const handleMessage = (event) => {
-            // In a real app, you'd check event.origin for security
-            const { type, data } = event.data;
-
+            const { type, data } = event.data || {};
             if (type === 'EVOLUTION_SYNC_SECTIONS') {
-                setSections(data);
+                setSections(Array.isArray(data) ? data : []);
             } else if (type === 'EVOLUTION_SYNC_SETTINGS') {
-                setSettings(data);
+                setLiveSettings(data);
             }
         };
 
         window.addEventListener('message', handleMessage);
-
-        // Signal that the preview is ready
-        window.parent.postMessage({ type: 'EVOLUTION_PREVIEW_READY' }, '*');
-
+        window.parent?.postMessage({ type: 'EVOLUTION_PREVIEW_READY' }, '*');
         return () => window.removeEventListener('message', handleMessage);
     }, []);
 
-    // Apply basic theme from settings if available
+    const effectiveSettings = livesSettings || parentTenant?.settings || null;
+
     useEffect(() => {
-        if (settings?.theme?.primary) {
-            document.documentElement.style.setProperty('--primary', settings.theme.primary);
-        }
-    }, [settings]);
+        if (!effectiveSettings?.theme) return;
+        applyThemeCssVars(effectiveSettings.theme);
+    }, [effectiveSettings?.theme]);
+
+    const tenantValue = useMemo(
+        () => ({
+            tenant: parentTenant?.tenant || null,
+            settings: effectiveSettings,
+            refreshTenantSettings: parentTenant?.refreshTenantSettings || (() => {}),
+        }),
+        [parentTenant?.tenant, parentTenant?.refreshTenantSettings, effectiveSettings]
+    );
 
     return (
-        <div className="preview-mode bg-white min-h-screen">
-            <PageBuilder sections={sections} />
-        </div>
+        <TenantContext.Provider value={tenantValue}>
+            <div className="preview-mode bg-white min-h-screen">
+                <PageBuilder sections={sections} />
+            </div>
+        </TenantContext.Provider>
     );
 };
 
