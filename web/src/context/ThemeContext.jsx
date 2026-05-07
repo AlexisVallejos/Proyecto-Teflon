@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useTenant } from './TenantContext';
-import { getStorefrontThemePreset } from '../utils/storefrontTheme';
+import { getStorefrontThemePreset, getStorefrontThemeColorTokens } from '../utils/storefrontTheme';
 
 const ThemeContext = createContext(null);
 
@@ -83,3 +83,11 @@ export const ThemeProvider = ({ children }) => {
 };
 
 export const useTheme = () => useContext(ThemeContext);
+
+export const useStorefrontThemeColors = () => {
+    const ctx = useContext(ThemeContext);
+    return useMemo(
+        () => getStorefrontThemeColorTokens(ctx?.theme || {}, ctx?.mode || 'light'),
+        [ctx?.theme, ctx?.mode]
+    );
+};
