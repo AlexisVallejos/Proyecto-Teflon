@@ -324,7 +324,7 @@ const PageSectionsEditor = ({
                 </div>
             </aside>
 
-            <section className="overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-white custom-scrollbar p-2 md:p-0 max-h-[50vh] lg:max-h-full">
+            <section className="storefront-preview-root overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-white custom-scrollbar p-2 md:p-0 max-h-[50vh] lg:max-h-full">
                 <PageBuilder sections={previewSections} />
             </section>
         </div>
