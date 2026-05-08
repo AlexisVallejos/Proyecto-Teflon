@@ -7,7 +7,7 @@ const normalizeAlignment = (value = "text-center") => {
   return value || "text-center";
 };
 
-function ServiceCard({ icon, title, text, description, styles = {} }) {
+function ServiceCard({ icon, image, imageAlt, title, text, description, styles = {} }) {
   const {
     cardBg = "bg-white dark:bg-[#3d2e21]",
     cardBackgroundColor = "",
@@ -43,9 +43,12 @@ function ServiceCard({ icon, title, text, description, styles = {} }) {
     icon.startsWith("/uploads/") ||
     icon.startsWith("data:")
   );
+  const hasImage = typeof image === "string" && image.trim().length > 0;
 
   let iconNode = null;
-  if (React.isValidElement(icon)) {
+  if (hasImage) {
+    iconNode = <img src={image} alt={imageAlt || title || ""} className="h-10 w-10 object-contain" loading="lazy" />;
+  } else if (React.isValidElement(icon)) {
     iconNode = icon;
   } else if (typeof icon === "string") {
     if (ICON_MAP[icon]) {
@@ -133,6 +136,8 @@ export default function Services({
             <ServiceCard
               key={i}
               icon={item.icon}
+              image={item.image}
+              imageAlt={item.imageAlt}
               title={item.title}
               text={item.text}
               description={item.description}

@@ -824,7 +824,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                             onClick={() =>
                                 setArrayProp('items', [
                                     ...items,
-                                    { icon: 'package', title: 'Nuevo beneficio', text: 'Describe en una frase que gana el cliente.' },
+                                    { icon: 'package', image: '', title: 'Nuevo beneficio', text: 'Describe en una frase que gana el cliente.' },
                                 ])
                             }
                             className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-[11px] font-bold text-zinc-300 transition-colors hover:text-white"
@@ -861,6 +861,37 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                                             </option>
                                         ))}
                                     </select>
+                                </div>
+                                <EvolutionInput
+                                    label="Imagen (opcional)"
+                                    value={item?.image || ''}
+                                    onChange={(event) => updateObjectArrayItem('items', index, { image: event.target.value })}
+                                    placeholder="https://... o sube un archivo"
+                                />
+                                <div className="flex items-center gap-2">
+                                    <UploadButton
+                                        busy={uploadingTarget === `services-item-${index}`}
+                                        label="Subir imagen"
+                                        onChange={(event) =>
+                                            handleImageUpload(`services-item-${index}`, event, (value) =>
+                                                updateObjectArrayItem('items', index, { image: value })
+                                            )
+                                        }
+                                    />
+                                    {item?.image ? (
+                                        <>
+                                            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white">
+                                                <img src={item.image} alt={item?.title || `Servicio ${index + 1}`} className="h-full w-full object-cover" />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateObjectArrayItem('items', index, { image: '' })}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-300"
+                                            >
+                                                Quitar imagen
+                                            </button>
+                                        </>
+                                    ) : null}
                                 </div>
                                 <EvolutionInput
                                     label="Titulo"
