@@ -374,10 +374,12 @@ const IntegrationsEditor = ({ manager }) => {
 
                     <EndpointRow label="Prueba de conexion" url={manifest?.endpoints?.ping_url || ''} />
                     <EndpointRow label="Sincronizacion de productos" url={manifest?.endpoints?.sync_products_url || ''} />
+                    <EndpointRow label="Sincronizacion de imagenes FTP" url={manifest?.endpoints?.sync_ftp_images_url || ''} />
                     <EndpointRow label="Esquema JSON del producto" url={manifest?.endpoints?.schema_product_url || ''} />
                     <EndpointRow label="Compatibilidad ping" url={manifest?.compatibility?.endpoints?.ping_url || ''} />
                     <EndpointRow label="Compatibilidad producto" url={manifest?.compatibility?.endpoints?.product_url || ''} />
                     <EndpointRow label="Compatibilidad productos" url={manifest?.compatibility?.endpoints?.products_url || ''} />
+                    <EndpointRow label="Compatibilidad imagenes FTP" url={manifest?.compatibility?.endpoints?.ftp_images_url || ''} />
 
                     <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-white">
                         El stock viaja dentro del mismo item de producto. No hace falta una URL separada de stock si el sistema ya puede enviar JSON de producto.

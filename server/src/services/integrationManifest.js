@@ -113,6 +113,20 @@ const SAMPLE_PAYLOAD = {
   ],
 };
 
+const FTP_IMAGES_SAMPLE_PAYLOAD = {
+  host: 'ftp.cliente.com',
+  user: 'ftp_user',
+  password: 'ftp_password',
+  remote_dir: '/imagenes-productos',
+  options: {
+    dry_run: false,
+    replace_existing_images: false,
+    delete_remote_after_sync: false,
+    skip_admin_locked: true,
+    max_files: 300,
+  },
+};
+
 const LEGACY_SAMPLE_PAYLOAD = {
   source_system: 'gestion-escritorio',
     producto: {
@@ -172,6 +186,7 @@ export const buildProductSyncSchema = (baseUrl) => ({
   endpoints: {
     ping_url: `${baseUrl}/api/v1/integrations/ping`,
     sync_products_url: `${baseUrl}/api/v1/integrations/products/sync`,
+    sync_ftp_images_url: `${baseUrl}/api/v1/integrations/images/ftp/sync`,
     schema_product_url: `${baseUrl}/api/v1/integrations/schema/product`,
   },
   auth: {
@@ -185,9 +200,20 @@ export const buildProductSyncSchema = (baseUrl) => ({
     'El contrato publicado recomienda enviar solo price_1 hasta price_10; los aliases legacy siguen aceptandose solo por compatibilidad interna.',
     'Usa category_path para enviar el arbol Categoria > Gran Familia > Familia. category_id queda reservado para un UUID real de categoria del ecommerce.',
     'Si envias category_path, evita duplicarlo con campos legacy como family, grand_family, familia o gran_familia.',
+    'Para sync FTP de imagenes usa archivos nombrados por codigo interno/SKU (ejemplo: SKU123_1.jpg).',
   ],
   fields: PRODUCT_FIELDS,
   sample_payload: SAMPLE_PAYLOAD,
+  ftp_image_sync: {
+    endpoint_url: `${baseUrl}/api/v1/integrations/images/ftp/sync`,
+    required_scope: 'products:sync',
+    file_naming: {
+      recommended: 'SKU_orden.ext',
+      examples: ['ABC-100_1.jpg', 'ABC-100_2.webp', '789__principal.png'],
+      regex_group_hint: 'Si usas filename_regex, el codigo debe salir en grupo sku, code, codigo o primer grupo.',
+    },
+    sample_payload: FTP_IMAGES_SAMPLE_PAYLOAD,
+  },
 });
 
 export const buildTenantIntegrationManifest = ({ baseUrl, tenantId, tokenRecord = null }) => {
@@ -218,6 +244,7 @@ export const buildTenantIntegrationManifest = ({ baseUrl, tenantId, tokenRecord 
         ping_url: `${baseUrl}/api/v1/integrations/gestion/ping`,
         product_url: `${baseUrl}/api/v1/integrations/gestion/producto`,
         products_url: `${baseUrl}/api/v1/integrations/gestion/productos`,
+        ftp_images_url: `${baseUrl}/api/v1/integrations/gestion/imagenes/ftp`,
       },
       notes: [
         'Pensado para sistemas de gestion que solo permiten configurar Dominio, Consumer Key y Consumer Secret.',

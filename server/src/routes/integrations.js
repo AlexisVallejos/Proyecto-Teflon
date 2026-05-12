@@ -1,8 +1,13 @@
 import { Router } from 'express';
 
-import { syncCompatibilityProductsController, syncProductsController } from '../controllers/integration.controller.js';
+import {
+  getProductSyncSchemaController,
+  syncCompatibilityFtpImagesController,
+  syncCompatibilityProductsController,
+  syncFtpImagesController,
+  syncProductsController,
+} from '../controllers/integration.controller.js';
 import { requireApiScope, validateApiKey, validateCompatibilityConsumerCredentials } from '../middleware/apiKey.js';
-import { buildProductSyncSchema, resolveServerBaseUrl } from '../services/integrationManifest.js';
 import { ensureProductSyncSchema } from '../services/integration.service.js';
 
 export const integrationsRouter = Router();
@@ -16,10 +21,7 @@ integrationsRouter.use(async (req, res, next) => {
   }
 });
 
-integrationsRouter.get('/schema/product', (req, res) => {
-  const baseUrl = resolveServerBaseUrl(req);
-  return res.json(buildProductSyncSchema(baseUrl));
-});
+integrationsRouter.get('/schema/product', getProductSyncSchemaController);
 
 integrationsRouter.get('/ping', validateApiKey, requireApiScope('products:sync'), (req, res) => {
   return res.json({
@@ -32,6 +34,7 @@ integrationsRouter.get('/ping', validateApiKey, requireApiScope('products:sync')
 });
 
 integrationsRouter.post('/products/sync', validateApiKey, requireApiScope('products:sync'), syncProductsController);
+integrationsRouter.post('/images/ftp/sync', validateApiKey, requireApiScope('products:sync'), syncFtpImagesController);
 
 integrationsRouter.get('/gestion/ping', validateCompatibilityConsumerCredentials, requireApiScope('products:sync'), (req, res) => {
   return res.json({
@@ -56,4 +59,7 @@ integrationsRouter.get('/compat/ping', validateCompatibilityConsumerCredentials,
 
 integrationsRouter.post('/gestion/producto', validateCompatibilityConsumerCredentials, requireApiScope('products:sync'), syncCompatibilityProductsController);
 integrationsRouter.post('/gestion/productos', validateCompatibilityConsumerCredentials, requireApiScope('products:sync'), syncCompatibilityProductsController);
+integrationsRouter.post('/gestion/imagenes/ftp', validateCompatibilityConsumerCredentials, requireApiScope('products:sync'), syncCompatibilityFtpImagesController);
+integrationsRouter.post('/gestion/imagenes/sync', validateCompatibilityConsumerCredentials, requireApiScope('products:sync'), syncCompatibilityFtpImagesController);
 integrationsRouter.post('/compat/products/sync', validateCompatibilityConsumerCredentials, requireApiScope('products:sync'), syncCompatibilityProductsController);
+integrationsRouter.post('/compat/images/ftp/sync', validateCompatibilityConsumerCredentials, requireApiScope('products:sync'), syncCompatibilityFtpImagesController);
