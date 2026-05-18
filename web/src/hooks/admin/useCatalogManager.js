@@ -437,10 +437,10 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         }
     }, [addToast, categories, editingProductId, productDraft, resetProductForm, setProducts]);
 
-    const handleDeleteProduct = useCallback(async (id, productName = '') => {
+    const handleDeleteProduct = useCallback(async (id, productName = '', options = {}) => {
         if (!id) return;
         const label = String(productName || 'este producto').trim();
-        if (!window.confirm(`Deseas eliminar ${label}? Esta accion no se puede deshacer.`)) return;
+        if (!options.skipConfirm && !window.confirm(`Deseas eliminar ${label}? Esta accion no se puede deshacer.`)) return;
         setDeleteLoadingId(id);
         try {
             const token = localStorage.getItem('teflon_token');

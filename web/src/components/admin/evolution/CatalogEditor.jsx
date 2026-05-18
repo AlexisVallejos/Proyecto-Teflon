@@ -38,6 +38,7 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [openActionsId, setOpenActionsId] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const normalizedProducts = useMemo(() => {
         return (Array.isArray(products) ? products : [])
@@ -91,7 +92,17 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
         event.stopPropagation();
         setOpenActionsId(null);
         if (typeof onDeleteProduct !== 'function') return;
-        onDeleteProduct(item.id, item.name);
+        setDeleteTarget(item);
+    };
+
+    const closeDeleteModal = () => {
+        setDeleteTarget(null);
+    };
+
+    const confirmDelete = () => {
+        if (!deleteTarget || typeof onDeleteProduct !== 'function') return;
+        onDeleteProduct(deleteTarget.id, deleteTarget.name, { skipConfirm: true });
+        setDeleteTarget(null);
     };
 
     return (
@@ -295,6 +306,47 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                     </button>
                 </div>
             </div>
+
+            {deleteTarget ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 px-4 backdrop-blur-sm"
+                    onClick={closeDeleteModal}
+                >
+                    <div
+                        className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl ring-1 ring-evolution-indigo/20"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="border-b border-white/10 px-5 py-4">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Eliminar producto</p>
+                            <h3 className="mt-2 text-lg font-bold text-white">Confirmar eliminacion</h3>
+                        </div>
+                        <div className="space-y-4 px-5 py-5">
+                            <p className="text-sm leading-6 text-zinc-300">
+                                Deseas eliminar <span className="font-bold text-white">{deleteTarget.name || 'este producto'}</span>? Esta accion no se puede deshacer.
+                            </p>
+                            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[11px] font-medium text-rose-100">
+                                Se quitara del catalogo y de la vista publica de la tienda.
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 border-t border-white/10 bg-white/[0.03] px-5 py-4">
+                            <button
+                                type="button"
+                                onClick={closeDeleteModal}
+                                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDelete}
+                                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white shadow-lg shadow-rose-950/30 transition-colors hover:bg-rose-400"
+                            >
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 };
