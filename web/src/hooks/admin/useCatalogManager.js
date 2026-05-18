@@ -34,14 +34,6 @@ const createEmptyProduct = () => ({
     source_category_path: [],
 });
 
-const readImageAsDataUrl = (file) =>
-    new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-        reader.onerror = (err) => reject(err);
-        reader.readAsDataURL(file);
-    });
-
 const mapSpecificationsObjectToRows = (specifications) => {
     if (!specifications || typeof specifications !== 'object' || Array.isArray(specifications)) {
         return [];
@@ -713,11 +705,27 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         if (!file) return;
         setUploading(true);
         try {
-            const dataUrl = await readImageAsDataUrl(file);
-            if (!dataUrl) {
-                addToast('No se pudo leer la imagen', 'error');
+            const token = localStorage.getItem('teflon_token');
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const headers = {
+                ...getTenantHeaders(),
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            };
+
+            const res = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
+                method: 'POST',
+                headers,
+                body: formData,
+            });
+
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok || !payload?.url) {
+                addToast(payload?.error === 'no_file_uploaded' ? 'No se recibio la imagen' : 'No se pudo subir la imagen', 'error');
                 return;
             }
+
             setProductDraft((prev) => {
                 const currentImages = Array.isArray(prev.images) ? prev.images : [];
                 return {
@@ -725,17 +733,17 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
                     images: [
                         ...currentImages,
                         {
-                            url: dataUrl,
+                            url: payload.url,
                             alt: prev.name || 'Producto',
                             primary: currentImages.length === 0
                         }
                     ]
                 };
             });
-            addToast('Imagen cargada', 'success');
+            addToast('Imagen subida', 'success');
         } catch (err) {
-            console.error('Image read failed', err);
-            addToast('Error al leer la imagen', 'error');
+            console.error('Image upload failed', err);
+            addToast('Error al subir la imagen', 'error');
         } finally {
             setUploading(false);
             event.target.value = '';

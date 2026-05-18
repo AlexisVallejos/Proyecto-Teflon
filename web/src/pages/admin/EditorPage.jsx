@@ -1983,9 +1983,21 @@ useEffect(() => {
 
         setUploading(true);
         try {
-            const dataUrl = await readImageAsDataUrl(file);
-            if (!dataUrl) {
-                alert('No se pudo leer la imagen');
+            const token = localStorage.getItem('teflon_token');
+            const formData = new FormData();
+            formData.append('image', file);
+            const headers = {
+                ...getTenantHeaders(),
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            };
+            const res = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
+                method: 'POST',
+                headers,
+                body: formData,
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok || !payload?.url) {
+                alert('No se pudo subir la imagen');
                 return;
             }
             setNewProduct((prev) => {
@@ -1995,17 +2007,17 @@ useEffect(() => {
                     images: [
                         ...currentImages,
                         {
-                            url: dataUrl,
+                            url: payload.url,
                             alt: prev.name || 'Producto',
                             primary: currentImages.length === 0
                         }
                     ]
                 };
             });
-            showSuccess('Imagen cargada');
+            showSuccess('Imagen subida');
         } catch (err) {
-            console.error('Image read failed', err);
-            alert('Error al leer la imagen');
+            console.error('Image upload failed', err);
+            alert('Error al subir la imagen');
         } finally {
             setUploading(false);
             // Reset file input

@@ -3,6 +3,7 @@ import { pool } from '../db.js';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
+import fs from 'fs';
 import { resolve4, resolveCname } from 'node:dns/promises';
 import { fileURLToPath } from 'url';
 import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
@@ -21,11 +22,13 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const PRODUCT_UPLOAD_DIR = 'uploads/products/';
+fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
 
 // Multer configuration for image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/products/');
+    cb(null, PRODUCT_UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
     const uniqueName = `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname)}`;
