@@ -9,6 +9,7 @@ import {
     DotsThree,
     ArrowUpRight,
     Image as ImageIcon,
+    Trash,
 } from '@phosphor-icons/react';
 
 const getProductImage = (product) => {
@@ -32,10 +33,11 @@ const SYNC_STATUS_LABELS = {
 
 const PRODUCTS_PER_PAGE = 10;
 
-const CatalogEditor = ({ products, onAddItem, onEditProduct }) => {
+const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) => {
     const { selectItem, selectedId } = useEvolutionStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [openActionsId, setOpenActionsId] = useState(null);
 
     const normalizedProducts = useMemo(() => {
         return (Array.isArray(products) ? products : [])
@@ -71,9 +73,25 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct }) => {
         setCurrentPage((prev) => Math.min(prev, totalPages));
     }, [totalPages]);
 
+    useEffect(() => {
+        setOpenActionsId(null);
+    }, [currentPage, searchQuery]);
+
     const handleAdd = () => {
         if (typeof onAddItem !== 'function') return;
         onAddItem('product');
+    };
+
+    const toggleActions = (event, itemId) => {
+        event.stopPropagation();
+        setOpenActionsId((current) => (current === itemId ? null : itemId));
+    };
+
+    const handleDelete = (event, item) => {
+        event.stopPropagation();
+        setOpenActionsId(null);
+        if (typeof onDeleteProduct !== 'function') return;
+        onDeleteProduct(item.id, item.name);
     };
 
     return (
@@ -193,13 +211,39 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct }) => {
                                 </div>
                             </div>
 
-                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                                <button className="rounded-lg border border-white/10 bg-white/10 p-1.5 text-white backdrop-blur-md hover:bg-white/20">
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                                <button
+                                    type="button"
+                                    onClick={(event) => toggleActions(event, item.id)}
+                                    className="rounded-lg border border-white/10 bg-white/10 p-1.5 text-white backdrop-blur-md hover:bg-white/20"
+                                    title="Acciones"
+                                >
                                     <DotsThree size={14} weight="bold" />
                                 </button>
-                                <button className="rounded-lg bg-white p-1.5 text-zinc-900 shadow-xl transition-transform hover:scale-100 scale-90">
+                                <button
+                                    type="button"
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="rounded-lg bg-white p-1.5 text-zinc-900 shadow-xl transition-transform hover:scale-100 scale-90"
+                                    title="Abrir producto"
+                                >
                                     <ArrowUpRight size={14} weight="bold" />
                                 </button>
+
+                                {openActionsId === item.id ? (
+                                    <div
+                                        className="absolute right-0 top-9 z-20 w-44 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 p-1 shadow-2xl backdrop-blur-md"
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={(event) => handleDelete(event, item)}
+                                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-rose-300 transition-colors hover:bg-rose-500/15 hover:text-rose-100"
+                                        >
+                                            <Trash size={14} weight="bold" />
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                     ))}
