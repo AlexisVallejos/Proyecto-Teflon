@@ -1,6 +1,7 @@
 import { syncProductImagesFromFtp } from '../services/integrationFtpImages.service.js';
-import { buildProductSyncSchema, resolveServerBaseUrl } from '../services/integrationManifest.js';
+import { buildProductSyncSchemaForRequest, resolveServerBaseUrl } from '../services/integrationManifest.js';
 import { syncIntegrationProducts } from '../services/integration.service.js';
+import { resolveUploadsPublicBaseUrl } from '../services/uploadPublicUrl.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -189,6 +190,7 @@ async function handleSyncFtpImagesRequest(req, res, next) {
     const result = await syncProductImagesFromFtp({
       tenantId: tenantResolution.tenantId,
       baseUrl: resolveServerBaseUrl(req),
+      uploadsBaseUrl: resolveUploadsPublicBaseUrl(req),
       payload,
     });
 
@@ -225,6 +227,5 @@ export async function syncCompatibilityFtpImagesController(req, res, next) {
 }
 
 export function getProductSyncSchemaController(req, res) {
-  const baseUrl = resolveServerBaseUrl(req);
-  return res.json(buildProductSyncSchema(baseUrl));
+  return res.json(buildProductSyncSchemaForRequest(req));
 }

@@ -21,6 +21,7 @@ import {
   toNumber,
 } from '../services/shipping.js';
 import multer from 'multer';
+import { buildUploadPublicUrl } from '../services/uploadPublicUrl.js';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -1330,9 +1331,7 @@ ordersRouter.post('/:id/proof', proofUpload.single('proof'), async (req, res, ne
       return res.status(403).json({ error: 'forbidden' });
     }
 
-    const host = req.get('host');
-    const protocol = req.protocol;
-    const proofUrl = `${protocol}://${host}/uploads/payments/${req.file.filename}`;
+    const proofUrl = buildUploadPublicUrl(req, `/uploads/payments/${req.file.filename}`);
 
     await pool.query(
       [

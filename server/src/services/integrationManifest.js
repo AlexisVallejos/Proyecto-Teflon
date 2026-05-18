@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { resolveRequestBaseUrl, resolveUploadsPublicBaseUrl } from './uploadPublicUrl.js';
 
 const PRICE_TIER_FIELDS = Array.from({ length: 10 }, (_, index) => ({
   key: `price_${index + 1}`,
@@ -174,9 +175,7 @@ export const resolveServerBaseUrl = (req) => {
     return String(envBase).replace(/\/+$/, '');
   }
 
-  const protocol = req.get('x-forwarded-proto') || req.protocol || 'http';
-  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:4000';
-  return `${protocol}://${host}`.replace(/\/+$/, '');
+  return resolveRequestBaseUrl(req);
 };
 
 export const buildProductSyncSchema = (baseUrl) => ({
@@ -216,8 +215,16 @@ export const buildProductSyncSchema = (baseUrl) => ({
   },
 });
 
-export const buildTenantIntegrationManifest = ({ baseUrl, tenantId, tokenRecord = null }) => {
-  const schema = buildProductSyncSchema(baseUrl);
+export const buildProductSyncSchemaForRequest = (req) => ({
+  ...buildProductSyncSchema(resolveServerBaseUrl(req)),
+  uploads_public_base_url: resolveUploadsPublicBaseUrl(req),
+});
+
+export const buildTenantIntegrationManifest = ({ baseUrl, uploadsBaseUrl = null, tenantId, tokenRecord = null }) => {
+  const schema = {
+    ...buildProductSyncSchema(baseUrl),
+    uploads_public_base_url: uploadsBaseUrl || baseUrl,
+  };
   const consumerKey = tokenRecord?.token_hash || null;
   const consumerSecret = buildProductSyncCompatibilitySecret({
     tenantId,

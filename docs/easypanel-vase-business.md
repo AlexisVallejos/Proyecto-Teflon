@@ -36,8 +36,9 @@ Si tu objetivo inmediato es dejar `vase-business` desplegado y verificable en Ea
 ### 1. Preparar DNS antes del deploy
 
 1. Asegura que `editor.vase.ar` apunte a la IP del servidor donde corre EasyPanel.
-2. Si despues vas a usar storefronts `*.vase.ar`, crea tambien el wildcard DNS correspondiente.
-3. Si quieres TLS automatico para wildcard, configura antes el resolver DNS challenge de Traefik segun la guia oficial de EasyPanel:
+2. Crea tambien `uploads.vase.ar` apuntando a la misma IP del servidor. Ese subdominio se usa como URL publica de archivos subidos/importados por FTP.
+3. Si despues vas a usar storefronts `*.vase.ar`, crea tambien el wildcard DNS correspondiente.
+4. Si quieres TLS automatico para wildcard, configura antes el resolver DNS challenge de Traefik segun la guia oficial de EasyPanel:
    - App Service: https://easypanel.io/docs/services/app
    - Wildcard domain: https://easypanel.io/docs/guides/wildcard-domain
 
@@ -97,12 +98,14 @@ VITE_EDITOR_HOST=editor.vase.ar
 PLATFORM_BASE_DOMAIN=vase.ar
 PLATFORM_CNAME_TARGET=editor.vase.ar
 PLATFORM_APEX_IP=76.13.231.188
+UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar
 ```
 
 Puntos importantes:
 
 - `VITE_API_URL` no hace falta en produccion; el frontend ya usa mismo origen por defecto.
 - `CORS_ORIGIN` puedes dejarlo vacio mientras frontend y backend vivan en el mismo host.
+- `UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar` hace que las imagenes subidas, comprobantes e imagenes importadas desde FTP queden publicadas con ese subdominio.
 - Esta opcion requiere una base PostgreSQL funcional. Si no tienes una, crea una temporal solo para validar este servicio.
 
 #### Opcion B: activar el bridge real con `vase-app`
@@ -126,6 +129,7 @@ VITE_VASE_APP_URL=https://vase.ar
 VITE_VASE_APP_LAUNCH_URL=https://vase.ar/app/business/launch
 VITE_VASE_APP_LOGIN_URL=https://vase.ar/signin
 VITE_VASE_APP_SIGNUP_URL=https://vase.ar/register
+UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar
 ```
 
 Importante:
@@ -133,6 +137,7 @@ Importante:
 - `VASE_BUSINESS_SSO_SECRET` debe existir con el mismo valor en `vase-app` y `vase-business`. Valor definido: `vase091218`.
 - `PLATFORM_BASE_DOMAIN=vase.ar` habilita que cada tenant sin dominio propio reciba automaticamente un subdominio tipo `negocio.vase.ar`.
 - `PLATFORM_CNAME_TARGET=editor.vase.ar` y `PLATFORM_APEX_IP=76.13.231.188` dejan preparado el panel para guiar la conexion de dominios propios hacia el mismo servicio.
+- `UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar` separa la URL publica de archivos del editor. Los archivos siguen guardandose en `/app/server/uploads`.
 - `VITE_VASE_APP_LAUNCH_URL` hace que el login del editor vaya directo al launcher de Business en `vase.ar`.
 - `vase-app` firma un token corto y redirige a `editor.vase.ar/admin/evolution?vase_token=...`.
 - `vase-business` consume ese `vase_token`, hace exchange y deja creada la sesion local del editor.
@@ -166,8 +171,9 @@ No hagas esto:
 Primero agrega:
 
 - `editor.vase.ar`
+- `uploads.vase.ar`
 
-Marcala como primary domain del servicio.
+Marca `editor.vase.ar` como primary domain del servicio. `uploads.vase.ar` puede apuntar al mismo contenedor porque Express ya sirve `/uploads` como carpeta estatica.
 
 Despues, cuando tengas resuelto wildcard y hostname routing:
 
@@ -197,6 +203,18 @@ Haz estas pruebas en este orden:
    - si activaste auth externa, `/login` y `/signup` deben mandar a `vase.ar`.
 5. Uploads:
    - sube una imagen, reinicia el servicio y confirma que el archivo siga existiendo.
+   - abre la URL devuelta por el backend en `https://uploads.vase.ar/uploads/...` y confirma que carga el archivo.
+
+### 9.1 FTP de imagenes con `uploads.vase.ar`
+
+El FTP de imagenes sigue siendo una integracion de entrada: el backend se conecta al FTP configurado, descarga archivos al volumen `/app/server/uploads/products` y guarda en productos la URL publica.
+
+Para que Cristian use el subdominio publico:
+
+1. DNS: `uploads.vase.ar` debe apuntar al mismo servidor de EasyPanel.
+2. EasyPanel: agrega `uploads.vase.ar` como dominio del servicio `vase-business` con HTTPS activo.
+3. Variables: configura `UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar`.
+4. Prueba: ejecuta sync FTP y verifica que las imagenes guardadas en DB empiecen con `https://uploads.vase.ar/uploads/products/`.
 
 ### 10. Activar storefront por hostname despues
 

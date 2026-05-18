@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { Client as FtpClient } from 'basic-ftp';
 import { pool } from '../db.js';
+import { buildUploadPublicUrlFromBase } from './uploadPublicUrl.js';
 
 const DEFAULT_SOURCE_SYSTEM = 'ftp-images-sync';
 const DEFAULT_REMOTE_DIR = '/';
@@ -234,7 +235,7 @@ const resolveProductForCode = (code, lookupMap) => {
   return { product: Array.from(uniqueById.values())[0], ambiguous: false };
 };
 
-const buildPublicImageUrl = (baseUrl, fileName) => `${baseUrl}/uploads/products/${fileName}`;
+const buildPublicImageUrl = (baseUrl, fileName) => buildUploadPublicUrlFromBase(baseUrl, `/uploads/products/${fileName}`);
 
 const isValidImageFileName = (name) => {
   const extension = path.extname(String(name || '')).toLowerCase();
@@ -295,6 +296,7 @@ const mergeImagesForProduct = ({
 export async function syncProductImagesFromFtp({
   tenantId,
   baseUrl,
+  uploadsBaseUrl,
   payload = {},
 }) {
   const ftpConfig = normalizeFtpConfig(payload);
@@ -450,7 +452,7 @@ export async function syncProductImagesFromFtp({
 
           const outputFileName = `${Date.now()}-${crypto.randomUUID()}${extension}`;
           const outputPath = path.join(uploadsDir, outputFileName);
-          const publicUrl = buildPublicImageUrl(baseUrl, outputFileName);
+          const publicUrl = buildPublicImageUrl(uploadsBaseUrl || baseUrl, outputFileName);
 
           if (!options.dryRun) {
             await client.downloadTo(outputPath, fileEntry.remotePath);
@@ -574,4 +576,3 @@ export async function syncProductImagesFromFtp({
     client.close();
   }
 }
-

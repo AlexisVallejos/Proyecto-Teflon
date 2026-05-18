@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
 import { getTenantOffers } from '../services/offers.js';
 import { buildTenantIntegrationManifest, resolveServerBaseUrl } from '../services/integrationManifest.js';
+import { buildUploadPublicUrl, resolveUploadsPublicBaseUrl } from '../services/uploadPublicUrl.js';
 import { applyPriceTierLabels, normalizePriceTierLabels } from '../services/priceTierLabels.js';
 import {
   buildTenantDomainsPayload as buildTenantDomainsPayloadService,
@@ -815,9 +816,11 @@ tenantRouter.get('/integrations/product-sync', async (req, res, next) => {
   try {
     const { tokenRecord, autoCreated } = await ensureProductSyncToken(pool, tenantId);
     const baseUrl = resolveServerBaseUrl(req);
+    const uploadsBaseUrl = resolveUploadsPublicBaseUrl(req);
     return res.json({
       ...buildTenantIntegrationManifest({
         baseUrl,
+        uploadsBaseUrl,
         tenantId,
         tokenRecord,
       }),
@@ -854,10 +857,12 @@ tenantRouter.post('/integrations/product-sync/token/rotate', async (req, res, ne
 
     await client.query('COMMIT');
     const baseUrl = resolveServerBaseUrl(req);
+    const uploadsBaseUrl = resolveUploadsPublicBaseUrl(req);
 
     return res.json({
       ...buildTenantIntegrationManifest({
         baseUrl,
+        uploadsBaseUrl,
         tenantId,
         tokenRecord: insertRes.rows[0],
       }),
@@ -2386,10 +2391,7 @@ tenantRouter.post('/products/upload-image', upload.single('image'), (req, res, n
       return res.status(400).json({ error: 'no_file_uploaded' });
     }
 
-    // Generate public URL for the uploaded image
-    const protocol = req.get('x-forwarded-proto') || req.protocol;
-    const host = req.get('host');
-    const imageUrl = `${protocol}://${host}/uploads/products/${req.file.filename}`;
+    const imageUrl = buildUploadPublicUrl(req, `/uploads/products/${req.file.filename}`);
 
     return res.json({ url: imageUrl, filename: req.file.filename });
   } catch (err) {
