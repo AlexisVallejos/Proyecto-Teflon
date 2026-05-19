@@ -312,6 +312,8 @@ export async function exchangeVaseLaunchToken(rawToken) {
 
     const token = signToken({
       sub: user.id,
+      email: user.email,
+      username: user.email.split('@')[0],
       role: user.role,
       status: user.status,
       tenant_id: tenant.id,

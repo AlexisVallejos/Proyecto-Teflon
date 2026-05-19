@@ -1,0 +1,31 @@
+services:
+  uploads-service:
+    build:
+      context: ./uploads-service
+    container_name: vase-uploads-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET with the same value used by vase.ar}
+      JWT_ISSUER: ${JWT_ISSUER:-}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-}
+      UPLOADS_ROOT: /data/uploads
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://uploads.vase.ar}
+      PUBLIC_URL_SECRET: ${PUBLIC_URL_SECRET:?Set PUBLIC_URL_SECRET}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-50}
+      PUBLIC_LINK_TTL_SECONDS: ${PUBLIC_LINK_TTL_SECONDS:-604800}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://vase.ar,https://editor.vase.ar}
+    ports:
+      - "3010:3010"
+    volumes:
+      - vase_uploads_data:/data/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  vase_uploads_data:
+    name: vase_uploads_data

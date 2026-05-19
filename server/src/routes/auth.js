@@ -255,7 +255,14 @@ authRouter.post('/bootstrap', async (req, res, next) => {
     );
 
     const user = insertRes.rows[0];
-    const token = signToken({ sub: user.id, role: user.role, status: user.status, tenant_id: null });
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      username: user.email.split('@')[0],
+      role: user.role,
+      status: user.status,
+      tenant_id: null,
+    });
     return res.status(201).json({ token, user });
   } catch (err) {
     return next(err);
@@ -316,7 +323,14 @@ authRouter.post('/login', async (req, res, next) => {
         return res.status(403).json({ error: 'pending_approval' });
       }
     }
-    const token = signToken({ sub: user.id, role, status, tenant_id: tenantId });
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      username: user.email.split('@')[0],
+      role,
+      status,
+      tenant_id: tenantId,
+    });
     return res.json({
       token,
       user: { id: user.id, email: user.email, role, status, tenant_id: tenantId },
