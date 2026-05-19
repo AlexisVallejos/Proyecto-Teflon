@@ -14,7 +14,7 @@ const splitList = (value) =>
 export const config = {
   env: process.env.NODE_ENV || 'development',
   port: toInt(process.env.PORT, 3010),
-  jwtSecret: process.env.JWT_SECRET || 'dev-secret',
+  jwtSecret: process.env.UPLOADS_JWT_SECRET || process.env.JWT_SECRET || process.env.AUTH_SECRET || 'dev-secret',
   jwtIssuer: process.env.JWT_ISSUER || undefined,
   jwtAudience: process.env.JWT_AUDIENCE || undefined,
   uploadsRoot: path.resolve(process.env.UPLOADS_ROOT || '/data/uploads'),
@@ -36,4 +36,3 @@ export const allowedMimeTypes = new Set([
   'video/quicktime',
   'application/pdf',
 ]);
-

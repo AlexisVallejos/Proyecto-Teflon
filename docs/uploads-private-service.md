@@ -115,12 +115,12 @@ Ver:
 uploads-service/.env.example
 ```
 
-En produccion, `JWT_SECRET` debe ser el mismo secreto usado por el backend principal de `vase.ar`.
+En produccion, `UPLOADS_JWT_SECRET` debe ser el mismo secreto que `vase.ar` use para firmar tokens Bearer de uploads.
 
 ```env
 NODE_ENV=production
 PORT=3010
-JWT_SECRET=EL_MISMO_JWT_SECRET_DE_VASE
+UPLOADS_JWT_SECRET=EL_SECRETO_COMPARTIDO_PARA_UPLOADS
 UPLOADS_ROOT=/data/uploads
 PUBLIC_BASE_URL=https://uploads.vase.ar
 PUBLIC_URL_SECRET=OTRO_SECRETO_LARGO
@@ -166,7 +166,7 @@ Variables:
 ```env
 NODE_ENV=production
 PORT=3010
-JWT_SECRET=EL_MISMO_JWT_SECRET_DE_VASE
+UPLOADS_JWT_SECRET=EL_SECRETO_COMPARTIDO_PARA_UPLOADS
 UPLOADS_ROOT=/data/uploads
 PUBLIC_BASE_URL=https://uploads.vase.ar
 PUBLIC_URL_SECRET=SECRETO_LARGO_DISTINTO
@@ -325,4 +325,3 @@ resolveUserFilePath / read stream equivalente
 ```
 
 Mantener iguales los endpoints y la autenticacion.
-

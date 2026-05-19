@@ -7,7 +7,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3010
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET with the same value used by vase.ar}
+      UPLOADS_JWT_SECRET: ${UPLOADS_JWT_SECRET:?Set UPLOADS_JWT_SECRET with the same value used by vase.ar to sign upload tokens}
+      JWT_SECRET: ${JWT_SECRET:-}
       JWT_ISSUER: ${JWT_ISSUER:-}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-}
       UPLOADS_ROOT: /data/uploads
