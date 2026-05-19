@@ -14,6 +14,7 @@ import { settingsRouter, settingsAdminRouter } from './routes/settings.js';
 import { ordersRouter, adminOrdersRouter } from './routes/orders.js';
 import { webhooksRouter } from './routes/webhooks.js';
 import { integrationsRouter } from './routes/integrations.js';
+import { uploadsRouter } from './routes/uploads.js';
 import { authenticate, optionalAuthenticate, requireRole } from './middleware/auth.js';
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/auth', authRouter);
 app.use('/api/auth', authRouter);
 app.get('/api/me', authenticate, getMeHandler);
 app.use('/api/me', authenticate, meRouter);
+app.use('/api/uploads', authenticate, uploadsRouter);
 app.use('/api/settings', optionalAuthenticate, settingsRouter);
 app.use('/api/orders', optionalAuthenticate, ordersRouter);
 app.use('/public', optionalAuthenticate, publicRouter);

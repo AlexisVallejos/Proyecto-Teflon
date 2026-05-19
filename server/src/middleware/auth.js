@@ -12,6 +12,8 @@ export function authenticate(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = {
       id: payload.sub,
+      email: payload.email || null,
+      username: payload.username || payload.preferred_username || null,
       role: payload.role,
       status: payload.status || 'active',
       tenantId: payload.tenant_id || null,
@@ -30,6 +32,8 @@ export function optionalAuthenticate(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = {
       id: payload.sub,
+      email: payload.email || null,
+      username: payload.username || payload.preferred_username || null,
       role: payload.role,
       status: payload.status || 'active',
       tenantId: payload.tenant_id || null,

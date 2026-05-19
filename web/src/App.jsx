@@ -18,6 +18,7 @@ import AboutPage from './pages/store/AboutPage';
 import LoginPage from './pages/store/LoginPage';
 import SignupPage from './pages/store/SignupPage';
 import ProfilePage from './pages/store/ProfilePage';
+import UploadsPage from './pages/store/UploadsPage';
 import OrderSuccessPage from './pages/store/OrderSuccessPage';
 import OrderDetailPage from './pages/store/OrderDetailPage';
 import TermsPage from './pages/store/TermsPage';
@@ -81,6 +82,7 @@ function AppContent() {
             Component = LoginPage;
         }
     } else if (route === '/profile') Component = ProfilePage;
+    else if (route === '/archivos' || route === '/my-uploads') Component = UploadsPage;
     else if (route === '/catalog') Component = CatalogPage;
     else if (route === '/about' || route === '/sobre-nosotros') Component = AboutPage;
     else if (route === '/cart') Component = CartPage;
