@@ -107,6 +107,37 @@ Devuelve:
 GET /public/:token
 ```
 
+### Imagenes de productos desde `editor.vase.ar`
+
+El flujo recomendado para sistemas de gestion no usa FTP. El programa externo sube la imagen al editor, el editor la guarda en `uploads-service` y devuelve una URL publica estable.
+
+```http
+POST https://editor.vase.ar/api/v1/integrations/images/upload
+x-api-key: TOKEN_DE_INTEGRACION
+x-tenant-id: TENANT_UUID
+Content-Type: multipart/form-data
+```
+
+Campo de archivo:
+
+```txt
+file
+```
+
+Tambien se acepta `image` por compatibilidad.
+
+Respuesta:
+
+```json
+{
+  "ok": true,
+  "url": "https://uploads.vase.ar/public-files/products-TENANT_UUID/archivo.jpg",
+  "public_url": "https://uploads.vase.ar/public-files/products-TENANT_UUID/archivo.jpg"
+}
+```
+
+Esa URL se envia despues en el campo `images` del producto dentro de `/api/v1/integrations/products/sync`.
+
 ## Variables
 
 Ver:

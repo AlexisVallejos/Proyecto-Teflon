@@ -166,8 +166,7 @@ const IntegrationsEditor = ({ manager }) => {
     const configuredApiBase = normalizeUrl(getApiBase());
     const manifestSyncUrl = manifest?.endpoints?.sync_products_url || '';
     const manifestPingUrl = manifest?.endpoints?.ping_url || '';
-    const ftpImagesUrl = manifest?.endpoints?.sync_ftp_images_url || '';
-    const compatFtpImagesUrl = manifest?.compatibility?.endpoints?.ftp_images_url || '';
+    const uploadImageUrl = manifest?.endpoints?.upload_image_url || manifest?.schema?.http_image_upload?.endpoint_url || '';
     const uploadsPublicBaseUrl = manifest?.schema?.uploads_public_base_url || manifest?.uploads_public_base_url || 'https://uploads.vase.ar';
     const currentApiOrigin = getUrlOrigin(configuredApiBase);
     const manifestSyncOrigin = getUrlOrigin(manifestSyncUrl);
@@ -248,63 +247,44 @@ const IntegrationsEditor = ({ manager }) => {
             `  -d '${compactPayload}'`,
         ].join('\n');
     }, [manifest]);
-    const ftpPayload = useMemo(
-        () => JSON.stringify({
-            host: 'FTP_HOST',
-            user: 'FTP_USER',
-            password: 'FTP_PASSWORD',
-            port: 21,
-            secure: false,
-            remote_dir: '/imagenes-productos',
-            options: {
-                dry_run: true,
-                replace_existing_images: false,
-                delete_remote_after_sync: false,
-                skip_admin_locked: true,
-                max_files: 20,
-            },
-        }, null, 2),
-        []
-    );
-    const ftpCurlSnippet = useMemo(() => {
-        if (!ftpImagesUrl || !manifest?.auth?.token || !manifest?.tenant_id) return '';
+    const imageUploadPowerShellSnippet = useMemo(() => {
+        if (!uploadImageUrl || !manifest?.auth?.token || !manifest?.tenant_id) return '';
 
         return [
-            `curl -X POST "${ftpImagesUrl}" \\`,
-            `  -H "Content-Type: application/json" \\`,
+            `curl.exe -X POST "${uploadImageUrl}" \``,
+            `  -H "x-api-key: ${manifest.auth.token}" \``,
+            `  -H "x-tenant-id: ${manifest.tenant_id}" \``,
+            `  -F "file=@C:\\Gestion\\Imagenes\\PROD-1001_1.jpg"`,
+        ].join('\n');
+    }, [manifest, uploadImageUrl]);
+    const imageUploadCurlSnippet = useMemo(() => {
+        if (!uploadImageUrl || !manifest?.auth?.token || !manifest?.tenant_id) return '';
+
+        return [
+            `curl -X POST "${uploadImageUrl}" \\`,
             `  -H "x-api-key: ${manifest.auth.token}" \\`,
             `  -H "x-tenant-id: ${manifest.tenant_id}" \\`,
-            `  -d '${ftpPayload}'`,
+            `  -F "file=@/ruta/imagenes/PROD-1001_1.jpg"`,
         ].join('\n');
-    }, [ftpImagesUrl, ftpPayload, manifest]);
-    const compatFtpCurlSnippet = useMemo(() => {
-        if (!compatFtpImagesUrl || !manifest?.compatibility?.consumer_key || !manifest?.compatibility?.consumer_secret) return '';
-
-        const payload = JSON.stringify({
-            consumer_key: manifest.compatibility.consumer_key,
-            consumer_secret: manifest.compatibility.consumer_secret,
-            host: 'FTP_HOST',
-            user: 'FTP_USER',
-            password: 'FTP_PASSWORD',
-            port: 21,
-            secure: false,
-            remote_dir: '/imagenes-productos',
-            options: {
-                dry_run: true,
-                replace_existing_images: false,
-                delete_remote_after_sync: false,
-                skip_admin_locked: true,
-                max_files: 20,
+    }, [manifest, uploadImageUrl]);
+    const productWithUploadedImageSnippet = useMemo(() => JSON.stringify({
+        source_system: 'sistema-gestion-cliente',
+        items: [
+            {
+                external_id: 'PROD-1001',
+                sku: 'PROD-1001',
+                name: 'Producto ejemplo',
+                price_1: 24990,
+                stock: 15,
+                images: [
+                    {
+                        url: `${uploadsPublicBaseUrl}/public-files/products-${manifest?.tenant_id || 'TENANT_UUID'}/ARCHIVO_DEVUELTO.jpg`,
+                        primary: true,
+                    },
+                ],
             },
-        }, null, 2);
-
-        return [
-            `curl -X POST "${compatFtpImagesUrl}" \\`,
-            `  -H "Content-Type: application/json" \\`,
-            `  -d '${payload}'`,
-        ].join('\n');
-    }, [compatFtpImagesUrl, manifest]);
-
+        ],
+    }, null, 2), [manifest, uploadsPublicBaseUrl]);
     if (loading && !manifest) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
@@ -433,6 +413,7 @@ const IntegrationsEditor = ({ manager }) => {
 
                     <EndpointRow label="Prueba de conexion" url={manifest?.endpoints?.ping_url || ''} />
                     <EndpointRow label="Sincronizacion de productos" url={manifest?.endpoints?.sync_products_url || ''} />
+                    <EndpointRow label="Subida de imagen HTTP" url={uploadImageUrl} />
                     <EndpointRow label="Esquema JSON del producto" url={manifest?.endpoints?.schema_product_url || ''} />
                     <EndpointRow label="Compatibilidad ping" url={manifest?.compatibility?.endpoints?.ping_url || ''} />
                     <EndpointRow label="Compatibilidad producto" url={manifest?.compatibility?.endpoints?.product_url || ''} />
@@ -449,19 +430,18 @@ const IntegrationsEditor = ({ manager }) => {
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
                             <Link size={16} weight="bold" />
-                            Imagenes FTP para Cristian
+                            Imagenes por API para Cristian
                         </div>
                         <p className="max-w-3xl text-[12px] leading-6 text-zinc-400">
-                            El sistema se conecta al FTP de Cristian, descarga las imagenes al volumen del servidor y guarda URLs publicas bajo `uploads.vase.ar`.
-                            Los archivos deben llamarse con el SKU/codigo del producto, por ejemplo `ABC-100_1.jpg`.
+                            Flujo recomendado sin FTP: el actualizador web sube cada imagen por HTTP, recibe una URL publica de `uploads.vase.ar`
+                            y despues manda esa URL dentro de `images` al sincronizar el producto.
                         </p>
                     </div>
-                    <CopyButton value={ftpCurlSnippet} label="Copiar cURL FTP" />
+                    <CopyButton value={imageUploadPowerShellSnippet} label="Copiar PowerShell imagen" />
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-                    <EndpointRow label="Endpoint FTP" url={ftpImagesUrl} />
-                    <EndpointRow label="Endpoint FTP compatibilidad" url={compatFtpImagesUrl} />
+                <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <EndpointRow label="Endpoint subir imagen" url={uploadImageUrl} />
                     <div className="space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
                         <p className="text-[11px] font-bold uppercase tracking-widest text-zinc-500">URL publica de imagenes</p>
                         <div className={codeClass}>{uploadsPublicBaseUrl}</div>
@@ -472,35 +452,35 @@ const IntegrationsEditor = ({ manager }) => {
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                     <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Payload FTP recomendado</p>
-                            <CopyButton value={ftpPayload} label="Copiar JSON FTP" />
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">PowerShell subir imagen</p>
+                            <CopyButton value={imageUploadPowerShellSnippet} label="Copiar PowerShell" />
                         </div>
-                        <pre className={preClass}>{ftpPayload}</pre>
-                        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] leading-5 text-white">
-                            Para la primera prueba dejar `dry_run: true`. Cuando el matching este correcto, cambiarlo a `false`.
+                        <pre className={preClass}>{imageUploadPowerShellSnippet || 'Cargando snippet de imagen...'}</pre>
+                        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-[11px] leading-5 text-emerald-100">
+                            El campo del formulario debe llamarse `file`. Tambien se acepta `image` por compatibilidad.
                         </div>
                     </div>
 
                     <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">cURL FTP con token</p>
-                            <CopyButton value={ftpCurlSnippet} label="Copiar cURL" />
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">cURL subir imagen</p>
+                            <CopyButton value={imageUploadCurlSnippet} label="Copiar cURL" />
                         </div>
-                        <pre className={preClass}>{ftpCurlSnippet || 'Cargando cURL FTP...'}</pre>
+                        <pre className={preClass}>{imageUploadCurlSnippet || 'Cargando cURL imagen...'}</pre>
                     </div>
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
                     <div className="flex items-center justify-between gap-3">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">cURL FTP compatibilidad consumer key / secret</p>
-                        <CopyButton value={compatFtpCurlSnippet} label="Copiar cURL compat" />
+                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Producto usando URL devuelta</p>
+                        <CopyButton value={productWithUploadedImageSnippet} label="Copiar JSON producto" />
                     </div>
-                    <pre className={preClass}>{compatFtpCurlSnippet || 'Cargando cURL compat...'}</pre>
+                    <pre className={preClass}>{productWithUploadedImageSnippet}</pre>
                 </div>
 
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-[12px] leading-6 text-emerald-100">
-                    Resultado esperado: las imagenes nuevas quedan guardadas como `https://uploads.vase.ar/uploads/products/archivo.jpg`.
-                    La ruta `/uploads/` sola puede responder `Cannot GET /uploads/`; hay que abrir una URL de archivo concreta.
+                    Resultado esperado: `POST /images/upload` devuelve `url`. Esa URL se copia tal cual dentro de `images` del producto.
+                    Las rutas FTP quedan solo como compatibilidad legacy si algun cliente ya venia usando un FTP externo.
                 </div>
             </div>
 

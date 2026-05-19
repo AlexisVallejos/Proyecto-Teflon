@@ -185,6 +185,7 @@ export const buildProductSyncSchema = (baseUrl) => ({
   endpoints: {
     ping_url: `${baseUrl}/api/v1/integrations/ping`,
     sync_products_url: `${baseUrl}/api/v1/integrations/products/sync`,
+    upload_image_url: `${baseUrl}/api/v1/integrations/images/upload`,
     sync_ftp_images_url: `${baseUrl}/api/v1/integrations/images/ftp/sync`,
     schema_product_url: `${baseUrl}/api/v1/integrations/schema/product`,
   },
@@ -199,7 +200,8 @@ export const buildProductSyncSchema = (baseUrl) => ({
     'El contrato publicado recomienda enviar solo price_1 hasta price_10; los aliases legacy siguen aceptandose solo por compatibilidad interna.',
     'Usa category_path para enviar el arbol Categoria > Gran Familia > Familia. category_id queda reservado para un UUID real de categoria del ecommerce.',
     'Si envias category_path, evita duplicarlo con campos legacy como family, grand_family, familia o gran_familia.',
-    'Para sync FTP de imagenes usa archivos nombrados por codigo interno/SKU (ejemplo: SKU123_1.jpg).',
+    'Para imagenes, el flujo recomendado es subir cada archivo por /images/upload y mandar la URL devuelta en images del producto.',
+    'El sync FTP de imagenes queda disponible solo como compatibilidad legacy.',
   ],
   fields: PRODUCT_FIELDS,
   sample_payload: SAMPLE_PAYLOAD,
@@ -212,6 +214,15 @@ export const buildProductSyncSchema = (baseUrl) => ({
       regex_group_hint: 'Si usas filename_regex, el codigo debe salir en grupo sku, code, codigo o primer grupo.',
     },
     sample_payload: FTP_IMAGES_SAMPLE_PAYLOAD,
+  },
+  http_image_upload: {
+    endpoint_url: `${baseUrl}/api/v1/integrations/images/upload`,
+    method: 'POST',
+    content_type: 'multipart/form-data',
+    field_name: 'file',
+    accepted_mime_types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'],
+    max_file_size_mb: 50,
+    response_url_field: 'url',
   },
 });
 

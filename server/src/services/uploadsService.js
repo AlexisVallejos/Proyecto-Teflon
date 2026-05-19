@@ -56,17 +56,13 @@ export const signUploadsServiceToken = ({ subject, username, tenantId, role = 's
   );
 };
 
-export async function uploadLocalFileToUploadsService({ filePath, originalName, mimeType, username, tenantId }) {
+async function uploadFormDataToUploadsService({ formData, username, tenantId }) {
   const baseUrl = resolveUploadsServiceBaseUrl();
   const token = signUploadsServiceToken({
     subject: `product-upload:${tenantId || username}`,
     username,
     tenantId,
   });
-
-  const buffer = await fs.readFile(filePath);
-  const formData = new FormData();
-  formData.append('file', new Blob([buffer], { type: mimeType || 'application/octet-stream' }), originalName || 'file');
 
   const response = await fetch(`${baseUrl}/upload`, {
     method: 'POST',
@@ -98,4 +94,26 @@ export async function uploadLocalFileToUploadsService({ filePath, originalName, 
       baseUrl,
     }),
   };
+}
+
+export async function uploadLocalFileToUploadsService({ filePath, originalName, mimeType, username, tenantId }) {
+  const buffer = await fs.readFile(filePath);
+  return uploadBufferToUploadsService({
+    buffer,
+    originalName,
+    mimeType,
+    username,
+    tenantId,
+  });
+}
+
+export async function uploadBufferToUploadsService({ buffer, originalName, mimeType, username, tenantId }) {
+  const formData = new FormData();
+  formData.append('file', new Blob([buffer], { type: mimeType || 'application/octet-stream' }), originalName || 'file');
+
+  return uploadFormDataToUploadsService({
+    formData,
+    username,
+    tenantId,
+  });
 }

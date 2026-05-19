@@ -211,16 +211,17 @@ Haz estas pruebas en este orden:
    - sube una imagen, reinicia el servicio y confirma que el archivo siga existiendo.
    - abre la URL devuelta por el backend en `https://uploads.vase.ar/uploads/...` y confirma que carga el archivo.
 
-### 9.1 FTP de imagenes con `uploads.vase.ar`
+### 9.1 Imagenes de productos con `uploads.vase.ar`
 
-El FTP de imagenes sigue siendo una integracion de entrada: el backend se conecta al FTP configurado, descarga archivos al volumen `/app/server/uploads/products` y guarda en productos la URL publica.
+El flujo recomendado ya no usa FTP. El programa de gestion sube cada imagen por HTTP al editor, el editor la manda a `uploads-service` y devuelve una URL publica bajo `uploads.vase.ar`.
 
-Para que Cristian use el subdominio publico:
+1. `uploads-service` debe estar activo con dominio `https://uploads.vase.ar`.
+2. `vase-business` debe tener `UPLOADS_BASE_URL=https://uploads.vase.ar`.
+3. `vase-business` y `uploads-service` deben compartir `UPLOADS_JWT_SECRET`.
+4. El proveedor debe usar `POST https://editor.vase.ar/api/v1/integrations/images/upload`.
+5. La respuesta devuelve `url`; esa URL se envia en `images` dentro de `/api/v1/integrations/products/sync`.
 
-1. DNS: `uploads.vase.ar` debe apuntar al mismo servidor de EasyPanel.
-2. EasyPanel: agrega `uploads.vase.ar` como dominio del servicio `vase-business` con HTTPS activo.
-3. Variables: configura `UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar`.
-4. Prueba: ejecuta sync FTP y verifica que las imagenes guardadas en DB empiecen con `https://uploads.vase.ar/uploads/products/`.
+El endpoint FTP queda disponible solo como compatibilidad legacy para clientes que ya tengan un FTP externo funcionando.
 
 ### 10. Activar storefront por hostname despues
 
