@@ -10,6 +10,10 @@ import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPr
 import { getTenantOffers } from '../services/offers.js';
 import { buildTenantIntegrationManifest, resolveServerBaseUrl } from '../services/integrationManifest.js';
 import { buildUploadPublicUrl, resolveUploadsPublicBaseUrl } from '../services/uploadPublicUrl.js';
+import {
+  buildProductUploadsUsername,
+  uploadLocalFileToUploadsService,
+} from '../services/uploadsService.js';
 import { applyPriceTierLabels, normalizePriceTierLabels } from '../services/priceTierLabels.js';
 import {
   buildTenantDomainsPayload as buildTenantDomainsPayloadService,
@@ -2388,16 +2392,39 @@ tenantRouter.post('/products', async (req, res, next) => {
 });
 
 // Image Upload Endpoint
-tenantRouter.post('/products/upload-image', upload.single('image'), (req, res, next) => {
+tenantRouter.post('/products/upload-image', upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'no_file_uploaded' });
     }
 
-    const imageUrl = buildUploadPublicUrl(req, `/uploads/products/${req.file.filename}`);
+    const tenantId = getTenantId(req, res);
+    if (!tenantId) {
+      fs.promises.unlink(req.file.path).catch(() => {});
+      return;
+    }
 
-    return res.json({ url: imageUrl, filename: req.file.filename });
+    const uploadUsername = buildProductUploadsUsername(tenantId);
+    const uploaded = await uploadLocalFileToUploadsService({
+      filePath: req.file.path,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      username: uploadUsername,
+      tenantId,
+    });
+
+    fs.promises.unlink(req.file.path).catch(() => {});
+
+    return res.json({
+      url: uploaded.public_url,
+      filename: uploaded.filename,
+      storage: 'uploads-service',
+      folder: uploadUsername,
+    });
   } catch (err) {
+    if (req.file?.path) {
+      fs.promises.unlink(req.file.path).catch(() => {});
+    }
     return next(err);
   }
 });

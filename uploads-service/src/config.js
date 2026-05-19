@@ -23,6 +23,10 @@ export const config = {
   maxFileSizeBytes: toInt(process.env.MAX_FILE_SIZE_MB, 50) * 1024 * 1024,
   publicLinkTtlSeconds: toInt(process.env.PUBLIC_LINK_TTL_SECONDS, 7 * 24 * 60 * 60),
   corsOrigins: splitList(process.env.CORS_ORIGIN || 'https://vase.ar,https://editor.vase.ar'),
+  rateLimitWindowMs: toInt(process.env.RATE_LIMIT_WINDOW_SECONDS, 15 * 60) * 1000,
+  rateLimitMax: toInt(process.env.RATE_LIMIT_MAX, 5000),
+  publicFolders: splitList(process.env.PUBLIC_FOLDERS || 'vase-business-products'),
+  publicFolderPrefixes: splitList(process.env.PUBLIC_FOLDER_PREFIXES || 'products-'),
 };
 
 export const allowedMimeTypes = new Set([

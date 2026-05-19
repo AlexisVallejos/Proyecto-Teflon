@@ -126,6 +126,10 @@ PUBLIC_BASE_URL=https://uploads.vase.ar
 PUBLIC_URL_SECRET=OTRO_SECRETO_LARGO
 MAX_FILE_SIZE_MB=50
 CORS_ORIGIN=https://vase.ar,https://editor.vase.ar
+PUBLIC_FOLDERS=vase-business-products
+PUBLIC_FOLDER_PREFIXES=products-
+RATE_LIMIT_MAX=5000
+RATE_LIMIT_WINDOW_SECONDS=900
 ```
 
 ## Docker Compose
@@ -172,6 +176,10 @@ PUBLIC_BASE_URL=https://uploads.vase.ar
 PUBLIC_URL_SECRET=SECRETO_LARGO_DISTINTO
 MAX_FILE_SIZE_MB=50
 CORS_ORIGIN=https://vase.ar,https://editor.vase.ar
+PUBLIC_FOLDERS=vase-business-products
+PUBLIC_FOLDER_PREFIXES=products-
+RATE_LIMIT_MAX=5000
+RATE_LIMIT_WINDOW_SECONDS=900
 ```
 
 DNS:

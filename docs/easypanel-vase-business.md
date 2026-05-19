@@ -99,6 +99,8 @@ PLATFORM_BASE_DOMAIN=vase.ar
 PLATFORM_CNAME_TARGET=editor.vase.ar
 PLATFORM_APEX_IP=76.13.231.188
 UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar
+UPLOADS_BASE_URL=https://uploads.vase.ar
+UPLOADS_JWT_SECRET=EL_MISMO_SECRETO_DE_UPLOADS_SERVICE
 ```
 
 Puntos importantes:
@@ -106,6 +108,8 @@ Puntos importantes:
 - `VITE_API_URL` no hace falta en produccion; el frontend ya usa mismo origen por defecto.
 - `CORS_ORIGIN` puedes dejarlo vacio mientras frontend y backend vivan en el mismo host.
 - `UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar` hace que las imagenes subidas, comprobantes e imagenes importadas desde FTP queden publicadas con ese subdominio.
+- `UPLOADS_BASE_URL` y `UPLOADS_JWT_SECRET` conectan el editor con `uploads-service` para subir imagenes de productos a carpetas publicas por tenant.
+- El mismo `UPLOADS_JWT_SECRET` debe estar en `uploads-service`, `vase-app` y `vase-bussiness`.
 - Esta opcion requiere una base PostgreSQL funcional. Si no tienes una, crea una temporal solo para validar este servicio.
 
 #### Opcion B: activar el bridge real con `vase-app`
@@ -130,6 +134,8 @@ VITE_VASE_APP_LAUNCH_URL=https://vase.ar/app/business/launch
 VITE_VASE_APP_LOGIN_URL=https://vase.ar/signin
 VITE_VASE_APP_SIGNUP_URL=https://vase.ar/register
 UPLOADS_PUBLIC_BASE_URL=https://uploads.vase.ar
+UPLOADS_BASE_URL=https://uploads.vase.ar
+UPLOADS_JWT_SECRET=EL_MISMO_SECRETO_DE_UPLOADS_SERVICE
 ```
 
 Importante:

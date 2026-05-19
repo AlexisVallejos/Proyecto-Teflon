@@ -19,10 +19,11 @@ export const securityMiddleware = [
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   }),
   rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 500,
+    windowMs: config.rateLimitWindowMs,
+    limit: config.rateLimitMax,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS' || req.path === '/health',
+    message: { error: 'too_many_requests' },
   }),
 ];
-

@@ -15,6 +15,13 @@ const ensureOwnFolder = (req, requestedUsername) => {
   }
 };
 
+const isPublicFolder = (username) => {
+  const normalized = String(username || '').trim().toLowerCase();
+  if (!normalized) return false;
+  if (config.publicFolders.includes(normalized)) return true;
+  return config.publicFolderPrefixes.some((prefix) => prefix && normalized.startsWith(prefix));
+};
+
 const sendFile = async (res, metadata, { attachment = false } = {}) => {
   res.setHeader('Content-Type', metadata.mimeType);
   res.setHeader('Content-Length', metadata.stat.size);
@@ -74,6 +81,20 @@ router.get('/files/:user/:filename', authenticate, async (req, res, next) => {
   }
 });
 
+router.get('/public-files/:user/:filename', async (req, res, next) => {
+  try {
+    if (!isPublicFolder(req.params.user)) {
+      throw new HttpError(403, 'public_folder_forbidden');
+    }
+
+    const metadata = await getFileMetadata(req.params.user, req.params.filename);
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return sendFile(res, metadata);
+  } catch (err) {
+    return next(err);
+  }
+});
+
 router.delete('/files/:user/:filename', authenticate, async (req, res, next) => {
   try {
     ensureOwnFolder(req, req.params.user);
@@ -115,4 +136,3 @@ router.get('/public/:token', async (req, res, next) => {
     return next(err);
   }
 });
-
