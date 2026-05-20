@@ -83,33 +83,6 @@ const EndpointRow = ({ label, url }) => (
     </div>
 );
 
-const ResultPanel = ({ title, result }) => {
-    if (!result) return null;
-
-    return (
-        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">{title}</p>
-                <div className="flex items-center gap-2">
-                    <span
-                        className={cn(
-                            'rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider',
-                            result.ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'
-                        )}
-                    >
-                        {result.ok ? 'OK' : 'Error'}
-                    </span>
-                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                        HTTP {result.status}
-                    </span>
-                </div>
-            </div>
-            <p className="text-[11px] text-zinc-500">Ultima prueba: {result.tested_at || 'sin fecha'}</p>
-            <pre className={preClass}>{JSON.stringify(result.payload, null, 2)}</pre>
-        </div>
-    );
-};
-
 const DeploymentCheckRow = ({ label, value, ok }) => (
     <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
@@ -132,18 +105,8 @@ const IntegrationsEditor = ({ manager }) => {
         manifest,
         loading,
         rotatingToken,
-        pinging,
-        compatPinging,
-        syncingSample,
-        lastPingResult,
-        lastCompatibilityPingResult,
-        lastSyncResult,
-        lastSamplePayload,
         loadManifest,
         rotateToken,
-        testConnection,
-        testCompatibilityConnection,
-        syncSampleProduct,
     } = manager;
 
     useEffect(() => {
@@ -157,10 +120,6 @@ const IntegrationsEditor = ({ manager }) => {
     const compatibilitySamplePayload = useMemo(
         () => JSON.stringify(manifest?.compatibility?.sample_payload || {}, null, 2),
         [manifest]
-    );
-    const lastSamplePayloadJson = useMemo(
-        () => JSON.stringify(lastSamplePayload || {}, null, 2),
-        [lastSamplePayload]
     );
     const currentFrontendOrigin = typeof window !== 'undefined' ? normalizeUrl(window.location.origin) : '';
     const configuredApiBase = normalizeUrl(getApiBase());
@@ -217,36 +176,6 @@ const IntegrationsEditor = ({ manager }) => {
         [configuredApiBase, currentApiOrigin, currentFrontendOrigin, expectedServiceOrigin, manifestPingOrigin, manifestPingUrl, manifestSyncOrigin, manifestSyncUrl]
     );
     const hasDeploymentMismatch = deploymentChecks.some((check) => !check.ok);
-    const powershellSnippet = useMemo(() => {
-        if (!manifest?.endpoints?.sync_products_url || !manifest?.auth?.token || !manifest?.tenant_id) return '';
-
-        return [
-            `$headers = @{`,
-            `  "x-api-key" = "${manifest.auth.token}"`,
-            `  "x-tenant-id" = "${manifest.tenant_id}"`,
-            `  "Content-Type" = "application/json"`,
-            `}`,
-            ``,
-            `$body = @'`,
-            samplePayload,
-            `'@`,
-            ``,
-            `Invoke-RestMethod -Method Post -Uri "${manifest.endpoints.sync_products_url}" -Headers $headers -Body $body`,
-        ].join('\n');
-    }, [manifest, samplePayload]);
-    const curlSnippet = useMemo(() => {
-        if (!manifest?.endpoints?.sync_products_url || !manifest?.auth?.token || !manifest?.tenant_id) return '';
-
-        const compactPayload = JSON.stringify(manifest?.schema?.sample_payload || {});
-        return [
-            'curl -X POST',
-            `  "${manifest.endpoints.sync_products_url}"`,
-            `  -H "x-api-key: ${manifest.auth.token}"`,
-            `  -H "x-tenant-id: ${manifest.tenant_id}"`,
-            '  -H "Content-Type: application/json"',
-            `  -d '${compactPayload}'`,
-        ].join('\n');
-    }, [manifest]);
     const imageUploadPowerShellSnippet = useMemo(() => {
         if (!uploadImageUrl || !manifest?.auth?.token || !manifest?.tenant_id) return '';
 
@@ -528,78 +457,6 @@ const IntegrationsEditor = ({ manager }) => {
                             <CopyButton value={frontendEnvSnippet} label="Copiar frontend env" />
                         </div>
                         <pre className={preClass}>{frontendEnvSnippet}</pre>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-                <div className={cardClass}>
-                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                        <CheckCircle size={16} weight="bold" />
-                        Pruebas rapidas desde admin
-                    </div>
-
-                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                        <p className="text-[12px] leading-6 text-zinc-300">
-                            Desde aca podes probar si el sistema de gestion va a poder conectarse y si el sync realmente inserta o actualiza productos.
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            <ActionButton onClick={() => testConnection().catch(() => {})} disabled={pinging}>
-                                <Plug size={14} weight="bold" />
-                                {pinging ? 'Probando conexion...' : 'Probar conexion'}
-                            </ActionButton>
-                            <ActionButton onClick={() => testCompatibilityConnection().catch(() => {})} disabled={compatPinging}>
-                                <ShieldCheck size={14} weight="bold" />
-                                {compatPinging ? 'Probando compatibilidad...' : 'Probar compatibilidad'}
-                            </ActionButton>
-                            <ActionButton
-                                onClick={() => syncSampleProduct().catch(() => {})}
-                                disabled={syncingSample}
-                                className="bg-evolution-indigo text-white hover:bg-evolution-indigo/90"
-                            >
-                                <ArrowsClockwise size={14} weight="bold" />
-                                {syncingSample ? 'Sincronizando prueba...' : 'Sync producto demo'}
-                            </ActionButton>
-                        </div>
-                        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] text-white">
-                            La prueba de sync envia un producto demo con una categoria generica. Si esa categoria no existe, el backend la crea automaticamente.
-                        </div>
-                    </div>
-
-                    <ResultPanel title="Resultado ping" result={lastPingResult} />
-                    <ResultPanel title="Resultado compatibilidad" result={lastCompatibilityPingResult} />
-                    {lastSamplePayload ? (
-                        <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Payload enviado en la prueba</p>
-                                <CopyButton value={lastSamplePayloadJson} label="Copiar payload" />
-                            </div>
-                            <pre className={preClass}>{lastSamplePayloadJson}</pre>
-                        </div>
-                    ) : null}
-                    <ResultPanel title="Resultado sync demo" result={lastSyncResult} />
-                </div>
-
-                <div className={cardClass}>
-                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-zinc-400">
-                        <Copy size={16} weight="bold" />
-                        Snippets listos
-                    </div>
-
-                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">PowerShell</p>
-                            <CopyButton value={powershellSnippet} label="Copiar PowerShell" />
-                        </div>
-                        <pre className={preClass}>{powershellSnippet || 'Cargando snippet...'}</pre>
-                    </div>
-
-                    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">cURL</p>
-                            <CopyButton value={curlSnippet} label="Copiar cURL" />
-                        </div>
-                        <pre className={preClass}>{curlSnippet || 'Cargando snippet...'}</pre>
                     </div>
                 </div>
             </div>

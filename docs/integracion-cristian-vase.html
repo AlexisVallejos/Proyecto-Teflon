@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Integracion Vase - Productos e imagenes</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: #111827;
+      background: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    .cover {
+      border-bottom: 2px solid #047857;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      color: #047857;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 25px;
+      line-height: 1.12;
+      margin: 0 0 8px;
+      color: #0f172a;
+    }
+
+    h2 {
+      font-size: 15px;
+      margin: 18px 0 7px;
+      color: #0f172a;
+      border-left: 4px solid #10b981;
+      padding-left: 8px;
+    }
+
+    h3 {
+      font-size: 12.5px;
+      margin: 12px 0 6px;
+      color: #1f2937;
+    }
+
+    p {
+      margin: 0 0 8px;
+    }
+
+    ul, ol {
+      margin: 6px 0 10px 18px;
+      padding: 0;
+    }
+
+    li {
+      margin: 3px 0;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 12px 0 2px;
+    }
+
+    .box {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #f9fafb;
+      break-inside: avoid;
+    }
+
+    .label {
+      display: block;
+      color: #6b7280;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .mono {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      border: 1px solid #a7f3d0;
+      border-left: 5px solid #10b981;
+      background: #ecfdf5;
+      color: #064e3b;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      break-inside: avoid;
+    }
+
+    .warn {
+      border-color: #fed7aa;
+      border-left-color: #f97316;
+      background: #fff7ed;
+      color: #7c2d12;
+    }
+
+    pre {
+      margin: 8px 0 12px;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #111827;
+      color: #f9fafb;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 9.4px;
+      line-height: 1.42;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      break-inside: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 12px;
+      break-inside: avoid;
+    }
+
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 7px 8px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f3f4f6;
+      color: #374151;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .page-break {
+      break-before: page;
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="eyebrow">Vase / Integracion ERP</div>
+    <h1>Pruebas de productos e imagenes por API HTTP</h1>
+    <p>Documento para Cristian. Reemplaza el flujo FTP por endpoints HTTP seguros de Vase.</p>
+    <div class="meta">
+      <div class="box">
+        <span class="label">Base API</span>
+        <div class="mono">https://editor.vase.ar</div>
+      </div>
+      <div class="box">
+        <span class="label">Fecha</span>
+        <div class="mono">20/05/2026</div>
+      </div>
+      <div class="box">
+        <span class="label">Tenant</span>
+        <div class="mono">aa2e2d94-c7b1-4bc1-93f0-77e5003ddfe7</div>
+      </div>
+      <div class="box">
+        <span class="label">API Key</span>
+        <div class="mono">vase_84189d23cb046b4b23a20951767ba5d2cbc5d1386d962cf7</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="note">
+    No se usa FTP, SFTP, usuario Linux ni carpeta FTP publica. El programa de gestion sube imagenes por API HTTP, Vase devuelve una URL estable y esa URL se envia en el producto.
+  </div>
+
+  <h2>1. Endpoints</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Uso</th>
+        <th>Metodo</th>
+        <th>URL</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Probar conexion</td>
+        <td class="mono">GET</td>
+        <td class="mono">https://editor.vase.ar/api/v1/integrations/ping</td>
+      </tr>
+      <tr>
+        <td>Subir imagen estable</td>
+        <td class="mono">POST</td>
+        <td class="mono">https://editor.vase.ar/api/v1/integrations/images/upload</td>
+      </tr>
+      <tr>
+        <td>Crear o actualizar productos</td>
+        <td class="mono">POST</td>
+        <td class="mono">https://editor.vase.ar/api/v1/integrations/products/sync</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>2. Headers obligatorios</h2>
+  <pre>x-api-key: vase_84189d23cb046b4b23a20951767ba5d2cbc5d1386d962cf7
+x-tenant-id: aa2e2d94-c7b1-4bc1-93f0-77e5003ddfe7</pre>
+
+  <p>Para JSON, agregar tambien:</p>
+  <pre>Content-Type: application/json</pre>
+
+  <h2>3. Flujo de prueba recomendado</h2>
+  <ol>
+    <li>Probar conexion con <span class="mono">/ping</span>.</li>
+    <li>Subir una imagen local con <span class="mono">/images/upload</span>.</li>
+    <li>Guardar la URL estable devuelta en <span class="mono">url</span> o <span class="mono">public_url</span>.</li>
+    <li>Enviar el producto a <span class="mono">/products/sync</span> usando esa URL en <span class="mono">images</span>.</li>
+    <li>Revisar el producto en el catalogo del editor.</li>
+  </ol>
+
+  <div class="note warn">
+    Usar solo URLs que empiecen con <span class="mono">https://uploads.vase.ar/public-files/products-</span>. No usar URLs temporales que empiecen con <span class="mono">https://uploads.vase.ar/public/</span>.
+  </div>
+
+  <h2>4. Paso 1 - Probar conexion</h2>
+  <pre>$token = "vase_84189d23cb046b4b23a20951767ba5d2cbc5d1386d962cf7"
+$tenant = "aa2e2d94-c7b1-4bc1-93f0-77e5003ddfe7"
+
+curl.exe -X GET "https://editor.vase.ar/api/v1/integrations/ping" `
+  -H "x-api-key: $token" `
+  -H "x-tenant-id: $tenant"</pre>
+
+  <p>Respuesta esperada:</p>
+  <pre>{
+  "ok": true
+}</pre>
+
+  <h2>5. Paso 2 - Subir imagen</h2>
+  <p>Cambiar la ruta por una imagen real de la PC donde corre el programa.</p>
+  <pre>$image = "C:\Gestion\Imagenes\PROD-1001_1.jpg"
+
+$upload = curl.exe -s -X POST "https://editor.vase.ar/api/v1/integrations/images/upload" `
+  -H "x-api-key: $token" `
+  -H "x-tenant-id: $tenant" `
+  -F "file=@$image" | ConvertFrom-Json
+
+$upload
+$imageUrl = $upload.url
+$imageUrl</pre>
+
+  <p>Respuesta esperada:</p>
+  <pre>{
+  "ok": true,
+  "url": "https://uploads.vase.ar/public-files/products-aa2e2d94-c7b1-4bc1-93f0-77e5003ddfe7/archivo.jpg",
+  "public_url": "https://uploads.vase.ar/public-files/products-aa2e2d94-c7b1-4bc1-93f0-77e5003ddfe7/archivo.jpg"
+}</pre>
+
+  <section class="page-break">
+    <h2>6. Paso 3 - Sincronizar producto con imagen</h2>
+    <pre>$product = @{
+  source_system = "sistema-gestion"
+  items = @(
+    @{
+      external_id = "PROD-1001"
+      sku = "PROD-1001"
+      name = "Producto prueba con imagen"
+      description = "Producto creado desde API para prueba"
+      short_description = "Prueba API"
+      brand = "Marca prueba"
+      price_1 = 24990
+      price_2 = 21990
+      stock = 15
+      is_active = $true
+      category_path = "Pruebas API > Imagenes"
+      images = @(
+        @{
+          url = $imageUrl
+          primary = $true
+        }
+      )
+    }
+  )
+}
+
+$body = $product | ConvertTo-Json -Depth 10
+
+$headers = @{
+  "x-api-key" = $token
+  "x-tenant-id" = $tenant
+  "Content-Type" = "application/json"
+}
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "https://editor.vase.ar/api/v1/integrations/products/sync" `
+  -Headers $headers `
+  -Body $body</pre>
+
+    <p>Respuesta esperada:</p>
+    <pre>{
+  "ok": true
+}</pre>
+  </section>
+
+  <h2>7. Crear otro producto</h2>
+  <p>Para crear otro producto, cambiar <span class="mono">external_id</span> y <span class="mono">sku</span>. Si se repite el mismo <span class="mono">external_id</span>, la API actualiza el producto existente.</p>
+  <pre>$product.items[0].external_id = "PROD-1002"
+$product.items[0].sku = "PROD-1002"
+$product.items[0].name = "Producto prueba con imagen 2"
+$product.items[0].price_1 = 35990
+$product.items[0].stock = 8
+
+$body = $product | ConvertTo-Json -Depth 10
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "https://editor.vase.ar/api/v1/integrations/products/sync" `
+  -Headers $headers `
+  -Body $body</pre>
+
+  <h2>8. Campos principales</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Campo</th>
+        <th>Uso</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">external_id</td>
+        <td>Obligatorio. Identificador estable del producto en el sistema de gestion.</td>
+      </tr>
+      <tr>
+        <td class="mono">sku</td>
+        <td>Codigo comercial del producto.</td>
+      </tr>
+      <tr>
+        <td class="mono">name</td>
+        <td>Nombre del producto.</td>
+      </tr>
+      <tr>
+        <td class="mono">price_1, price_2...</td>
+        <td>Tarifas del producto.</td>
+      </tr>
+      <tr>
+        <td class="mono">stock</td>
+        <td>Stock disponible. Viaja dentro del producto; no hay endpoint separado de stock.</td>
+      </tr>
+      <tr>
+        <td class="mono">images</td>
+        <td>Array de imagenes. Cada item puede tener <span class="mono">url</span> y <span class="mono">primary</span>.</td>
+      </tr>
+      <tr>
+        <td class="mono">category_path</td>
+        <td>Ruta de categoria recomendada. Ejemplo: <span class="mono">Categoria principal &gt; Subcategoria</span>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    Resumen operativo: primero subir imagen, despues mandar producto con la URL estable devuelta. No guardar ni enviar URLs temporales de <span class="mono">/public/</span>.
+  </div>
+</body>
+</html>
