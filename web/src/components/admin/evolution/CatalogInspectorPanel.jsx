@@ -786,59 +786,78 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
                             </div>
                         </div>
 
-                        <div className="space-y-3 border-t border-white/10 pt-2">
-                            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-zinc-500">
-                                <Box size={14} weight="bold" />
-                                Acciones
+                        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-zinc-400">
+                                        <Box size={14} weight="bold" />
+                                        Acciones
+                                    </div>
+                                    <p className="text-[11px] leading-5 text-zinc-500">
+                                        Operaciones rapidas sobre el producto seleccionado y la vitrina publica.
+                                    </p>
+                                </div>
                             </div>
+
                             <button
                                 type="button"
                                 onClick={handleClearFeatured}
                                 disabled={clearingFeatured}
-                                className="h-9 w-full rounded-lg border border-white/10 text-[10px] font-bold text-zinc-300 hover:bg-white/5 hover:text-white disabled:opacity-60"
+                                className="flex min-h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-black/10 px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-300 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-60"
                             >
                                 {clearingFeatured ? 'Limpiando destacados...' : 'Quitar todos los destacados'}
                             </button>
                             {isEditing ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <input
-                                        type="number"
-                                        value={stockEdits[editingProductId] ?? ''}
-                                        placeholder="+5 / -2"
-                                        onChange={(e) => setStockEdits((prev) => ({ ...prev, [editingProductId]: e.target.value }))}
-                                        className="w-24 rounded-lg border border-white/25 bg-zinc-900/70 px-2.5 py-1.5 text-sm text-white placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-evolution-indigo focus:ring-2 focus:ring-evolution-indigo/30"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => handleAddStock(editingProductId)}
-                                        disabled={stockSavingId === editingProductId}
-                                        className="h-9 rounded-lg bg-white/10 px-3 text-[10px] font-bold text-white hover:bg-white/20 disabled:opacity-60"
-                                    >
-                                        {stockSavingId === editingProductId ? '...' : 'Sumar'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const current = Boolean(productDraft.is_featured);
-                                            handleToggleFeatured(editingProductId, current);
-                                            setProductDraft({ ...productDraft, is_featured: !current });
-                                        }}
-                                        className="flex h-9 items-center gap-1 rounded-lg bg-white/5 px-3 text-[10px] font-bold text-zinc-300 hover:bg-white/10"
-                                    >
-                                        <Star size={12} weight="bold" />
-                                        {productDraft.is_featured ? 'Quitar destacado' : 'Destacar'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDeleteProduct(editingProductId)}
-                                        disabled={deleteLoadingId === editingProductId}
-                                        className="h-9 rounded-lg bg-rose-500/10 px-3 text-[10px] font-bold text-rose-400 hover:bg-rose-500/20 disabled:opacity-60"
-                                    >
-                                        {deleteLoadingId === editingProductId ? '...' : 'Eliminar'}
-                                    </button>
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div className="rounded-xl border border-white/10 bg-black/10 p-3">
+                                        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">Ajuste rapido de stock</p>
+                                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                                            <input
+                                                type="number"
+                                                value={stockEdits[editingProductId] ?? ''}
+                                                placeholder="+5 o -2"
+                                                onChange={(e) => setStockEdits((prev) => ({ ...prev, [editingProductId]: e.target.value }))}
+                                                className="min-h-11 rounded-xl border border-white/25 bg-zinc-900/70 px-3 text-sm text-white placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-evolution-indigo focus:ring-2 focus:ring-evolution-indigo/30"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAddStock(editingProductId)}
+                                                disabled={stockSavingId === editingProductId}
+                                                className="min-h-11 rounded-xl bg-white/10 px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-white/20 disabled:opacity-60"
+                                            >
+                                                {stockSavingId === editingProductId ? '...' : 'Sumar'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const current = Boolean(productDraft.is_featured);
+                                                handleToggleFeatured(editingProductId, current);
+                                                setProductDraft({ ...productDraft, is_featured: !current });
+                                            }}
+                                            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-200 transition-colors hover:bg-white/10"
+                                        >
+                                            <Star size={14} weight="bold" />
+                                            {productDraft.is_featured ? 'Quitar destacado' : 'Destacar'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteProduct(editingProductId)}
+                                            disabled={deleteLoadingId === editingProductId}
+                                            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-rose-300 transition-colors hover:bg-rose-500/20 hover:text-rose-100 disabled:opacity-60"
+                                        >
+                                            <Trash size={14} weight="bold" />
+                                            {deleteLoadingId === editingProductId ? 'Eliminando...' : 'Eliminar'}
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
-                                <p className="text-[10px] italic text-zinc-600">Selecciona un producto para acciones avanzadas.</p>
+                                <p className="rounded-xl border border-dashed border-white/10 bg-black/10 px-3 py-4 text-center text-[11px] italic text-zinc-500">
+                                    Selecciona un producto para acciones avanzadas.
+                                </p>
                             )}
                         </div>
                     </>

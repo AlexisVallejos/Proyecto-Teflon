@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import { cn } from '../../../utils/cn';
 import {
@@ -104,6 +105,86 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
         onDeleteProduct(deleteTarget.id, deleteTarget.name, { skipConfirm: true });
         setDeleteTarget(null);
     };
+
+    useEffect(() => {
+        if (!deleteTarget) return undefined;
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                closeDeleteModal();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [deleteTarget]);
+
+    const deleteModal = deleteTarget && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+                className="fixed inset-0 z-[10000] flex items-center justify-center px-6 py-10"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-product-title"
+                onClick={closeDeleteModal}
+            >
+                <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-[4px]" />
+                <div
+                    className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/70 bg-white text-slate-950 shadow-[0_28px_90px_rgba(2,6,23,0.45)]"
+                    onClick={(event) => event.stopPropagation()}
+                >
+                    <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+                        <div className="flex items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+                                <Trash size={22} weight="bold" />
+                            </div>
+                            <div className="min-w-0 space-y-1">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-600">Eliminar producto</p>
+                                <h3 id="delete-product-title" className="text-xl font-black tracking-tight text-slate-950">
+                                    Confirmar eliminacion
+                                </h3>
+                                <p className="text-sm leading-6 text-slate-600">
+                                    Esta accion quita el producto del catalogo y de la tienda publica.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 px-6 py-6">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Producto seleccionado</p>
+                            <p className="mt-1 break-words text-base font-bold text-slate-950">
+                                {deleteTarget.name || 'Producto sin nombre'}
+                            </p>
+                            {deleteTarget.sku ? (
+                                <p className="mt-1 font-mono text-xs text-slate-500">SKU: {deleteTarget.sku}</p>
+                            ) : null}
+                        </div>
+
+                        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold leading-6 text-rose-800">
+                            Se eliminara de forma permanente. Esta accion no se puede deshacer desde el panel.
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-white px-6 py-5 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={closeDeleteModal}
+                            className="h-11 rounded-xl border border-slate-300 bg-white px-5 text-xs font-black uppercase tracking-[0.16em] text-slate-700 transition-colors hover:bg-slate-50"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={confirmDelete}
+                            className="h-11 rounded-xl bg-rose-600 px-5 text-xs font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-rose-950/20 transition-colors hover:bg-rose-500"
+                        >
+                            Eliminar producto
+                        </button>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        )
+        : null;
 
     return (
         <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-500">
@@ -307,46 +388,7 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                 </div>
             </div>
 
-            {deleteTarget ? (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/70 px-4 backdrop-blur-sm"
-                    onClick={closeDeleteModal}
-                >
-                    <div
-                        className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl ring-1 ring-evolution-indigo/20"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <div className="border-b border-white/10 px-5 py-4">
-                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Eliminar producto</p>
-                            <h3 className="mt-2 text-lg font-bold text-white">Confirmar eliminacion</h3>
-                        </div>
-                        <div className="space-y-4 px-5 py-5">
-                            <p className="text-sm leading-6 text-zinc-300">
-                                Deseas eliminar <span className="font-bold text-white">{deleteTarget.name || 'este producto'}</span>? Esta accion no se puede deshacer.
-                            </p>
-                            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[11px] font-medium text-rose-100">
-                                Se quitara del catalogo y de la vista publica de la tienda.
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-end gap-3 border-t border-white/10 bg-white/[0.03] px-5 py-4">
-                            <button
-                                type="button"
-                                onClick={closeDeleteModal}
-                                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                onClick={confirmDelete}
-                                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-white shadow-lg shadow-rose-950/30 transition-colors hover:bg-rose-400"
-                            >
-                                Eliminar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
+            {deleteModal}
         </div>
     );
 };
