@@ -94,9 +94,9 @@ export async function upsertVercelProjectDomain(domain, config = getVercelDomain
     return {
       provider: 'vercel',
       enabled: false,
-      status: 'skipped',
-      verified: false,
-      error: 'vercel_not_configured',
+      status: 'not_required',
+      verified: true,
+      error: null,
       checked_at: new Date().toISOString(),
     };
   }
@@ -185,9 +185,9 @@ export async function getVercelProjectDomainStatus(domain, config = getVercelDom
     return {
       provider: 'vercel',
       enabled: false,
-      status: 'skipped',
-      verified: false,
-      error: 'vercel_not_configured',
+      status: 'not_required',
+      verified: true,
+      error: null,
       checked_at: new Date().toISOString(),
     };
   }
