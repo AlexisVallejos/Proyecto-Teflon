@@ -12,6 +12,9 @@ CREATE TABLE tenant_domains (
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   domain text NOT NULL UNIQUE,
   is_primary boolean NOT NULL DEFAULT true,
+  vercel_status text,
+  vercel_payload jsonb,
+  vercel_checked_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

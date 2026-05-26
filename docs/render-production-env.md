@@ -25,6 +25,8 @@ INTEGRATIONS_PUBLIC_BASE_URL=https://editor.vase.ar
 PIQUIM_TENANT_ID=636736e2-e135-44cd-ac5c-5d4ccb839a73
 PLATFORM_BASE_DOMAIN=vase.ar
 PLATFORM_CNAME_TARGET=editor.vase.ar
+VERCEL_PROJECT_ID=tu_project_id
+VERCEL_TEAM_ID=tu_team_id_opcional
 DISABLE_AUTH=false
 ```
 
@@ -56,6 +58,7 @@ JWT_SECRET=rotar_y_cargar_un_valor_nuevo
 BOOTSTRAP_TOKEN=rotar_y_cargar_un_valor_nuevo
 MP_ACCESS_TOKEN=rotar_y_cargar_un_valor_nuevo_si_sigue_vigente
 DATABASE_URL=usar_la_url_productiva_actual
+VERCEL_API_TOKEN=token_con_permiso_domains_write
 ```
 
 ## Importante

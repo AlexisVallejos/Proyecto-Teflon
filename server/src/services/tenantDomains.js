@@ -1,4 +1,9 @@
 import { resolve4, resolveCname } from 'node:dns/promises';
+import {
+  getVercelProjectDomainStatus,
+  removeVercelProjectDomain,
+  upsertVercelProjectDomain,
+} from './vercelDomains.js';
 
 const RESERVED_PLATFORM_LABELS = new Set([
   'admin',
@@ -294,6 +299,11 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
       label: 'Activo',
       message: 'El subdominio pertenece a la plataforma y queda listo apenas se guarda.',
       last_checked_at: checkedAt,
+      vercel: {
+        enabled: false,
+        status: 'not_required',
+        verified: true,
+      },
       observed_records: {
         a: [],
         cname: [],
@@ -310,12 +320,45 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
   const matchesCname = Boolean(config.platformCnameTarget) && cnameRecords.includes(config.platformCnameTarget);
   const hasAnyRecord = aRecords.length > 0 || cnameRecords.length > 0;
 
-  if (matchesA || matchesCname) {
+  const vercelState = await getVercelProjectDomainStatus(normalizedDomain);
+  const vercelVerified = vercelState?.verified === true;
+  const dnsReady = matchesA || matchesCname;
+
+  if (dnsReady && vercelVerified) {
     return {
       status: 'active',
       label: 'Activo',
-      message: 'El DNS ya apunta a la plataforma. Falta solo que termine de propagarse el certificado SSL si todavia no aparece en vivo.',
+      message: 'El DNS apunta correctamente y Vercel verifico el dominio. SSL deberia quedar activo al finalizar propagacion.',
       last_checked_at: checkedAt,
+      vercel: vercelState,
+      observed_records: {
+        a: aRecords,
+        cname: cnameRecords,
+      },
+    };
+  }
+
+  if (dnsReady && !vercelVerified) {
+    return {
+      status: 'attention',
+      label: 'Revisar',
+      message: 'El DNS ya apunta a la plataforma, pero Vercel todavia no verifico el dominio.',
+      last_checked_at: checkedAt,
+      vercel: vercelState,
+      observed_records: {
+        a: aRecords,
+        cname: cnameRecords,
+      },
+    };
+  }
+
+  if (!dnsReady && vercelVerified) {
+    return {
+      status: 'attention',
+      label: 'Revisar',
+      message: 'Vercel verifico el dominio, pero los registros DNS aun no apuntan a los valores esperados.',
+      last_checked_at: checkedAt,
+      vercel: vercelState,
       observed_records: {
         a: aRecords,
         cname: cnameRecords,
@@ -329,6 +372,7 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
       label: 'Revisar',
       message: 'Detectamos DNS publicados, pero no apuntan a los valores esperados para este sitio.',
       last_checked_at: checkedAt,
+      vercel: vercelState,
       observed_records: {
         a: aRecords,
         cname: cnameRecords,
@@ -341,6 +385,7 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
     label: 'DNS pendiente',
     message: plan.dns_hint,
     last_checked_at: checkedAt,
+    vercel: vercelState,
     observed_records: {
       a: aRecords,
       cname: cnameRecords,
@@ -351,7 +396,7 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
 export async function listTenantDomains(db, tenantId) {
   const result = await db.query(
     [
-      'select domain, is_primary, created_at',
+      'select domain, is_primary, created_at, vercel_status, vercel_payload, vercel_checked_at',
       'from tenant_domains',
       'where tenant_id = $1',
       'order by is_primary desc, created_at asc, domain asc',
@@ -360,6 +405,22 @@ export async function listTenantDomains(db, tenantId) {
   );
 
   return result.rows;
+}
+
+async function persistDomainVerificationState(db, tenantId, domain, verification = {}) {
+  const vercelStatus = String(verification?.vercel?.status || '').trim() || null;
+  const vercelPayload = verification?.vercel ? JSON.stringify(verification.vercel) : null;
+  const checkedAt = verification?.vercel?.checked_at || verification?.last_checked_at || null;
+  await db.query(
+    [
+      'update tenant_domains',
+      'set vercel_status = $3,',
+      'vercel_payload = case when $4::text is null then null else $4::jsonb end,',
+      'vercel_checked_at = case when $5::timestamptz is null then null else $5::timestamptz end',
+      'where tenant_id = $1 and domain = $2',
+    ].join(' '),
+    [tenantId, domain, vercelStatus, vercelPayload, checkedAt]
+  );
 }
 
 export async function buildTenantDomainsPayload(db, tenantId, options = {}) {
@@ -392,6 +453,7 @@ export async function buildTenantDomainsPayload(db, tenantId, options = {}) {
     domains.map(async (item) => {
       const plan = buildDomainDnsPlan(item.domain, platformConfig);
       const verification = await inspectDomainConnection(item.domain, platformConfig);
+      await persistDomainVerificationState(db, tenantId, item.domain, verification);
       return {
         ...item,
         ...plan,
@@ -469,11 +531,27 @@ export async function upsertTenantDomain(db, tenantId, domain, { isPrimary = tru
       );
     } else {
       await client.query(
-        'insert into tenant_domains (tenant_id, domain, is_primary) values ($1, $2, $3)',
+        [
+          'insert into tenant_domains (tenant_id, domain, is_primary, vercel_status, vercel_payload, vercel_checked_at)',
+          'values ($1, $2, $3, null, null, null)',
+        ].join(' '),
         [tenantId, normalizedDomain, isPrimary]
       );
     }
   });
+
+  const domainMode = inferDomainMode(normalizedDomain, getPlatformDomainConfig().platformBaseDomain);
+  if (domainMode !== 'platform') {
+    try {
+      const vercelState = await upsertVercelProjectDomain(normalizedDomain);
+      await persistDomainVerificationState(db, tenantId, normalizedDomain, {
+        last_checked_at: vercelState?.checked_at,
+        vercel: vercelState,
+      });
+    } catch (err) {
+      console.warn(`Could not upsert domain ${normalizedDomain} in Vercel:`, err?.message || err);
+    }
+  }
 
   return buildTenantDomainsPayload(db, tenantId);
 }
@@ -492,6 +570,15 @@ export async function removeTenantDomain(db, tenantId, domain, options = {}) {
       error.status = 404;
       error.code = 'domain_not_found';
       throw error;
+    }
+
+    const mode = inferDomainMode(normalizedDomain, getPlatformDomainConfig().platformBaseDomain);
+    if (mode !== 'platform') {
+      try {
+        await removeVercelProjectDomain(normalizedDomain);
+      } catch (err) {
+        console.warn(`Could not remove domain ${normalizedDomain} from Vercel:`, err?.message || err);
+      }
     }
 
     await client.query(

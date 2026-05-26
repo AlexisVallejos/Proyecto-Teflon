@@ -115,6 +115,15 @@ const getVerificationTone = (status) => {
     }
 };
 
+const getVercelStatusTone = (status) => {
+    switch (status) {
+        case 'verified': return 'success';
+        case 'pending': return 'info';
+        case 'error': return 'warning';
+        default: return 'default';
+    }
+};
+
 const inferDraftDnsPlan = (domain, platform) => {
     const normalized = normalizeDomainInput(domain);
     if (!normalized) return null;
@@ -414,6 +423,7 @@ const DomainConnectModal = ({ open, onClose, initialIntent = 'domains' }) => {
                                                                 <Chip label={item?.verification?.label || 'Pendiente'} tone={verificationTone} />
                                                             </div>
                                                             <p className="text-sm leading-relaxed" style={whiteTextMuted}>{item?.verification?.message || item?.dns_hint || 'Sin diagnostico todavia.'}</p>
+                                                            {item?.verification?.vercel?.enabled ? <div className="flex flex-wrap items-center gap-2"><Chip label={`Vercel: ${item?.verification?.vercel?.status || 'pending'}`} tone={getVercelStatusTone(item?.verification?.vercel?.status)} />{item?.verification?.vercel?.error ? <p className="text-xs text-zinc-500">Detalle: {item.verification.vercel.error}</p> : null}</div> : null}
                                                             {item?.verification?.last_checked_at ? <p className="text-xs text-zinc-500">Ultima verificacion: {new Date(item.verification.last_checked_at).toLocaleString('es-AR')}</p> : null}
                                                         </div>
                                                         <div className="flex flex-wrap items-center gap-2">

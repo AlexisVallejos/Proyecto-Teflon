@@ -18,6 +18,15 @@ const PIQUIM_TENANT_ID = String(
 async function runStartupMigrations() {
   await pool.query(
     [
+      'ALTER TABLE tenant_domains',
+      'ADD COLUMN IF NOT EXISTS vercel_status text,',
+      'ADD COLUMN IF NOT EXISTS vercel_payload jsonb,',
+      'ADD COLUMN IF NOT EXISTS vercel_checked_at timestamptz',
+    ].join(' ')
+  );
+
+  await pool.query(
+    [
       'ALTER TABLE user_tenants',
       'ADD COLUMN IF NOT EXISTS price_adjustment_percent numeric(6,2) NOT NULL DEFAULT 0',
     ].join(' ')
