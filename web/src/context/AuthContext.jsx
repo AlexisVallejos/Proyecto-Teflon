@@ -4,6 +4,18 @@ import { isExternalAuthEnabled } from '../utils/vaseAuth';
 
 const AuthContext = createContext(null);
 
+async function readJsonResponse(response, fallbackError = 'request_failed') {
+    const text = await response.text();
+    if (!text) {
+        return null;
+    }
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        throw new Error(`${fallbackError}_${response.status}_invalid_json`);
+    }
+}
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -149,10 +161,7 @@ export const AuthProvider = ({ children }) => {
             throw new Error('external_auth_enabled');
         }
 
-        const rawEmail = String(email || '').trim();
-        const normalizedEmail = rawEmail.toLowerCase() === 'admin'
-            ? 'admin@teflon.local'
-            : rawEmail;
+        const normalizedEmail = String(email || '').trim();
 
         const response = await fetch(`${getApiBase()}/auth/login`, {
             method: 'POST',
@@ -164,11 +173,61 @@ export const AuthProvider = ({ children }) => {
             }),
         });
 
+        const data = await readJsonResponse(response, 'login_failed');
+
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Login failed');
+            throw new Error(data?.error || `login_failed_${response.status}`);
         }
 
+        if (!data?.token || !data?.user) {
+            throw new Error(`login_empty_response_${response.status}`);
+        }
+
+        setUser(data.user);
+        localStorage.setItem('teflon_token', data.token);
+        localStorage.setItem('teflon_user', JSON.stringify(data.user));
+        return data;
+    };
+
+    const requestLoginCode = async (email) => {
+        if (isExternalAuthEnabled()) {
+            throw new Error('external_auth_enabled');
+        }
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+
+        const response = await fetch(`${getApiBase()}/auth/request-login-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: normalizedEmail,
+                tenant_id: import.meta.env.VITE_TENANT_ID
+            }),
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'request_login_code_failed');
+        }
+        return response.json();
+    };
+
+    const loginWithCode = async (email, code) => {
+        if (isExternalAuthEnabled()) {
+            throw new Error('external_auth_enabled');
+        }
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        const response = await fetch(`${getApiBase()}/auth/login-with-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: normalizedEmail,
+                code: String(code || '').trim(),
+                tenant_id: import.meta.env.VITE_TENANT_ID
+            }),
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'login_with_code_failed');
+        }
         const data = await response.json();
         setUser(data.user);
         localStorage.setItem('teflon_token', data.token);
@@ -199,6 +258,9 @@ export const AuthProvider = ({ children }) => {
             province: input.province,
             city: input.city,
             postal_code: input.postal_code,
+            business_name: input.business_name,
+            business_activity: input.business_activity,
+            cuil: input.cuil,
             ...(tenantId ? { tenant_id: tenantId } : {}),
         };
 
@@ -359,7 +421,7 @@ export const AuthProvider = ({ children }) => {
     const isAdmin = user?.role === 'tenant_admin' || user?.role === 'master_admin';
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, verifyEmailCode, resendVerificationCode, logout, isWholesale, isWholesalePending, isAdmin, loading, refreshUser, updateProfile, uploadProfilePhoto }}>
+        <AuthContext.Provider value={{ user, login, signup, verifyEmailCode, resendVerificationCode, requestLoginCode, loginWithCode, logout, isWholesale, isWholesalePending, isAdmin, loading, refreshUser, updateProfile, uploadProfilePhoto }}>
             {children}
         </AuthContext.Provider>
     );

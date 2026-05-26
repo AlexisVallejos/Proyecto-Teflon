@@ -9,6 +9,7 @@ import {
     getStorefrontThemePreset,
     DEFAULT_STOREFRONT_LIGHT_THEME,
 } from '../../../utils/storefrontTheme';
+import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../../../data/piquimBranding';
 
 const fieldClass =
     'admin-input-field w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all duration-200';
@@ -110,6 +111,49 @@ const PalettePreview = ({ title, subtitle, colors }) => (
     </div>
 );
 
+const LinkListEditor = ({ title, links, onAdd, onRemove, onChange }) => (
+    <div className="space-y-2">
+        <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">{title}</p>
+            <button
+                type="button"
+                onClick={onAdd}
+                className="rounded-lg border border-white/15 px-2 py-1 text-[11px] font-bold text-zinc-300"
+            >
+                + Anadir
+            </button>
+        </div>
+        <div className="space-y-2">
+            {links.map((link, idx) => (
+                <div key={`${title}-${idx}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                    <input
+                        type="text"
+                        value={link.label || ''}
+                        placeholder="Etiqueta"
+                        onChange={(e) => onChange(idx, 'label', e.target.value)}
+                        className={fieldClass}
+                    />
+                    <input
+                        type="text"
+                        value={link.href || ''}
+                        placeholder="Link"
+                        onChange={(e) => onChange(idx, 'href', e.target.value)}
+                        className={fieldClass}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => onRemove(idx)}
+                        className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-xs font-bold text-rose-300"
+                    >
+                        X
+                    </button>
+                </div>
+            ))}
+            {!links.length ? <p className="text-xs text-zinc-500">Sin enlaces configurados.</p> : null}
+        </div>
+    </div>
+);
+
 const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const [logoUploading, setLogoUploading] = useState(false);
     const [adminLogoUploading, setAdminLogoUploading] = useState(false);
@@ -118,10 +162,20 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const theme = settings?.theme || {};
     const adminBranding = branding?.admin_panel || {};
     const adminTheme = theme?.admin_panel || {};
+    const navbar = branding?.navbar || {};
+    const navbarLinks = Array.isArray(navbar?.links) ? navbar.links : [];
     const footer = branding?.footer || {};
     const socials = footer?.socials || {};
+    const socialLinks = Array.isArray(footer?.socialLinks) ? footer.socialLinks : [];
     const contact = footer?.contact || {};
     const quickLinks = Array.isArray(footer?.quickLinks) ? footer.quickLinks : [];
+    const shopLinks = Array.isArray(footer?.shopLinks) ? footer.shopLinks : PIQUIM_FOOTER_DEFAULTS.shopLinks;
+    const helpLinks = Array.isArray(footer?.helpLinks) ? footer.helpLinks : PIQUIM_FOOTER_DEFAULTS.helpLinks;
+    const legalLinks = Array.isArray(footer?.legalLinks) ? footer.legalLinks : PIQUIM_FOOTER_DEFAULTS.legalLinks;
+    const newsletter = { ...PIQUIM_FOOTER_DEFAULTS.newsletter, ...(footer?.newsletter || {}) };
+    const catalogCards = Array.isArray(branding?.catalog_cards) && branding.catalog_cards.length
+        ? branding.catalog_cards
+        : PIQUIM_CATALOG_CARDS;
     const storefrontMode = theme?.mode === 'dark' ? 'dark' : 'light';
     const adminMode = adminTheme?.mode === 'light' ? 'light' : 'dark';
     const storefrontPreview = getStorefrontThemePreset(storefrontMode, theme);
@@ -171,6 +225,34 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                 },
             },
         }));
+    };
+
+    const updateNavbar = (patch) => {
+        setSettings((prev) => ({
+            ...prev,
+            branding: {
+                ...(prev.branding || {}),
+                navbar: {
+                    ...((prev.branding || {}).navbar || {}),
+                    ...patch,
+                },
+            },
+        }));
+    };
+
+    const updateNavbarLink = (index, field, value) => {
+        const next = [...navbarLinks];
+        if (!next[index]) return;
+        next[index] = { ...next[index], [field]: value };
+        updateNavbar({ links: next });
+    };
+
+    const addNavbarLink = () => {
+        updateNavbar({ links: [...navbarLinks, { label: 'Nuevo link', href: '/' }] });
+    };
+
+    const removeNavbarLink = (index) => {
+        updateNavbar({ links: navbarLinks.filter((_, idx) => idx !== index) });
     };
 
     const applyStorefrontThemePreset = (mode) => {
@@ -224,6 +306,26 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
         }));
     };
 
+    const updateFooterSocialLink = (index, field, value) => {
+        const next = [...socialLinks];
+        if (!next[index]) return;
+        next[index] = { ...next[index], [field]: value };
+        updateFooter({ socialLinks: next });
+    };
+
+    const addFooterSocialLink = () => {
+        updateFooter({
+            socialLinks: [
+                ...socialLinks,
+                { label: 'Instagram', type: 'instagram', href: 'https://instagram.com/' },
+            ],
+        });
+    };
+
+    const removeFooterSocialLink = (index) => {
+        updateFooter({ socialLinks: socialLinks.filter((_, idx) => idx !== index) });
+    };
+
     const updateFooterContact = (field, value) => {
         setSettings((prev) => ({
             ...prev,
@@ -253,6 +355,41 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
 
     const addQuickLink = () => {
         updateFooter({ quickLinks: [...quickLinks, { label: 'Nuevo link', href: '/catalog' }] });
+    };
+
+    const updateFooterListItem = (listKey, list, index, field, value) => {
+        const next = [...list];
+        if (!next[index]) return;
+        next[index] = { ...next[index], [field]: value };
+        updateFooter({ [listKey]: next });
+    };
+
+    const addFooterListItem = (listKey, list) => {
+        updateFooter({ [listKey]: [...list, { label: 'Nuevo link', href: '/catalog' }] });
+    };
+
+    const removeFooterListItem = (listKey, list, index) => {
+        updateFooter({ [listKey]: list.filter((_, idx) => idx !== index) });
+    };
+
+    const updateNewsletter = (patch) => {
+        updateFooter({
+            newsletter: {
+                ...newsletter,
+                ...patch,
+            },
+        });
+    };
+
+    const updateCatalogCard = (index, patch) => {
+        const next = catalogCards.map((item, idx) => (idx === index ? { ...item, ...patch } : item));
+        updateBranding({ catalog_cards: next });
+    };
+
+    const updateCatalogCardTags = (index, value) => {
+        updateCatalogCard(index, {
+            tags: value.split(',').map((item) => item.trim()).filter(Boolean),
+        });
     };
 
     const handleLogoUpload = async (event) => {
@@ -393,6 +530,28 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         helperText="Se usa como marca principal en la tienda y como fallback en el admin."
                     />
 
+                    <div className="rounded-2xl border border-orange-400/20 bg-orange-500/10 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-200">Identidad Piquim</p>
+                                <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                                    Activa el preset personalizado de navbar, footer y catalogo.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => updateBranding({ design_preset: 'piquim', catalog_cards: catalogCards })}
+                                className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] ${
+                                    branding.design_preset === 'piquim'
+                                        ? 'bg-orange-500 text-white'
+                                        : 'border border-orange-400/30 text-orange-200'
+                                }`}
+                            >
+                                {branding.design_preset === 'piquim' ? 'Piquim activo' : 'Activar Piquim'}
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Logo de la tienda</p>
                         <div className="flex items-center gap-3">
@@ -498,6 +657,116 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                 </section>
 
                 <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-2">
+                    <div className="space-y-1">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Navbar publico</h3>
+                        <p className="text-xs text-zinc-500">Configura links, iconos y CTA del header compartido en todas las paginas.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <EvolutionInput
+                            label="Texto boton registro"
+                            value={navbar?.register_label || 'Registrarse'}
+                            onChange={(e) => updateNavbar({ register_label: e.target.value })}
+                            placeholder="Registrarse"
+                        />
+                        <EvolutionInput
+                            label="Link boton registro"
+                            value={navbar?.register_href || '/register'}
+                            onChange={(e) => updateNavbar({ register_href: e.target.value })}
+                            placeholder="/register"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Redes visibles (iconos en footer)</p>
+                            <button
+                                type="button"
+                                onClick={addFooterSocialLink}
+                                className="rounded-lg border border-white/15 px-2 py-1 text-[11px] font-bold text-zinc-300"
+                            >
+                                + Anadir red
+                            </button>
+                        </div>
+                        <div className="space-y-2">
+                            {socialLinks.map((item, idx) => (
+                                <div key={`social-link-${idx}`} className="grid grid-cols-[1fr_1fr_2fr_auto] gap-2">
+                                    <input
+                                        type="text"
+                                        value={item.label || ''}
+                                        placeholder="Etiqueta"
+                                        onChange={(e) => updateFooterSocialLink(idx, 'label', e.target.value)}
+                                        className={fieldClass}
+                                    />
+                                    <select
+                                        value={item.type || 'website'}
+                                        onChange={(e) => updateFooterSocialLink(idx, 'type', e.target.value)}
+                                        className={fieldClass}
+                                    >
+                                        <option value="instagram">Instagram</option>
+                                        <option value="facebook">Facebook</option>
+                                        <option value="youtube">YouTube</option>
+                                        <option value="tiktok">TikTok</option>
+                                        <option value="whatsapp">WhatsApp</option>
+                                        <option value="linkedin">LinkedIn</option>
+                                        <option value="website">Web</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={item.href || ''}
+                                        placeholder="https://..."
+                                        onChange={(e) => updateFooterSocialLink(idx, 'href', e.target.value)}
+                                        className={fieldClass}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFooterSocialLink(idx)}
+                                        className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-xs font-bold text-rose-300"
+                                    >
+                                        X
+                                    </button>
+                                </div>
+                            ))}
+                            {!socialLinks.length ? (
+                                <p className="text-xs text-zinc-500">Sin redes configuradas en lista dinamica. Puedes agregarlas arriba.</p>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        <button type="button" onClick={() => updateNavbar({ show_search: navbar.show_search === false })} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-zinc-200">
+                            Busqueda: {navbar.show_search === false ? 'OFF' : 'ON'}
+                        </button>
+                        <button type="button" onClick={() => updateNavbar({ show_wishlist: navbar.show_wishlist === false })} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-zinc-200">
+                            Guardados: {navbar.show_wishlist === false ? 'OFF' : 'ON'}
+                        </button>
+                        <button type="button" onClick={() => updateNavbar({ show_cart: navbar.show_cart === false })} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-zinc-200">
+                            Carrito: {navbar.show_cart === false ? 'OFF' : 'ON'}
+                        </button>
+                        <button type="button" onClick={() => updateNavbar({ show_account: navbar.show_account === false })} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-bold text-zinc-200">
+                            Cuenta/CTA: {navbar.show_account === false ? 'OFF' : 'ON'}
+                        </button>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Links de navegacion</p>
+                            <button type="button" onClick={addNavbarLink} className="rounded-lg border border-white/15 px-2 py-1 text-[11px] font-bold text-zinc-300">+ Anadir</button>
+                        </div>
+                        <div className="space-y-2">
+                            {navbarLinks.map((link, idx) => (
+                                <div key={`navbar-link-${idx}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                                    <input type="text" value={link.label || ''} placeholder="Etiqueta" onChange={(e) => updateNavbarLink(idx, 'label', e.target.value)} className={fieldClass} />
+                                    <input type="text" value={link.href || ''} placeholder="Link" onChange={(e) => updateNavbarLink(idx, 'href', e.target.value)} className={fieldClass} />
+                                    <button type="button" onClick={() => removeNavbarLink(idx)} className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1.5 text-xs font-bold text-rose-300">X</button>
+                                </div>
+                            ))}
+                            {!navbarLinks.length ? <p className="text-xs text-zinc-500">Sin links configurados.</p> : null}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-2">
                     <div className="flex items-center gap-3">
                         <div className="admin-accent-surface flex h-10 w-10 items-center justify-center rounded-2xl border">
                             <Storefront size={18} weight="bold" />
@@ -523,6 +792,24 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                             value={socials.instagram || ''}
                             onChange={(e) => updateFooterSocial('instagram', e.target.value)}
                             placeholder="https://instagram.com/tu-cuenta"
+                        />
+                        <EvolutionInput
+                            label="Facebook URL"
+                            value={socials.facebook || ''}
+                            onChange={(e) => updateFooterSocial('facebook', e.target.value)}
+                            placeholder="https://facebook.com/tu-cuenta"
+                        />
+                        <EvolutionInput
+                            label="YouTube URL"
+                            value={socials.youtube || ''}
+                            onChange={(e) => updateFooterSocial('youtube', e.target.value)}
+                            placeholder="https://youtube.com/@tu-cuenta"
+                        />
+                        <EvolutionInput
+                            label="TikTok URL"
+                            value={socials.tiktok || ''}
+                            onChange={(e) => updateFooterSocial('tiktok', e.target.value)}
+                            placeholder="https://tiktok.com/@tu-cuenta"
                         />
                         <EvolutionInput
                             label="WhatsApp"
@@ -618,6 +905,137 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                 <p className="text-xs text-zinc-500">Sin enlaces configurados.</p>
                             ) : null}
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        <LinkListEditor
+                            title="Footer tienda"
+                            links={shopLinks}
+                            onAdd={() => addFooterListItem('shopLinks', shopLinks)}
+                            onRemove={(idx) => removeFooterListItem('shopLinks', shopLinks, idx)}
+                            onChange={(idx, field, value) => updateFooterListItem('shopLinks', shopLinks, idx, field, value)}
+                        />
+                        <LinkListEditor
+                            title="Footer ayuda"
+                            links={helpLinks}
+                            onAdd={() => addFooterListItem('helpLinks', helpLinks)}
+                            onRemove={(idx) => removeFooterListItem('helpLinks', helpLinks, idx)}
+                            onChange={(idx, field, value) => updateFooterListItem('helpLinks', helpLinks, idx, field, value)}
+                        />
+                        <LinkListEditor
+                            title="Footer legal"
+                            links={legalLinks}
+                            onAdd={() => addFooterListItem('legalLinks', legalLinks)}
+                            onRemove={(idx) => removeFooterListItem('legalLinks', legalLinks, idx)}
+                            onChange={(idx, field, value) => updateFooterListItem('legalLinks', legalLinks, idx, field, value)}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2">
+                        <EvolutionInput
+                            label="Newsletter titulo"
+                            value={newsletter.title || ''}
+                            onChange={(e) => updateNewsletter({ title: e.target.value })}
+                            placeholder="Novedades para profesionales"
+                        />
+                        <EvolutionInput
+                            label="Boton newsletter"
+                            value={newsletter.buttonLabel || ''}
+                            onChange={(e) => updateNewsletter({ buttonLabel: e.target.value })}
+                            placeholder="Suscribirme"
+                        />
+                        <EvolutionInput
+                            label="Placeholder email"
+                            value={newsletter.placeholder || ''}
+                            onChange={(e) => updateNewsletter({ placeholder: e.target.value })}
+                            placeholder="tu@email.com"
+                        />
+                        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                            <p className="text-xs font-bold text-zinc-200">Mostrar newsletter</p>
+                            <button
+                                type="button"
+                                onClick={() => updateNewsletter({ enabled: newsletter.enabled === false })}
+                                className={`h-6 w-11 rounded-full border transition ${
+                                    newsletter.enabled === false
+                                        ? 'border-white/20 bg-zinc-700'
+                                        : 'border-evolution-indigo/70 bg-evolution-indigo'
+                                }`}
+                                aria-label="toggle newsletter footer"
+                            >
+                                <span
+                                    className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+                                        newsletter.enabled === false ? 'translate-x-1' : 'translate-x-6'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+                        <div className="md:col-span-2">
+                            <EvolutionInput
+                                label="Descripcion newsletter"
+                                value={newsletter.description || ''}
+                                onChange={(e) => updateNewsletter({ description: e.target.value })}
+                                multiline
+                                placeholder="Texto breve del newsletter"
+                            />
+                        </div>
+                    </div>
+
+                    <EvolutionInput
+                        label="Texto legal inferior"
+                        value={footer.legalText || ''}
+                        onChange={(e) => updateFooter({ legalText: e.target.value })}
+                        placeholder="(c) 2026 Piquim Profesional S.A. - Mar del Plata, Argentina"
+                    />
+                </section>
+
+                <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-2">
+                    <div className="space-y-1">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Tarjetas del catalogo Piquim</h3>
+                        <p className="text-xs text-zinc-500">Estas tarjetas aparecen arriba del catalogo publico y filtran productos por categoria.</p>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        {catalogCards.slice(0, 3).map((card, index) => (
+                            <div key={card.id || index} className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                <EvolutionInput
+                                    label="Titulo"
+                                    value={card.title || ''}
+                                    onChange={(e) => updateCatalogCard(index, { title: e.target.value })}
+                                    placeholder="Heladeria"
+                                />
+                                <EvolutionInput
+                                    label="Prefijo"
+                                    value={card.prefix || ''}
+                                    onChange={(e) => updateCatalogCard(index, { prefix: e.target.value })}
+                                    placeholder="01 - Frio que enamora"
+                                />
+                                <EvolutionInput
+                                    label="Categoria filtro"
+                                    value={card.category || ''}
+                                    onChange={(e) => updateCatalogCard(index, { category: e.target.value })}
+                                    placeholder="Heladeria"
+                                />
+                                <EvolutionInput
+                                    label="Imagen URL"
+                                    value={card.image || ''}
+                                    onChange={(e) => updateCatalogCard(index, { image: e.target.value })}
+                                    placeholder="/piquim/catalog-heladeria.jpg"
+                                />
+                                <EvolutionInput
+                                    label="Tags separados por coma"
+                                    value={Array.isArray(card.tags) ? card.tags.join(', ') : card.tags || ''}
+                                    onChange={(e) => updateCatalogCardTags(index, e.target.value)}
+                                    placeholder="Pulpas, Bases, Neutros"
+                                />
+                                <EvolutionInput
+                                    label="Descripcion"
+                                    value={card.description || ''}
+                                    onChange={(e) => updateCatalogCard(index, { description: e.target.value })}
+                                    multiline
+                                    placeholder="Descripcion de la familia"
+                                />
+                            </div>
+                        ))}
                     </div>
                 </section>
             </div>

@@ -11,6 +11,12 @@ import AboutTeam from './blocks/AboutTeam';
 import AboutCTA from './blocks/AboutCTA';
 import FeaturesBento from './blocks/FeaturesBento';
 import FeaturesBentoGrid from './blocks/FeaturesBentoGrid';
+import PiquimHero from './blocks/PiquimHero';
+import PiquimAnnounceBar from './blocks/PiquimAnnounceBar';
+import PiquimTresMundos from './blocks/PiquimTresMundos';
+import PiquimCatalog3Panel from './blocks/PiquimCatalog3Panel';
+import PiquimFeaturedProducts from './blocks/PiquimFeaturedProducts';
+import PiquimCTABanner from './blocks/PiquimCTABanner';
 
 const COMPONENT_MAP = {
     HeroSlider,
@@ -25,6 +31,12 @@ const COMPONENT_MAP = {
     AboutCTA,
     FeaturesBento,
     FeaturesBentoGrid,
+    PiquimHero,
+    PiquimAnnounceBar,
+    PiquimTresMundos,
+    PiquimCatalog3Panel,
+    PiquimFeaturedProducts,
+    PiquimCTABanner,
 };
 
 const ANCHOR_MAP = {

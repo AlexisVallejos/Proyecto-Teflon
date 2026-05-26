@@ -1,3 +1,11 @@
+let tailwindAnimatePlugin = null;
+
+try {
+    tailwindAnimatePlugin = require("tailwindcss-animate");
+} catch (error) {
+    tailwindAnimatePlugin = null;
+}
+
 /** @type {import('tailwindcss').Config} */
 export default {
     content: [
@@ -34,7 +42,5 @@ export default {
             },
         },
     },
-    plugins: [
-        require("tailwindcss-animate"),
-    ],
+    plugins: [tailwindAnimatePlugin].filter(Boolean),
 }

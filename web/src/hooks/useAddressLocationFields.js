@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
     FALLBACK_COUNTRY_OPTIONS,
     findOptionByText,
+    loadArgentinaAddresses,
     loadArgentinaCities,
     loadArgentinaProvinces,
     loadCountries,
@@ -9,6 +10,13 @@ import {
 
 const readLabel = (value = '') => String(value || '').trim();
 const readCode = (value = '') => String(value || '').trim().toUpperCase();
+const normalizeText = (value = '') =>
+    String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
 
 const resolveCountryOption = (options = [], countryCode = '', countryLabel = '') => {
     const normalizedCode = readCode(countryCode);
@@ -29,6 +37,7 @@ export function useAddressLocationFields({
     const provinceIdField = fields.provinceId || null;
     const cityField = fields.city;
     const cityIdField = fields.cityId || null;
+    const addressField = fields.address || null;
 
     const countryCode = readCode(value?.[countryCodeField]);
     const countryLabel = countryLabelField ? readLabel(value?.[countryLabelField]) : '';
@@ -36,14 +45,18 @@ export function useAddressLocationFields({
     const provinceId = provinceIdField ? readLabel(value?.[provinceIdField]) : '';
     const city = readLabel(value?.[cityField]);
     const cityId = cityIdField ? readLabel(value?.[cityIdField]) : '';
+    const address = addressField ? readLabel(value?.[addressField]) : '';
 
     const [countryOptions, setCountryOptions] = useState(FALLBACK_COUNTRY_OPTIONS);
     const [countryInput, setCountryInput] = useState(countryLabel);
+    const [countryInputDirty, setCountryInputDirty] = useState(false);
     const [countriesLoading, setCountriesLoading] = useState(false);
     const [provinceOptions, setProvinceOptions] = useState([]);
     const [provinceLoading, setProvinceLoading] = useState(false);
     const [cityOptions, setCityOptions] = useState([]);
     const [citiesLoading, setCitiesLoading] = useState(false);
+    const [addressOptions, setAddressOptions] = useState([]);
+    const [addressLoading, setAddressLoading] = useState(false);
 
     const selectedCountryOption = useMemo(
         () => resolveCountryOption(countryOptions, countryCode, countryLabel),
@@ -74,11 +87,27 @@ export function useAddressLocationFields({
     }, []);
 
     useEffect(() => {
-        const nextInput = selectedCountryOption?.label || countryLabel || countryInput;
+        if (!countryLabelField && countryInputDirty) {
+            return;
+        }
+
+        if (selectedCountryOption?.label) {
+            if (selectedCountryOption.label !== countryInput) {
+                setCountryInput(selectedCountryOption.label);
+            }
+            return;
+        }
+
+        // When caller does not persist country label, keep free-typed input intact.
+        if (!countryLabelField) {
+            return;
+        }
+
+        const nextInput = countryLabel ?? '';
         if (nextInput !== countryInput) {
             setCountryInput(nextInput);
         }
-    }, [selectedCountryOption, countryLabel, countryInput]);
+    }, [selectedCountryOption, countryLabel, countryInput, countryLabelField, countryInputDirty]);
 
     useEffect(() => {
         if (!selectedCountryOption) return;
@@ -194,6 +223,46 @@ export function useAddressLocationFields({
         });
     }, [isArgentinaCountry, cityOptions, city, cityField, cityIdField, setValue]);
 
+    useEffect(() => {
+        if (!addressField || !isArgentinaCountry) {
+            setAddressOptions([]);
+            setAddressLoading(false);
+            return;
+        }
+
+        const query = readLabel(address);
+        if (query.length < 3) {
+            setAddressOptions([]);
+            setAddressLoading(false);
+            return;
+        }
+
+        let active = true;
+        setAddressLoading(true);
+        const timer = setTimeout(() => {
+            loadArgentinaAddresses({
+                query,
+                province: readLabel(province),
+                city: readLabel(city),
+                limit: 8,
+            })
+                .then((options) => {
+                    if (!active) return;
+                    setAddressOptions(Array.isArray(options) ? options : []);
+                })
+                .finally(() => {
+                    if (active) {
+                        setAddressLoading(false);
+                    }
+                });
+        }, 220);
+
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [addressField, address, isArgentinaCountry, province, city]);
+
     const clearProvinceAndCity = (next) => {
         next[provinceField] = '';
         next[cityField] = '';
@@ -207,8 +276,12 @@ export function useAddressLocationFields({
 
     const handleCountryInputChange = (nextValue) => {
         setCountryInput(nextValue);
+        setCountryInputDirty(true);
         const trimmedValue = readLabel(nextValue);
-        const match = findOptionByText(countryOptions, trimmedValue);
+        const normalizedInput = normalizeText(trimmedValue);
+        const match = countryOptions.find(
+            (option) => normalizeText(option?.label) === normalizedInput,
+        ) || null;
 
         setValue((prev) => {
             if (!trimmedValue) {
@@ -234,6 +307,7 @@ export function useAddressLocationFields({
             const previousCode = readCode(prev?.[countryCodeField]);
             const next = { ...prev };
             next[countryCodeField] = match.value;
+            setCountryInputDirty(false);
             if (countryLabelField) {
                 next[countryLabelField] = match.label;
             }
@@ -343,6 +417,52 @@ export function useAddressLocationFields({
         });
     };
 
+    const handleAddressInputChange = (nextValue) => {
+        if (!addressField) return;
+        setValue((prev) => ({
+            ...prev,
+            [addressField]: nextValue,
+        }));
+    };
+
+    const handleAddressOptionSelect = (option) => {
+        if (!addressField || !option) return;
+        const provinceLabel = readLabel(option.provinceLabel);
+        const cityLabel = readLabel(option.cityLabel);
+        const postalCode = readLabel(option.postalCode);
+        const countryCodeFromOption = readCode(option.countryCode) || 'AR';
+        const countryLabelFromOption = readLabel(option.countryLabel) || 'Argentina';
+
+        setValue((prev) => {
+            const next = {
+                ...prev,
+                [addressField]: readLabel(option.label),
+                [countryCodeField]: countryCodeFromOption,
+                [provinceField]: provinceLabel || prev?.[provinceField] || '',
+                [cityField]: cityLabel || prev?.[cityField] || '',
+            };
+
+            if (countryLabelField) {
+                next[countryLabelField] = countryLabelFromOption;
+            }
+
+            if (provinceIdField) {
+                const provinceMatch = findOptionByText(provinceOptions, provinceLabel);
+                next[provinceIdField] = provinceMatch?.value || '';
+            }
+            if (cityIdField) {
+                const cityMatch = findOptionByText(cityOptions, cityLabel);
+                next[cityIdField] = cityMatch?.value || '';
+            }
+
+            if (postalCode && String(prev?.postalCode || '').trim() !== postalCode) {
+                next.postalCode = postalCode;
+            }
+
+            return next;
+        });
+    };
+
     return {
         countryInput,
         countryOptions,
@@ -354,8 +474,12 @@ export function useAddressLocationFields({
         isArgentinaCountry,
         provinceSuggestionsEnabled,
         citySuggestionsEnabled,
+        addressOptions,
+        addressLoading,
         handleCountryInputChange,
         handleProvinceInputChange,
         handleCityInputChange,
+        handleAddressInputChange,
+        handleAddressOptionSelect,
     };
 }

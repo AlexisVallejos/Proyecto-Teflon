@@ -1,6 +1,7 @@
 import React from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
+import ProductBreadcrumb from "../../components/ProductBreadcrumb";
 import StoreSkeleton from "../../components/StoreSkeleton";
 import { formatCurrency } from "../../utils/format";
 import { navigate } from "../../utils/navigation";
@@ -10,7 +11,7 @@ export default function ProductDetailMinimal({
     handleAdd, relatedCards, relatedLoading, reviews, reviewsLoading, reviewsError,
     reviewsEnabled, reviewSubmitting, reviewForm, setReviewForm, handleReviewSubmit,
     formatReviewDate, renderRatingStars, favoriteActive, toggleFavorite,
-    canBuy, stockStatus, showPricesEnabled, canViewPrices, authLoading, currency, locale,
+    breadcrumbItems, canBuy, stockStatus, showPricesEnabled, canViewPrices, authLoading, currency, locale,
     activeTab, setActiveTab, canShowSpecifications, specificationEntries, isInStock, user
 }) {
     if (loading) return <StoreLayout><main className="max-w-[1400px] mx-auto px-4 py-10"><StoreSkeleton variant="product" /></main></StoreLayout>;
@@ -20,6 +21,7 @@ export default function ProductDetailMinimal({
     return (
         <StoreLayout>
             <main className="max-w-5xl mx-auto w-full px-4 md:px-10 py-16">
+                <ProductBreadcrumb items={breadcrumbItems} className="mb-8" />
                 <div className="flex flex-col md:flex-row gap-12 lg:gap-20">
                     <div className="w-full md:w-1/2 flex flex-col gap-4">
                         <div className="aspect-[4/5] bg-zinc-50 rounded-2xl overflow-hidden cursor-crosshair">

@@ -3,17 +3,11 @@ import { pool } from '../db.js';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import fs from 'fs';
 import { resolve4, resolveCname } from 'node:dns/promises';
 import { fileURLToPath } from 'url';
 import { ensureDefaultPriceLists, ensurePricingSchema } from '../services/userPricing.js';
 import { getTenantOffers } from '../services/offers.js';
 import { buildTenantIntegrationManifest, resolveServerBaseUrl } from '../services/integrationManifest.js';
-import { buildUploadPublicUrl, resolveUploadsPublicBaseUrl } from '../services/uploadPublicUrl.js';
-import {
-  buildProductUploadsUsername,
-  uploadLocalFileToUploadsService,
-} from '../services/uploadsService.js';
 import { applyPriceTierLabels, normalizePriceTierLabels } from '../services/priceTierLabels.js';
 import {
   buildTenantDomainsPayload as buildTenantDomainsPayloadService,
@@ -26,13 +20,11 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PRODUCT_UPLOAD_DIR = 'uploads/products/';
-fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
 
 // Multer configuration for image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, PRODUCT_UPLOAD_DIR);
+    cb(null, 'uploads/products/');
   },
   filename: (req, file, cb) => {
     const uniqueName = `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname)}`;
@@ -823,11 +815,9 @@ tenantRouter.get('/integrations/product-sync', async (req, res, next) => {
   try {
     const { tokenRecord, autoCreated } = await ensureProductSyncToken(pool, tenantId);
     const baseUrl = resolveServerBaseUrl(req);
-    const uploadsBaseUrl = resolveUploadsPublicBaseUrl(req);
     return res.json({
       ...buildTenantIntegrationManifest({
         baseUrl,
-        uploadsBaseUrl,
         tenantId,
         tokenRecord,
       }),
@@ -864,12 +854,10 @@ tenantRouter.post('/integrations/product-sync/token/rotate', async (req, res, ne
 
     await client.query('COMMIT');
     const baseUrl = resolveServerBaseUrl(req);
-    const uploadsBaseUrl = resolveUploadsPublicBaseUrl(req);
 
     return res.json({
       ...buildTenantIntegrationManifest({
         baseUrl,
-        uploadsBaseUrl,
         tenantId,
         tokenRecord: insertRes.rows[0],
       }),
@@ -2038,7 +2026,7 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
       imageData = rawImages
         .map((img, index) => {
           if (typeof img === 'string') {
-            return { url: img, alt: name, primary: index === 0 };
+            return { url: img, alt: name, sku: sku || existing.sku || null, primary: index === 0 };
           }
           if (!img || typeof img !== 'object') return null;
           const url = img.url || img.src || '';
@@ -2046,12 +2034,13 @@ tenantRouter.put('/products/:id', async (req, res, next) => {
           return {
             url,
             alt: img.alt || name,
+            sku: img.sku || sku || existing.sku || null,
             primary: img.primary === true || index === 0,
           };
         })
         .filter(Boolean);
     } else if (typeof rawImages === 'string' && rawImages.trim()) {
-      imageData = [{ url: rawImages.trim(), alt: name, primary: true }];
+      imageData = [{ url: rawImages.trim(), alt: name, sku: sku || existing.sku || null, primary: true }];
     }
 
     const features = Object.prototype.hasOwnProperty.call(req.body || {}, 'features')
@@ -2264,11 +2253,12 @@ tenantRouter.post('/products', async (req, res, next) => {
     imageData = images.map((img, index) => ({
       url: img.url || img,
       alt: img.alt || name,
+      sku: img.sku || sku || null,
       primary: img.primary === true || index === 0 // First image is primary by default
     }));
   } else if (typeof images === 'string') {
     // Backward compatibility: single URL string
-    imageData = [{ url: images, alt: name, primary: true }];
+    imageData = [{ url: images, alt: name, sku: sku || null, primary: true }];
   }
 
   const shortDescription = String(short_description || '').trim() || null;
@@ -2392,39 +2382,19 @@ tenantRouter.post('/products', async (req, res, next) => {
 });
 
 // Image Upload Endpoint
-tenantRouter.post('/products/upload-image', upload.single('image'), async (req, res, next) => {
+tenantRouter.post('/products/upload-image', upload.single('image'), (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'no_file_uploaded' });
     }
 
-    const tenantId = getTenantId(req, res);
-    if (!tenantId) {
-      fs.promises.unlink(req.file.path).catch(() => {});
-      return;
-    }
+    // Generate public URL for the uploaded image
+    const protocol = req.get('x-forwarded-proto') || req.protocol;
+    const host = req.get('host');
+    const imageUrl = `${protocol}://${host}/uploads/products/${req.file.filename}`;
 
-    const uploadUsername = buildProductUploadsUsername(tenantId);
-    const uploaded = await uploadLocalFileToUploadsService({
-      filePath: req.file.path,
-      originalName: req.file.originalname,
-      mimeType: req.file.mimetype,
-      username: uploadUsername,
-      tenantId,
-    });
-
-    fs.promises.unlink(req.file.path).catch(() => {});
-
-    return res.json({
-      url: uploaded.public_url,
-      filename: uploaded.filename,
-      storage: 'uploads-service',
-      folder: uploadUsername,
-    });
+    return res.json({ url: imageUrl, filename: req.file.filename });
   } catch (err) {
-    if (req.file?.path) {
-      fs.promises.unlink(req.file.path).catch(() => {});
-    }
     return next(err);
   }
 });

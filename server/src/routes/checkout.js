@@ -20,6 +20,7 @@ export const checkoutRouter = express.Router();
 checkoutRouter.use(resolveTenant);
 
 const ALLOWED_METHODS = new Set(['transfer', 'cash_on_pickup']);
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function normalizePaymentMethod(value) {
   const raw = String(value || '')
@@ -81,9 +82,13 @@ async function validateItems(tenantId, items, adjustments, context = {}) {
   const { pricingProfile, offers = [], userId = null } = context;
   const normalized = normalizeItems(items);
   const ids = normalized.map((item) => item.product_id);
+  const invalidIds = ids.filter((id) => !UUID_REGEX.test(String(id || '')));
 
   if (!ids.length) {
     return { valid: false, errors: ['empty_items'] };
+  }
+  if (invalidIds.length) {
+    return { valid: false, errors: invalidIds.map((id) => `invalid_product_id:${id}`), items: [] };
   }
 
   const result = await pool.query(

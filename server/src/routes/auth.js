@@ -39,6 +39,27 @@ async function ensureEmailVerificationSchema() {
   );
 }
 
+async function ensureEmailLoginCodeSchema() {
+  await pool.query(
+    [
+      'create table if not exists email_login_codes (',
+      'id uuid primary key default gen_random_uuid(),',
+      'user_id uuid not null references users(id) on delete cascade,',
+      'email text not null,',
+      'code_hash text not null,',
+      'attempts int not null default 0,',
+      'max_attempts int not null default 5,',
+      'expires_at timestamptz not null,',
+      'verified_at timestamptz,',
+      'created_at timestamptz not null default now()',
+      ')',
+    ].join(' ')
+  );
+  await pool.query(
+    'create index if not exists email_login_codes_user_idx on email_login_codes(user_id, created_at desc)'
+  );
+}
+
 function generateVerificationCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
@@ -47,7 +68,94 @@ function hashVerificationCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex');
 }
 
-async function sendVerificationEmail(email, code, recipientName = '') {
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const PHONE_PATTERN = /^\+?[0-9()\-\s]{7,25}$/;
+const CUIL_PATTERN = /^\d{2}-?\d{8}-?\d{1}$/;
+const PIQUIM_TENANT_IDS = new Set(
+  ['636736e2-e135-44cd-ac5c-5d4ccb839a73', process.env.PIQUIM_TENANT_ID]
+    .filter(Boolean)
+    .map((value) => String(value).trim().toLowerCase())
+);
+
+function normalizeLoginEmailInput(rawEmail, tenantId = '') {
+  const value = String(rawEmail || '').trim();
+  if (value.toLowerCase() !== 'admin') {
+    return normalizeEmailInput(value);
+  }
+  return PIQUIM_TENANT_IDS.has(String(tenantId || '').trim().toLowerCase())
+    ? 'admin@piquim.local'
+    : 'admin@teflon.local';
+}
+
+function validateSignupPayload({ email = '', password = '', name = '', profile = {} }) {
+  const errors = [];
+  const normalizedEmail = normalizeEmailInput(email);
+  if (!normalizedEmail || !EMAIL_PATTERN.test(normalizedEmail)) {
+    errors.push('email_invalid');
+  }
+
+  const passwordValue = String(password || '');
+  if (passwordValue.length < 8 || passwordValue.length > 72) {
+    errors.push('password_invalid_length');
+  }
+  if (!/[A-Za-z]/.test(passwordValue) || !/\d/.test(passwordValue)) {
+    errors.push('password_invalid_format');
+  }
+
+  const fullName = String(name || '').trim();
+  if (fullName.length < 2 || fullName.length > 120) {
+    errors.push('name_invalid');
+  }
+
+  const phone = String(profile.phone || '').trim();
+  if (!PHONE_PATTERN.test(phone)) {
+    errors.push('phone_invalid');
+  }
+
+  const businessName = String(profile.business_name || '').trim();
+  if (businessName.length < 2 || businessName.length > 180) {
+    errors.push('business_name_invalid');
+  }
+
+  const businessActivity = String(profile.business_activity || '').trim();
+  if (businessActivity.length < 2 || businessActivity.length > 180) {
+    errors.push('business_activity_invalid');
+  }
+
+  const cuil = String(profile.cuil || '').trim();
+  if (!CUIL_PATTERN.test(cuil)) {
+    errors.push('cuil_invalid');
+  }
+
+  const address = String(profile.address || '').trim();
+  if (address.length < 5 || address.length > 240) {
+    errors.push('address_invalid');
+  }
+
+  const city = String(profile.city || '').trim();
+  if (city.length < 2 || city.length > 120) {
+    errors.push('city_invalid');
+  }
+
+  const province = String(profile.province || '').trim();
+  if (province.length < 2 || province.length > 120) {
+    errors.push('province_invalid');
+  }
+
+  const countryCode = String(profile.country_code || '').trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(countryCode)) {
+    errors.push('country_invalid');
+  }
+
+  const postalCode = String(profile.postal_code || '').trim();
+  if (postalCode.length < 3 || postalCode.length > 20) {
+    errors.push('postal_code_invalid');
+  }
+
+  return errors;
+}
+
+async function sendVerificationEmail(email, code, recipientName = '', tenantId = '') {
   const companyName = getEmailCompanyName();
   const safeName = normalizeDisplayName(recipientName);
   const greetingLine = safeName ? `Hola, ${safeName}:` : 'Hola:';
@@ -85,6 +193,7 @@ async function sendVerificationEmail(email, code, recipientName = '') {
     text: textBody,
     html: htmlBody,
     logPrefix: 'email-verification',
+    tenantId,
   });
 
   if (!delivery.sent) {
@@ -178,7 +287,7 @@ async function sendApprovalRequestedEmail({
   });
 }
 
-async function issueEmailVerificationCode(userId, email, recipientName = '') {
+async function issueEmailVerificationCode(userId, email, recipientName = '', tenantId = '') {
   await ensureEmailVerificationSchema();
   const normalizedEmail = normalizeEmailInput(email);
   const code = generateVerificationCode();
@@ -199,7 +308,7 @@ async function issueEmailVerificationCode(userId, email, recipientName = '') {
     [userId, normalizedEmail, codeHash, 0, VERIFICATION_MAX_ATTEMPTS, expiresAt]
   );
 
-  const delivery = await sendVerificationEmail(normalizedEmail, code, recipientName);
+  const delivery = await sendVerificationEmail(normalizedEmail, code, recipientName, tenantId);
   const verification = {
     sent: delivery.sent,
     provider: delivery.provider,
@@ -209,6 +318,79 @@ async function issueEmailVerificationCode(userId, email, recipientName = '') {
     verification.debug_code = code;
   }
   return verification;
+}
+
+async function issueEmailLoginCode({ userId, email, recipientName = '', tenantId = '' }) {
+  await ensureEmailLoginCodeSchema();
+  const normalizedEmail = normalizeEmailInput(email);
+  const code = generateVerificationCode();
+  const codeHash = hashVerificationCode(code);
+  const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60 * 1000);
+
+  await pool.query(
+    'delete from email_login_codes where user_id = $1 and verified_at is null',
+    [userId]
+  );
+
+  await pool.query(
+    [
+      'insert into email_login_codes',
+      '(user_id, email, code_hash, attempts, max_attempts, expires_at)',
+      'values ($1, $2, $3, $4, $5, $6)',
+    ].join(' '),
+    [userId, normalizedEmail, codeHash, 0, VERIFICATION_MAX_ATTEMPTS, expiresAt]
+  );
+
+  const companyName = getEmailCompanyName();
+  const safeName = normalizeDisplayName(recipientName);
+  const greetingLine = safeName ? `Hola, ${safeName}:` : 'Hola:';
+  const subject = `Codigo para iniciar sesion en ${companyName}`;
+  const textBody = [
+    greetingLine,
+    '',
+    'Recibimos un pedido para iniciar sesion con tu email.',
+    '',
+    'Tu codigo es:',
+    String(code),
+    '',
+    'Ingresa este codigo en la pantalla de login para continuar.',
+    '',
+    `Si no solicitaste acceso a ${companyName}, puedes ignorar este correo.`,
+    '',
+    `Equipo ${companyName}`,
+  ].join('\n');
+  const htmlBody = [
+    `<p>${greetingLine}</p>`,
+    '<p>Recibimos un pedido para iniciar sesion con tu email.</p>',
+    '<p><strong>Tu codigo es:</strong></p>',
+    `<h2 style="letter-spacing:4px;">${code}</h2>`,
+    '<p>Ingresa este codigo en la pantalla de login para continuar.</p>',
+    `<p>Si no solicitaste acceso a ${companyName}, puedes ignorar este correo.</p>`,
+    `<p>Equipo ${companyName}</p>`,
+  ].join('');
+
+  const delivery = await sendSmtpEmail({
+    to: normalizedEmail,
+    subject,
+    text: textBody,
+    html: htmlBody,
+    logPrefix: 'email-login-code',
+    tenantId,
+  });
+
+  if (!delivery.sent) {
+    console.log(`[email-login-code] Codigo para ${normalizedEmail}: ${code}`);
+  }
+
+  const payload = {
+    sent: delivery.sent,
+    provider: delivery.provider,
+    expires_in_minutes: VERIFICATION_CODE_TTL_MINUTES,
+  };
+  if (process.env.NODE_ENV !== 'production') {
+    payload.debug_code = code;
+  }
+  return payload;
 }
 
 async function getMembership(userId, tenantId) {
@@ -273,13 +455,12 @@ authRouter.post('/login', async (req, res, next) => {
   try {
     await ensureEmailVerificationSchema();
     const { email, password, tenant_id } = req.body;
+    const requestedTenantId = tenant_id || await resolveTenantIdFromRequest(req);
     if (!email || !password) {
       return res.status(400).json({ error: 'email_password_required' });
     }
 
-    const rawEmail = String(email).trim();
-    const normalizedEmail =
-      rawEmail.toLowerCase() === 'admin' ? 'admin@teflon.local' : normalizeEmailInput(rawEmail);
+    const normalizedEmail = normalizeLoginEmailInput(email, requestedTenantId);
 
     const userRes = await pool.query(
       [
@@ -312,7 +493,7 @@ authRouter.post('/login', async (req, res, next) => {
     let role = user.role;
     let status = user.status || 'active';
     if (user.role !== 'master_admin') {
-      const membership = await getMembership(user.id, tenant_id || null);
+      const membership = await getMembership(user.id, requestedTenantId || null);
       if (!membership) {
         return res.status(403).json({ error: 'no_tenant_access' });
       }
@@ -412,7 +593,7 @@ async function handleSignup(req, res, next) {
         details: 'No se pudo identificar el sitio. Verifica que el dominio esta asociado a un tenant.',
       });
     }
-    const normalizedEmail = normalizeEmailInput(email);
+    const normalizedEmail = normalizeLoginEmailInput(email, requestedTenantId);
     if (!normalizedEmail) {
       return res.status(400).json({ error: 'missing_fields', details: 'email invalido' });
     }
@@ -423,6 +604,20 @@ async function handleSignup(req, res, next) {
     await ensureUserProfileSchema();
     const profile = normalizeProfileFields(req.body);
     const displayName = String(name || '').trim() || null;
+    if (!profile.phone || !profile.business_name || !profile.business_activity || !profile.cuil || !profile.address || !profile.city || !profile.province || !profile.country_code) {
+      return res.status(400).json({
+        error: 'missing_fields',
+        details:
+          'Faltan datos obligatorios para compra (telefono, razon social/negocio, actividad, cuil, domicilio, localidad, provincia y pais).',
+      });
+    }
+    const payloadErrors = validateSignupPayload({ email, password, name, profile });
+    if (payloadErrors.length) {
+      return res.status(400).json({
+        error: 'invalid_fields',
+        fields: payloadErrors,
+      });
+    }
 
     const existingUserRes = await pool.query(
       [
@@ -442,7 +637,7 @@ async function handleSignup(req, res, next) {
       const membership = membershipRes.rows[0] || null;
 
       if (existingUser.requires_email_verification && !existingUser.email_verified_at) {
-        const verification = await issueEmailVerificationCode(existingUser.id, existingUser.email, name);
+        const verification = await issueEmailVerificationCode(existingUser.id, existingUser.email, name, tenant_id);
         return res.status(409).json({
           error: 'verification_pending',
           requires_email_verification: true,
@@ -479,9 +674,9 @@ async function handleSignup(req, res, next) {
         'insert into users (',
         '  email, password_hash, role, status, email_verified_at, requires_email_verification,',
         '  display_name, phone, address, address_extra, country_code, country_label,',
-        '  province, city, postal_code',
+        '  province, city, postal_code, business_name, business_activity, cuil',
         ') values (',
-        '  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15',
+        '  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18',
         ') returning id, email, role, status, email_verified_at, requires_email_verification',
       ].join(' '),
       [
@@ -490,6 +685,7 @@ async function handleSignup(req, res, next) {
         profile.phone, profile.address, profile.address_extra,
         profile.country_code, profile.country_label,
         profile.province, profile.city, profile.postal_code,
+        profile.business_name, profile.business_activity, profile.cuil,
       ]
     );
 
@@ -500,7 +696,7 @@ async function handleSignup(req, res, next) {
       'insert into user_tenants (user_id, tenant_id, role, status) values ($1, $2, $3, $4)',
       [user.id, tenant_id, assignedRole, membershipStatus]
     );
-    const verification = await issueEmailVerificationCode(user.id, user.email, name);
+    const verification = await issueEmailVerificationCode(user.id, user.email, name, tenant_id);
     return res.status(201).json({
       requires_approval: true,
       requires_email_verification: true,
@@ -514,6 +710,140 @@ async function handleSignup(req, res, next) {
 
 authRouter.post('/signup', handleSignup);
 authRouter.post('/register', handleSignup);
+
+authRouter.post('/request-login-code', async (req, res, next) => {
+  try {
+    await ensureEmailLoginCodeSchema();
+    const { email, tenant_id } = req.body || {};
+    const requestedTenantId = tenant_id || await resolveTenantIdFromRequest(req);
+    if (!email) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+    const normalizedEmail = normalizeLoginEmailInput(email, requestedTenantId);
+    const userRes = await pool.query(
+      [
+        'select id, email, role, status, display_name, requires_email_verification, email_verified_at',
+        'from users where lower(email) = lower($1) limit 1',
+      ].join(' '),
+      [normalizedEmail]
+    );
+    if (!userRes.rowCount) {
+      return res.status(404).json({ error: 'user_not_found' });
+    }
+    const user = userRes.rows[0];
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'user_inactive' });
+    }
+    if (user.requires_email_verification && !user.email_verified_at) {
+      return res.status(403).json({ error: 'email_not_verified' });
+    }
+    if (user.role !== 'master_admin') {
+      const membership = await getMembership(user.id, requestedTenantId || null);
+      if (!membership) {
+        return res.status(403).json({ error: 'no_tenant_access' });
+      }
+      if ((membership.status || 'active') !== 'active') {
+        return res.status(403).json({ error: 'pending_approval' });
+      }
+    }
+
+    const delivery = await issueEmailLoginCode({
+      userId: user.id,
+      email: user.email,
+      recipientName: user.display_name || '',
+      tenantId: requestedTenantId || '',
+    });
+    return res.json({ ok: true, delivery });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+authRouter.post('/login-with-code', async (req, res, next) => {
+  try {
+    await ensureEmailLoginCodeSchema();
+    const { email, code, tenant_id } = req.body || {};
+    const requestedTenantId = tenant_id || await resolveTenantIdFromRequest(req);
+    if (!email || !code) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+    const normalizedEmail = normalizeEmailInput(email);
+    const userRes = await pool.query(
+      [
+        'select id, email, role, status, requires_email_verification, email_verified_at',
+        'from users where lower(email) = lower($1) limit 1',
+      ].join(' '),
+      [normalizedEmail]
+    );
+    if (!userRes.rowCount) {
+      return res.status(401).json({ error: 'invalid_code' });
+    }
+    const user = userRes.rows[0];
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'user_inactive' });
+    }
+    if (user.requires_email_verification && !user.email_verified_at) {
+      return res.status(403).json({ error: 'email_not_verified' });
+    }
+
+    const codeRes = await pool.query(
+      [
+        'select id, code_hash, attempts, max_attempts, expires_at, verified_at',
+        'from email_login_codes',
+        'where user_id = $1 and verified_at is null',
+        'order by created_at desc limit 1',
+      ].join(' '),
+      [user.id]
+    );
+    if (!codeRes.rowCount) {
+      return res.status(400).json({ error: 'code_not_found' });
+    }
+    const loginCode = codeRes.rows[0];
+    if (new Date(loginCode.expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'code_expired' });
+    }
+    if (Number(loginCode.attempts || 0) >= Number(loginCode.max_attempts || VERIFICATION_MAX_ATTEMPTS)) {
+      return res.status(400).json({ error: 'code_locked' });
+    }
+    const incomingHash = hashVerificationCode(String(code).trim());
+    if (incomingHash !== loginCode.code_hash) {
+      await pool.query('update email_login_codes set attempts = attempts + 1 where id = $1', [loginCode.id]);
+      return res.status(401).json({ error: 'invalid_code' });
+    }
+    await pool.query('update email_login_codes set verified_at = now() where id = $1', [loginCode.id]);
+
+    let tenantId = null;
+    let role = user.role;
+    let status = user.status || 'active';
+    if (user.role !== 'master_admin') {
+      const membership = await getMembership(user.id, requestedTenantId || null);
+      if (!membership) {
+        return res.status(403).json({ error: 'no_tenant_access' });
+      }
+      tenantId = membership.tenant_id;
+      role = membership.role;
+      status = membership.status || 'active';
+      if (status !== 'active') {
+        return res.status(403).json({ error: 'pending_approval' });
+      }
+    }
+
+    const token = signToken({
+      sub: user.id,
+      email: user.email,
+      username: user.email.split('@')[0],
+      role,
+      status,
+      tenant_id: tenantId,
+    });
+    return res.json({
+      token,
+      user: { id: user.id, email: user.email, role, status, tenant_id: tenantId },
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
 
 authRouter.post('/verify-email', async (req, res, next) => {
   try {
@@ -607,7 +937,7 @@ authRouter.post('/verify-email', async (req, res, next) => {
 authRouter.post('/resend-verification', async (req, res, next) => {
   try {
     await ensureEmailVerificationSchema();
-    const { email } = req.body || {};
+    const { email, tenant_id } = req.body || {};
     if (!email) {
       return res.status(400).json({ error: 'missing_fields' });
     }
@@ -626,7 +956,7 @@ authRouter.post('/resend-verification', async (req, res, next) => {
       return res.json({ ok: true, already_verified: true });
     }
 
-    const verification = await issueEmailVerificationCode(user.id, user.email);
+    const verification = await issueEmailVerificationCode(user.id, user.email, '', tenant_id || '');
     return res.json({ ok: true, verification });
   } catch (err) {
     return next(err);
@@ -679,6 +1009,9 @@ export async function getMeHandler(req, res, next) {
         province: user.province,
         city: user.city,
         postal_code: user.postal_code,
+        business_name: user.business_name,
+        business_activity: user.business_activity,
+        cuil: user.cuil,
         photo_url: user.photo_url,
         billing_info: user.billing_info || {},
       },

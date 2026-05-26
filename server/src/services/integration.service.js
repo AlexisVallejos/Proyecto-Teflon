@@ -5,6 +5,14 @@ let productSyncSchemaPromise = null;
 
 const DEFAULT_SOURCE_SYSTEM = 'erp';
 const DEFAULT_UNCATEGORIZED_LABEL = 'Sin definir';
+const PIQUIM_TENANT_IDS = new Set(
+  String(process.env.PIQUIM_TENANT_IDS || process.env.PIQUIM_TENANT_ID || '636736e2-e135-44cd-ac5c-5d4ccb839a73')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
+const PIQUIM_HELADERIA_CATEGORY_LABEL = 'Heladeria';
+const PIQUIM_PANADERIA_CONFITERIA_CATEGORY_LABEL = 'Panaderia/Confiteria';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_SYNC_OPERATION = 'upsert';
 const MAX_PRICE_TIER_COUNT = 10;
@@ -366,6 +374,46 @@ const slugify = (value) =>
     .replace(/^-+|-+$/g, '');
 
 const uniqueTextValues = (values = []) => [...new Set(values.map((value) => toTextOrNull(value)).filter(Boolean))];
+
+const isPiquimTenant = (tenantId) => PIQUIM_TENANT_IDS.has(String(tenantId || '').trim());
+
+const normalizePiquimText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const resolvePiquimRootCategoryLabels = (item = {}) => {
+  const text = normalizePiquimText([
+    item.sourceCategoryLabel,
+    ...(Array.isArray(item.categoryLabels) ? item.categoryLabels : []),
+    ...(Array.isArray(item.categoryPathLabels) ? item.categoryPathLabels : []),
+    item.rawPayload?.category,
+    item.rawPayload?.categoria,
+    item.rawPayload?.rubro,
+    item.rawPayload?.familia,
+    item.rawPayload?.grand_family,
+    item.rawPayload?.gran_familia,
+  ].filter(Boolean).join(' '));
+
+  const labels = [];
+  if (text.includes('heladeria') || text.includes('helado')) {
+    labels.push(PIQUIM_HELADERIA_CATEGORY_LABEL);
+  }
+  if (
+    text.includes('panaderia') ||
+    text.includes('panificacion') ||
+    text.includes('pan ') ||
+    text.includes('bolleria') ||
+    text.includes('confiteria') ||
+    text.includes('reposteria') ||
+    text.includes('pasteleria')
+  ) {
+    labels.push(PIQUIM_PANADERIA_CONFITERIA_CATEGORY_LABEL);
+  }
+
+  return uniqueTextValues(labels);
+};
 
 const splitCategoryTokens = (value) => {
   if (Array.isArray(value)) {
@@ -1143,10 +1191,21 @@ export async function syncIntegrationProducts({
       .map((value) => toTextOrNull(value))
       .filter(Boolean)
   )];
+  const piquimTenant = isPiquimTenant(tenantId);
+  const skus = [...new Set(
+    normalizedEntries
+      .map((entry) => entry.item?.sku)
+      .map((value) => toTextOrNull(value))
+      .filter(Boolean)
+  )];
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
+    const existingParams = [tenantId, externalIds];
+    const existingSkuFilter = piquimTenant && skus.length
+      ? `or p.sku = any($${existingParams.push(skus)}::varchar[])`
+      : '';
     const existingRes = await client.query(
       [
         'select p.id, p.erp_id, p.external_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.stock, p.brand,',
@@ -1155,12 +1214,13 @@ export async function syncIntegrationProducts({
         'from product_cache p',
         'left join product_sync_metadata m on m.product_id = p.id and m.tenant_id = p.tenant_id',
         'where p.tenant_id = $1',
-        'and (p.external_id = any($2::varchar[]) or p.erp_id = any($2::varchar[]) or m.external_id = any($2::varchar[]))',
+        `and (p.external_id = any($2::varchar[]) or p.erp_id = any($2::varchar[]) or m.external_id = any($2::varchar[]) ${existingSkuFilter})`,
       ].join(' '),
-      [tenantId, externalIds]
+      existingParams
     );
 
     const existingByExternalId = new Map();
+    const existingBySku = new Map();
     for (const row of existingRes.rows) {
       [row.external_id, row.erp_id, row.metadata_external_id]
         .map((value) => toTextOrNull(value))
@@ -1170,6 +1230,10 @@ export async function syncIntegrationProducts({
             existingByExternalId.set(key, row);
           }
         });
+      const skuKey = toTextOrNull(row.sku);
+      if (skuKey && !existingBySku.has(skuKey)) {
+        existingBySku.set(skuKey, row);
+      }
     }
 
     let created = 0;
@@ -1212,7 +1276,12 @@ export async function syncIntegrationProducts({
         continue;
       }
 
-      const existing = existingByExternalId.get(item.externalId);
+      if (piquimTenant) {
+        item.images = [];
+        item.hasImages = false;
+      }
+
+      const existing = existingByExternalId.get(item.externalId) || (piquimTenant ? existingBySku.get(item.sku) : null);
 
       if (item?.validationError) {
         failed += 1;
@@ -1264,14 +1333,17 @@ export async function syncIntegrationProducts({
       await client.query(`SAVEPOINT ${savepointName}`);
 
       try {
-        const categoryLabelsForSync = [...item.categoryLabels];
+        const piquimRootCategoryLabels = piquimTenant ? resolvePiquimRootCategoryLabels(item) : [];
+        const categoryLabelsForSync = piquimTenant && piquimRootCategoryLabels.length
+          ? piquimRootCategoryLabels
+          : [...item.categoryLabels];
         const shouldAssignFallbackCategory =
           !existing && !item.hasCategoryRefs && !item.hasCategoryPath;
         if (shouldAssignFallbackCategory) {
           categoryLabelsForSync.push(DEFAULT_UNCATEGORIZED_LABEL);
         }
 
-        const categoryPathResolution = item.hasCategoryPath
+        const categoryPathResolution = !piquimTenant && item.hasCategoryPath
           ? await ensureCategoryPathForSync(client, {
               tenantId,
               categoryPathLabels: item.categoryPathLabels,
@@ -1279,10 +1351,10 @@ export async function syncIntegrationProducts({
           : { categoryId: null, createdCount: 0 };
 
         const flatCategoryResolution =
-          item.hasCategoryRefs || shouldAssignFallbackCategory
+          item.hasCategoryRefs || shouldAssignFallbackCategory || (piquimTenant && piquimRootCategoryLabels.length)
             ? await resolveCategoryIdsForSync(client, {
                 tenantId,
-                categoryIds: item.categoryIds,
+                categoryIds: piquimTenant ? [] : item.categoryIds,
                 categoryLabels: categoryLabelsForSync,
               })
             : { categoryIds: [], createdCount: 0 };
@@ -1375,6 +1447,9 @@ export async function syncIntegrationProducts({
             metadata_external_id: item.externalId,
           };
           existingByExternalId.set(item.externalId, nextExisting);
+          if (piquimTenant && item.sku) {
+            existingBySku.set(item.sku, nextExisting);
+          }
           await client.query(`RELEASE SAVEPOINT ${savepointName}`);
           itemResults.push({
             ...baseResult,
@@ -1491,6 +1566,9 @@ export async function syncIntegrationProducts({
           is_active_source: nextIsActiveSource,
           metadata_external_id: item.externalId,
         });
+        if (piquimTenant && nextSku) {
+          existingBySku.set(nextSku, existingByExternalId.get(item.externalId));
+        }
         await client.query(`RELEASE SAVEPOINT ${savepointName}`);
         itemResults.push({
           ...baseResult,

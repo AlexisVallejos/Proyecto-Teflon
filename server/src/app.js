@@ -27,9 +27,28 @@ const webDistPath = path.join(projectRoot, 'web', 'dist');
 const webIndexPath = path.join(webDistPath, 'index.html');
 const hasWebBuild = fs.existsSync(webIndexPath);
 
-const corsOrigin = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN : true;
+const corsOrigin = process.env.CORS_ORIGIN
+  ? String(process.env.CORS_ORIGIN)
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  : true;
 app.use(cors({ 
-  origin: corsOrigin, 
+  origin: (origin, callback) => {
+    if (corsOrigin === true || !origin) {
+      callback(null, true);
+      return;
+    }
+    const allowed = corsOrigin.some((entry) => {
+      if (entry === origin) return true;
+      if (entry.includes('*')) {
+        const pattern = new RegExp(`^${entry.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')}$`);
+        return pattern.test(origin);
+      }
+      return false;
+    });
+    callback(null, allowed);
+  },
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Requested-With', 'Accept', 'Origin']
 }));

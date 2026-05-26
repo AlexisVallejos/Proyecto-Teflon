@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate } from '../../utils/navigation';
@@ -12,19 +12,6 @@ const CheckIcon = () => (
     </svg>
 );
 
-const PersonIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </svg>
-);
-
-const StorefrontIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-);
 
 const EyeIcon = ({ open }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -46,10 +33,66 @@ const inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3.5 py-
 const labelClass = 'mb-1.5 block text-[13px] font-semibold text-gray-700';
 const helperTextClass = 'mt-1.5 text-xs text-gray-500';
 
+function AutocompleteField({
+    value,
+    onChange,
+    onOptionSelect,
+    options = [],
+    placeholder = '',
+    disabled = false,
+    autoComplete,
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const normalized = String(value || '').trim().toLowerCase();
+    const filtered = options
+        .filter((item) => item?.label)
+        .filter((item) => !normalized || item.label.toLowerCase().includes(normalized))
+        .slice(0, 8);
+
+    return (
+        <div className="relative">
+            <input
+                className={inputClass}
+                type="text"
+                placeholder={placeholder}
+                value={value}
+                onChange={(e) => {
+                    onChange(e.target.value);
+                    setIsOpen(true);
+                }}
+                onFocus={() => setIsOpen(true)}
+                onBlur={() => setTimeout(() => setIsOpen(false), 120)}
+                autoComplete={autoComplete}
+                disabled={disabled}
+            />
+            {isOpen && filtered.length ? (
+                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-56 overflow-auto rounded-lg border border-gray-200 bg-white p-1.5 shadow-xl">
+                    {filtered.map((item) => (
+                        <button
+                            key={item.value}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                                onChange(item.label);
+                                onOptionSelect?.(item);
+                                setIsOpen(false);
+                            }}
+                            className="w-full rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-orange-50 hover:text-primary"
+                        >
+                            {item.label}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 function Step1({
     data,
     onChange,
     onNext,
+    fieldErrors,
     countryInput,
     onCountryInputChange,
     countryOptions,
@@ -62,23 +105,31 @@ function Step1({
     cityOptions,
     citiesLoading,
     citySuggestionsEnabled,
+    addressOptions,
+    addressLoading,
+    onAddressInputChange,
+    onAddressOptionSelect,
     isArgentinaCountry,
 }) {
+    const getFieldError = (field) => fieldErrors?.[field] || '';
     return (
         <div className="space-y-4">
             <div>
                 <label className={labelClass}>Nombre completo</label>
-                <input className={inputClass} type="text" placeholder="Tu nombre" value={data.name} onChange={(e) => onChange('name', e.target.value)} />
+                <input className={inputClass} type="text" placeholder="Tu nombre" value={data.name} onChange={(e) => onChange('name', e.target.value)} required minLength={2} maxLength={120} />
+                {getFieldError('name') ? <p className="mt-1 text-xs text-red-600">{getFieldError('name')}</p> : null}
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                    <label className={labelClass}>Email</label>
-                    <input className={inputClass} type="email" placeholder="tu@email.com" value={data.email} onChange={(e) => onChange('email', e.target.value)} />
+                    <label className={labelClass}>Telefono</label>
+                    <input className={inputClass} type="tel" placeholder="+54 11 ...." value={data.phone} onChange={(e) => onChange('phone', e.target.value)} required minLength={7} maxLength={25} pattern="^\+?[0-9()\-\s]{7,25}$" title="Ingresa un telefono valido (solo numeros, espacios, +, -, parentesis)." />
+                    {getFieldError('phone') ? <p className="mt-1 text-xs text-red-600">{getFieldError('phone')}</p> : null}
                 </div>
                 <div>
-                    <label className={labelClass}>Telefono</label>
-                    <input className={inputClass} type="tel" placeholder="+54 11 ...." value={data.phone} onChange={(e) => onChange('phone', e.target.value)} />
+                    <label className={labelClass}>N° CUIL</label>
+                    <input className={inputClass} type="text" placeholder="20-12345678-9" value={data.cuit} onChange={(e) => onChange('cuit', e.target.value)} required maxLength={13} pattern="^[0-9]{2}-?[0-9]{8}-?[0-9]{1}$" title="Formato valido: 20-12345678-9" />
+                    {getFieldError('cuit') ? <p className="mt-1 text-xs text-red-600">{getFieldError('cuit')}</p> : null}
                 </div>
             </div>
 
@@ -87,49 +138,53 @@ function Step1({
                 <div className="space-y-3">
                     <div>
                         <label className={labelClass}>Direccion</label>
-                        <input className={inputClass} type="text" placeholder="Calle y numero" value={data.address} onChange={(e) => onChange('address', e.target.value)} />
+                        <AutocompleteField
+                            value={data.address}
+                            onChange={onAddressInputChange}
+                            onOptionSelect={onAddressOptionSelect}
+                            options={isArgentinaCountry ? addressOptions : []}
+                            placeholder="Calle y numero"
+                            autoComplete="street-address"
+                        />
+                        <input type="hidden" value={data.address} required />
+                        {getFieldError('address') ? <p className="mt-1 text-xs text-red-600">{getFieldError('address')}</p> : null}
+                        <p className={helperTextClass}>
+                            {isArgentinaCountry
+                                ? addressLoading
+                                    ? 'Buscando direcciones en GeoRef...'
+                                    : 'Escribe calle y altura (minimo 3 caracteres) para ver sugerencias reales.'
+                                : 'Completa la direccion manualmente.'}
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                             <label className={labelClass}>Pais</label>
-                            <input
-                                className={inputClass}
-                                type="text"
-                                list="signup-country-options"
-                                placeholder="Argentina"
+                            <AutocompleteField
                                 value={countryInput}
-                                onChange={(e) => onCountryInputChange(e.target.value)}
+                                onChange={onCountryInputChange}
+                                options={countryOptions}
+                                placeholder="Argentina"
                                 autoComplete="country-name"
                             />
-                            <datalist id="signup-country-options">
-                                {countryOptions.map((country) => (
-                                    <option key={country.value} value={country.label} />
-                                ))}
-                            </datalist>
+                            <input type="hidden" value={data.country} required />
+                            {getFieldError('country') ? <p className="mt-1 text-xs text-red-600">{getFieldError('country')}</p> : null}
                             <p className={helperTextClass}>
                                 {countriesLoading ? 'Cargando paises...' : 'Escribe para buscar y selecciona un pais del listado.'}
                             </p>
                         </div>
                         <div>
                             <label className={labelClass}>Provincia</label>
-                            <input
-                                className={inputClass}
-                                type="text"
-                                list={provinceSuggestionsEnabled ? 'signup-province-options' : undefined}
-                                placeholder={isArgentinaCountry ? 'Buenos Aires' : 'Provincia / estado / region'}
+                            <AutocompleteField
                                 value={data.province}
-                                onChange={(e) => onProvinceInputChange(e.target.value)}
+                                onChange={onProvinceInputChange}
+                                options={provinceSuggestionsEnabled ? provinceOptions : []}
+                                placeholder={isArgentinaCountry ? 'Buenos Aires' : 'Provincia / estado / region'}
                                 autoComplete="address-level1"
                                 disabled={!data.country}
                             />
-                            {provinceSuggestionsEnabled ? (
-                                <datalist id="signup-province-options">
-                                    {provinceOptions.map((province) => (
-                                        <option key={province.value} value={province.label} />
-                                    ))}
-                                </datalist>
-                            ) : null}
+                            <input type="hidden" value={data.province} required />
+                            {getFieldError('province') ? <p className="mt-1 text-xs text-red-600">{getFieldError('province')}</p> : null}
                             <p className={helperTextClass}>
                                 {!data.country
                                     ? 'Primero selecciona un pais.'
@@ -147,23 +202,16 @@ function Step1({
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                             <label className={labelClass}>Ciudad</label>
-                            <input
-                                className={inputClass}
-                                type="text"
-                                list={citySuggestionsEnabled ? 'signup-city-options' : undefined}
-                                placeholder={isArgentinaCountry ? 'Mar del Plata' : 'Ciudad'}
+                            <AutocompleteField
                                 value={data.city}
-                                onChange={(e) => onCityInputChange(e.target.value)}
+                                onChange={onCityInputChange}
+                                options={citySuggestionsEnabled ? cityOptions : []}
+                                placeholder={isArgentinaCountry ? 'Mar del Plata' : 'Ciudad'}
                                 autoComplete="address-level2"
                                 disabled={!data.country || (provinceSuggestionsEnabled && !data.provinceId)}
                             />
-                            {citySuggestionsEnabled ? (
-                                <datalist id="signup-city-options">
-                                    {cityOptions.map((city) => (
-                                        <option key={city.value} value={city.label} />
-                                    ))}
-                                </datalist>
-                            ) : null}
+                            <input type="hidden" value={data.city} required />
+                            {getFieldError('city') ? <p className="mt-1 text-xs text-red-600">{getFieldError('city')}</p> : null}
                             <p className={helperTextClass}>
                                 {!data.country
                                     ? 'Primero selecciona un pais.'
@@ -180,7 +228,8 @@ function Step1({
                         </div>
                         <div>
                             <label className={labelClass}>Codigo postal</label>
-                            <input className={inputClass} type="text" placeholder="7600" value={data.postalCode} onChange={(e) => onChange('postalCode', e.target.value)} autoComplete="postal-code" />
+                            <input className={inputClass} type="text" placeholder="7600" value={data.postalCode} onChange={(e) => onChange('postalCode', e.target.value)} autoComplete="postal-code" required minLength={3} maxLength={20} />
+                            {getFieldError('postalCode') ? <p className="mt-1 text-xs text-red-600">{getFieldError('postalCode')}</p> : null}
                         </div>
                     </div>
                 </div>
@@ -193,42 +242,32 @@ function Step1({
     );
 }
 
-function Step2({ data, onChange, onNext, onBack }) {
+function Step2({ data, onChange, onNext, onBack, fieldErrors }) {
     const [showPass, setShowPass] = useState(false);
+    const getFieldError = (field) => fieldErrors?.[field] || '';
 
     return (
         <div className="space-y-5">
             <div>
+                <label className={labelClass}>Mail</label>
+                <input className={inputClass} type="email" placeholder="tu@email.com" value={data.email} onChange={(e) => onChange('email', e.target.value)} required maxLength={160} />
+                {getFieldError('email') ? <p className="mt-1 text-xs text-red-600">{getFieldError('email')}</p> : null}
+            </div>
+            <div>
                 <label className={labelClass}>Contrasena</label>
                 <div className="relative">
-                    <input className={inputClass} type={showPass ? 'text' : 'password'} placeholder="********" value={data.password} onChange={(e) => onChange('password', e.target.value)} />
+                    <input className={inputClass} type={showPass ? 'text' : 'password'} placeholder="********" value={data.password} onChange={(e) => onChange('password', e.target.value)} required minLength={8} maxLength={72} pattern="^(?=.*[A-Za-z])(?=.*\d).{8,72}$" title="Minimo 8 caracteres, al menos una letra y un numero." />
                     <button type="button" onClick={() => setShowPass((value) => !value)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8a7560] transition-colors hover:text-[#181411]">
                         <EyeIcon open={showPass} />
                     </button>
                 </div>
+                {getFieldError('password') ? <p className="mt-1 text-xs text-red-600">{getFieldError('password')}</p> : null}
             </div>
 
             <div>
                 <label className={labelClass}>Confirmar contrasena</label>
-                <input className={inputClass} type="password" placeholder="********" value={data.confirmPassword} onChange={(e) => onChange('confirmPassword', e.target.value)} />
-            </div>
-
-            <div>
-                <label className={labelClass}>Tipo de cuenta</label>
-                <div className="grid grid-cols-2 gap-4">
-                    {[
-                        { value: 'minorista', label: 'Minorista', Icon: PersonIcon },
-                        { value: 'mayorista', label: 'Mayorista', Icon: StorefrontIcon },
-                    ].map(({ value, label, Icon }) => (
-                        <label key={value} className="cursor-pointer">
-                            <input type="radio" name="accountType" value={value} checked={data.accountType === value} onChange={() => onChange('accountType', value)} className="sr-only" />
-                            <div className={`flex flex-col items-center justify-center rounded-2xl border-2 p-4 transition-all duration-200 ${data.accountType === value ? 'border-primary bg-primary/10 text-primary' : 'border-[#e5e1de] bg-white text-[#8a7560]'}`}>
-                                <Icon />
-                                <span className="mt-2 text-sm font-bold">{label}</span>
-                            </div>
-                        </label>
-                    ))}
-                </div>
+                <input className={inputClass} type="password" placeholder="********" value={data.confirmPassword} onChange={(e) => onChange('confirmPassword', e.target.value)} required minLength={8} maxLength={72} />
+                {getFieldError('confirmPassword') ? <p className="mt-1 text-xs text-red-600">{getFieldError('confirmPassword')}</p> : null}
             </div>
 
             <div className="space-y-3 pt-1">
@@ -245,23 +284,19 @@ function Step2({ data, onChange, onNext, onBack }) {
     );
 }
 
-function Step3({ data, onChange, onBack, onSubmit, loading }) {
+function Step3({ data, onChange, onBack, onSubmit, loading, fieldErrors }) {
+    const getFieldError = (field) => fieldErrors?.[field] || '';
     return (
         <div className="space-y-4">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-                {data.accountType === 'mayorista'
-                    ? 'Completa los datos fiscales para solicitar la aprobacion mayorista.'
-                    : 'Estos datos son opcionales si solo necesitas una cuenta minorista.'}
-            </div>
-
             <div>
-                <label className={labelClass}>Nombre de la empresa</label>
-                <input className={inputClass} type="text" placeholder="Nombre comercial o razon social" value={data.company} onChange={(e) => onChange('company', e.target.value)} />
+                <label className={labelClass}>Razon social o negocio</label>
+                <input className={inputClass} type="text" placeholder="Nombre comercial o razon social" value={data.company} onChange={(e) => onChange('company', e.target.value)} required minLength={2} maxLength={180} />
+                {getFieldError('company') ? <p className="mt-1 text-xs text-red-600">{getFieldError('company')}</p> : null}
             </div>
-
             <div>
-                <label className={labelClass}>CUIT / CUIL</label>
-                <input className={inputClass} type="text" placeholder="00-00000000-0" value={data.cuit} onChange={(e) => onChange('cuit', e.target.value)} />
+                <label className={labelClass}>A que se dedica</label>
+                <input className={inputClass} type="text" placeholder="Actividad principal" value={data.businessActivity} onChange={(e) => onChange('businessActivity', e.target.value)} required minLength={2} maxLength={180} />
+                {getFieldError('businessActivity') ? <p className="mt-1 text-xs text-red-600">{getFieldError('businessActivity')}</p> : null}
             </div>
 
             <div className="space-y-3 pt-1">
@@ -294,7 +329,7 @@ function Step4({
             <div className="rounded-lg border border-[#e5e1de] bg-[#faf7f4] p-3 text-sm text-[#5b4632]">
                 {deliveryNotice || (
                     <>
-                        Te enviamos un codigo de verificacion a <span className="font-bold">{email}</span>.
+                        Te enviamos un codigo de verificacion a <span className="font-bold">{email}</span> desde el correo configurado en el panel admin.
                     </>
                 )}
             </div>
@@ -415,6 +450,7 @@ export default function SignupPage() {
     const [verificationLoading, setVerificationLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const [deliveryNotice, setDeliveryNotice] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -427,17 +463,48 @@ export default function SignupPage() {
         postalCode: '',
         password: '',
         confirmPassword: '',
-        accountType: 'minorista',
         company: '',
+        businessActivity: '',
         cuit: '',
         address: '',
     });
 
-    const roleForApi = useMemo(
-        () => (formData.accountType === 'mayorista' ? 'wholesale' : 'retail'),
-        [formData.accountType],
-    );
-    const update = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
+    const roleForApi = 'retail';
+    const update = (field, value) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+        setFieldErrors((prev) => {
+            if (!prev?.[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const parseBackendFieldErrors = (codes = []) => {
+        const mapping = {
+            email_invalid: ['email', 'Ingresa un email valido.'],
+            password_invalid_length: ['password', 'La contrasena debe tener entre 8 y 72 caracteres.'],
+            password_invalid_format: ['password', 'La contrasena debe incluir al menos una letra y un numero.'],
+            name_invalid: ['name', 'Nombre invalido.'],
+            phone_invalid: ['phone', 'Telefono invalido.'],
+            business_name_invalid: ['company', 'Razon social/negocio invalido.'],
+            business_activity_invalid: ['businessActivity', 'Actividad invalida.'],
+            cuil_invalid: ['cuit', 'CUIL invalido.'],
+            address_invalid: ['address', 'Domicilio invalido.'],
+            city_invalid: ['city', 'Localidad invalida.'],
+            province_invalid: ['province', 'Provincia invalida.'],
+            country_invalid: ['country', 'Pais invalido.'],
+            postal_code_invalid: ['postalCode', 'Codigo postal invalido.'],
+        };
+        const next = {};
+        codes.forEach((code) => {
+            const entry = mapping[code];
+            if (!entry) return;
+            const [field, message] = entry;
+            if (!next[field]) next[field] = message;
+        });
+        return next;
+    };
     const {
         countryInput,
         countryOptions,
@@ -449,9 +516,13 @@ export default function SignupPage() {
         isArgentinaCountry,
         provinceSuggestionsEnabled,
         citySuggestionsEnabled,
+        addressOptions,
+        addressLoading,
         handleCountryInputChange,
         handleProvinceInputChange,
         handleCityInputChange,
+        handleAddressInputChange,
+        handleAddressOptionSelect,
     } = useAddressLocationFields({
         value: formData,
         setValue: setFormData,
@@ -461,6 +532,7 @@ export default function SignupPage() {
             provinceId: 'provinceId',
             city: 'city',
             cityId: 'cityId',
+            address: 'address',
         },
     });
 
@@ -505,18 +577,19 @@ export default function SignupPage() {
 
     const validateStep1 = () => {
         if (!formData.name.trim()) return 'Completa tu nombre.';
-        if (!formData.email.trim()) return 'Completa tu email.';
-        if (!/\S+@\S+\.\S+/.test(formData.email)) return 'Email invalido.';
         if (!formData.phone.trim()) return 'Completa tu telefono.';
+        if (!formData.cuit.trim()) return 'Completa tu CUIL.';
+        if (!formData.address.trim()) return 'Completa domicilio.';
         if (!formData.country) return 'Selecciona tu pais.';
-        if (provinceSuggestionsEnabled && !formData.provinceId) return 'Selecciona una provincia valida.';
         if (!formData.city.trim()) return 'Completa tu ciudad.';
-        if (citySuggestionsEnabled && !formData.cityId) return 'Selecciona una ciudad valida.';
+        if (!formData.province.trim()) return 'Completa tu provincia.';
         if (!formData.postalCode.trim()) return 'Completa el codigo postal.';
         return '';
     };
 
     const validateStep2 = () => {
+        if (!formData.email.trim()) return 'Completa tu email.';
+        if (!/\S+@\S+\.\S+/.test(formData.email)) return 'Email invalido.';
         if (!formData.password) return 'Completa la contrasena.';
         if (formData.password.length < 6) return 'La contrasena debe tener al menos 6 caracteres.';
         if (formData.password !== formData.confirmPassword) return 'Las contrasenas no coinciden.';
@@ -527,6 +600,7 @@ export default function SignupPage() {
         const msg = validateStep1();
         if (msg) {
             setError(msg);
+            setFieldErrors({});
             return;
         }
         setError('');
@@ -537,6 +611,7 @@ export default function SignupPage() {
         const msg = validateStep2();
         if (msg) {
             setError(msg);
+            setFieldErrors({});
             return;
         }
         setError('');
@@ -558,20 +633,19 @@ export default function SignupPage() {
             return;
         }
 
-        if (formData.accountType === 'mayorista') {
-            if (!formData.company.trim() || !formData.cuit.trim()) {
-                setError('Para mayorista completa empresa y cuit.');
-                setStep(3);
-                return;
-            }
-            if (!formData.address.trim()) {
-                setError('Para mayorista completa la direccion comercial.');
-                setStep(1);
-                return;
-            }
+        if (!formData.company.trim() || !formData.businessActivity.trim()) {
+            setError('Completa razon social y actividad para continuar.');
+            setStep(3);
+            return;
+        }
+        if (!formData.address.trim()) {
+            setError('Completa el domicilio comercial.');
+            setStep(1);
+            return;
         }
 
         setError('');
+        setFieldErrors({});
         setLoading(true);
         try {
             const data = await signup({
@@ -587,6 +661,9 @@ export default function SignupPage() {
                 province: formData.province,
                 city: formData.city,
                 postal_code: formData.postalCode ?? '',
+                business_name: formData.company,
+                business_activity: formData.businessActivity,
+                cuil: formData.cuit,
             });
             const normalizedEmail = formData.email.trim().toLowerCase();
             const requiresVerification = data?.requires_email_verification !== false;
@@ -604,6 +681,9 @@ export default function SignupPage() {
         } catch (err) {
             const errorCode = String(err?.message || '');
             const payload = err?.payload || null;
+            if (payload?.error === 'invalid_fields' && Array.isArray(payload?.fields)) {
+                setFieldErrors(parseBackendFieldErrors(payload.fields));
+            }
             if (payload?.requires_email_verification && errorCode === 'verification_pending') {
                 const normalizedEmail = formData.email.trim().toLowerCase();
                 setVerificationEmail(normalizedEmail);
@@ -728,6 +808,7 @@ export default function SignupPage() {
                             data={formData}
                             onChange={update}
                             onNext={goStep2}
+                            fieldErrors={fieldErrors}
                             countryInput={countryInput}
                             onCountryInputChange={handleCountryInputChange}
                             countryOptions={countryOptions}
@@ -740,11 +821,15 @@ export default function SignupPage() {
                             cityOptions={cityOptions}
                             citiesLoading={citiesLoading}
                             citySuggestionsEnabled={citySuggestionsEnabled}
+                            addressOptions={addressOptions}
+                            addressLoading={addressLoading}
+                            onAddressInputChange={handleAddressInputChange}
+                            onAddressOptionSelect={handleAddressOptionSelect}
                             isArgentinaCountry={isArgentinaCountry}
                         />
                     )}
-                    {step === 2 && <Step2 data={formData} onChange={update} onNext={goStep3} onBack={() => setStep(1)} />}
-                    {step === 3 && <Step3 data={formData} onChange={update} onBack={() => setStep(2)} onSubmit={submit} loading={loading} />}
+                    {step === 2 && <Step2 data={formData} onChange={update} onNext={goStep3} onBack={() => setStep(1)} fieldErrors={fieldErrors} />}
+                    {step === 3 && <Step3 data={formData} onChange={update} onBack={() => setStep(2)} onSubmit={submit} loading={loading} fieldErrors={fieldErrors} />}
                     {step === 4 && (
                         <Step4
                             email={verificationEmail || formData.email.trim()}

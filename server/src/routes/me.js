@@ -10,7 +10,6 @@ import {
   normalizeProfileFields,
   profileColumnsToSelect,
 } from '../services/userProfile.js';
-import { buildUploadPublicUrl } from '../services/uploadPublicUrl.js';
 
 export const meRouter = express.Router();
 
@@ -54,6 +53,9 @@ meRouter.put('/profile', async (req, res, next) => {
     setFieldCoalesce('province', profile.province);
     setFieldCoalesce('city', profile.city);
     setFieldCoalesce('postal_code', profile.postal_code);
+    setFieldCoalesce('business_name', profile.business_name);
+    setFieldCoalesce('business_activity', profile.business_activity);
+    setFieldCoalesce('cuil', profile.cuil);
 
     if (billingInfo !== undefined) {
       if (billingInfo === null && req.body?.billing_info !== null) {
@@ -121,7 +123,7 @@ meRouter.post('/photo', photoUpload.single('photo'), async (req, res, next) => {
       return res.status(400).json({ error: 'photo_required' });
     }
 
-    const photoUrl = buildUploadPublicUrl(req, `/uploads/profiles/${req.file.filename}`);
+    const photoUrl = `/uploads/profiles/${req.file.filename}`;
 
     const previousRes = await pool.query(
       'select photo_url from users where id = $1',
@@ -131,9 +133,8 @@ meRouter.post('/photo', photoUpload.single('photo'), async (req, res, next) => {
 
     await pool.query('update users set photo_url = $2 where id = $1', [userId, photoUrl]);
 
-    const previousPath = String(previousPhoto || '').replace(/^https?:\/\/[^/]+/i, '');
-    if (previousPath.startsWith('/uploads/profiles/')) {
-      const prevPath = path.join(process.cwd(), previousPath.replace(/^\//, ''));
+    if (previousPhoto && previousPhoto.startsWith('/uploads/profiles/')) {
+      const prevPath = path.join(process.cwd(), previousPhoto.replace(/^\//, ''));
       fs.unlink(prevPath, () => {}); // best-effort cleanup
     }
 

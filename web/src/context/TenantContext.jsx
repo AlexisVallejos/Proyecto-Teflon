@@ -2,40 +2,50 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { getApiBase, getTenantHeaders } from '../utils/api';
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../utils/storefrontTheme';
 import { normalizePriceTierLabels } from '../utils/priceTierLabels';
+import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../data/piquimBranding';
 import StoreSkeleton from '../components/StoreSkeleton';
 
 const DEFAULT_TENANT = {
     id: 'demo-tenant-id',
-    name: 'Mi Negocio',
+    name: 'PIQUIM',
 };
 
 const DEFAULT_SETTINGS = {
     branding: {
-        name: 'Mi Negocio',
+        name: 'PIQUIM',
         logo_url: '',
+        design_preset: 'piquim',
+        catalog_cards: PIQUIM_CATALOG_CARDS,
         navbar: {
             links: [
                 { label: 'Inicio', href: '/' },
-                { label: 'Catálogo', href: '/catalog' },
+                { label: 'Catalogo', href: '/catalog' },
+                { label: 'Nosotros', href: '/about' },
             ],
+            show_search: true,
+            show_wishlist: true,
+            show_cart: true,
+            show_account: true,
+            register_label: 'Registrarse',
+            register_href: '/register',
         },
         footer: {
-            description: '',
+            ...PIQUIM_FOOTER_DEFAULTS,
             whatsapp_enabled: true,
+            socialLinks: PIQUIM_FOOTER_DEFAULTS.socials,
             socials: {
                 facebook: '',
                 instagram: '',
+                youtube: '',
+                tiktok: '',
                 whatsapp: '',
             },
             contact: {
-                address: '',
+                address: 'Mar del Plata, Argentina',
                 phone: '',
-                email: '',
+                email: 'ventas@piquim.local',
             },
-            quickLinks: [
-                { label: 'Productos', href: '/catalog' },
-                { label: 'Sobre nosotros', href: '/about' },
-            ],
+            quickLinks: PIQUIM_FOOTER_DEFAULTS.shopLinks,
         },
     },
     theme: {
@@ -51,6 +61,8 @@ const DEFAULT_SETTINGS = {
         low_stock_threshold: 3,
         mode: 'hybrid',
         whatsapp_number: '',
+        address: 'Mar del Plata, Argentina',
+        email: 'ventas@piquim.local',
         order_notification_email: '',
         admin_order_confirmation_label: 'En confirmacion',
         customer_order_processing_label: 'En proceso',
@@ -155,7 +167,26 @@ function mergeTenantSettings(rawSettings = {}) {
                 quickLinks: Array.isArray(rawFooter.quickLinks)
                     ? rawFooter.quickLinks
                     : DEFAULT_SETTINGS.branding.footer.quickLinks,
+                shopLinks: Array.isArray(rawFooter.shopLinks)
+                    ? rawFooter.shopLinks
+                    : DEFAULT_SETTINGS.branding.footer.shopLinks,
+                helpLinks: Array.isArray(rawFooter.helpLinks)
+                    ? rawFooter.helpLinks
+                    : DEFAULT_SETTINGS.branding.footer.helpLinks,
+                legalLinks: Array.isArray(rawFooter.legalLinks)
+                    ? rawFooter.legalLinks
+                    : DEFAULT_SETTINGS.branding.footer.legalLinks,
+                socialLinks: Array.isArray(rawFooter.socialLinks)
+                    ? rawFooter.socialLinks
+                    : DEFAULT_SETTINGS.branding.footer.socialLinks,
+                newsletter: {
+                    ...(DEFAULT_SETTINGS.branding.footer.newsletter || {}),
+                    ...(rawFooter.newsletter || {}),
+                },
             },
+            catalog_cards: Array.isArray(rawBranding.catalog_cards)
+                ? rawBranding.catalog_cards
+                : DEFAULT_SETTINGS.branding.catalog_cards,
         },
         theme: {
             ...DEFAULT_SETTINGS.theme,

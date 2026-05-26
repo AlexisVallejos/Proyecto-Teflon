@@ -21,6 +21,7 @@ import {
 import { cn } from '../../../utils/cn';
 
 const MODULE_COMMANDS = [
+    { id: 'dashboard', label: 'Dashboard', description: 'Resumen general y actividad del panel.', icon: Package, shortcut: 'G D' },
     { id: 'home', label: 'Inicio', description: 'Editar portada y secciones principales.', icon: HouseLine, shortcut: 'G H' },
     { id: 'appearance', label: 'Apariencia', description: 'Tema, colores, marca y experiencia visual.', icon: Palette, shortcut: 'G A' },
     { id: 'catalog', label: 'Catalogo', description: 'Productos, stock, imagenes y datos comerciales.', icon: ShoppingBag, shortcut: 'G C' },
@@ -284,7 +285,7 @@ const CommandPalette = ({ branding, onAddItem, searchItems = [] }) => {
 
                 <div className="admin-header-surface flex flex-col gap-2 border-t px-5 py-3 text-[10px] font-bold uppercase tracking-wide admin-text-muted sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="flex items-center gap-1"><Kbd>↑</Kbd><Kbd>↓</Kbd> navegar</span>
+                        <span className="flex items-center gap-1"><Kbd>UP</Kbd><Kbd>DOWN</Kbd> navegar</span>
                         <span className="flex items-center gap-1"><Kbd>Enter</Kbd> abrir</span>
                         <span className="flex items-center gap-1"><Kbd>Esc</Kbd> cerrar</span>
                     </div>

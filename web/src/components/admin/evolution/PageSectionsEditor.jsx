@@ -1,7 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import PageBuilder from '../../PageBuilder';
 import useEvolutionStore from '../../../store/useEvolutionStore';
-import { DEFAULT_ABOUT_SECTIONS, DEFAULT_HOME_SECTIONS } from '../../../data/defaultSections';
+import {
+    DEFAULT_ABOUT_SECTIONS,
+    DEFAULT_HOME_SECTIONS,
+    PIQUIM_ABOUT_SECTIONS,
+    PIQUIM_HOME_SECTIONS,
+} from '../../../data/defaultSections';
 import { cn } from '../../../utils/cn';
 import { PRODUCT_PLACEHOLDER_IMAGE } from '../../../utils/productImage';
 import {
@@ -19,6 +24,23 @@ const HOME_SECTION_TYPES = [
     { type: 'BrandMarquee', label: 'Marcas en Movimiento' },
     { type: 'FeaturedProducts', label: 'Productos Destacados' },
     { type: 'Services', label: 'Servicios / Beneficios' },
+];
+
+const PIQUIM_HOME_SECTION_TYPES = [
+    { type: 'PiquimHero', label: 'Piquim Hero' },
+    { type: 'PiquimAnnounceBar', label: 'Barra Anuncio' },
+    { type: 'PiquimTresMundos', label: 'Tres Mundos' },
+    { type: 'PiquimCatalog3Panel', label: 'Catalogo 3 Paneles' },
+    { type: 'PiquimFeaturedProducts', label: 'Destacados Piquim' },
+    { type: 'PiquimCTABanner', label: 'CTA Piquim' },
+];
+
+const PIQUIM_ABOUT_SECTION_TYPES = [
+    { type: 'PiquimHero', label: 'Portada Piquim' },
+    { type: 'PiquimAnnounceBar', label: 'Barra Anuncio' },
+    { type: 'PiquimTresMundos', label: 'Nosotros Piquim' },
+    { type: 'PiquimCatalog3Panel', label: 'Lineas Piquim' },
+    { type: 'PiquimCTABanner', label: 'CTA Piquim' },
 ];
 
 const ABOUT_SECTION_TYPES = [
@@ -44,13 +66,25 @@ const deepClone = (value) => {
 };
 
 const getSectionTemplate = (pageKey, type) => {
-    const pool = pageKey === 'about' ? DEFAULT_ABOUT_SECTIONS : DEFAULT_HOME_SECTIONS;
+    const pool = pageKey === 'about'
+        ? DEFAULT_ABOUT_SECTIONS
+        : pageKey === 'piquim-about'
+            ? PIQUIM_ABOUT_SECTIONS
+        : pageKey === 'piquim-home'
+            ? PIQUIM_HOME_SECTIONS
+            : DEFAULT_HOME_SECTIONS;
     const found = pool.find((item) => item.type === type);
     return found || null;
 };
 
 const getSectionTypeOptions = (pageKey) => (
-    pageKey === 'about' ? ABOUT_SECTION_TYPES : HOME_SECTION_TYPES
+    pageKey === 'about'
+        ? ABOUT_SECTION_TYPES
+        : pageKey === 'piquim-about'
+            ? PIQUIM_ABOUT_SECTION_TYPES
+        : pageKey === 'piquim-home'
+            ? PIQUIM_HOME_SECTION_TYPES
+            : HOME_SECTION_TYPES
 );
 
 const getSectionTitle = (type = '') =>
@@ -87,6 +121,7 @@ const PageSectionsEditor = ({
     isSaving,
 }) => {
     const [showAdd, setShowAdd] = useState(false);
+    const [draggedIndex, setDraggedIndex] = useState(null);
     const { selectItem, selectedId } = useEvolutionStore();
     const sectionTypes = getSectionTypeOptions(pageKey);
 
@@ -126,7 +161,8 @@ const PageSectionsEditor = ({
                 .filter((section) => section?.enabled !== false)
                 .map((section) => {
                     const baseProps = section.props || {};
-                    const isFeaturedProducts = section.type === 'FeaturedProducts';
+                    const isFeaturedProducts =
+                        section.type === 'FeaturedProducts' || section.type === 'PiquimFeaturedProducts';
 
                     return {
                         ...section,
@@ -198,13 +234,34 @@ const PageSectionsEditor = ({
         selectItem(section.id, 'block', section);
     };
 
+    const handleDragStart = (index) => {
+        setDraggedIndex(index);
+    };
+
+    const handleDrop = (index) => {
+        if (draggedIndex === null || draggedIndex === index) return;
+        setSections((prev) => {
+            const next = [...prev];
+            const [moved] = next.splice(draggedIndex, 1);
+            next.splice(index, 0, moved);
+            return next;
+        });
+        setDraggedIndex(null);
+    };
+
     return (
         <div className="grid h-full grid-cols-1 gap-2 md:gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
             <aside className="overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-zinc-dark/50 p-2 md:p-4 custom-scrollbar">
                 <div className="mb-4 flex items-center justify-between gap-2">
                     <div>
                         <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            {pageKey === 'about' ? 'Sobre Nosotros' : 'Inicio'}
+                            {pageKey === 'about'
+                                ? 'Sobre Nosotros'
+                                : pageKey === 'piquim-about'
+                                    ? 'Nosotros Piquim'
+                                : pageKey === 'piquim-home'
+                                    ? 'Inicio Piquim'
+                                    : 'Inicio'}
                         </p>
                         <h2 className="text-xl font-bold text-white">Bloques</h2>
                     </div>
@@ -249,11 +306,17 @@ const PageSectionsEditor = ({
                         return (
                             <div
                                 key={section.id || idx}
+                                draggable
+                                onDragStart={() => handleDragStart(idx)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={() => handleDrop(idx)}
+                                onDragEnd={() => setDraggedIndex(null)}
                                 className={cn(
                                     'rounded-xl border p-3 transition-all',
                                     isSelected
                                         ? 'border-evolution-indigo/50 bg-evolution-indigo/10'
-                                        : 'border-white/10 bg-white/5 hover:border-white/20'
+                                        : 'border-white/10 bg-white/5 hover:border-white/20',
+                                    draggedIndex === idx ? 'opacity-50' : ''
                                 )}
                             >
                                 <button

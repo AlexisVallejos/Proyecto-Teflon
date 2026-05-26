@@ -157,6 +157,7 @@ function mapProductRow(row, pricingContext) {
     currency: row.currency,
     stock: row.stock,
     brand: row.brand,
+    category_ids: row.category_ids || [],
     data,
     source_category: data.source_category || null,
     source_category_path: Array.isArray(data.source_category_path) ? data.source_category_path : [],
@@ -193,6 +194,24 @@ function parseNumericQuery(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
   return parsed;
+}
+
+function slugifyPublicCategory(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function resolvePublicCategoryAliases(value) {
+  const normalized = slugifyPublicCategory(value);
+  if (normalized === 'panaderia' || normalized === 'confiteria' || normalized === 'panaderia-confiteria') {
+    return ['panaderia', 'confiteria', 'panaderia-confiteria'];
+  }
+  return normalized ? [normalized] : [];
 }
 
 function normalizeSortValue(value) {
@@ -482,20 +501,21 @@ publicRouter.get('/products', async (req, res, next) => {
     }
 
     if (category) {
-      params.push(category);
+      const categoryAliases = resolvePublicCategoryAliases(category);
+      params.push(categoryAliases.length ? categoryAliases : [String(category)]);
       where += [
         ' and p.id in (',
         'select pc.product_id',
         'from product_categories pc',
         'join categories c on c.id = pc.category_id',
-        `where c.slug = $${params.length}`,
-        `or c.id::text = $${params.length}`,
-        `or nullif(c.data->>'parent_id', '') = $${params.length}`,
+        `where c.slug = any($${params.length}::text[])`,
+        `or c.id::text = any($${params.length}::text[])`,
+        `or nullif(c.data->>'parent_id', '') = any($${params.length}::text[])`,
         [
           "or nullif(c.data->>'parent_id', '') in (",
           'select parent.id::text',
           'from categories parent',
-          `where parent.tenant_id = c.tenant_id and parent.slug = $${params.length}`,
+          `where parent.tenant_id = c.tenant_id and parent.slug = any($${params.length}::text[])`,
           ')',
         ].join(' '),
         ')',
@@ -577,7 +597,37 @@ publicRouter.get('/products/:id', async (req, res, next) => {
     }
 
     const row = result.rows[0];
-    return res.json(mapProductRow(row, pricingContext));
+    const product = mapProductRow(row, pricingContext);
+    const variationGroup = String(product.variation_group || '').trim();
+
+    if (variationGroup) {
+      const variationsRes = await pool.query(
+        [
+          'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
+          "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+          'from product_cache p',
+          'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
+          `where p.tenant_id = $1 and ${PUBLIC_PRODUCT_VISIBILITY_SQL}`,
+          "and (p.data->>'variant_group' = $2 or p.data->>'variantGroup' = $2 or p.data->>'collection' = $2)",
+          'order by p.name asc',
+        ].join(' '),
+        [req.tenant.id, variationGroup]
+      );
+
+      const variationItems = variationsRes.rows.map((item) => mapProductRow(item, pricingContext));
+      if (variationItems.length > 1) {
+        const groupedProduct = groupProductsByVariation(variationItems, 'name-asc')[0];
+        product.grouped = Boolean(groupedProduct?.grouped);
+        product.variation_group_label = groupedProduct?.variation_group_label || product.variation_group_label;
+        product.variation_count = groupedProduct?.variation_count || variationItems.length;
+        product.price_range = groupedProduct?.price_range || null;
+        product.variations = Array.isArray(groupedProduct?.variations)
+          ? groupedProduct.variations
+          : variationItems;
+      }
+    }
+
+    return res.json(product);
   } catch (err) {
     return next(err);
   }

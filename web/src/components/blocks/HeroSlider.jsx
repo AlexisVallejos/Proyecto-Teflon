@@ -7,8 +7,18 @@ import HeroModernistSlider from "./HeroModernistSlider";
 import HeroModernistCenteredSlider from "./HeroModernistCenteredSlider";
 import HeroBoutiqueSlider from "./HeroBoutiqueSlider";
 import HeroCorporateSlider from "./HeroCorporateSlider";
+import { ArrowRight } from "lucide-react";
 import { normalizeHeroSlides, normalizeHeroStyles, normalizeHeroVariant } from "../../data/heroSliderTemplates";
 import { useStorefrontThemeColors } from "../../context/ThemeContext";
+
+const isCatalogCtaLabel = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return normalized === "ver catalogo";
+};
 
 function ClassicHeroSlider({
   title = "Tu negocio online, listo para vender",
@@ -255,6 +265,7 @@ function ClassicHeroSlider({
                   }}
                 >
                   {primaryButton.label}
+                  {isCatalogCtaLabel(primaryButton.label) ? <ArrowRight className="ml-2 size-4" /> : null}
                 </button>
               )}
               {secondaryButton?.label && (
@@ -272,6 +283,7 @@ function ClassicHeroSlider({
                   }}
                 >
                   {secondaryButton.label}
+                  {isCatalogCtaLabel(secondaryButton.label) ? <ArrowRight className="ml-2 size-4" /> : null}
                 </button>
               )}
             </div>

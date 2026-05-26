@@ -27,10 +27,40 @@ export function getApiBase() {
     const configuredBase = String(import.meta.env.VITE_API_URL || DEFAULT_API_BASE).trim();
     if (!configuredBase) {
         if (typeof window !== 'undefined') {
+            const isLocalVite =
+                ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+                ['5173', '5174', '5175'].includes(window.location.port);
+            if (isLocalVite) {
+                return 'http://localhost:4000';
+            }
             return window.location.origin.replace(/\/+$/, '');
         }
         return '';
     }
+
+    if (typeof window !== 'undefined') {
+        try {
+            const configuredUrl = new URL(configuredBase);
+            const editorHost = String(import.meta.env.VITE_EDITOR_HOST || '').trim().toLowerCase();
+            const currentHost = String(window.location.hostname || '').trim().toLowerCase();
+            const configuredHost = configuredUrl.hostname.toLowerCase();
+            const isEditorApi =
+                configuredHost === editorHost ||
+                configuredHost.startsWith('editor.');
+            const isStorefrontHost =
+                currentHost &&
+                currentHost !== configuredHost &&
+                currentHost !== editorHost &&
+                !['localhost', '127.0.0.1'].includes(currentHost);
+
+            if (isEditorApi && isStorefrontHost) {
+                return window.location.origin.replace(/\/+$/, '');
+            }
+        } catch {
+            // Fall back to the configured API URL below.
+        }
+    }
+
     return configuredBase.replace(/\/+$/, '');
 }
 

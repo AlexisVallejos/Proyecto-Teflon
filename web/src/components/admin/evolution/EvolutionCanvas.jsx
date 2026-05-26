@@ -20,6 +20,8 @@ import {
     SquaresFour,
     WarningCircle,
     RocketLaunch,
+    ArrowCounterClockwise,
+    ArrowClockwise,
 } from '@phosphor-icons/react';
 
 const iconButtonStyle = {
@@ -52,7 +54,16 @@ const getSearchItemIcon = (kind = '') => {
     }
 };
 
-const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems = [] }) => {
+const EvolutionCanvas = ({
+    children,
+    branding,
+    notificationsManager,
+    searchItems = [],
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
+}) => {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
     const [domainModalIntent, setDomainModalIntent] = useState('domains');
@@ -221,7 +232,7 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                     {isStorefrontEditing ? (
                         <button
                             type="button"
@@ -238,13 +249,13 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
                         </button>
                     ) : null}
 
-                    <div className="relative" ref={searchRef}>
+                    <div className="relative hidden lg:block" ref={searchRef}>
                         <div
                             style={{
                                 backgroundColor: 'var(--admin-hover)',
                                 borderColor: 'var(--admin-border)',
                             }}
-                            className="flex h-9 w-[320px] items-center rounded-full border px-3"
+                            className="flex h-9 w-[280px] xl:w-[320px] items-center rounded-full border px-3"
                         >
                             <Search className="h-4 w-4 shrink-0 admin-text-muted" />
                             <input
@@ -311,10 +322,33 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
                         ) : null}
                     </div>
 
+                    <div className="flex items-center gap-1">
+                        <button
+                            type="button"
+                            onClick={onUndo}
+                            disabled={!canUndo}
+                            style={iconButtonStyle}
+                            className="admin-hover-surface flex h-8 w-8 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
+                            title="Deshacer"
+                        >
+                            <ArrowCounterClockwise className="h-4 w-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onRedo}
+                            disabled={!canRedo}
+                            style={iconButtonStyle}
+                            className="admin-hover-surface flex h-8 w-8 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
+                            title="Rehacer"
+                        >
+                            <ArrowClockwise className="h-4 w-4" />
+                        </button>
+                    </div>
+
                     <button
                         type="button"
                         onClick={() => openDomainCenter('publish')}
-                        className="admin-accent-button inline-flex h-8 items-center gap-2 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
+                        className="admin-accent-button hidden lg:inline-flex h-8 items-center gap-2 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
                     >
                         <RocketLaunch size={14} weight="bold" />
                         Publicar
@@ -328,7 +362,7 @@ const EvolutionCanvas = ({ children, branding, notificationsManager, searchItems
                             borderColor: 'var(--admin-border)',
                             color: 'var(--admin-text)',
                         }}
-                        className="inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
+                        className="hidden lg:inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
                     >
                         <Globe size={14} weight="bold" />
                         Dominios

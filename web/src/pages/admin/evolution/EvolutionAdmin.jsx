@@ -36,6 +36,10 @@ import {
     CreditCard,
 } from '@phosphor-icons/react';
 
+const isPiquimBranding = (settings = {}) =>
+    settings?.branding?.design_preset === 'piquim' ||
+    String(settings?.branding?.name || '').toLowerCase().includes('piquim');
+
 const StatCard = ({ label, value, trend, icon: Icon, color }) => (
     <div className="p-6 rounded-2xl bg-zinc-dark border border-white/5 hover:border-white/10 transition-all group overflow-hidden relative">
         <div className="flex items-center justify-between mb-4">
@@ -476,11 +480,14 @@ const EvolutionAdmin = () => {
             );
         }
 
+        const homeEditorPageKey = isPiquimBranding(editor.settings) ? 'piquim-home' : 'home';
+        const aboutEditorPageKey = isPiquimBranding(editor.settings) ? 'piquim-about' : 'about';
+
         switch (activeModule) {
             case 'home':
                 return (
                     <PageSectionsEditor
-                        pageKey="home"
+                        pageKey={homeEditorPageKey}
                         sections={editor.pageSections?.home || []}
                         products={editor.products}
                         onChangeSections={(nextSections) => handlePageSectionsChange('home', nextSections)}
@@ -491,7 +498,7 @@ const EvolutionAdmin = () => {
             case 'about':
                 return (
                     <PageSectionsEditor
-                        pageKey="about"
+                        pageKey={aboutEditorPageKey}
                         sections={editor.pageSections?.about || []}
                         products={editor.products}
                         onChangeSections={(nextSections) => handlePageSectionsChange('about', nextSections)}
@@ -628,6 +635,10 @@ const EvolutionAdmin = () => {
             settings={editor.settings}
             onDataChange={handleDataChange}
             onSave={handleSave}
+            onUndo={editor.undo}
+            onRedo={editor.redo}
+            canUndo={editor.canUndo}
+            canRedo={editor.canRedo}
             onAddItem={handleAddItem}
             isSaving={editor.saving}
             catalogContext={catalog}

@@ -1,4 +1,38 @@
 import { getDefaultBrandMarqueeProps } from './brandMarqueeDefaults';
+import { PIQUIM_CATALOG_CARDS } from './piquimBranding';
+
+const cloneValue = (value) => {
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return value;
+    }
+};
+
+const isPlainObject = (value) =>
+    Boolean(value) &&
+    typeof value === 'object' &&
+    !Array.isArray(value);
+
+const deepMerge = (baseValue, overrideValue) => {
+    if (overrideValue === undefined) return cloneValue(baseValue);
+
+    if (Array.isArray(baseValue)) {
+        return Array.isArray(overrideValue) ? cloneValue(overrideValue) : cloneValue(baseValue);
+    }
+
+    if (isPlainObject(baseValue)) {
+        const next = { ...cloneValue(baseValue) };
+        if (!isPlainObject(overrideValue)) return next;
+
+        Object.entries(overrideValue).forEach(([key, value]) => {
+            next[key] = key in next ? deepMerge(next[key], value) : cloneValue(value);
+        });
+        return next;
+    }
+
+    return cloneValue(overrideValue);
+};
 
 export const DEFAULT_HOME_SECTIONS = [
     {
@@ -6,32 +40,95 @@ export const DEFAULT_HOME_SECTIONS = [
         type: 'HeroSlider',
         enabled: true,
         props: {
-            variant: 'classic',
-            title: 'Tu negocio online, listo para vender',
-            subtitle: 'Productos, servicios y contenido organizados para que tus clientes compren con claridad.',
-            tag: 'Coleccion destacada',
-            primaryButton: { label: 'Ver catalogo', link: '/catalog' },
-            secondaryButton: { label: 'Conocer la marca', link: '/about' },
-            styles: { alignment: 'center', overlayOpacity: '0.6' },
+            variant: 'modernist_centered',
+            slides: [
+                {
+                    label: 'Materia prima profesional',
+                    title: 'SABOR\nQUE RINDE',
+                    description:
+                        'PIQUIM abastece heladerias, panaderias y confiterias con materia prima premium, catalogos claros y respuesta comercial agil.',
+                    image: '/piquim/catalog-heladeria.jpg',
+                    primaryButtonLabel: 'Ver catalogo',
+                    primaryButtonLink: '/catalog',
+                    secondaryButtonLabel: 'Conocer PIQUIM',
+                    secondaryButtonLink: '/about',
+                },
+                {
+                    label: 'Heladeria, panaderia y confiteria',
+                    title: 'PRODUCCION\nCONSTANTE',
+                    description:
+                        'Insumos para obradores que necesitan calidad estable, reposicion ordenada y productos listos para trabajar.',
+                    image: '/piquim/catalog-panaderia.jpg',
+                    primaryButtonLabel: 'Explorar lineas',
+                    primaryButtonLink: '/catalog',
+                    secondaryButtonLabel: 'Hablar con ventas',
+                    secondaryButtonLink: '/about',
+                },
+            ],
+            styles: {
+                titleColor: '#f8fafc',
+                textColor: '#d7f7f5',
+                labelColor: '#ffbe8b',
+                primaryButtonBgColor: '#ff4d00',
+                primaryButtonTextColor: '#fffaf6',
+                secondaryButtonBgColor: 'rgba(255,255,255,0.04)',
+                secondaryButtonTextColor: '#f8fafc',
+                secondaryButtonBorderColor: 'rgba(255,255,255,0.32)',
+                overlayColor: '#071317',
+            },
         },
     },
     {
         id: 'home-brands',
         type: 'BrandMarquee',
         enabled: true,
-        props: getDefaultBrandMarqueeProps(),
+        props: {
+            ...getDefaultBrandMarqueeProps(),
+            variant: 'grid_static',
+            eyebrow: 'Familias Piquim',
+            title: 'Materia prima para cada mostrador',
+            subtitle: 'Productos y soporte para heladerias, panaderias y confiterias que necesitan regularidad y compra simple.',
+            items: [
+                { id: 'brand-piquim-heladeria', name: 'Heladeria' },
+                { id: 'brand-piquim-panaderia', name: 'Panaderia/Confiteria' },
+                { id: 'brand-piquim-pulpas', name: 'Pulpas' },
+                { id: 'brand-piquim-bases', name: 'Bases' },
+                { id: 'brand-piquim-cremas', name: 'Cremas' },
+                { id: 'brand-piquim-mejoradores', name: 'Mejoradores' },
+                { id: 'brand-piquim-promos', name: 'Promociones' },
+            ],
+            styles: {
+                backgroundColor: '#fff3eb',
+                panelBackgroundColor: '#fffaf6',
+                titleColor: '#1a1614',
+                subtitleColor: '#6f625d',
+                badgeBackgroundColor: '#ff4d00',
+                badgeTextColor: '#fffaf6',
+                cardBackgroundColor: '#ffffff',
+                cardBorderColor: '#dab6a6',
+            },
+        },
     },
     {
         id: 'home-featured',
         type: 'FeaturedProducts',
         enabled: true,
         props: {
-            variant: 'classic',
+            variant: 'modern',
             title: 'Productos destacados',
-            subtitle: 'Lo mas elegido por tus clientes, destacado en el storefront.',
+            subtitle: 'Una seleccion pensada para obradores profesionales, reposicion agil y resultados consistentes.',
             ctaLabel: 'Ver catalogo completo',
             ctaLink: '/catalog',
-            styles: { alignment: 'items-end justify-between' },
+            styles: {
+                backgroundColor: '#fffaf6',
+                cardBackgroundColor: '#ffffff',
+                titleColor: '#1a1614',
+                subtitleColor: '#6f625d',
+                accentColor: '#ff4d00',
+                priceColor: '#ff4d00',
+                buttonBackgroundColor: '#1a1614',
+                buttonTextColor: '#fffaf6',
+            },
         },
     },
     {
@@ -39,13 +136,35 @@ export const DEFAULT_HOME_SECTIONS = [
         type: 'Services',
         enabled: true,
         props: {
-            title: 'Te acompanamos en cada compra',
-            subtitle: 'Asesoria, entrega y soporte para que elijas con confianza.',
+            title: 'Respuesta comercial para produccion diaria',
+            subtitle: 'PIQUIM combina materia prima, catalogos claros y acompanamiento para cada rubro.',
             items: [
-                { icon: 'support_agent', title: 'Asesoramiento experto', text: 'Te ayudamos a elegir la opcion correcta segun cada necesidad.' },
-                { icon: 'local_shipping', title: 'Entrega coordinada', text: 'Retiro en sucursal o envio segun la cobertura disponible para tu zona.' },
-                { icon: 'shield', title: 'Compra con respaldo', text: 'Atencion clara, seguimiento y soporte para una experiencia de compra mas simple.' },
+                {
+                    icon: 'support_agent',
+                    title: 'Asesoria de producto',
+                    text: 'Te ayudamos a elegir bases, pulpas, cremas y mejoradores segun receta, volumen y proceso.',
+                },
+                {
+                    icon: 'local_shipping',
+                    title: 'Abastecimiento ordenado',
+                    text: 'Coordinamos reposicion y entrega para que el insumo correcto llegue cuando la produccion lo necesita.',
+                },
+                {
+                    icon: 'shield',
+                    title: 'Calidad consistente',
+                    text: 'Materias primas pensadas para sostener sabor, textura y rendimiento en uso continuo.',
+                },
             ],
+            styles: {
+                backgroundColor: '#1a1614',
+                titleColor: '#fffaf6',
+                subtitleColor: '#d7c8bf',
+                cardBackgroundColor: '#241d1a',
+                cardTitleColor: '#fffaf6',
+                cardTextColor: '#d7c8bf',
+                iconColor: '#ff4d00',
+                iconBackgroundColor: 'rgba(255, 77, 0, 0.14)',
+            },
         },
     },
 ];
@@ -56,20 +175,19 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutHero',
         enabled: true,
         props: {
-            tagline: 'Desde 2014',
-            title: 'Nuestra historia',
+            tagline: 'PIQUIM',
+            title: 'Materia prima para profesionales del sabor',
             description:
-                'Construimos experiencias de compra pensadas para marcas que quieren crecer con identidad propia y una comunicacion clara.',
-            primaryButton: { label: 'Ver colecciones', link: '/catalog' },
-            secondaryButton: { label: 'Conocer al equipo', link: '#equipo' },
-            backgroundImage:
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuDXU4BgrC9W5u9X6qi9WU5vv7H941UAvD-VYPk3k9YMvJ6QF9d4dfPigHBmjoGRgXAabQfjZhvwj8bEniRv7PJlqKfUiVrTvgGKiB3jc3UPiRUTFfETrULuzjjwlUJF_ngD-svg2JWO6i--ELVyRiQw8BxwzxIFUoBtLZ96yurT2qPiR2EM74_bN9dMICD1YE0RFyk4MCqlrq5bvG-5OhCNCh4qV0M_0zANXTAfRmeLbBZQrrOeyPxAl9Zys3aCIsE4XLdEPuV-MZs',
+                'Trabajamos para que heladerias, panaderias y confiterias compren insumos confiables con catalogos claros, reposicion agil y acompanamiento comercial.',
+            primaryButton: { label: 'Ver catalogo', link: '/catalog' },
+            secondaryButton: { label: 'Contactar ventas', link: '/catalog' },
+            backgroundImage: '/piquim/catalog-confiteria.jpg',
             styles: {
-                accentColor: '#f27f0d',
-                overlayColor: '#221910',
-                overlayOpacity: 0.85,
-                textColor: '#ffffff',
-                mutedColor: 'rgba(255,255,255,0.75)',
+                accentColor: '#ffbe8b',
+                overlayColor: '#1a1614',
+                overlayOpacity: 0.8,
+                textColor: '#f8fafc',
+                mutedColor: 'rgba(236,254,255,0.8)',
             },
         },
     },
@@ -78,24 +196,23 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutMission',
         enabled: true,
         props: {
-            eyebrow: 'Nuestro proposito',
-            title: 'La mision',
+            eyebrow: 'Como trabajamos',
+            title: 'Desde Mar del Plata para obradores profesionales.',
             paragraphs: [
-                'Creemos que una buena marca se construye con consistencia, claridad y una experiencia simple para cada cliente.',
-                'Acompanamos a negocios de distintos rubros con catalogos flexibles, una presentacion cuidada y una tienda facil de gestionar.',
+                'PIQUIM nace para abastecer a profesionales que necesitan materia prima estable, buenos tiempos de respuesta y una experiencia de compra sin friccion.',
+                'Ordenamos la oferta para que cada cliente pueda identificar rubros, usos, formatos y alternativas con una lectura simple del catalogo.',
             ],
             highlights: [
-                { icon: 'verified', title: 'Calidad constante', text: 'Procesos ordenados y foco en cada detalle.' },
-                { icon: 'eco', title: 'Mejora continua', text: 'Ajustes practicos para vender mejor.' },
+                { icon: 'verified', title: 'Seleccion clara', text: 'Catalogos orientados a compra real para produccion diaria.' },
+                { icon: 'eco', title: 'Rendimiento util', text: 'Productos pensados para recetas, volumen y reposicion eficiente.' },
             ],
-            image:
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuDaDIcmwXvGopChH4z2NtypzPKEOIJB5DIz-cix6aLVUAg6015AqowjMQbKKJ273hv-K-Mdeeq78GFd-8Wt2hah0kOFgDkEGW24otJ-Yqrdn019S_zxUM4qMhyJ0sXG12Fr-Nk9EA4ZnVoQXzs0ZTjGJtuHBj_cdqJ4Z-i7TOx-wRo3JuBOyDsruX5utjj00tVbmE0sUIiRoPxHOH4_ohJ25dVPm0jFLFwKMx0fn7DC6IGRbByTaUUBATc5XDKzCDFZBcDdlv3kpB4',
-            imageAlt: 'Equipo trabajando en una propuesta de marca',
+            image: '/piquim/catalog-panaderia.jpg',
+            imageAlt: 'Materia prima Piquim para produccion profesional',
             styles: {
-                accentColor: '#f27f0d',
-                backgroundColor: '#ffffff',
-                textColor: '#181411',
-                mutedColor: '#6b7280',
+                accentColor: '#ff4d00',
+                backgroundColor: '#fffaf6',
+                textColor: '#1a1614',
+                mutedColor: '#6f625d',
             },
         },
     },
@@ -105,16 +222,16 @@ export const DEFAULT_ABOUT_SECTIONS = [
         enabled: true,
         props: {
             items: [
-                { value: '10+', label: 'Anos de experiencia', accent: true },
-                { value: '5k+', label: 'Clientes satisfechos' },
-                { value: '2', label: 'Canales activos' },
-                { value: '24/7', label: 'Soporte al cliente' },
+                { value: '1992', label: 'Origen Mar del Plata', accent: true },
+                { value: '3', label: 'Rubros principales' },
+                { value: 'B2B', label: 'Venta profesional' },
+                { value: 'Soporte', label: 'Comercial y producto' },
             ],
             styles: {
-                backgroundColor: '#181411',
-                accentColor: '#f27f0d',
-                textColor: '#ffffff',
-                mutedColor: '#9ca3af',
+                backgroundColor: '#1a1614',
+                accentColor: '#ff4d00',
+                textColor: '#fffaf6',
+                mutedColor: '#d7c8bf',
             },
         },
     },
@@ -123,30 +240,30 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutValues',
         enabled: true,
         props: {
-            title: 'Nuestros valores',
+            title: 'Principios de trabajo',
             items: [
                 {
                     icon: 'quality',
-                    title: 'Calidad',
-                    description: 'Cuidamos la presentacion, la experiencia y la consistencia en cada punto de contacto.',
+                    title: 'Consistencia',
+                    description: 'Cada insumo debe responder igual en receta, proceso y reposicion.',
                 },
                 {
                     icon: 'commitment',
-                    title: 'Compromiso',
-                    description: 'Acompanamos cada proyecto con soporte real, claro y cercano.',
+                    title: 'Continuidad',
+                    description: 'El objetivo no es una venta aislada sino un obrador bien abastecido y ordenado.',
                 },
                 {
                     icon: 'innovation',
-                    title: 'Innovacion',
-                    description: 'Probamos nuevas ideas para mejorar la tienda y la forma de vender.',
+                    title: 'Criterio de producto',
+                    description: 'Traducimos variedad de insumos en decisiones simples, concretas y aplicables.',
                 },
             ],
             styles: {
-                backgroundColor: '#f8f7f5',
+                backgroundColor: '#fff3eb',
                 cardBackground: '#ffffff',
-                accentColor: '#f27f0d',
-                textColor: '#181411',
-                mutedColor: '#6b7280',
+                accentColor: '#ff4d00',
+                textColor: '#1a1614',
+                mutedColor: '#6f625d',
             },
         },
     },
@@ -156,20 +273,18 @@ export const DEFAULT_ABOUT_SECTIONS = [
         enabled: true,
         props: {
             anchor: 'equipo',
-            title: 'Ideas claras y ejecucion consistente.',
+            title: 'Acompanamos obradores, no solo pedidos.',
             quote:
-                'Nuestro trabajo no es solo vender productos: es ayudar a que cada marca se presente mejor, ordene su oferta y conecte con sus clientes.',
-            author: 'Alex Morgan',
-            role: 'Fundador y direccion general',
-            avatarImage:
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuAea9Hk8KW-uNz2oCLHAOeVLaF4OEuHrLoMYAQ5icf0UpW2MbWEoppeOoK7-_ef46vSPLm9bOZn19yxGPkKgbqwzNxdl8pCXwjX84M0rsOM-14FdHnwu8rzaIZR1UJSvo2LVbbFvgWP_nntPKbU-nmwnPjWuzy9XiXqlmi62Yw8p6R5XWHQoEjxiw4mfhRuljOaKyPWkvPFELxYq8TKyXzDzeOlvj5ntTgVpCWOshfxNK3WLIQvRk7FstFclk10_lOYekLKXyXKEYA',
-            backgroundImage:
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuDd5sRN9c3Iyg5tub-t6DownNaquR6DBO7x9kWyTXKAhtTfCcSMSUTP3XZGAiL1-Mj-9MbM-m0jm0ijRI13F0_dNFIyToqwNriV9r4akyx6ZAWADgUH407R7Tas-tfzDuwHbfz29pugtdtM3dlMJNOiv20x3Gv8czAs6T9Sq2RN7e0tDp-X78LAcNw4Fz02UVghwohyhXjshm1zUxjj620L3W_ET5Q_zILEvX-EgPT6IDycP7lycSMQhu25nTE1qZeNJUjPddDvAg0',
+                'Cuando el catalogo, el stock y la comunicacion comercial se alinean, comprar materia prima deja de ser un problema y pasa a ser parte estable de la produccion.',
+            author: 'Equipo PIQUIM',
+            role: 'Operacion comercial y soporte de producto',
+            avatarImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80&auto=format&fit=crop',
+            backgroundImage: '/piquim/catalog-heladeria.jpg',
             styles: {
-                backgroundColor: '#ffffff',
-                overlayColor: '#000000',
-                overlayOpacity: 0.25,
-                textColor: '#181411',
+                backgroundColor: '#fffaf6',
+                overlayColor: '#1a1614',
+                overlayOpacity: 0.34,
+                textColor: '#1a1614',
             },
         },
     },
@@ -178,15 +293,211 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutCTA',
         enabled: true,
         props: {
-            title: 'Listo para llevar tu marca al siguiente nivel?',
+            title: 'Necesitas materia prima para tu produccion?',
             primaryLink: { label: 'Ver productos', link: '/catalog' },
-            secondaryLink: { label: 'Contactar ventas', link: '/#contacto' },
+            secondaryLink: { label: 'Hablar con ventas', link: '/about' },
             styles: {
-                backgroundColor: '#ffffff',
-                accentColor: '#f27f0d',
-                textColor: '#181411',
-                mutedColor: '#6b7280',
+                backgroundColor: '#fffaf6',
+                accentColor: '#ff4d00',
+                textColor: '#1a1614',
+                mutedColor: '#6f625d',
             },
         },
     },
 ];
+
+export const PIQUIM_HOME_SECTIONS = [
+    {
+        id: 'piquim-hero',
+        type: 'PiquimHero',
+        enabled: true,
+        props: {
+            badgeText: 'Heladeria | Panaderia/Confiteria',
+            preTitle: 'Materia prima',
+            titleHighlight: 'que inspira',
+            postTitle: 'cada receta.',
+            primaryLabel: 'Comprar ahora',
+            primaryHref: '/catalog',
+            secondaryLabel: 'Ver catalogo',
+            secondaryHref: '/catalog',
+            statProducts: '+200',
+            statCategories: '2',
+            statYears: '+30',
+            mediaType: 'video',
+            image: '',
+            videoUrl: '',
+            videoUrlDesktop: '',
+            videoUrlMobile: '',
+            videoPoster: '',
+            videoAutoplay: true,
+            videoLoop: true,
+            videoMuted: true,
+            videoControls: false,
+        },
+    },
+    {
+        id: 'piquim-announce',
+        type: 'PiquimAnnounceBar',
+        enabled: true,
+        props: {
+            text: 'ENVIO GRATUITO en pedidos +$50.000 ARG · 10% OFF en tu primera compra · Industria Argentina · Hecho en Mar del Plata',
+        },
+    },
+    {
+        id: 'piquim-tres-mundos',
+        type: 'PiquimTresMundos',
+        enabled: true,
+        props: {
+            title: 'Dos mundos, una misma calidad',
+            subtitle: 'Elegi tu rubro y encontra productos pensados para tu operacion.',
+            items: [
+                {
+                    id: 'heladeria',
+                    title: 'Heladeria',
+                    description: 'Bases, pulpas y coberturas para un mostrador con sabor constante.',
+                    image: '/piquim/catalog-heladeria.jpg',
+                    href: '/catalog?category=heladeria',
+                },
+                {
+                    id: 'panaderia',
+                    title: 'Panaderia/Confiteria',
+                    description: 'Mejoradores, rellenos, cremas y materias primas para produccion diaria.',
+                    image: '/piquim/catalog-panaderia.jpg',
+                    href: '/catalog?category=panaderia',
+                },
+            ],
+        },
+    },
+    {
+        id: 'piquim-catalog',
+        type: 'PiquimCatalog3Panel',
+        enabled: true,
+        props: {
+            title: 'Catalogos por especialidad',
+            subtitle: 'Accede rapido a cada linea de productos.',
+            cards: PIQUIM_CATALOG_CARDS,
+        },
+    },
+    {
+        id: 'piquim-featured',
+        type: 'PiquimFeaturedProducts',
+        enabled: true,
+        props: {
+            title: 'Productos destacados',
+            subtitle: 'Una seleccion para compra agil y rendimiento constante.',
+            ctaLabel: 'Ver catalogo completo',
+            ctaLink: '/catalog',
+            products: [],
+        },
+    },
+    {
+        id: 'piquim-cta',
+        type: 'PiquimCTABanner',
+        enabled: true,
+        props: {
+            title: 'Necesitas ayuda para elegir materia prima?',
+            subtitle: 'Nuestro equipo comercial te acompana para armar pedidos segun tu produccion.',
+            primaryLabel: 'Hablar con ventas',
+            primaryHref: '/about',
+            secondaryLabel: 'Ver catalogo',
+            secondaryHref: '/catalog',
+        },
+    },
+];
+
+export const PIQUIM_ABOUT_SECTIONS = [
+    {
+        id: 'piquim-about-hero',
+        type: 'PiquimHero',
+        enabled: true,
+        props: {
+            badgeText: 'Nosotros',
+            preTitle: 'Materia prima',
+            titleHighlight: 'con criterio',
+            postTitle: 'profesional.',
+            primaryLabel: 'Ver catalogo',
+            primaryHref: '/catalog',
+            secondaryLabel: 'Contactar ventas',
+            secondaryHref: '/about',
+            statProducts: '+200',
+            statCategories: '2',
+            statYears: '+30',
+            mediaType: 'video',
+            image: '',
+            videoUrl: '',
+            videoUrlDesktop: '',
+            videoUrlMobile: '',
+            videoPoster: '',
+            videoAutoplay: true,
+            videoLoop: true,
+            videoMuted: true,
+            videoControls: false,
+        },
+    },
+    {
+        id: 'piquim-about-announce',
+        type: 'PiquimAnnounceBar',
+        enabled: true,
+        props: {
+            text: 'HECHO EN MAR DEL PLATA | HELADERIA | PANADERIA | CONFITERIA | SOPORTE COMERCIAL',
+        },
+    },
+    {
+        id: 'piquim-about-mundos',
+        type: 'PiquimTresMundos',
+        enabled: true,
+        props: {
+            eyebrow: 'COMO TRABAJAMOS',
+            titleStart: 'Acompanamos',
+            titleHighlight: 'tres mundos',
+            titleEnd: 'de produccion.',
+            subtitle: 'Organizamos insumos, catalogos y reposicion para que cada obrador compre con claridad.',
+            leftImage: '/piquim/product-bucket.png',
+            rightImage: '/piquim/product-bucket.png',
+        },
+    },
+    {
+        id: 'piquim-about-catalog',
+        type: 'PiquimCatalog3Panel',
+        enabled: true,
+        props: {
+            title: 'Lineas pensadas para trabajo diario',
+            subtitle: 'Heladeria, panaderia y confiteria con lectura simple y productos listos para operar.',
+            cards: PIQUIM_CATALOG_CARDS,
+        },
+    },
+    {
+        id: 'piquim-about-cta',
+        type: 'PiquimCTABanner',
+        enabled: true,
+        props: {
+            title: 'Necesitas armar un pedido para tu produccion?',
+            subtitle: 'El equipo comercial de PIQUIM te acompana para elegir insumos segun receta, volumen y reposicion.',
+            primaryLabel: 'Ver productos',
+            primaryHref: '/catalog',
+            secondaryLabel: 'Hablar con ventas',
+            secondaryHref: '/about',
+        },
+    },
+];
+
+const DEFAULT_SECTIONS_BY_PAGE = {
+    home: DEFAULT_HOME_SECTIONS,
+    about: DEFAULT_ABOUT_SECTIONS,
+    'piquim-home': PIQUIM_HOME_SECTIONS,
+    'piquim-about': PIQUIM_ABOUT_SECTIONS,
+};
+
+export const getDefaultSectionsForPage = (pageKey = 'home') =>
+    cloneValue(DEFAULT_SECTIONS_BY_PAGE[pageKey] || DEFAULT_HOME_SECTIONS);
+
+export const mergeSectionsWithDefaults = (pageKey = 'home', sections = []) => {
+    const templates = DEFAULT_SECTIONS_BY_PAGE[pageKey] || [];
+    const source = Array.isArray(sections) ? sections : [];
+
+    return source.map((section) => {
+        const template = templates.find((item) => item.type === section?.type);
+        if (!template) return cloneValue(section);
+        return deepMerge(template, section);
+    });
+};

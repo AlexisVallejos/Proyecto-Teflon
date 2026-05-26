@@ -1,11 +1,40 @@
 import fs from 'fs';
 import path from 'path';
-import PDFDocument from 'pdfkit';
-import QRCode from 'qrcode';
+
+let pdfDocumentModulePromise = null;
+let qrCodeModulePromise = null;
+
+async function loadPdfDocument() {
+    if (!pdfDocumentModulePromise) {
+        pdfDocumentModulePromise = import('pdfkit')
+            .then((module) => module.default || module)
+            .catch((error) => {
+                pdfDocumentModulePromise = null;
+                throw error;
+            });
+    }
+
+    return pdfDocumentModulePromise;
+}
+
+async function loadQrCode() {
+    if (!qrCodeModulePromise) {
+        qrCodeModulePromise = import('qrcode')
+            .then((module) => module.default || module)
+            .catch((error) => {
+                qrCodeModulePromise = null;
+                throw error;
+            });
+    }
+
+    return qrCodeModulePromise;
+}
 
 export async function generateFiscalInvoice(order) {
     return new Promise(async (resolve, reject) => {
         try {
+            const PDFDocument = await loadPdfDocument();
+            const QRCode = await loadQrCode();
             const doc = new PDFDocument({ margin: 50 });
             
             // Directorio temporal o uploads
@@ -55,6 +84,18 @@ export async function generateFiscalInvoice(order) {
 
         } catch (error) {
             console.error('Error al generar PDF de factura:', error);
+            if (
+                error?.code === 'ERR_MODULE_NOT_FOUND' ||
+                String(error?.message || '').includes('pdfkit') ||
+                String(error?.message || '').includes('qrcode')
+            ) {
+                resolve({
+                    error: 'La facturacion PDF no esta disponible porque faltan dependencias del generador de comprobantes.',
+                    details: error?.message || error,
+                });
+                return;
+            }
+
             resolve({ error: 'No se pudo generar la factura fiscal.', details: error });
         }
     });

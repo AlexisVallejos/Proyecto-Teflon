@@ -18,7 +18,6 @@ import AboutPage from './pages/store/AboutPage';
 import LoginPage from './pages/store/LoginPage';
 import SignupPage from './pages/store/SignupPage';
 import ProfilePage from './pages/store/ProfilePage';
-import UploadsPage from './pages/store/UploadsPage';
 import OrderSuccessPage from './pages/store/OrderSuccessPage';
 import OrderDetailPage from './pages/store/OrderDetailPage';
 import TermsPage from './pages/store/TermsPage';
@@ -32,6 +31,8 @@ function AppContent() {
     const [route, setRoute] = useState(window.location.pathname);
     const { isAdmin, loading: authLoading, user } = useAuth();
     const isEditorHost = resolveIsEditorHost();
+    const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const allowLocalAdmin = isEditorHost || isLocalHost || import.meta.env.VITE_ALLOW_LOCAL_ADMIN === 'true';
     const isPreviewRoute = route === '/admin/preview';
     const isAdminRoute = route === '/admin' || route === '/admin/evolution' || route === '/admin/legacy';
 
@@ -56,14 +57,14 @@ function AppContent() {
     }, [isEditorHost, route]);
 
     useEffect(() => {
-        if (isEditorHost) return;
+        if (allowLocalAdmin) return;
         if (!isPreviewRoute && !isAdminRoute) return;
         navigate('/');
-    }, [isAdminRoute, isEditorHost, isPreviewRoute]);
+    }, [allowLocalAdmin, isAdminRoute, isPreviewRoute]);
 
     let Component = HomePage;
 
-    if ((isPreviewRoute || isAdminRoute) && !isEditorHost) {
+    if ((isPreviewRoute || isAdminRoute) && !allowLocalAdmin) {
         Component = HomePage;
     } else if (isPreviewRoute) {
         Component = PreviewPage;
@@ -82,7 +83,6 @@ function AppContent() {
             Component = LoginPage;
         }
     } else if (route === '/profile') Component = ProfilePage;
-    else if (route === '/archivos' || route === '/my-uploads') Component = UploadsPage;
     else if (route === '/catalog') Component = CatalogPage;
     else if (route === '/about' || route === '/sobre-nosotros') Component = AboutPage;
     else if (route === '/cart') Component = CartPage;
@@ -92,7 +92,7 @@ function AppContent() {
     else if (route === '/terms') Component = TermsPage;
     else if (route.startsWith('/product')) Component = ProductDetail;
     else if (route === '/login') Component = LoginPage;
-    else if (route === '/signup') Component = SignupPage;
+    else if (route === '/signup' || route === '/register') Component = SignupPage;
 
     return (
         <div className="w-full min-h-screen bg-gray-50 text-[#181411] transition-colors duration-200 dark:bg-[#090b0f] dark:text-[#e6edf7]">

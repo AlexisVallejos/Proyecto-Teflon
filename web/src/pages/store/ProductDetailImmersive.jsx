@@ -1,6 +1,7 @@
 import React from "react";
 import StoreLayout from "../../components/layout/StoreLayout";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
+import ProductBreadcrumb from "../../components/ProductBreadcrumb";
 import StoreSkeleton from "../../components/StoreSkeleton";
 import { formatCurrency } from "../../utils/format";
 import { navigate } from "../../utils/navigation";
@@ -10,7 +11,7 @@ export default function ProductDetailImmersive({
     handleAdd, relatedCards, relatedLoading, reviews, reviewsLoading, reviewsError,
     reviewsEnabled, reviewSubmitting, reviewForm, setReviewForm, handleReviewSubmit,
     formatReviewDate, renderRatingStars, favoriteActive, toggleFavorite,
-    canBuy, stockStatus, showPricesEnabled, canViewPrices, authLoading, currency, locale,
+    breadcrumbItems, canBuy, stockStatus, showPricesEnabled, canViewPrices, authLoading, currency, locale,
     activeTab, setActiveTab, canShowSpecifications, specificationEntries, isInStock, user
 }) {
     if (loading) return <StoreLayout><StoreSkeleton variant="product" /></StoreLayout>;
@@ -20,6 +21,7 @@ export default function ProductDetailImmersive({
     return (
         <StoreLayout>
             <main className="w-full bg-zinc-950 text-white min-h-screen pb-20">
+                <ProductBreadcrumb items={breadcrumbItems} className="mx-auto max-w-7xl px-4 pb-4 pt-10 md:px-10" dark />
                 <div className="relative w-full h-[60vh] md:h-[80vh] overflow-hidden">
                     <img src={images[activeImage]?.url || view.image} alt={view.alt} className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-30 scale-125" />
                     <img src={images[activeImage]?.url || view.image} alt={view.alt} className="absolute inset-0 w-full h-full object-contain p-8 md:p-16 drop-shadow-2xl" />

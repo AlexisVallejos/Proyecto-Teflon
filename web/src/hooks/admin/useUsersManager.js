@@ -76,7 +76,9 @@ export const useUsersManager = () => {
             const res = await fetch(url.toString(), { headers: getAuthHeaders() });
             if (!res.ok) {
                 const msg = await res.text();
-                throw new Error(msg || 'No se pudo cargar usuarios');
+                const error = new Error(msg || 'No se pudo cargar usuarios');
+                error.status = res.status;
+                throw error;
             }
             const data = await res.json();
             setUsersList(Array.isArray(data.items) ? data.items : []);
@@ -84,7 +86,13 @@ export const useUsersManager = () => {
             setUsersPage(pageToLoad);
         } catch (err) {
             console.error('Failed to load users', err);
-            setUsersError('No se pudieron cargar los usuarios.');
+            if (err?.status === 401) {
+                setUsersError('Tu sesion vencio. Volve a iniciar sesion para cargar los usuarios.');
+            } else if (err?.status === 403) {
+                setUsersError('Tu usuario no tiene permisos para cargar los usuarios.');
+            } else {
+                setUsersError('No se pudieron cargar los usuarios.');
+            }
             setUsersList([]);
             setUsersTotal(0);
         } finally {
@@ -479,4 +487,3 @@ export const useUsersManager = () => {
         currentUserId: user?.id || null,
     };
 };
-

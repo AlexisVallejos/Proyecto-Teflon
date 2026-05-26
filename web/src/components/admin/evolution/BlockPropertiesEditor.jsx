@@ -117,7 +117,7 @@ const normalizeColorInputValue = (value, fallback = '#000000') => {
     return `#${channelToHex(rgbMatch[1])}${channelToHex(rgbMatch[2])}${channelToHex(rgbMatch[3])}`;
 };
 
-const readImageAsDataUrl = (file) =>
+const readFileAsDataUrl = (file) =>
     new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
@@ -149,9 +149,9 @@ const ColorField = ({ label, value, defaultColor = '#000000', onChange }) => (
     </label>
 );
 
-const UploadButton = ({ busy, label, onChange }) => (
+const UploadButton = ({ busy, label, onChange, accept = 'image/*' }) => (
     <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-white/20">
-        <input type="file" accept="image/*" onChange={onChange} className="hidden" disabled={busy} />
+        <input type="file" accept={accept} onChange={onChange} className="hidden" disabled={busy} />
         <UploadSimple size={14} weight="bold" />
         {busy ? 'Subiendo...' : label}
     </label>
@@ -335,6 +335,12 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
     const isAboutValuesBlock = block.type === 'AboutValues';
     const isAboutTeamBlock = block.type === 'AboutTeam';
     const isAboutCtaBlock = block.type === 'AboutCTA';
+    const isPiquimHeroBlock = block.type === 'PiquimHero';
+    const isPiquimAnnounceBlock = block.type === 'PiquimAnnounceBar';
+    const isPiquimTresMundosBlock = block.type === 'PiquimTresMundos';
+    const isPiquimCatalogBlock = block.type === 'PiquimCatalog3Panel';
+    const isPiquimFeaturedBlock = block.type === 'PiquimFeaturedProducts';
+    const isPiquimCtaBlock = block.type === 'PiquimCTABanner';
     const heroVariant = normalizeHeroVariant(block.props?.variant);
     const featuredVariant = normalizeFeaturedVariant(block.props?.variant);
     const isHeroClassic = isHeroBlock && heroVariant === 'classic';
@@ -450,7 +456,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
         if (!file) return;
         setUploadingTarget(target);
         try {
-            const dataUrl = await readImageAsDataUrl(file);
+            const dataUrl = await readFileAsDataUrl(file);
             if (dataUrl) callback(dataUrl);
         } catch (error) {
             console.error('Image upload failed', error);
@@ -1667,6 +1673,220 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
         </>
     );
 
+    const renderVideoControl = ({ label, value, placeholder = 'https://.../video.mp4', uploadKey, onChange }) => (
+        <div className="space-y-2">
+            <EvolutionInput
+                label={label}
+                value={value || ''}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder={placeholder}
+            />
+            <div className="flex items-center gap-2">
+                <UploadButton
+                    busy={uploadingTarget === uploadKey}
+                    label="Subir video"
+                    accept="video/*"
+                    onChange={(event) => handleImageUpload(uploadKey, event, onChange)}
+                />
+            </div>
+            {value ? (
+                <video src={value} controls className="h-24 w-full rounded-lg border border-white/10 object-cover" />
+            ) : null}
+        </div>
+    );
+
+    const renderPiquimHeroEditor = () => (
+        <div className={panelClass}>
+            <SectionHeading icon={Baseline}>Hero Piquim</SectionHeading>
+            <div className="space-y-3">
+                <EvolutionInput label="Badge superior" value={block.props?.badgeText || ''} onChange={(e) => handlePropChange('badgeText', e.target.value)} />
+                <EvolutionInput label="Titulo linea 1" value={block.props?.preTitle || ''} onChange={(e) => handlePropChange('preTitle', e.target.value)} />
+                <EvolutionInput label="Titulo destacado" value={block.props?.titleHighlight || ''} onChange={(e) => handlePropChange('titleHighlight', e.target.value)} />
+                <EvolutionInput label="Titulo linea 3" value={block.props?.postTitle || ''} onChange={(e) => handlePropChange('postTitle', e.target.value)} />
+
+                <div className="space-y-1.5">
+                    <label className="pl-1 text-[10px] font-bold uppercase text-zinc-600">Media hero</label>
+                    <select
+                        value={block.props?.mediaType || 'image'}
+                        onChange={(event) => handlePropChange('mediaType', event.target.value)}
+                        className={selectFieldClass}
+                    >
+                        <option value="image" className="bg-zinc-900">Imagen</option>
+                        <option value="video" className="bg-zinc-900">Video</option>
+                    </select>
+                </div>
+
+                {(block.props?.mediaType || 'image') === 'video' ? (
+                    <>
+                        {renderVideoControl({ label: 'Video desktop (PC)', value: block.props?.videoUrlDesktop, uploadKey: 'piquim-hero-video-desktop', onChange: (value) => handlePropChange('videoUrlDesktop', value) })}
+                        {renderVideoControl({ label: 'Video mobile (celular)', value: block.props?.videoUrlMobile, uploadKey: 'piquim-hero-video-mobile', onChange: (value) => handlePropChange('videoUrlMobile', value) })}
+                        {renderVideoControl({ label: 'Fallback video URL', value: block.props?.videoUrl, uploadKey: 'piquim-hero-video', onChange: (value) => handlePropChange('videoUrl', value) })}
+                        {renderImageControl({ label: 'Poster', value: block.props?.videoPoster, uploadKey: 'piquim-hero-poster', onChange: (value) => handlePropChange('videoPoster', value) })}
+                        <div className="grid grid-cols-2 gap-2">
+                            <button type="button" onClick={() => handlePropChange('videoAutoplay', !block.props?.videoAutoplay)} className={compactFieldClass}>
+                                Autoplay: {block.props?.videoAutoplay !== false ? 'ON' : 'OFF'}
+                            </button>
+                            <button type="button" onClick={() => handlePropChange('videoLoop', !block.props?.videoLoop)} className={compactFieldClass}>
+                                Loop: {block.props?.videoLoop !== false ? 'ON' : 'OFF'}
+                            </button>
+                            <button type="button" onClick={() => handlePropChange('videoMuted', !block.props?.videoMuted)} className={compactFieldClass}>
+                                Mute: {block.props?.videoMuted !== false ? 'ON' : 'OFF'}
+                            </button>
+                            <button type="button" onClick={() => handlePropChange('videoControls', !block.props?.videoControls)} className={compactFieldClass}>
+                                Controls: {block.props?.videoControls ? 'ON' : 'OFF'}
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <p className="text-xs text-zinc-500">La imagen del balde fue removida de este bloque. Usa videos desktop/mobile.</p>
+                )}
+
+                <div className="grid grid-cols-3 gap-2">
+                    <EvolutionInput label="Stat 1" value={block.props?.statProducts || ''} onChange={(e) => handlePropChange('statProducts', e.target.value)} />
+                    <EvolutionInput label="Stat 2" value={block.props?.statCategories || ''} onChange={(e) => handlePropChange('statCategories', e.target.value)} />
+                    <EvolutionInput label="Stat 3" value={block.props?.statYears || ''} onChange={(e) => handlePropChange('statYears', e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <EvolutionInput label="Boton primario" value={block.props?.primaryLabel || ''} onChange={(e) => handlePropChange('primaryLabel', e.target.value)} />
+                    <EvolutionInput label="Link primario" value={block.props?.primaryHref || ''} onChange={(e) => handlePropChange('primaryHref', e.target.value)} />
+                    <EvolutionInput label="Boton secundario" value={block.props?.secondaryLabel || ''} onChange={(e) => handlePropChange('secondaryLabel', e.target.value)} />
+                    <EvolutionInput label="Link secundario" value={block.props?.secondaryHref || ''} onChange={(e) => handlePropChange('secondaryHref', e.target.value)} />
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderPiquimAnnounceEditor = () => (
+        <div className={panelClass}>
+            <SectionHeading icon={Baseline}>Barra de anuncio</SectionHeading>
+            <EvolutionInput label="Texto" value={block.props?.text || ''} onChange={(e) => handlePropChange('text', e.target.value)} multiline />
+        </div>
+    );
+
+    const renderPiquimSimpleCtaEditor = () => (
+        <div className={panelClass}>
+            <SectionHeading icon={Baseline}>Contenido</SectionHeading>
+            <div className="space-y-3">
+                <EvolutionInput label="Titulo" value={block.props?.title || ''} onChange={(e) => handlePropChange('title', e.target.value)} />
+                <EvolutionInput label="Subtitulo" value={block.props?.subtitle || ''} onChange={(e) => handlePropChange('subtitle', e.target.value)} multiline />
+                <div className="grid grid-cols-2 gap-3">
+                    <EvolutionInput label="Boton primario" value={block.props?.primaryLabel || ''} onChange={(e) => handlePropChange('primaryLabel', e.target.value)} />
+                    <EvolutionInput label="Link primario" value={block.props?.primaryHref || ''} onChange={(e) => handlePropChange('primaryHref', e.target.value)} />
+                    <EvolutionInput label="Boton secundario" value={block.props?.secondaryLabel || ''} onChange={(e) => handlePropChange('secondaryLabel', e.target.value)} />
+                    <EvolutionInput label="Link secundario" value={block.props?.secondaryHref || ''} onChange={(e) => handlePropChange('secondaryHref', e.target.value)} />
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderPiquimTresMundosEditor = () => {
+        const isPngValue = (value) => {
+            const safe = String(value || '').trim().toLowerCase();
+            return !safe || safe.startsWith('data:image/png') || safe.endsWith('.png');
+        };
+        const updatePngField = (key, value) => {
+            if (!isPngValue(value)) return;
+            handlePropChange(key, value);
+        };
+
+        return (
+            <div className={panelClass}>
+                <SectionHeading icon={Baseline}>Tres mundos</SectionHeading>
+                <div className="space-y-3">
+                    <EvolutionInput label="Titulo (inicio)" value={block.props?.titleStart || ''} onChange={(e) => handlePropChange('titleStart', e.target.value)} />
+                    <EvolutionInput label="Texto en acento naranja" value={block.props?.titleHighlight || ''} onChange={(e) => handlePropChange('titleHighlight', e.target.value)} />
+                    <EvolutionInput label="Titulo (final)" value={block.props?.titleEnd || ''} onChange={(e) => handlePropChange('titleEnd', e.target.value)} />
+                    <EvolutionInput label="Descripcion" value={block.props?.subtitle || block.props?.description || ''} onChange={(e) => handlePropChange('subtitle', e.target.value)} multiline />
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <EvolutionInput
+                                label="Balde izquierdo (.png obligatorio)"
+                                value={block.props?.leftImage || ''}
+                                onChange={(event) => updatePngField('leftImage', event.target.value)}
+                            />
+                            {!isPngValue(block.props?.leftImage) ? (
+                                <p className="text-xs font-bold text-rose-300">Solo se permite formato .png en esta imagen.</p>
+                            ) : null}
+                            <div className="flex items-center gap-2">
+                                <UploadButton
+                                    busy={uploadingTarget === 'tm-left-bucket'}
+                                    label="Subir PNG"
+                                    accept="image/png"
+                                    onChange={async (event) => {
+                                        const file = event.target.files?.[0];
+                                        if (!file) return;
+                                        if (file.type !== 'image/png') {
+                                            event.target.value = '';
+                                            return;
+                                        }
+                                        await handleImageUpload('tm-left-bucket', event, (value) => handlePropChange('leftImage', value));
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <EvolutionInput
+                                label="Balde derecho (.png obligatorio)"
+                                value={block.props?.rightImage || ''}
+                                onChange={(event) => updatePngField('rightImage', event.target.value)}
+                            />
+                            {!isPngValue(block.props?.rightImage) ? (
+                                <p className="text-xs font-bold text-rose-300">Solo se permite formato .png en esta imagen.</p>
+                            ) : null}
+                            <div className="flex items-center gap-2">
+                                <UploadButton
+                                    busy={uploadingTarget === 'tm-right-bucket'}
+                                    label="Subir PNG"
+                                    accept="image/png"
+                                    onChange={async (event) => {
+                                        const file = event.target.files?.[0];
+                                        if (!file) return;
+                                        if (file.type !== 'image/png') {
+                                            event.target.value = '';
+                                            return;
+                                        }
+                                        await handleImageUpload('tm-right-bucket', event, (value) => handlePropChange('rightImage', value));
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <p className="text-xs text-zinc-400">
+                        Esta seccion usa solo 2 imagenes laterales (izquierda y derecha), exactamente como el diseno.
+                    </p>
+                </div>
+            </div>
+        );
+    };
+
+    const renderPiquimCatalogEditor = () => {
+        const cards = getArrayProp('cards');
+        return (
+            <div className={panelClass}>
+                <SectionHeading icon={Baseline}>Catalogo 3 paneles</SectionHeading>
+                <div className="space-y-3">
+                    <EvolutionInput label="Titulo" value={block.props?.title || ''} onChange={(e) => handlePropChange('title', e.target.value)} />
+                    <EvolutionInput label="Subtitulo" value={block.props?.subtitle || ''} onChange={(e) => handlePropChange('subtitle', e.target.value)} multiline />
+                    {cards.map((card, index) => (
+                        <div key={`cat-card-${index}`} className="space-y-2 rounded-xl border border-white/10 p-3">
+                            <EvolutionInput label={`Card ${index + 1} titulo`} value={card?.title || ''} onChange={(e) => updateObjectArrayItem('cards', index, { title: e.target.value })} />
+                            <EvolutionInput label="Prefijo" value={card?.prefix || ''} onChange={(e) => updateObjectArrayItem('cards', index, { prefix: e.target.value })} />
+                            <EvolutionInput label="Categoria" value={card?.category || ''} onChange={(e) => updateObjectArrayItem('cards', index, { category: e.target.value })} />
+                            <EvolutionInput label="Tags (coma separada)" value={Array.isArray(card?.tags) ? card.tags.join(', ') : ''} onChange={(e) => updateObjectArrayItem('cards', index, { tags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })} />
+                            <EvolutionInput label="Descripcion" value={card?.description || ''} onChange={(e) => updateObjectArrayItem('cards', index, { description: e.target.value })} multiline />
+                            {renderImageControl({
+                                label: 'Imagen',
+                                value: card?.image,
+                                uploadKey: `cat-image-${index}`,
+                                onChange: (value) => updateObjectArrayItem('cards', index, { image: value }),
+                            })}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     const renderGenericEditor = () => (
         <>
             <div className={panelClass}>
@@ -1808,6 +2028,12 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
         if (isAboutValuesBlock) return renderAboutValuesEditor();
         if (isAboutTeamBlock) return renderAboutTeamEditor();
         if (isAboutCtaBlock) return renderAboutCtaEditor();
+        if (isPiquimHeroBlock) return renderPiquimHeroEditor();
+        if (isPiquimAnnounceBlock) return renderPiquimAnnounceEditor();
+        if (isPiquimTresMundosBlock) return renderPiquimTresMundosEditor();
+        if (isPiquimCatalogBlock) return renderPiquimCatalogEditor();
+        if (isPiquimFeaturedBlock) return renderPiquimSimpleCtaEditor();
+        if (isPiquimCtaBlock) return renderPiquimSimpleCtaEditor();
         return renderGenericEditor();
     };
 

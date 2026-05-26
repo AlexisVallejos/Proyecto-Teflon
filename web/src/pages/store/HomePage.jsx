@@ -9,6 +9,8 @@ import HeroSlider from "../../components/blocks/HeroSlider";
 import BrandMarquee from "../../components/blocks/BrandMarquee";
 import FeaturedProducts from "../../components/blocks/FeaturedProducts";
 import Services from "../../components/blocks/Services";
+import { getDefaultSectionsForPage, mergeSectionsWithDefaults } from "../../data/defaultSections";
+import { useTenant } from "../../context/TenantContext";
 
 const buildFeaturedCard = (product, index, isWholesale = false) => {
     const data = product.data || {};
@@ -48,9 +50,29 @@ const buildFeaturedCard = (product, index, isWholesale = false) => {
     };
 };
 
+const PIQUIM_SECTION_TYPES = new Set([
+    'PiquimHero',
+    'PiquimAnnounceBar',
+    'PiquimTresMundos',
+    'PiquimCatalog3Panel',
+    'PiquimFeaturedProducts',
+    'PiquimCTABanner',
+]);
+
+const shouldUseFetchedSections = (pageKey, sections = []) => {
+    if (!Array.isArray(sections) || !sections.length) return false;
+    if (pageKey !== 'piquim-home') return true;
+    return sections.some((section) => PIQUIM_SECTION_TYPES.has(section?.type));
+};
+
 export default function HomePage() {
     const { isWholesale } = useAuth();
-    const [sections, setSections] = useState(null);
+    const { settings } = useTenant();
+    const isPiquim = settings?.branding?.design_preset === 'piquim';
+    const pageKey = isPiquim ? 'piquim-home' : 'home';
+    const [sections, setSections] = useState(() =>
+        getDefaultSectionsForPage(pageKey)
+    );
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [featuredLoaded, setFeaturedLoaded] = useState(false);
 
@@ -62,8 +84,8 @@ export default function HomePage() {
                 });
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.sections && data.sections.length) {
-                        setSections(data.sections);
+                    if (shouldUseFetchedSections(pageKey, data.sections)) {
+                        setSections(mergeSectionsWithDefaults(pageKey, data.sections));
                     }
                 }
 
@@ -83,14 +105,19 @@ export default function HomePage() {
             }
         }
         loadHome();
-    }, [isWholesale]);
+    }, [isWholesale, pageKey]);
 
     const finalSections = useMemo(() => {
         if (!sections) return null;
         return sections
-            .filter((section) => section.type !== 'FeaturedProducts' || (featuredLoaded && featuredProducts.length > 0))
+            .filter((section) => {
+                if (section.type === 'FeaturedProducts' || section.type === 'PiquimFeaturedProducts') {
+                    return featuredLoaded && featuredProducts.length > 0;
+                }
+                return true;
+            })
             .map((section) => {
-                if (section.type === 'FeaturedProducts') {
+                if (section.type === 'FeaturedProducts' || section.type === 'PiquimFeaturedProducts') {
                     return { ...section, props: { ...section.props, products: featuredProducts } };
                 }
                 return section;

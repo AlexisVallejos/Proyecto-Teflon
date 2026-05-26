@@ -1,6 +1,7 @@
 const REST_COUNTRIES_URL = 'https://restcountries.com/v3.1/all?fields=name,cca2,translations';
 const ARGENTINA_PROVINCES_URL = 'https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre';
 const ARGENTINA_LOCALITIES_URL = 'https://apis.datos.gob.ar/georef/api/localidades?campos=id,nombre&max=5000&provincia=';
+const ARGENTINA_ADDRESSES_URL = 'https://apis.datos.gob.ar/georef/api/direcciones';
 
 export const FALLBACK_COUNTRY_OPTIONS = [
     { value: 'AR', label: 'Argentina' },
@@ -26,6 +27,7 @@ const argentinaProvincesState = {
 };
 
 const argentinaCitiesCache = new Map();
+const argentinaAddressesCache = new Map();
 
 const normalizeText = (value = '') =>
     String(value || '')
@@ -34,6 +36,33 @@ const normalizeText = (value = '') =>
         .replace(/\s+/g, ' ')
         .trim()
         .toLowerCase();
+
+const FALLBACK_ARGENTINA_PROVINCES = [
+    { value: '02', label: 'Ciudad Autonoma de Buenos Aires' },
+    { value: '06', label: 'Buenos Aires' },
+    { value: '10', label: 'Catamarca' },
+    { value: '14', label: 'Cordoba' },
+    { value: '18', label: 'Corrientes' },
+    { value: '22', label: 'Chaco' },
+    { value: '26', label: 'Chubut' },
+    { value: '30', label: 'Entre Rios' },
+    { value: '34', label: 'Formosa' },
+    { value: '38', label: 'Jujuy' },
+    { value: '42', label: 'La Pampa' },
+    { value: '46', label: 'La Rioja' },
+    { value: '50', label: 'Mendoza' },
+    { value: '54', label: 'Misiones' },
+    { value: '58', label: 'Neuquen' },
+    { value: '62', label: 'Rio Negro' },
+    { value: '66', label: 'Salta' },
+    { value: '70', label: 'San Juan' },
+    { value: '74', label: 'San Luis' },
+    { value: '78', label: 'Santa Cruz' },
+    { value: '82', label: 'Santa Fe' },
+    { value: '86', label: 'Santiago del Estero' },
+    { value: '90', label: 'Tucuman' },
+    { value: '94', label: 'Tierra del Fuego, Antartida e Islas del Atlantico Sur' },
+];
 
 const uniqueSortedOptions = (items = []) => {
     const byKey = new Map();
@@ -112,14 +141,20 @@ export const loadArgentinaProvinces = async () => {
 
     argentinaProvincesState.promise = fetchJson(ARGENTINA_PROVINCES_URL)
         .then((payload) => {
-            const options = uniqueSortedOptions(
+            const fromApi = uniqueSortedOptions(
                 (Array.isArray(payload?.provincias) ? payload.provincias : []).map((province) => ({
                     value: String(province?.id || '').trim(),
                     label: String(province?.nombre || '').trim(),
                 })),
             );
+            const options = uniqueSortedOptions([...fromApi, ...FALLBACK_ARGENTINA_PROVINCES]);
             argentinaProvincesState.data = options;
             return options;
+        })
+        .catch(() => {
+            const fallback = uniqueSortedOptions(FALLBACK_ARGENTINA_PROVINCES);
+            argentinaProvincesState.data = fallback;
+            return fallback;
         })
         .finally(() => {
             argentinaProvincesState.promise = null;
@@ -160,5 +195,86 @@ export const loadArgentinaCities = async (provinceId) => {
         });
 
     argentinaCitiesCache.set(normalizedProvinceId, { data: null, promise });
+    return promise;
+};
+
+const buildAddressLabel = (entry = {}) => {
+    const nomenclatura = String(entry?.nomenclatura || '').trim();
+    if (nomenclatura) return nomenclatura;
+
+    const street = String(entry?.calle?.nombre || '').trim();
+    const alturaValue = entry?.altura?.valor;
+    const altura = Number.isFinite(Number(alturaValue)) ? String(alturaValue) : '';
+    const locality =
+        String(entry?.localidad_censal?.nombre || entry?.localidad?.nombre || '').trim();
+    const province = String(entry?.provincia?.nombre || '').trim();
+
+    const head = [street, altura].filter(Boolean).join(' ');
+    const tail = [locality, province].filter(Boolean).join(', ');
+    return [head, tail].filter(Boolean).join(', ');
+};
+
+export const loadArgentinaAddresses = async ({
+    query = '',
+    province = '',
+    city = '',
+    limit = 8,
+} = {}) => {
+    const normalizedQuery = String(query || '').trim();
+    if (normalizedQuery.length < 3) return [];
+
+    const provinceFilter = String(province || '').trim();
+    const cityFilter = String(city || '').trim();
+    const max = Math.max(1, Math.min(20, Number(limit || 8)));
+    const cacheKey = `${normalizeText(normalizedQuery)}|${normalizeText(provinceFilter)}|${normalizeText(cityFilter)}|${max}`;
+
+    const cached = argentinaAddressesCache.get(cacheKey);
+    if (Array.isArray(cached?.data)) return cached.data;
+    if (cached?.promise) return cached.promise;
+
+    const fetchBatch = async ({ withProvince, withCity }) => {
+        const params = new URLSearchParams();
+        params.set('direccion', normalizedQuery);
+        params.set('max', String(Math.max(10, max)));
+        params.set('campos', 'nomenclatura,calle,altura,localidad_censal,provincia');
+        if (withProvince && provinceFilter) params.set('provincia', provinceFilter);
+        if (withCity && cityFilter) params.set('localidad', cityFilter);
+        const payload = await fetchJson(`${ARGENTINA_ADDRESSES_URL}?${params.toString()}`);
+        return Array.isArray(payload?.direcciones) ? payload.direcciones : [];
+    };
+
+    const promise = Promise.all([
+        fetchBatch({ withProvince: true, withCity: true }).catch(() => []),
+        fetchBatch({ withProvince: true, withCity: false }).catch(() => []),
+        fetchBatch({ withProvince: false, withCity: false }).catch(() => []),
+    ])
+        .then((batches) => {
+            const byLabel = new Map();
+            let counter = 0;
+            batches.flat().forEach((entry) => {
+                const label = buildAddressLabel(entry);
+                const normalized = normalizeText(label);
+                if (!label || !normalized || byLabel.has(normalized)) return;
+                counter += 1;
+                byLabel.set(normalized, {
+                    value: String(counter),
+                    label,
+                    provinceLabel: String(entry?.provincia?.nombre || '').trim(),
+                    cityLabel: String(entry?.localidad_censal?.nombre || entry?.localidad?.nombre || '').trim(),
+                    postalCode: String(entry?.codigo_postal || entry?.cp || '').trim(),
+                    countryCode: 'AR',
+                    countryLabel: 'Argentina',
+                });
+            });
+            const options = Array.from(byLabel.values()).slice(0, max);
+            argentinaAddressesCache.set(cacheKey, { data: options, promise: null });
+            return options;
+        })
+        .catch(() => {
+            argentinaAddressesCache.set(cacheKey, { data: [], promise: null });
+            return [];
+        });
+
+    argentinaAddressesCache.set(cacheKey, { data: null, promise });
     return promise;
 };

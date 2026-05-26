@@ -2,6 +2,7 @@ import React from 'react';
 import EvolutionInput from './EvolutionInput';
 import { cn } from '../../../utils/cn';
 import useEvolutionStore from '../../../store/useEvolutionStore';
+import { PIQUIM_SUBCATALOGS } from '../../../data/piquimSubcatalogs';
 import {
     Tag,
     Package as Box,
@@ -15,6 +16,13 @@ const fieldClass =
     'w-full rounded-xl border border-white/25 bg-zinc-900/70 px-3 py-2.5 text-sm text-white placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-evolution-indigo focus:ring-2 focus:ring-evolution-indigo/30';
 
 const sectionLabelClass = 'text-[10px] uppercase font-bold tracking-widest text-zinc-500';
+const PIQUIM_CATALOG_LABELS = {
+    heladeria: 'Heladeria',
+    panaderia: 'Panaderia/Confiteria',
+};
+const PIQUIM_CATALOG_GROUPS = Object.fromEntries(
+    Object.entries(PIQUIM_SUBCATALOGS).map(([slug, subcatalog]) => [slug, subcatalog?.productGroups || []])
+);
 
 const SYNC_STATUS_META = {
     manual: { label: 'Manual', tone: 'text-zinc-400 border-white/10 bg-white/5' },
@@ -128,6 +136,40 @@ const normalizeInspectorPriceTiers = (items = []) =>
         .filter(Boolean)
         .sort((left, right) => left.slot - right.slot);
 
+const getSpecificationValue = (rows = [], key) => {
+    const target = String(key || '').trim().toLowerCase();
+    const row = (Array.isArray(rows) ? rows : []).find((item) => String(item?.key || '').trim().toLowerCase() === target);
+    return row?.value || '';
+};
+
+const normalizeInspectorLabel = (value) =>
+    String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+const upsertSpecificationRows = (rows = [], patches = {}) => {
+    const next = Array.isArray(rows) ? [...rows] : [];
+    Object.entries(patches).forEach(([key, value]) => {
+        const cleanValue = String(value || '').trim();
+        const index = next.findIndex((row) => String(row?.key || '').trim().toLowerCase() === key.toLowerCase());
+
+        if (!cleanValue) {
+            if (index >= 0) next.splice(index, 1);
+            return;
+        }
+
+        if (index >= 0) {
+            next[index] = { ...next[index], key, value: cleanValue };
+            return;
+        }
+
+        next.push({ key, value: cleanValue });
+    });
+    return next;
+};
+
 const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
     const { catalogInspectorSection, setCatalogInspectorSection } = useEvolutionStore();
     const [isCategoryPickerOpen, setIsCategoryPickerOpen] = React.useState(false);
@@ -174,6 +216,71 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
         () => categoryOptions.filter((option) => selectedCategories.includes(option.id)),
         [categoryOptions, selectedCategories],
     );
+    const selectedCategoryText = selectedCategoryEntries.map((entry) => `${entry.name} ${entry.path}`).join(' ');
+    const piquimCatalogSlug = React.useMemo(() => {
+        const categoryNeedle = normalizeInspectorLabel(selectedCategoryText);
+        const sourceNeedle = normalizeInspectorLabel([
+            sourceCategoryPath[0],
+            getSpecificationValue(specificationRows, 'catalogo'),
+            getSpecificationValue(specificationRows, 'rubro'),
+            productDraft.source_catalog,
+        ].filter(Boolean).join(' '));
+
+        const findSlug = (needle) => {
+            if (needle.includes('confiteria') || needle.includes('reposteria') || needle.includes('pasteleria')) {
+                return 'panaderia';
+            }
+            return Object.entries(PIQUIM_CATALOG_LABELS).find(([slug, label]) => {
+                const cleanLabel = normalizeInspectorLabel(label);
+                return needle.includes(slug) || needle.includes(cleanLabel);
+            })?.[0];
+        };
+
+        const slugFromCategory = findSlug(categoryNeedle);
+        if (slugFromCategory) return slugFromCategory;
+
+        const slugFromSource = findSlug(sourceNeedle);
+        if (slugFromSource) return slugFromSource;
+
+        const groupTitle = sourceCategoryPath[1] || getSpecificationValue(specificationRows, 'tipo');
+        const slugFromGroup = Object.entries(PIQUIM_CATALOG_GROUPS).find(([, groups]) =>
+            groups.some((group) => group.title === groupTitle)
+        )?.[0];
+
+        return slugFromGroup || 'heladeria';
+    }, [productDraft.source_catalog, selectedCategoryText, sourceCategoryPath, specificationRows]);
+    const piquimCatalogGroups = PIQUIM_CATALOG_GROUPS[piquimCatalogSlug] || [];
+    const piquimCatalogLabel = PIQUIM_CATALOG_LABELS[piquimCatalogSlug] || 'Catalogo';
+    const piquimGroup = React.useMemo(() => {
+        const groupTitle = sourceCategoryPath[1] || getSpecificationValue(specificationRows, 'tipo');
+        return piquimCatalogGroups.find((group) => group.title === groupTitle) || null;
+    }, [piquimCatalogGroups, sourceCategoryPath, specificationRows]);
+    const piquimCategory = sourceCategoryPath[2] || productDraft.source_category || getSpecificationValue(specificationRows, 'subtipo');
+    const piquimFlavor = getSpecificationValue(specificationRows, 'sabor');
+
+    const applyPiquimTaxonomy = ({ groupTitle, categoryTitle, flavorName }) => {
+        const group = piquimCatalogGroups.find((item) => item.title === groupTitle) || null;
+        const categories = Array.isArray(group?.categories) ? group.categories : [];
+        const nextCategory = categoryTitle || categories[0]?.title || '';
+        const flavors = Array.isArray(group?.flavors) ? group.flavors : [];
+        const nextFlavor = flavorName || '';
+        const selectedFlavor = flavors.find((item) => item.name === nextFlavor) || null;
+
+        setProductDraft((prev) => ({
+            ...prev,
+            source_category: nextCategory,
+            source_category_path: group
+                ? [piquimCatalogLabel, group.title, nextCategory].filter(Boolean)
+                : [],
+            specifications: upsertSpecificationRows(prev.specifications, {
+                catalogo: group ? piquimCatalogLabel : '',
+                tipo: group?.title || '',
+                subtipo: nextCategory,
+                sabor: nextFlavor,
+                color: selectedFlavor?.color || '',
+            }),
+        }));
+    };
 
     React.useEffect(() => {
         if (catalogInspectorSection !== 'categories') {
@@ -511,6 +618,104 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
 
                 {catalogInspectorSection === 'categories' ? (
                     <div className="space-y-4">
+                        <div className="space-y-3 rounded-xl border border-evolution-indigo/30 bg-evolution-indigo/10 p-3">
+                            <div>
+                                <p className={sectionLabelClass}>Taxonomia Piquim</p>
+                                <p className="mt-1 text-[11px] text-zinc-950">
+                                    Usa estos campos para que el producto aparezca con su categoria, subcategoria y color en el catalogo Piquim.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div className="space-y-1">
+                                    <label className="pl-1 text-[10px] font-bold uppercase text-indigo-100">Categoria principal</label>
+                                    <select
+                                        value={piquimGroup?.title || ''}
+                                        onChange={(event) => applyPiquimTaxonomy({ groupTitle: event.target.value })}
+                                        className={fieldClass}
+                                    >
+                                        <option value="">Seleccionar</option>
+                                        {piquimCatalogGroups.map((group) => (
+                                            <option key={group.title} value={group.title} className="bg-zinc-900">
+                                                {group.title}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="pl-1 text-[10px] font-bold uppercase text-indigo-100">Subcategoria</label>
+                                    <select
+                                        value={piquimCategory || ''}
+                                        onChange={(event) => applyPiquimTaxonomy({
+                                            groupTitle: piquimGroup?.title || '',
+                                            categoryTitle: event.target.value,
+                                            flavorName: piquimFlavor,
+                                        })}
+                                        disabled={!piquimGroup}
+                                        className={fieldClass}
+                                    >
+                                        <option value="">Seleccionar</option>
+                                        {(Array.isArray(piquimGroup?.categories) ? piquimGroup.categories : []).map((category) => (
+                                            <option key={category.title} value={category.title} className="bg-zinc-900">
+                                                {category.title}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {Array.isArray(piquimGroup?.flavors) && piquimGroup.flavors.length ? (
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-100">Sabor / Color</p>
+                                        {piquimFlavor ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => applyPiquimTaxonomy({
+                                                    groupTitle: piquimGroup.title,
+                                                    categoryTitle: piquimCategory,
+                                                    flavorName: '',
+                                                })}
+                                                className="text-[10px] font-bold text-indigo-100/80 hover:text-white"
+                                            >
+                                                Limpiar
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                    <div className="grid max-h-64 grid-cols-1 gap-2 overflow-auto pr-1 sm:grid-cols-2">
+                                        {piquimGroup.flavors.map((flavor) => {
+                                            const selected = piquimFlavor === flavor.name;
+                                            return (
+                                                <button
+                                                    key={`${piquimGroup.title}-${flavor.name}`}
+                                                    type="button"
+                                                    onClick={() => applyPiquimTaxonomy({
+                                                        groupTitle: piquimGroup.title,
+                                                        categoryTitle: piquimCategory || piquimGroup.categories?.[0]?.title || '',
+                                                        flavorName: flavor.name,
+                                                    })}
+                                                    className={cn(
+                                                        'flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors',
+                                                        selected
+                                                            ? 'border-evolution-indigo bg-evolution-indigo text-white'
+                                                            : 'border-white/10 bg-black/10 text-zinc-200 hover:border-white/25 hover:bg-white/10'
+                                                    )}
+                                                >
+                                                    <span
+                                                        className="size-4 shrink-0 rounded-full border border-white/30"
+                                                        style={{ backgroundColor: flavor.color || '#e5e7eb' }}
+                                                    />
+                                                    <span className="truncate text-xs font-bold">{flavor.name}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : null}
+
+                        </div>
+
                         <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
                             <div>
                                 <p className={sectionLabelClass}>Categorias del producto</p>

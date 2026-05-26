@@ -3,6 +3,7 @@ import { useAuth } from "./AuthContext";
 
 const STORAGE_KEY = "teflon_cart_v1";
 const buildFavoritesKey = (userKey) => `teflon_favorites_${userKey || "guest"}`;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const StoreContext = createContext(null);
 
@@ -14,6 +15,24 @@ const safeNumber = (value, fallback = 0) => {
 const normalizeStock = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+};
+
+const isValidProductId = (value) => UUID_REGEX.test(String(value || "").trim());
+
+const normalizeCartItem = (item) => {
+    if (!item || !isValidProductId(item.id)) return null;
+    const qty = Math.max(1, safeNumber(item.qty, 1));
+    return {
+        ...item,
+        id: String(item.id).trim(),
+        sku: item.sku || item.erp_id || item.id,
+        name: item.name || "Producto",
+        price: safeNumber(item.price, 0),
+        qty,
+        image: item.image || item.image_url || "",
+        alt: item.alt || item.name || "Producto",
+        stock: normalizeStock(item.stock) ?? undefined,
+    };
 };
 
 const normalizeFavorite = (product) => {
@@ -39,7 +58,8 @@ export const StoreProvider = ({ children }) => {
     const [cartItems, setCartItems] = useState(() => {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-            return raw ? JSON.parse(raw) : [];
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed.map(normalizeCartItem).filter(Boolean) : [];
         } catch (err) {
             console.warn("No se pudo leer el carrito guardado", err);
             return [];
@@ -56,6 +76,19 @@ export const StoreProvider = ({ children }) => {
     });
     const [toast, setToast] = useState({ show: false, message: "" });
     const toastTimerRef = useRef(null);
+
+    useEffect(() => {
+        setCartItems((prev) => {
+            const normalized = (Array.isArray(prev) ? prev : []).map(normalizeCartItem).filter(Boolean);
+            if (
+                normalized.length === prev.length &&
+                normalized.every((item, index) => item.id === prev[index]?.id && item.qty === prev[index]?.qty)
+            ) {
+                return prev;
+            }
+            return normalized;
+        });
+    }, []);
 
     useEffect(() => {
         try {
@@ -118,7 +151,10 @@ export const StoreProvider = ({ children }) => {
     }, []);
 
     const addToCart = (product, qty = 1) => {
-        if (!product || !product.id) return;
+        if (!product || !isValidProductId(product.id)) {
+            showToast("No se pudo agregar este producto al carrito");
+            return;
+        }
         const nextQty = Math.max(1, safeNumber(qty, 1));
         const stockValue = normalizeStock(product.stock);
         let didAdd = false;

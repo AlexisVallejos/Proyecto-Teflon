@@ -2,10 +2,32 @@ import React, { useEffect, useState } from 'react';
 import StoreLayout from '../../components/layout/StoreLayout';
 import PageBuilder from '../../components/PageBuilder';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
-import { DEFAULT_ABOUT_SECTIONS } from '../../data/defaultSections';
+import { getDefaultSectionsForPage, mergeSectionsWithDefaults } from '../../data/defaultSections';
+import { useTenant } from '../../context/TenantContext';
+
+const PIQUIM_ABOUT_SECTION_TYPES = new Set([
+    'PiquimHero',
+    'PiquimAnnounceBar',
+    'PiquimTresMundos',
+    'PiquimCatalog3Panel',
+    'PiquimCTABanner',
+]);
+
+const shouldUseFetchedSections = (pageKey, sections = []) => {
+    if (!Array.isArray(sections) || !sections.length) return false;
+    if (pageKey !== 'piquim-about') return true;
+    return sections.some((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+};
 
 export default function AboutPage() {
-    const [sections, setSections] = useState(DEFAULT_ABOUT_SECTIONS);
+    const { settings } = useTenant();
+    const isPiquim = settings?.branding?.design_preset === 'piquim';
+    const pageKey = isPiquim ? 'piquim-about' : 'about';
+    const [sections, setSections] = useState(() => getDefaultSectionsForPage(pageKey));
+
+    useEffect(() => {
+        setSections(getDefaultSectionsForPage(pageKey));
+    }, [pageKey]);
 
     useEffect(() => {
         const loadAbout = async () => {
@@ -16,8 +38,8 @@ export default function AboutPage() {
 
                 if (response.ok) {
                     const data = await response.json();
-                    if (Array.isArray(data.sections)) {
-                        setSections(data.sections);
+                    if (shouldUseFetchedSections(pageKey, data.sections)) {
+                        setSections(mergeSectionsWithDefaults(pageKey, data.sections));
                     }
                 }
             } catch (err) {
@@ -26,7 +48,7 @@ export default function AboutPage() {
         };
 
         loadAbout();
-    }, []);
+    }, [pageKey]);
 
     const visibleSections = Array.isArray(sections)
         ? sections.filter((section) => section.enabled !== false)

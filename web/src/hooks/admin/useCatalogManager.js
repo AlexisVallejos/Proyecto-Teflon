@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import useEvolutionStore from '../../store/useEvolutionStore';
+import { PIQUIM_SUBCATALOGS } from '../../data/piquimSubcatalogs';
 
 const createEmptyProduct = () => ({
     name: '',
@@ -31,8 +32,17 @@ const createEmptyProduct = () => ({
     last_sync_at: null,
     sync_status: 'manual',
     price_tiers: [],
+    source_category: '',
     source_category_path: [],
 });
+
+const readImageAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+    });
 
 const mapSpecificationsObjectToRows = (specifications) => {
     if (!specifications || typeof specifications !== 'object' || Array.isArray(specifications)) {
@@ -55,6 +65,36 @@ const mapSpecificationRowsToObject = (rows) => {
         return acc;
     }, {});
 };
+
+const normalizeCategoryName = (value) =>
+    String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+const PIQUIM_CATEGORY_ROOT_LABELS = {
+    heladeria: 'Heladeria',
+    panaderia: 'Panaderia/Confiteria',
+};
+
+const buildPiquimCategoryBlueprint = () =>
+    Object.entries(PIQUIM_SUBCATALOGS)
+        .map(([slug, subcatalog]) => {
+            const groups = Array.isArray(subcatalog?.productGroups) ? subcatalog.productGroups : [];
+            if (!groups.length) return null;
+            return {
+                name: PIQUIM_CATEGORY_ROOT_LABELS[slug] || subcatalog.headingAccent || slug,
+                children: groups.map((group) => ({
+                    name: group.title,
+                    children: (Array.isArray(group.categories) ? group.categories : []).map((category) => ({
+                        name: category.title,
+                        children: [],
+                    })),
+                })),
+            };
+        })
+        .filter(Boolean);
 
 const parsePriceTierNumber = (value) => {
     if (typeof value === 'number') {
@@ -195,6 +235,7 @@ const buildProductFormFromProduct = (product) => {
                 ? product.price_tiers
                 : data.price_tiers
         ),
+        source_category: product?.source_category || data.source_category || '',
         source_category_path: Array.isArray(product?.source_category_path)
             ? product.source_category_path
             : Array.isArray(data.source_category_path)
@@ -251,6 +292,7 @@ const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => (
     last_sync_at: payload.last_sync_at || null,
     sync_status: payload.sync_status || (payload.external_id ? 'synced' : 'manual'),
     price_tiers: normalizePriceTiers(payload.price_tiers),
+    source_category: payload.source_category || null,
     source_category_path: Array.isArray(payload.source_category_path) ? payload.source_category_path : [],
     data: {
         images: Array.isArray(payload.images) ? payload.images : [],
@@ -271,6 +313,7 @@ const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => (
             payload.price_tiers && typeof payload.price_tiers === 'object' && !Array.isArray(payload.price_tiers)
                 ? payload.price_tiers
                 : {},
+        source_category: payload.source_category || null,
         source_category_path: Array.isArray(payload.source_category_path) ? payload.source_category_path : [],
     },
 });
@@ -289,6 +332,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryParentId, setNewCategoryParentId] = useState('');
     const [categorySaving, setCategorySaving] = useState(false);
+    const [categorySeeding, setCategorySeeding] = useState(false);
     const [categoryDeletingId, setCategoryDeletingId] = useState(null);
     const [newBrandName, setNewBrandName] = useState('');
     const [brandSaving, setBrandSaving] = useState(false);
@@ -504,6 +548,69 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         }
     }, [addToast, categories, newCategoryName, newCategoryParentId, setCategories]);
 
+    const handleSeedPiquimCategories = useCallback(async () => {
+        const blueprint = buildPiquimCategoryBlueprint();
+        if (!blueprint.length) return;
+
+        setCategorySeeding(true);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+
+            const current = Array.isArray(categories) ? [...categories] : [];
+
+            const findExisting = (name, parentId) => {
+                const cleanName = normalizeCategoryName(name);
+                const cleanParent = parentId || null;
+                return current.find((item) =>
+                    normalizeCategoryName(item?.name) === cleanName
+                    && (item?.parent_id || null) === cleanParent
+                ) || null;
+            };
+
+            const createNode = async (name, parentId = null) => {
+                const existing = findExisting(name, parentId);
+                if (existing) return existing;
+
+                const res = await fetch(`${getApiBase()}/tenant/categories`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ name, parent_id: parentId || null })
+                });
+
+                if (!res.ok) {
+                    throw new Error(`No se pudo crear la categoria ${name}`);
+                }
+
+                const created = await res.json();
+                current.push(created);
+                return created;
+            };
+
+            const walk = async (nodes, parentId = null) => {
+                for (const node of nodes) {
+                    const created = await createNode(node.name, parentId);
+                    if (Array.isArray(node.children) && node.children.length) {
+                        await walk(node.children, created.id);
+                    }
+                }
+            };
+
+            await walk(blueprint);
+            setCategories(current);
+            addToast('Categorias Piquim cargadas', 'success');
+        } catch (err) {
+            console.error('Failed to seed Piquim categories', err);
+            addToast('No se pudieron cargar las categorias Piquim', 'error');
+        } finally {
+            setCategorySeeding(false);
+        }
+    }, [addToast, categories, setCategories]);
+
     const handleDeleteCategory = useCallback(async (categoryId, categoryName) => {
         if (!categoryId) return;
         const label = categoryName || 'esta categoria';
@@ -706,27 +813,11 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         if (!file) return;
         setUploading(true);
         try {
-            const token = localStorage.getItem('teflon_token');
-            const formData = new FormData();
-            formData.append('image', file);
-
-            const headers = {
-                ...getTenantHeaders(),
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            };
-
-            const res = await fetch(`${getApiBase()}/tenant/products/upload-image`, {
-                method: 'POST',
-                headers,
-                body: formData,
-            });
-
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok || !payload?.url) {
-                addToast(payload?.error === 'no_file_uploaded' ? 'No se recibio la imagen' : 'No se pudo subir la imagen', 'error');
+            const dataUrl = await readImageAsDataUrl(file);
+            if (!dataUrl) {
+                addToast('No se pudo leer la imagen', 'error');
                 return;
             }
-
             setProductDraft((prev) => {
                 const currentImages = Array.isArray(prev.images) ? prev.images : [];
                 return {
@@ -734,17 +825,18 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
                     images: [
                         ...currentImages,
                         {
-                            url: payload.url,
+                            url: dataUrl,
                             alt: prev.name || 'Producto',
+                            sku: prev.sku || '',
                             primary: currentImages.length === 0
                         }
                     ]
                 };
             });
-            addToast('Imagen subida', 'success');
+            addToast('Imagen cargada', 'success');
         } catch (err) {
-            console.error('Image upload failed', err);
-            addToast('Error al subir la imagen', 'error');
+            console.error('Image read failed', err);
+            addToast('Error al leer la imagen', 'error');
         } finally {
             setUploading(false);
             event.target.value = '';
@@ -790,6 +882,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         newCategoryName,
         newCategoryParentId,
         categorySaving,
+        categorySeeding,
         categoryDeletingId,
         newBrandName,
         brandSaving,
@@ -811,6 +904,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         setNewCategoryName,
         setNewCategoryParentId,
         handleCreateCategory,
+        handleSeedPiquimCategories,
         handleDeleteCategory,
         setNewBrandName,
         handleCreateBrand,

@@ -1,12 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
-import { DEFAULT_ABOUT_SECTIONS, DEFAULT_HOME_SECTIONS } from '../../data/defaultSections';
+import {
+    DEFAULT_ABOUT_SECTIONS,
+    DEFAULT_HOME_SECTIONS,
+    PIQUIM_ABOUT_SECTIONS,
+    PIQUIM_HOME_SECTIONS,
+    mergeSectionsWithDefaults,
+} from '../../data/defaultSections';
 import { useTenant } from '../../context/TenantContext';
 import {
     DEFAULT_ADMIN_PANEL_BRANDING,
     DEFAULT_ADMIN_PANEL_THEME,
 } from '../../utils/adminPanelTheme';
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../../utils/storefrontTheme';
+import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../../data/piquimBranding';
 import { normalizePriceTierLabels } from '../../utils/priceTierLabels';
 
 const RESERVED_PLACEHOLDER_TERMS = new Set(['messi']);
@@ -19,6 +26,39 @@ const normalizePlaceholderValue = (value) =>
         .replace(/[\u0300-\u036f]/g, '');
 
 const isReservedPlaceholder = (value) => RESERVED_PLACEHOLDER_TERMS.has(normalizePlaceholderValue(value));
+
+const PIQUIM_SECTION_TYPES = new Set(PIQUIM_HOME_SECTIONS.map((section) => section.type));
+const PIQUIM_ABOUT_SECTION_TYPES = new Set(PIQUIM_ABOUT_SECTIONS.map((section) => section.type));
+
+const isPiquimBranding = (settings = {}) =>
+    settings?.branding?.design_preset === 'piquim' ||
+    String(settings?.branding?.name || '').toLowerCase().includes('piquim');
+
+const normalizeHomeSectionsForBrand = (settings = {}, sections = []) => {
+    const source = Array.isArray(sections) ? sections : [];
+    if (!isPiquimBranding(settings)) {
+        return source.length ? mergeSectionsWithDefaults('home', source) : DEFAULT_HOME_SECTIONS;
+    }
+
+    const hasPiquimBlocks = source.some((section) => PIQUIM_SECTION_TYPES.has(section?.type));
+    if (!source.length || !hasPiquimBlocks) {
+        return PIQUIM_HOME_SECTIONS;
+    }
+    return mergeSectionsWithDefaults('piquim-home', source);
+};
+
+const normalizeAboutSectionsForBrand = (settings = {}, sections = []) => {
+    const source = Array.isArray(sections) ? sections : [];
+    if (!isPiquimBranding(settings)) {
+        return source.length ? mergeSectionsWithDefaults('about', source) : DEFAULT_ABOUT_SECTIONS;
+    }
+
+    const hasPiquimBlocks = source.some((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+    if (!source.length || !hasPiquimBlocks) {
+        return PIQUIM_ABOUT_SECTIONS;
+    }
+    return mergeSectionsWithDefaults('piquim-about', source);
+};
 
 const getNavbarLinkLabel = (link) => {
     if (typeof link === 'string') return link;
@@ -44,18 +84,27 @@ const sortCategoriesForCleanup = (items) => {
 
 export function useEditorState(user) {
     const { refreshTenantSettings } = useTenant();
+    const HISTORY_LIMIT = 80;
 
     // Core State
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('home');
-    const [settings, setSettings] = useState({
+    const [settings, rawSetSettings] = useState({
         branding: {
             name: '',
             logo_url: '',
+            design_preset: 'piquim',
+            catalog_cards: PIQUIM_CATALOG_CARDS,
             admin_panel: DEFAULT_ADMIN_PANEL_BRANDING,
             navbar: { links: [] },
-            footer: { description: '', socials: {}, contact: {}, quickLinks: [] }
+            footer: {
+                ...PIQUIM_FOOTER_DEFAULTS,
+                socialLinks: PIQUIM_FOOTER_DEFAULTS.socials,
+                socials: {},
+                contact: {},
+                quickLinks: PIQUIM_FOOTER_DEFAULTS.shopLinks,
+            }
         },
         theme: {
             ...DEFAULT_STOREFRONT_LIGHT_THEME,
@@ -86,16 +135,108 @@ export function useEditorState(user) {
             }
         });
 
-    const [pageSections, setPageSections] = useState({
-        home: DEFAULT_HOME_SECTIONS,
+    const [pageSections, rawSetPageSections] = useState({
+        home: PIQUIM_HOME_SECTIONS,
         about: DEFAULT_ABOUT_SECTIONS,
     });
 
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const [brands, setBrands] = useState([]);
+    const [products, rawSetProducts] = useState([]);
+    const [categories, rawSetCategories] = useState([]);
+    const [brands, rawSetBrands] = useState([]);
     const [usersList, setUsersList] = useState([]);
     const [offers, setOffers] = useState([]);
+    const [historyPast, setHistoryPast] = useState([]);
+    const [historyFuture, setHistoryFuture] = useState([]);
+    const isApplyingHistoryRef = useRef(false);
+    const settingsRef = useRef(settings);
+    const pageSectionsRef = useRef(pageSections);
+    const productsRef = useRef(products);
+    const categoriesRef = useRef(categories);
+    const brandsRef = useRef(brands);
+
+    useEffect(() => { settingsRef.current = settings; }, [settings]);
+    useEffect(() => { pageSectionsRef.current = pageSections; }, [pageSections]);
+    useEffect(() => { productsRef.current = products; }, [products]);
+    useEffect(() => { categoriesRef.current = categories; }, [categories]);
+    useEffect(() => { brandsRef.current = brands; }, [brands]);
+
+    const deepClone = useCallback((value) => {
+        if (typeof structuredClone === 'function') return structuredClone(value);
+        return JSON.parse(JSON.stringify(value));
+    }, []);
+
+    const snapshotState = useCallback(() => ({
+        settings: deepClone(settingsRef.current),
+        pageSections: deepClone(pageSectionsRef.current),
+        products: deepClone(productsRef.current),
+        categories: deepClone(categoriesRef.current),
+        brands: deepClone(brandsRef.current),
+    }), [deepClone]);
+
+    const applySnapshot = useCallback((snapshot) => {
+        if (!snapshot) return;
+        isApplyingHistoryRef.current = true;
+        rawSetSettings(snapshot.settings);
+        rawSetPageSections(snapshot.pageSections);
+        rawSetProducts(snapshot.products);
+        rawSetCategories(snapshot.categories);
+        rawSetBrands(snapshot.brands);
+        setTimeout(() => {
+            isApplyingHistoryRef.current = false;
+        }, 0);
+    }, []);
+
+    const pushHistorySnapshot = useCallback(() => {
+        if (isApplyingHistoryRef.current) return;
+        const snapshot = snapshotState();
+        setHistoryPast((prev) => [...prev.slice(-(HISTORY_LIMIT - 1)), snapshot]);
+        setHistoryFuture([]);
+    }, [snapshotState]);
+
+    const setSettings = useCallback((updater) => {
+        pushHistorySnapshot();
+        rawSetSettings((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+    }, [pushHistorySnapshot]);
+
+    const setPageSections = useCallback((updater) => {
+        pushHistorySnapshot();
+        rawSetPageSections((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+    }, [pushHistorySnapshot]);
+
+    const setProducts = useCallback((updater) => {
+        pushHistorySnapshot();
+        rawSetProducts((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+    }, [pushHistorySnapshot]);
+
+    const setCategories = useCallback((updater) => {
+        pushHistorySnapshot();
+        rawSetCategories((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+    }, [pushHistorySnapshot]);
+
+    const setBrands = useCallback((updater) => {
+        pushHistorySnapshot();
+        rawSetBrands((prev) => (typeof updater === 'function' ? updater(prev) : updater));
+    }, [pushHistorySnapshot]);
+
+    const undo = useCallback(() => {
+        if (!historyPast.length) return false;
+        const previous = historyPast[historyPast.length - 1];
+        const current = snapshotState();
+        setHistoryPast((prev) => prev.slice(0, -1));
+        setHistoryFuture((prev) => [current, ...prev].slice(0, HISTORY_LIMIT));
+        applySnapshot(previous);
+        return true;
+    }, [applySnapshot, historyPast, snapshotState]);
+
+    const redo = useCallback(() => {
+        if (!historyFuture.length) return false;
+        const next = historyFuture[0];
+        const current = snapshotState();
+        setHistoryFuture((prev) => prev.slice(1));
+        setHistoryPast((prev) => [...prev.slice(-(HISTORY_LIMIT - 1)), current]);
+        applySnapshot(next);
+        return true;
+    }, [applySnapshot, historyFuture, snapshotState]);
 
     const cleanupReservedCatalogEntries = useCallback(async ({ headers, settingsData, categoriesData, brandsData }) => {
         let changed = false;
@@ -243,9 +384,11 @@ export function useEditorState(user) {
                 await refreshTenantSettings();
             }
 
+            const loadedSettings = settingsPayload?.settings || settingsRef.current;
+
             if (settingsPayload) {
                 const data = settingsPayload;
-                setSettings(prev => ({
+                rawSetSettings(prev => ({
                     ...prev,
                     ...data.settings,
                     branding: {
@@ -254,6 +397,10 @@ export function useEditorState(user) {
                         footer: {
                             ...(prev.branding?.footer || {}),
                             ...(data.settings?.branding?.footer || {}),
+                            newsletter: {
+                                ...((prev.branding?.footer || {}).newsletter || {}),
+                                ...((data.settings?.branding?.footer || {}).newsletter || {}),
+                            },
                         },
                         admin_panel: {
                             ...DEFAULT_ADMIN_PANEL_BRANDING,
@@ -280,21 +427,33 @@ export function useEditorState(user) {
 
             if (homeRes.ok) {
                 const data = await homeRes.json();
-                if (Array.isArray(data.sections)) setPageSections(prev => ({ ...prev, home: data.sections }));
+                if (Array.isArray(data.sections)) {
+                    rawSetPageSections(prev => ({
+                        ...prev,
+                        home: normalizeHomeSectionsForBrand(loadedSettings, data.sections),
+                    }));
+                }
             }
 
             if (aboutRes.ok) {
                 const data = await aboutRes.json();
-                if (Array.isArray(data.sections)) setPageSections(prev => ({ ...prev, about: data.sections }));
+                if (Array.isArray(data.sections)) {
+                    rawSetPageSections(prev => ({
+                        ...prev,
+                        about: normalizeAboutSectionsForBrand(loadedSettings, data.sections),
+                    }));
+                }
             }
 
             if (productsRes.ok) {
                 const data = await productsRes.json();
-                setProducts(data.items || []);
+                rawSetProducts(data.items || []);
             }
 
-            setCategories(categoriesPayload || []);
-            setBrands(brandsPayload);
+            rawSetCategories(categoriesPayload || []);
+            rawSetBrands(brandsPayload);
+            setHistoryPast([]);
+            setHistoryFuture([]);
 
         } catch (err) {
             console.error("Failed to load editor data", err);
@@ -454,6 +613,10 @@ export function useEditorState(user) {
         setCategories,
         brands,
         setBrands,
+        undo,
+        redo,
+        canUndo: historyPast.length > 0,
+        canRedo: historyFuture.length > 0,
         handleSaveAll,
         saveCheckoutSettings,
         saveShippingSettings,

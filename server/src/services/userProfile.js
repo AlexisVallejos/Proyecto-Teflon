@@ -5,6 +5,7 @@ let schemaPromise = null;
 export async function ensureUserProfileSchema() {
   if (schemaPromise) return schemaPromise;
   schemaPromise = (async () => {
+    await pool.query("alter table users add column if not exists display_name text");
     await pool.query("alter table users add column if not exists phone text");
     await pool.query("alter table users add column if not exists address text");
     await pool.query("alter table users add column if not exists address_extra text");
@@ -15,6 +16,9 @@ export async function ensureUserProfileSchema() {
     await pool.query("alter table users add column if not exists postal_code text");
     await pool.query("alter table users add column if not exists photo_url text");
     await pool.query("alter table users add column if not exists billing_info jsonb not null default '{}'::jsonb");
+    await pool.query("alter table users add column if not exists business_name text");
+    await pool.query("alter table users add column if not exists business_activity text");
+    await pool.query("alter table users add column if not exists cuil text");
   })();
   return schemaPromise;
 }
@@ -35,6 +39,9 @@ export function normalizeProfileFields(input = {}) {
     province: trimMax(input.province, 120),
     city: trimMax(input.city, 120),
     postal_code: trimMax(input.postal_code ?? input.postalCode, 20),
+    business_name: trimMax(input.business_name ?? input.businessName ?? input.company, 180),
+    business_activity: trimMax(input.business_activity ?? input.businessActivity, 180),
+    cuil: trimMax(input.cuil ?? input.cuit, 40),
   };
 }
 
@@ -57,5 +64,8 @@ export function profileColumnsToSelect() {
     'postal_code',
     'photo_url',
     'billing_info',
+    'business_name',
+    'business_activity',
+    'cuil',
   ].join(', ');
 }

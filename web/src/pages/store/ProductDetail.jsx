@@ -13,6 +13,9 @@ import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
 import ProductDetailMinimal from "./ProductDetailMinimal";
 import ProductDetailImmersive from "./ProductDetailImmersive";
+import ProductBreadcrumb from "../../components/ProductBreadcrumb";
+import { PIQUIM_SUBCATALOGS } from "../../data/piquimSubcatalogs";
+import { ArrowRight, Bookmark, ShoppingCart } from "lucide-react";
 
 const FALLBACK_IMAGE = createPlaceholderImage({ label: "Producto", width: 900, height: 900 });
 
@@ -20,6 +23,147 @@ const getProductId = () => {
     const parts = window.location.pathname.split("/").filter(Boolean);
     if (parts[0] !== "product") return null;
     return parts[1] || null;
+};
+
+const normalizeBreadcrumbText = (value) =>
+    String(value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+const toTitleLabel = (value) =>
+    String(value || "")
+        .replace(/^de\s+/i, "")
+        .replace(/[-_]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const getSearchParam = (name) => {
+    try {
+        return new URLSearchParams(window.location.search || "").get(name) || "";
+    } catch {
+        return "";
+    }
+};
+
+const resolveCatalogSlugFromText = (...values) => {
+    const text = normalizeBreadcrumbText(values.filter(Boolean).join(" "));
+    if (!text) return "";
+    if (text.includes("heladeria") || text.includes("helado")) return "heladeria";
+    if (text.includes("panaderia") || text.includes("pan ") || text.includes("bolleria")) return "panaderia";
+    if (text.includes("confiteria") || text.includes("reposteria") || text.includes("pasteleria")) return "panaderia";
+    return "";
+};
+
+const getCatalogLabel = (slug) => {
+    const fixedLabels = {
+        heladeria: "Heladería",
+        panaderia: "Panadería/Confitería",
+        confiteria: "Panadería/Confitería",
+    };
+    if (fixedLabels[slug]) return fixedLabels[slug];
+    const catalog = PIQUIM_SUBCATALOGS[slug];
+    if (!catalog) return toTitleLabel(slug);
+    return toTitleLabel(catalog.headingAccent || slug);
+};
+
+const findBreadcrumbGroupForFilter = (catalogSlug, filterLabel) => {
+    const catalog = PIQUIM_SUBCATALOGS[catalogSlug];
+    const normalizedFilter = normalizeBreadcrumbText(filterLabel);
+    if (!catalog || !normalizedFilter || !Array.isArray(catalog.productGroups)) return "";
+
+    const group = catalog.productGroups.find((item) => {
+        if (normalizeBreadcrumbText(item.title) === normalizedFilter) return true;
+        const categories = Array.isArray(item.categories) ? item.categories : [];
+        return categories.some((category) => normalizeBreadcrumbText(category.title) === normalizedFilter);
+    });
+
+    return group?.title || "";
+};
+
+const getSpecificationValue = (specifications = {}, keys = []) => {
+    if (!specifications || typeof specifications !== "object" || Array.isArray(specifications)) return "";
+    const entries = Object.entries(specifications);
+    const normalizedKeys = keys.map(normalizeBreadcrumbText);
+    const match = entries.find(([key]) => normalizedKeys.includes(normalizeBreadcrumbText(key)));
+    return String(match?.[1] || "").trim();
+};
+
+const getProductKicker = (breadcrumbItems = [], sourcePath = []) => {
+    const path = Array.isArray(sourcePath) ? sourcePath.filter(Boolean) : [];
+    const catalog = path[0] || breadcrumbItems[1]?.label || "";
+    const group = path[1] || breadcrumbItems[2]?.label || "";
+    return [group, catalog].filter(Boolean).join(" + ");
+};
+
+const getProductImageUrl = (item, fallback = FALLBACK_IMAGE) => {
+    const data = item?.data && typeof item.data === "object" ? item.data : {};
+    const rawImages = Array.isArray(data.images) ? data.images : [];
+    const rawFirst = rawImages[0];
+    return (
+        data.image ||
+        data.image_url ||
+        (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
+        fallback
+    );
+};
+
+const normalizePresentationOptionLabel = (value) =>
+    String(value || "")
+        .replace(/^precio\s+\d+$/i, "")
+        .replace(/^price[_\s-]?\d+$/i, "")
+        .trim();
+
+const resolveProductBreadcrumb = (product, view, categories = []) => {
+    const data = product?.data && typeof product.data === "object" ? product.data : {};
+    const categoryNames = (Array.isArray(product?.category_ids) ? product.category_ids : [])
+        .map((id) => categories.find((category) => category.id === id))
+        .filter(Boolean)
+        .flatMap((category) => [category.parent_name, category.name, category.slug])
+        .filter(Boolean);
+    const sourcePath = Array.isArray(product?.source_category_path)
+        ? product.source_category_path
+        : Array.isArray(data.source_category_path)
+            ? data.source_category_path
+            : [];
+    const rawCatalogFromUrl = normalizeBreadcrumbText(getSearchParam("catalog"));
+    const catalogFromUrl = rawCatalogFromUrl === "confiteria" ? "panaderia" : rawCatalogFromUrl;
+    const catalogSlug = PIQUIM_SUBCATALOGS[catalogFromUrl]
+        ? catalogFromUrl
+        : resolveCatalogSlugFromText(
+            sourcePath.join(" "),
+            product?.source_category,
+            data.source_category,
+            data.category,
+            product?.category?.name,
+            categoryNames.join(" "),
+            view?.brand,
+            view?.name,
+        );
+    const groupFromUrl = String(getSearchParam("group") || "").trim();
+    const rawFilter =
+        getSearchParam("filter") ||
+        sourcePath.find((item) => normalizeBreadcrumbText(item) && normalizeBreadcrumbText(item) !== catalogSlug) ||
+        data.subtype ||
+        data.presentation ||
+        "";
+    const filterLabel = String(rawFilter || "").trim();
+    const groupLabel = groupFromUrl || findBreadcrumbGroupForFilter(catalogSlug, filterLabel);
+    const normalizedGroup = normalizeBreadcrumbText(groupLabel);
+    const normalizedFilter = normalizeBreadcrumbText(filterLabel);
+    const showGroup = Boolean(groupLabel);
+    const showFilter = Boolean(filterLabel) && normalizedFilter !== normalizedGroup;
+    const catalogHref = catalogSlug ? `/catalog?category=${encodeURIComponent(catalogSlug)}` : "/catalog";
+
+    return [
+        { label: "Productos", href: "/catalog" },
+        ...(catalogSlug ? [{ label: getCatalogLabel(catalogSlug), href: catalogHref }] : []),
+        ...(showGroup ? [{ label: groupLabel, href: catalogHref }] : []),
+        ...(showFilter ? [{ label: filterLabel, href: catalogHref }] : []),
+        { label: view?.name || product?.name || "Producto" },
+    ];
 };
 
 export default function ProductDetail() {
@@ -40,6 +184,7 @@ export default function ProductDetail() {
     const [error, setError] = useState("");
     const [activeImage, setActiveImage] = useState(0);
     const [qty, setQty] = useState(1);
+    const [selectedPresentationId, setSelectedPresentationId] = useState("");
     const [activeTab, setActiveTab] = useState("description");
     const [relatedProducts, setRelatedProducts] = useState([]);
     const [relatedLoading, setRelatedLoading] = useState(false);
@@ -71,6 +216,7 @@ export default function ProductDetail() {
         let active = true;
         setActiveImage(0);
         setQty(1);
+        setSelectedPresentationId("");
         setActiveTab("description");
         setReviews([]);
         setReviewsError("");
@@ -192,13 +338,16 @@ export default function ProductDetail() {
     const view = useMemo(() => {
         if (!product) return null;
         const data = product.data || {};
-        const rawImages = Array.isArray(data.images) ? data.images : [];
-        const rawFirst = rawImages[0];
-        const image =
-            data.image ||
-            data.image_url ||
-            (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
-            FALLBACK_IMAGE;
+        const image = getProductImageUrl(product);
+        const specifications =
+            data.specifications && typeof data.specifications === "object" && !Array.isArray(data.specifications)
+                ? data.specifications
+                : {};
+        const sourceCategoryPath = Array.isArray(product.source_category_path)
+            ? product.source_category_path
+            : Array.isArray(data.source_category_path)
+                ? data.source_category_path
+                : [];
 
         const price = isWholesale && product.price_wholesale != null
             ? Number(product.price_wholesale)
@@ -229,6 +378,21 @@ export default function ProductDetail() {
             oldPrice: !isWholesale && data.old_price ? Number(data.old_price) : null,
             isWholesaleItem: isWholesale && product.price_wholesale != null,
             showSpecifications: product.show_specifications !== false && data.show_specifications !== false,
+            collection: data.collection || product.variation_group_label || "",
+            sourceCategory: product.source_category || data.source_category || "",
+            sourceCategoryPath,
+            specifications,
+            presentationLabel:
+                product.variation_label ||
+                data.variant_label ||
+                data.variantLabel ||
+                data.variant ||
+                data.presentation ||
+                getSpecificationValue(specifications, ["presentacion", "presentación", "envase", "formato", "peso"]) ||
+                "",
+            variationGroupLabel: product.variation_group_label || data.variant_group_label || data.variantGroupLabel || "",
+            priceTiers: Array.isArray(product.price_tiers) ? product.price_tiers : [],
+            variations: Array.isArray(product.variations) ? product.variations : [],
             extra: data,
         };
     }, [product, isWholesale]);
@@ -269,13 +433,7 @@ export default function ProductDetail() {
     const relatedCards = useMemo(() => {
         return relatedProducts.map((item, index) => {
             const data = item.data || {};
-            const rawImages = Array.isArray(data.images) ? data.images : [];
-            const rawFirst = rawImages[0];
-            const image =
-                data.image ||
-                data.image_url ||
-                (rawFirst && (rawFirst.url || rawFirst.src || rawFirst)) ||
-                FALLBACK_IMAGE;
+            const image = getProductImageUrl(item);
 
             const price = isWholesale && item.price_wholesale != null
                 ? Number(item.price_wholesale)
@@ -294,9 +452,6 @@ export default function ProductDetail() {
         });
     }, [relatedProducts, isWholesale]);
 
-    const canBuy = view ? isInStock(view.stock) : false;
-    const stockStatus = view && showStock ? getStockStatus(view.stock, lowStockThreshold) : null;
-    const favoriteActive = view ? isFavorite(view.id) : false;
     const specificationEntries = useMemo(() => {
         const specs = view?.extra?.specifications;
         if (!specs || typeof specs !== "object" || Array.isArray(specs)) return [];
@@ -308,6 +463,125 @@ export default function ProductDetail() {
             .filter((item) => item.label && item.value);
     }, [view]);
     const canShowSpecifications = Boolean(view?.showSpecifications && specificationEntries.length);
+    const breadcrumbItems = useMemo(
+        () => (view ? resolveProductBreadcrumb(product, view) : []),
+        [product, view],
+    );
+    const productKicker = view ? getProductKicker(breadcrumbItems, view.sourceCategoryPath) : "";
+
+    const presentationOptions = useMemo(() => {
+        if (!view) return [];
+        const next = [];
+        const seen = new Set();
+        const addOption = (option) => {
+            const label = String(option?.label || "").trim();
+            if (!label) return;
+            const key = `${option.type || "option"}:${option.productId || ""}:${label.toLowerCase()}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            next.push({ ...option, label });
+        };
+
+        if (Array.isArray(view.variations) && view.variations.length > 1) {
+            view.variations.forEach((variation) => {
+                const data = variation?.data && typeof variation.data === "object" ? variation.data : {};
+                const specs = data.specifications && typeof data.specifications === "object" ? data.specifications : {};
+                const label =
+                    variation.variation_label ||
+                    data.variant_label ||
+                    data.variantLabel ||
+                    data.variant ||
+                    getSpecificationValue(specs, ["presentacion", "presentación", "envase", "formato", "peso", "medida"]) ||
+                    variation.sku ||
+                    variation.name;
+
+                addOption({
+                    id: `variation:${variation.id}`,
+                    type: "variation",
+                    productId: variation.id,
+                    sku: variation.sku || variation.erp_id,
+                    name: variation.name || view.name,
+                    label,
+                    price: Number(variation.price || 0),
+                    oldPrice: variation.price_retail ? Number(variation.price_retail) : null,
+                    stock: variation.stock,
+                    image: getProductImageUrl(variation, view.image),
+                    isCurrent: variation.id === view.id,
+                });
+            });
+        }
+
+        if (!next.length && Array.isArray(view.priceTiers) && view.priceTiers.length > 1) {
+            view.priceTiers.forEach((tier) => {
+                const label = normalizePresentationOptionLabel(tier.label || tier.name || tier.key);
+                addOption({
+                    id: `price-tier:${tier.key || tier.slot}`,
+                    type: "price-tier",
+                    productId: view.id,
+                    sku: view.sku,
+                    name: view.name,
+                    label,
+                    price: Number(tier.value || 0),
+                    oldPrice: view.oldPrice,
+                    stock: view.stock,
+                    image: view.image,
+                    isCurrent: tier.slot === 1,
+                });
+            });
+        }
+
+        if (!next.length && view.presentationLabel) {
+            addOption({
+                id: "current:presentation",
+                type: "current",
+                productId: view.id,
+                sku: view.sku,
+                name: view.name,
+                label: view.presentationLabel,
+                price: view.price,
+                oldPrice: view.oldPrice,
+                stock: view.stock,
+                image: view.image,
+                isCurrent: true,
+            });
+        }
+
+        return next;
+    }, [view]);
+
+    useEffect(() => {
+        if (!presentationOptions.length) {
+            if (selectedPresentationId) setSelectedPresentationId("");
+            return;
+        }
+        const stillExists = presentationOptions.some((option) => option.id === selectedPresentationId);
+        if (!stillExists) {
+            const current = presentationOptions.find((option) => option.isCurrent) || presentationOptions[0];
+            setSelectedPresentationId(current.id);
+        }
+    }, [presentationOptions, selectedPresentationId]);
+
+    const selectedPresentation =
+        presentationOptions.find((option) => option.id === selectedPresentationId) ||
+        presentationOptions.find((option) => option.isCurrent) ||
+        presentationOptions[0] ||
+        null;
+    const displayPrice = selectedPresentation?.price && Number(selectedPresentation.price) > 0
+        ? Number(selectedPresentation.price)
+        : view?.price || 0;
+    const displayOldPrice = selectedPresentation?.oldPrice && Number(selectedPresentation.oldPrice) > displayPrice
+        ? Number(selectedPresentation.oldPrice)
+        : view?.oldPrice || null;
+    const displayImage = selectedPresentation?.type === "variation" && selectedPresentation?.image
+        ? selectedPresentation.image
+        : images[activeImage]?.url || view?.image || FALLBACK_IMAGE;
+    const displayAlt = selectedPresentation?.name || view?.alt || "Producto";
+    const displayStock = selectedPresentation?.stock ?? view?.stock;
+    const displaySku = selectedPresentation?.sku || view?.sku;
+    const displayName = selectedPresentation?.type === "variation" ? selectedPresentation.name || view?.name : view?.name;
+    const canBuy = view ? isInStock(displayStock) : false;
+    const stockStatus = view && showStock ? getStockStatus(displayStock, lowStockThreshold) : null;
+    const favoriteActive = view ? isFavorite(view.id) : false;
 
     const handleReviewSubmit = async (event) => {
         event.preventDefault();
@@ -381,14 +655,14 @@ export default function ProductDetail() {
         if (!view || !canBuy) return;
         const safeQty = Math.max(1, Number(qty) || 1);
         addToCart({
-            id: view.id,
-            sku: view.sku,
-            name: view.name,
-            price: view.price,
-            image: view.image,
-            alt: view.alt,
-            stock: view.stock,
-            variant: view.extra?.variant || "",
+            id: selectedPresentation?.productId || view.id,
+            sku: displaySku,
+            name: displayName || view.name,
+            price: displayPrice,
+            image: displayImage,
+            alt: displayAlt,
+            stock: displayStock,
+            variant: selectedPresentation?.label || view.presentationLabel || view.extra?.variant || "",
         }, safeQty);
     };
 
@@ -397,7 +671,7 @@ export default function ProductDetail() {
         handleAdd, relatedCards, relatedLoading, reviews, reviewsLoading, reviewsError,
         reviewsEnabled, reviewSubmitting, reviewForm, setReviewForm, handleReviewSubmit,
         formatReviewDate, renderRatingStars, favoriteActive, toggleFavorite,
-        canBuy, stockStatus, showPricesEnabled, canViewPrices, authLoading, currency, locale,
+        breadcrumbItems, canBuy, stockStatus, showPricesEnabled, canViewPrices, authLoading, currency, locale,
         activeTab, setActiveTab, canShowSpecifications, specificationEntries, isInStock, user
     };
 
@@ -408,20 +682,6 @@ export default function ProductDetail() {
     return (
         <StoreLayout>
             <main className="max-w-[1400px] mx-auto w-full px-4 md:px-10 py-10">
-                <div className="flex items-center gap-2 text-sm text-[#8a7560] mb-6">
-                    <button type="button" onClick={() => navigate("/")} className="hover:text-primary">
-                        Inicio
-                    </button>
-                    <span>/</span>
-                    <button type="button" onClick={() => navigate("/catalog")} className="hover:text-primary">
-                        Catálogo
-                    </button>
-                    <span>/</span>
-                    <span className="text-[#181411] dark:text-white">
-                        {view?.name || "Producto"}
-                    </span>
-                </div>
-
                 {loading ? (
                     <StoreSkeleton variant="product" />
                 ) : error ? (
@@ -434,145 +694,142 @@ export default function ProductDetail() {
                     </div>
                 ) : (
                     <div className="space-y-10">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-start">
-                            <div className="flex flex-col gap-4 md:sticky md:top-24">
-                                <div className="rounded-3xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c] p-4">
-                                    <div className="aspect-[4/3] w-full rounded-2xl bg-[#f5f2f0] dark:bg-[#2c2116] overflow-hidden">
-                                        <img
-                                            src={images[activeImage]?.url || view.image}
-                                            alt={view.alt}
-                                            className="w-full h-full object-cover"
-                                            loading="lazy"
-                                        />
-                                    </div>
+                        <ProductBreadcrumb items={breadcrumbItems} className="text-[11px] font-bold" />
+
+                        <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] lg:gap-7">
+                            <div className="space-y-3">
+                                <div className="relative aspect-[1.06] overflow-hidden rounded-lg bg-[#FFD4B3]">
+                                    <span className="absolute left-5 top-5 z-10 rounded-md bg-[#FF4D00] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white">
+                                        {view.extra?.badge || view.extra?.tag || "Producto Piquim"}
+                                    </span>
+                                    <img
+                                        src={displayImage}
+                                        alt={displayAlt}
+                                        className="h-full w-full object-contain p-5 md:p-7"
+                                        loading="lazy"
+                                    />
                                 </div>
+
                                 {images.length > 1 ? (
-                                    <div className="flex overflow-x-auto snap-x snap-mandatory sm:grid sm:grid-cols-4 gap-3 pb-2 sm:pb-0 hide-scrollbar">
+                                    <div className="grid grid-cols-4 gap-2">
                                         {images.slice(0, 4).map((img, index) => (
                                             <button
                                                 key={img.url}
                                                 type="button"
                                                 onClick={() => setActiveImage(index)}
-                                                className={`snap-start shrink-0 w-[22%] sm:w-auto rounded-xl border p-1 bg-white dark:bg-[#1a130c] transition-colors ${index === activeImage ? 'border-primary' : 'border-[#e5e1de] dark:border-[#3d2f21] hover:border-primary/60'}`}
+                                                className={`aspect-square overflow-hidden rounded-md border bg-[#FFF6EF] transition-colors ${index === activeImage ? 'border-[#FF4D00]' : 'border-[#F2C9B2] hover:border-[#FF4D00]/70'}`}
                                             >
-                                                <div className="aspect-square rounded-lg overflow-hidden bg-[#f5f2f0] dark:bg-[#2c2116]">
-                                                    <img src={img.url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                                                </div>
+                                                <img src={img.url} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
                                             </button>
                                         ))}
                                     </div>
                                 ) : null}
                             </div>
 
-                            <div className="flex flex-col gap-6">
-                                <div>
-                                    {view.extra?.collection ? (
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-                                            {view.extra.collection}
-                                        </p>
-                                    ) : null}
-                                    <h1 className="text-3xl md:text-4xl font-black text-[#181411] dark:text-white mt-2">
-                                        {view.name}
-                                    </h1>
-                                    {view.sku ? (
-                                        <p className="text-[#8a7560] mt-2 text-xs font-bold uppercase tracking-wider">
-                                            SKU: {view.sku}
-                                        </p>
-                                    ) : null}
-                                </div>
+                            <div className="flex flex-col justify-center py-1 lg:py-4">
+                                {productKicker ? (
+                                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#FF4D00]">
+                                        {productKicker}
+                                    </p>
+                                ) : null}
 
-                                <div className="flex items-center gap-3">
+                                <h1 className="mt-3 max-w-[520px] text-4xl font-black leading-[0.96] text-[#1A1614] md:text-5xl">
+                                    {displayName}
+                                </h1>
+
+                                <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#8a7560]">
+                                    {displaySku ? <span>SKU: {displaySku}</span> : null}
                                     {stockStatus ? (
-                                        <span
-                                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${stockStatus.bg} ${stockStatus.tone}`}
-                                        >
+                                        <span className={`rounded-full px-2.5 py-1 ${stockStatus.bg} ${stockStatus.tone}`}>
                                             {stockStatus.label}
                                         </span>
                                     ) : null}
                                 </div>
 
-                                <div className="border-y border-[#e5e1de] dark:border-[#3d2f21] py-4 space-y-2">
-                                    <p className="text-[11px] font-bold uppercase tracking-widest text-[#8a7560]">Precio</p>
+                                <p className="mt-5 max-w-[560px] text-sm leading-7 text-[#6F625C]">
+                                    {view.longDescription || view.shortDescription || "Producto profesional PIQUIM cargado desde el panel administrativo."}
+                                </p>
+
+                                <div className="mt-6">
                                     {showPricesEnabled ? (
                                         canViewPrices ? (
-                                            <div className="flex flex-col gap-1">
-                                                {view.oldPrice ? (
-                                                    <p className="text-sm font-semibold text-slate-400 line-through">
-                                                        Precio Lista: {formatCurrency(view.oldPrice, currency, locale)}
-                                                    </p>
-                                                ) : null}
-                                                <div className="flex items-end gap-3 mt-1">
-                                                    {view.isWholesaleItem ? (
-                                                        <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded-sm font-bold uppercase tracking-wide">
-                                                            Tu Precio (B2B)
-                                                        </span>
-                                                    ) : null}
-                                                    <span className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
-                                                        {formatCurrency(view.price, currency, locale)}
+                                            <div className="flex flex-wrap items-end gap-3">
+                                                <span className="text-4xl font-black tracking-tight text-[#FF4D00]">
+                                                    {formatCurrency(displayPrice, currency, locale)}
+                                                </span>
+                                                {displayOldPrice ? (
+                                                    <span className="pb-1 text-sm font-bold text-[#B8AAA3] line-through">
+                                                        {formatCurrency(displayOldPrice, currency, locale)}
                                                     </span>
-                                                </div>
-                                                <div className="flex flex-col gap-1 mt-2">
-                                                    <span className="text-xs font-bold text-amber-600">⚠️ IVA No Incluido</span>
-                                                    <span className="text-xs italic text-[#8a7560]">⚠️ El precio puede variar según tu ubicación / región</span>
-                                                </div>
+                                                ) : null}
                                             </div>
                                         ) : authLoading ? (
-                                            <p className="text-[#8a7560]">Cargando precio...</p>
+                                            <p className="text-sm text-[#8a7560]">Cargando precio...</p>
                                         ) : (
                                             <PriceAccessPrompt />
                                         )
                                     ) : (
-                                        <p className="text-[#8a7560]">Contactar para precio</p>
+                                        <p className="text-sm font-bold text-[#8a7560]">Contactar para precio</p>
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] overflow-hidden">
-                                        <button
-                                            type="button"
-                                            onClick={() => setQty((prev) => Math.max(1, prev - 1))}
-                                            className="h-11 w-11 flex items-center justify-center text-[#8a7560] hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]"
-                                        >
-                                            -
-                                        </button>
-                                        <span className="h-11 w-12 flex items-center justify-center font-bold text-[#181411] dark:text-white">
-                                            {qty}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={() => setQty((prev) => prev + 1)}
-                                            className="h-11 w-11 flex items-center justify-center text-[#8a7560] hover:bg-[#f5f2f0] dark:hover:bg-[#2c2116]"
-                                        >
-                                            +
-                                        </button>
+                                {presentationOptions.length ? (
+                                    <div className="mt-6 space-y-2">
+                                        <p className="text-xs font-bold text-[#6F625C]">
+                                            {view.variationGroupLabel || "Presentación"}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {presentationOptions.map((option) => {
+                                                const selected = option.id === selectedPresentation?.id;
+                                                return (
+                                                    <button
+                                                        key={option.id}
+                                                        type="button"
+                                                        onClick={() => setSelectedPresentationId(option.id)}
+                                                        className={`min-h-10 rounded-md border px-4 text-xs font-semibold transition-colors ${selected
+                                                            ? 'border-[#FF4D00] bg-white text-[#FF4D00]'
+                                                            : 'border-[#E7C6B6] bg-[#FFF9F5] text-[#6F625C] hover:border-[#FF4D00]/70'
+                                                            }`}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
+                                ) : null}
+
+                                <div className="mt-8 flex items-center gap-3">
                                     <button
                                         type="button"
                                         onClick={handleAdd}
-                                        className="h-11 flex-1 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-colors disabled:opacity-60"
+                                        className="inline-flex h-14 flex-1 items-center justify-center gap-2 rounded-full bg-[#FF4D00] px-6 text-sm font-black text-white shadow-[0_14px_24px_rgba(255,77,0,0.22)] transition-colors hover:bg-[#E64500] disabled:cursor-not-allowed disabled:opacity-60"
                                         disabled={!canBuy}
                                     >
-                                        {canBuy ? "Agregar al carrito" : "Sin stock"}
+                                        <ShoppingCart className="size-4" />
+                                        {canBuy ? "Añadir al carrito" : "Sin stock"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label={favoriteActive ? "Quitar de favoritos" : "Agregar a favoritos"}
+                                        onClick={() => {
+                                            if (view) {
+                                                const added = toggleFavorite(view);
+                                                if (added) {
+                                                    showToast("Producto añadido a favoritos");
+                                                }
+                                            }
+                                        }}
+                                        className={`flex size-14 items-center justify-center rounded-full border transition-colors ${favoriteActive
+                                            ? 'border-[#FF4D00] bg-[#FF4D00] text-white'
+                                            : 'border-[#FF4D00] bg-white text-[#FF4D00] hover:bg-[#FFF1E8]'
+                                            }`}
+                                    >
+                                        <Bookmark className="size-5" fill={favoriteActive ? "currentColor" : "none"} />
                                     </button>
                                 </div>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (view) {
-                                            const added = toggleFavorite(view);
-                                            if (added) {
-                                                showToast("Producto añadido a favoritos");
-                                            }
-                                        }
-                                    }}
-                                    className="h-11 rounded-xl border border-[#e5e1de] dark:border-[#3d2f21] font-bold text-[#181411] dark:text-white hover:border-primary/50"
-                                >
-                                    {favoriteActive ? "Quitar de favoritos" : "Agregar a favoritos"}
-                                </button>
-
                             </div>
-                        </div>
+                        </section>
 
                         <div className="rounded-2xl border border-[#e5e1de] dark:border-[#3d2f21] bg-white dark:bg-[#1a130c]">
                             <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-[#e5e1de] dark:border-[#3d2f21] px-6 pt-5">
@@ -756,9 +1013,9 @@ export default function ProductDetail() {
                                 <button
                                     type="button"
                                     onClick={() => navigate("/catalog")}
-                                    className="text-[11px] font-bold uppercase tracking-widest text-[#8a7560] hover:text-primary"
+                                    className="inline-flex items-center text-[11px] font-bold uppercase tracking-widest text-[#8a7560] hover:text-primary"
                                 >
-                                    Ver catálogo
+                                    Ver catálogo <ArrowRight className="ml-2 size-4" />
                                 </button>
                             </div>
 
@@ -833,4 +1090,3 @@ export default function ProductDetail() {
         </StoreLayout>
     );
 }
-

@@ -8,6 +8,15 @@ const PRICE_TIER_FIELDS = Array.from({ length: 10 }, (_, index) => ({
   description: `Precio libre ${index + 1}. El ecommerce lo guarda como tarifa sincronizada sin asumir el nombre comercial.`,
 }));
 
+const PIQUIM_TENANT_IDS = new Set(
+  String(process.env.PIQUIM_TENANT_IDS || process.env.PIQUIM_TENANT_ID || '636736e2-e135-44cd-ac5c-5d4ccb839a73')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
+
+const isPiquimTenant = (tenantId) => PIQUIM_TENANT_IDS.has(String(tenantId || '').trim());
+
 const PRODUCT_FIELDS = [
   {
     key: 'external_id',
@@ -90,6 +99,11 @@ const PRODUCT_FIELDS = [
   },
 ];
 
+const getProductFieldsForTenant = (tenantId) => {
+  if (!isPiquimTenant(tenantId)) return PRODUCT_FIELDS;
+  return PRODUCT_FIELDS.filter((field) => field.key !== 'images');
+};
+
 const SAMPLE_PAYLOAD = {
   source_system: 'sistema-gestion-cliente',
   items: [
@@ -109,6 +123,27 @@ const SAMPLE_PAYLOAD = {
         'https://dominio-del-sistema.com/imagenes/prod-1001.jpg',
       ],
       category_path: 'Categoria principal > Subcategoria > Linea',
+      updated_at: '2026-03-14T15:00:00.000Z',
+    },
+  ],
+};
+
+const PIQUIM_SAMPLE_PAYLOAD = {
+  source_system: 'sistema-gestion-piquim',
+  items: [
+    {
+      external_id: 'PROD-1001',
+      sku: 'PROD-1001',
+      name: 'Producto ejemplo',
+      short_description: 'Texto corto para cards y listados.',
+      description: 'Descripcion ampliada del producto',
+      brand: 'PIQUIM',
+      price_1: 24990,
+      price_2: 21990,
+      price_3: 20990,
+      stock: 15,
+      is_active: true,
+      category_path: 'Heladeria > Estabilizantes > Neutros artesanales',
       updated_at: '2026-03-14T15:00:00.000Z',
     },
   ],
@@ -178,7 +213,7 @@ export const resolveServerBaseUrl = (req) => {
   return resolveRequestBaseUrl(req);
 };
 
-export const buildProductSyncSchema = (baseUrl) => ({
+export const buildProductSyncSchema = (baseUrl, { tenantId = null } = {}) => ({
   integration: 'product_sync',
   version: 1,
   base_url: baseUrl,
@@ -200,11 +235,18 @@ export const buildProductSyncSchema = (baseUrl) => ({
     'El contrato publicado recomienda enviar solo price_1 hasta price_10; los aliases legacy siguen aceptandose solo por compatibilidad interna.',
     'Usa category_path para enviar el arbol Categoria > Gran Familia > Familia. category_id queda reservado para un UUID real de categoria del ecommerce.',
     'Si envias category_path, evita duplicarlo con campos legacy como family, grand_family, familia o gran_familia.',
-    'Para imagenes, el flujo recomendado es subir cada archivo por /images/upload y mandar la URL devuelta en images del producto.',
-    'El sync FTP de imagenes queda disponible solo como compatibilidad legacy.',
+    ...(isPiquimTenant(tenantId)
+      ? [
+          'Piquim no debe enviar imagenes desde el sistema de gestion: el sync de productos toma solo datos de texto, precios y stock.',
+          'Las imagenes se cargan desde el panel web y se conservan por SKU aunque el producto se vuelva a sincronizar desde gestion.',
+        ]
+      : [
+          'Para imagenes, el flujo recomendado es subir cada archivo por /images/upload y mandar la URL devuelta en images del producto.',
+          'El sync FTP de imagenes queda disponible solo como compatibilidad legacy.',
+        ]),
   ],
-  fields: PRODUCT_FIELDS,
-  sample_payload: SAMPLE_PAYLOAD,
+  fields: getProductFieldsForTenant(tenantId),
+  sample_payload: isPiquimTenant(tenantId) ? PIQUIM_SAMPLE_PAYLOAD : SAMPLE_PAYLOAD,
   ftp_image_sync: {
     endpoint_url: `${baseUrl}/api/v1/integrations/images/ftp/sync`,
     required_scope: 'products:sync',
@@ -227,13 +269,13 @@ export const buildProductSyncSchema = (baseUrl) => ({
 });
 
 export const buildProductSyncSchemaForRequest = (req) => ({
-  ...buildProductSyncSchema(resolveServerBaseUrl(req)),
+  ...buildProductSyncSchema(resolveServerBaseUrl(req), { tenantId: req.tenantId || req.apiKey?.tenant_id || req.get?.('x-tenant-id') || null }),
   uploads_public_base_url: resolveUploadsPublicBaseUrl(req),
 });
 
 export const buildTenantIntegrationManifest = ({ baseUrl, uploadsBaseUrl = null, tenantId, tokenRecord = null }) => {
   const schema = {
-    ...buildProductSyncSchema(baseUrl),
+    ...buildProductSyncSchema(baseUrl, { tenantId }),
     uploads_public_base_url: uploadsBaseUrl || baseUrl,
   };
   const consumerKey = tokenRecord?.token_hash || null;

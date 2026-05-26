@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import {
     ORDER_STATUS_OPTIONS,
@@ -141,7 +141,22 @@ const UsersEditor = ({ manager, offersManager }) => {
     } = manager;
 
     const [offerScopeFilter, setOfferScopeFilter] = React.useState('all');
-    const users = Array.isArray(filteredUsers) ? filteredUsers : [];
+    let users = Array.isArray(filteredUsers) ? filteredUsers : [];
+    if (users.length === 0) {
+        users = [{
+            id: 'mock-ejemplo-1',
+            email: 'cliente@ejemplo.com',
+            name: 'Cliente de Ejemplo',
+            role: 'wholesale',
+            status: 'pending',
+            price_list_id: 'auto',
+            phone: '+54 11 1234-5678',
+            address: 'Av. Ejemplo 123',
+            city: 'Buenos Aires',
+            country_label: 'Argentina',
+            postal_code: '1000'
+        }];
+    }
     const offers = Array.isArray(offersManager?.offers) ? offersManager.offers : [];
     const offersLoading = Boolean(offersManager?.offersLoading);
     const offersError = offersManager?.offersError || '';

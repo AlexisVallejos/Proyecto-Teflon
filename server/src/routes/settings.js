@@ -130,6 +130,8 @@ function normalizeCheckoutSettings(commerce = {}) {
       bank: bankTransfer.bank || '',
       holder: bankTransfer.holder || '',
     },
+    gmail_sender_email: commerce.gmail_sender_email || '',
+    has_gmail_app_password: Boolean(String(commerce.gmail_app_password || '').trim()),
   };
 }
 
@@ -167,6 +169,14 @@ function sanitizeCheckoutPayload(payload = {}) {
     payload.default_delivery !== undefined && payload.default_delivery !== null
       ? String(payload.default_delivery).trim()
       : null;
+  const gmailSenderEmail =
+    payload.gmail_sender_email !== undefined && payload.gmail_sender_email !== null
+      ? String(payload.gmail_sender_email).trim()
+      : null;
+  const gmailAppPassword =
+    payload.gmail_app_password !== undefined && payload.gmail_app_password !== null
+      ? String(payload.gmail_app_password).trim()
+      : null;
 
   const normalizedMode = methods?.length ? toLegacyMode(methods) : mode;
 
@@ -185,6 +195,8 @@ function sanitizeCheckoutPayload(payload = {}) {
     ...(shippingZones ? { shipping_zones: shippingZones } : {}),
     ...(branches ? { branches } : {}),
     ...(defaultDelivery !== null ? { default_delivery: defaultDelivery } : {}),
+    ...(gmailSenderEmail !== null ? { gmail_sender_email: gmailSenderEmail } : {}),
+    ...(gmailAppPassword !== null ? { gmail_app_password: gmailAppPassword } : {}),
     ...(payload.bank_transfer
       ? {
           bank_transfer: {

@@ -15,6 +15,10 @@ const EvolutionLayout = ({
     settings,
     onDataChange,
     onSave,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
     onAddItem,
     isSaving,
     catalogContext,
@@ -31,7 +35,7 @@ const EvolutionLayout = ({
     return (
         <>
             {/* Mobile / Small Screen Blocker */}
-            <div className={`admin-shell admin-${adminTheme.mode || 'dark'} flex lg:hidden flex-col items-center justify-center min-h-[100dvh] p-8 text-center font-sans relative overflow-hidden`} style={shellStyle}>
+            <div className={`admin-shell admin-${adminTheme.mode || 'dark'} flex md:hidden flex-col items-center justify-center min-h-[100dvh] p-8 text-center font-sans relative overflow-hidden`} style={shellStyle}>
                 <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 50% 0%, var(--admin-accent), transparent 70%)' }} />
                 <div className="relative z-10 flex flex-col items-center max-w-sm">
                     <div className="flex items-center justify-center w-20 h-20 rounded-3xl mb-8 shadow-2xl" style={{ backgroundColor: 'var(--admin-accent)', color: 'var(--admin-accent-contrast)' }}>
@@ -56,7 +60,7 @@ const EvolutionLayout = ({
             </div>
 
             {/* Desktop Layout */}
-            <div className={`hidden lg:flex admin-shell admin-${adminTheme.mode || 'dark'} flex-row h-[100dvh] overflow-hidden font-sans`} style={shellStyle}>
+            <div className={`hidden md:flex admin-shell admin-${adminTheme.mode || 'dark'} flex-row h-[100dvh] overflow-hidden font-sans`} style={shellStyle}>
                 {/* Column 1: Sidebar */}
                 <EvolutionSidebar branding={adminBranding} />
 
@@ -65,6 +69,10 @@ const EvolutionLayout = ({
                     branding={adminBranding}
                     notificationsManager={notificationsManager}
                     searchItems={searchItems}
+                    onUndo={onUndo}
+                    onRedo={onRedo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
                 >
                     {children}
                 </EvolutionCanvas>
@@ -73,6 +81,10 @@ const EvolutionLayout = ({
                 <EvolutionInspector
                     onDataChange={onDataChange}
                     onSave={onSave}
+                    onUndo={onUndo}
+                    onRedo={onRedo}
+                    canUndo={canUndo}
+                    canRedo={canRedo}
                     isSaving={isSaving}
                     catalogContext={catalogContext}
                     usersManager={usersManager}
