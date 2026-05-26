@@ -11,6 +11,12 @@ const EXTERNAL_SOURCE = 'vase';
 const BRIDGE_ISSUER = process.env.VASE_BUSINESS_SSO_ISSUER || 'vase-app';
 const BRIDGE_AUDIENCE = process.env.VASE_BUSINESS_SSO_AUDIENCE || 'vase-business';
 const ALLOWED_TENANT_ROLES = new Set(['OWNER', 'MANAGER']);
+const PIQUIM_TENANT_ID = String(
+  process.env.PIQUIM_TENANT_ID ||
+  process.env.PIQUIM_TENANT_IDS ||
+  ''
+).split(',')[0].trim();
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function createBridgeError(code, status = 400) {
   const error = new Error(code);
@@ -29,6 +35,12 @@ function getBridgeSecret() {
 
 function normalizeInternalRole(value) {
   return value === 'master_admin' ? 'master_admin' : 'tenant_admin';
+}
+
+function isPiquimLaunchPayload(payload) {
+  const slug = String(payload?.externalTenantSlug || '').trim().toLowerCase();
+  const name = String(payload?.tenantName || '').trim().toLowerCase();
+  return slug === 'piquim' || name === 'piquim';
 }
 
 function buildDefaultTenantSettings(tenantName) {
@@ -113,6 +125,45 @@ export function verifyVaseLaunchToken(rawToken) {
 }
 
 async function upsertTenant(client, payload) {
+  if (PIQUIM_TENANT_ID && UUID_PATTERN.test(PIQUIM_TENANT_ID) && isPiquimLaunchPayload(payload)) {
+    await client.query(
+      [
+        'update tenants',
+        'set external_source = null, external_tenant_id = null, external_tenant_slug = null',
+        'where external_source = $1',
+        'and (external_tenant_id = $2 or external_tenant_slug = $3)',
+        'and id <> $4::uuid',
+      ].join(' '),
+      [EXTERNAL_SOURCE, payload.externalTenantId, payload.externalTenantSlug || null, PIQUIM_TENANT_ID]
+    );
+
+    const existingFixedRes = await client.query(
+      'select id from tenants where id = $1::uuid limit 1',
+      [PIQUIM_TENANT_ID]
+    );
+
+    if (existingFixedRes.rowCount) {
+      await client.query(
+        [
+          'update tenants',
+          'set name = $2, status = $3, external_source = $4, external_tenant_id = $5, external_tenant_slug = $6',
+          'where id = $1::uuid',
+        ].join(' '),
+        [PIQUIM_TENANT_ID, 'PIQUIM', 'active', EXTERNAL_SOURCE, payload.externalTenantId, payload.externalTenantSlug || 'piquim']
+      );
+    } else {
+      await client.query(
+        [
+          'insert into tenants (id, name, status, external_source, external_tenant_id, external_tenant_slug)',
+          'values ($1::uuid, $2, $3, $4, $5, $6)',
+        ].join(' '),
+        [PIQUIM_TENANT_ID, 'PIQUIM', 'active', EXTERNAL_SOURCE, payload.externalTenantId, payload.externalTenantSlug || 'piquim']
+      );
+    }
+
+    return { id: PIQUIM_TENANT_ID, name: 'PIQUIM', status: 'active' };
+  }
+
   const existingRes = await client.query(
     [
       'select id, name, status',
