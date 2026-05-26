@@ -325,13 +325,16 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
 
   const vercelState = await getVercelProjectDomainStatus(normalizedDomain);
   const vercelVerified = vercelState?.verified === true;
+  const vercelRequired = vercelState?.enabled === true;
   const dnsReady = matchesA || matchesCname;
 
   if (dnsReady && vercelVerified) {
     return {
       status: 'active',
       label: 'Activo',
-      message: 'El DNS apunta correctamente y Vercel verifico el dominio. SSL deberia quedar activo al finalizar propagacion.',
+      message: vercelRequired
+        ? 'El DNS apunta correctamente y Vercel verifico el dominio. SSL deberia quedar activo al finalizar propagacion.'
+        : 'El DNS apunta correctamente a la plataforma.',
       last_checked_at: checkedAt,
       vercel: vercelState,
       observed_records: {
@@ -341,7 +344,7 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
     };
   }
 
-  if (dnsReady && !vercelVerified) {
+  if (dnsReady && vercelRequired && !vercelVerified) {
     return {
       status: 'attention',
       label: 'Revisar',
@@ -355,7 +358,7 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
     };
   }
 
-  if (!dnsReady && vercelVerified) {
+  if (!dnsReady && vercelRequired && vercelVerified) {
     return {
       status: 'attention',
       label: 'Revisar',

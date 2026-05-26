@@ -1,5 +1,9 @@
 # Vase Business en EasyPanel
 
+Para habilitar wildcard automatico `*.vase.ar` con proxy frontal Caddy, ver tambien:
+
+- `docs/easypanel-wildcard-caddy.md`
+
 Esta guia deja claro que este repo ya puede desplegarse como un solo servicio web en EasyPanel, pero no esta migrado todavia a MySQL ni a auth compartida real con `vase-app`.
 
 ## Lo que ya quedo adaptado en este repo
