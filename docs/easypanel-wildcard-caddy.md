@@ -112,6 +112,22 @@ Para cada tenant, debe existir su dominio en `tenant_domains`:
 
 Se puede hacer desde el modal de dominios del admin (`/tenant/domains/platform` o `/tenant/domains/platform/ensure`).
 
+## 7.1) Provisionado automatico DNS (Cloudflare)
+
+Si activas:
+
+- `AUTO_PROVISION_CUSTOM_DOMAINS=true`
+- `CLOUDFLARE_API_TOKEN=<token con DNS edit>`
+
+entonces al conectar un dominio custom (`POST /tenant/domains`) el backend intenta crear/actualizar:
+
+- `A @ -> PLATFORM_APEX_IP`
+- `CNAME www -> dominio_raiz`
+
+Tambien puedes reintentar manualmente por API:
+
+- `POST /tenant/domains/:domain/provision`
+
 ## 8) Checklist final
 
 1. DNS `editor.vase.ar` y `*.vase.ar` apuntan a `76.13.231.188`

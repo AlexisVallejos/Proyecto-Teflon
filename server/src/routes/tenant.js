@@ -14,6 +14,7 @@ import {
   ensureTenantPlatformDomain as ensureTenantPlatformDomainService,
   normalizeDomainInput as normalizeDomainInputService,
   normalizeSubdomainLabel as normalizeSubdomainLabelService,
+  provisionTenantCustomDomain as provisionTenantCustomDomainService,
   removeTenantDomain as removeTenantDomainService,
   upsertTenantDomain as upsertTenantDomainService,
 } from '../services/tenantDomains.js';
@@ -770,6 +771,25 @@ tenantRouter.post('/domains/check', async (req, res, next) => {
       checked_domain: target,
     });
   } catch (err) {
+    return next(err);
+  }
+});
+
+tenantRouter.post('/domains/:domain/provision', async (req, res, next) => {
+  const tenantId = getTenantId(req, res);
+  if (!tenantId) return;
+
+  try {
+    const payload = await provisionTenantCustomDomainService(
+      pool,
+      tenantId,
+      decodeURIComponent(req.params.domain || '')
+    );
+    return res.json(payload);
+  } catch (err) {
+    if (err?.status && err?.code) {
+      return res.status(err.status).json({ error: err.code });
+    }
     return next(err);
   }
 });

@@ -140,7 +140,10 @@ async function runStartupMigrations() {
       'ALTER TABLE tenant_domains',
       'ADD COLUMN IF NOT EXISTS vercel_status text,',
       'ADD COLUMN IF NOT EXISTS vercel_payload jsonb,',
-      'ADD COLUMN IF NOT EXISTS vercel_checked_at timestamptz',
+      'ADD COLUMN IF NOT EXISTS vercel_checked_at timestamptz,',
+      'ADD COLUMN IF NOT EXISTS provisioning_status text,',
+      'ADD COLUMN IF NOT EXISTS provisioning_payload jsonb,',
+      'ADD COLUMN IF NOT EXISTS provisioning_checked_at timestamptz',
     ].join(' ')
   );
 

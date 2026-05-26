@@ -15,6 +15,9 @@ CREATE TABLE tenant_domains (
   vercel_status text,
   vercel_payload jsonb,
   vercel_checked_at timestamptz,
+  provisioning_status text,
+  provisioning_payload jsonb,
+  provisioning_checked_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

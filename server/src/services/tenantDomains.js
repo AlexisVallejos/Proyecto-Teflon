@@ -4,6 +4,7 @@ import {
   removeVercelProjectDomain,
   upsertVercelProjectDomain,
 } from './vercelDomains.js';
+import { provisionCustomDomainDns } from './domainProvisioning.js';
 
 const RESERVED_PLATFORM_LABELS = new Set([
   'admin',
@@ -402,7 +403,7 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
 export async function listTenantDomains(db, tenantId) {
   const result = await db.query(
     [
-      'select domain, is_primary, created_at, vercel_status, vercel_payload, vercel_checked_at',
+      'select domain, is_primary, created_at, vercel_status, vercel_payload, vercel_checked_at, provisioning_status, provisioning_payload, provisioning_checked_at',
       'from tenant_domains',
       'where tenant_id = $1',
       'order by is_primary desc, created_at asc, domain asc',
@@ -411,6 +412,22 @@ export async function listTenantDomains(db, tenantId) {
   );
 
   return result.rows;
+}
+
+async function persistDomainProvisioningState(db, tenantId, domain, provisioning = {}) {
+  const status = String(provisioning?.status || '').trim() || null;
+  const payload = provisioning ? JSON.stringify(provisioning) : null;
+  const checkedAt = provisioning?.checked_at || null;
+  await db.query(
+    [
+      'update tenant_domains',
+      'set provisioning_status = $3,',
+      'provisioning_payload = case when $4::text is null then null else $4::jsonb end,',
+      'provisioning_checked_at = case when $5::timestamptz is null then null else $5::timestamptz end',
+      'where tenant_id = $1 and domain = $2',
+    ].join(' '),
+    [tenantId, domain, status, payload, checkedAt]
+  );
 }
 
 async function persistDomainVerificationState(db, tenantId, domain, verification = {}) {
@@ -547,8 +564,8 @@ export async function upsertTenantDomain(db, tenantId, domain, { isPrimary = tru
     } else {
       await client.query(
         [
-          'insert into tenant_domains (tenant_id, domain, is_primary, vercel_status, vercel_payload, vercel_checked_at)',
-          'values ($1, $2, $3, null, null, null)',
+          'insert into tenant_domains (tenant_id, domain, is_primary, vercel_status, vercel_payload, vercel_checked_at, provisioning_status, provisioning_payload, provisioning_checked_at)',
+          'values ($1, $2, $3, null, null, null, null, null, null)',
         ].join(' '),
         [tenantId, normalizedDomain, isPrimary]
       );
@@ -557,6 +574,17 @@ export async function upsertTenantDomain(db, tenantId, domain, { isPrimary = tru
 
   const domainMode = inferDomainMode(normalizedDomain, getPlatformDomainConfig().platformBaseDomain);
   if (domainMode !== 'platform') {
+    if (String(process.env.AUTO_PROVISION_CUSTOM_DOMAINS || '').trim().toLowerCase() === 'true') {
+      try {
+        const provisioning = await provisionCustomDomainDns(normalizedDomain, {
+          apexIp: getPlatformDomainConfig().platformApexIp,
+        });
+        await persistDomainProvisioningState(db, tenantId, normalizedDomain, provisioning);
+      } catch (err) {
+        console.warn(`Could not provision DNS for ${normalizedDomain}:`, err?.message || err);
+      }
+    }
+
     try {
       const vercelState = await upsertVercelProjectDomain(normalizedDomain);
       await persistDomainVerificationState(db, tenantId, normalizedDomain, {
@@ -662,4 +690,36 @@ export async function ensureTenantPlatformDomain(db, tenantId, options = {}) {
     domain: available.domain,
     subdomain: available.subdomain,
   };
+}
+
+export async function provisionTenantCustomDomain(db, tenantId, domain) {
+  const normalizedDomain = normalizeDomainInput(domain);
+  const mode = inferDomainMode(normalizedDomain, getPlatformDomainConfig().platformBaseDomain);
+  if (!normalizedDomain || mode === 'platform') {
+    const error = new Error('invalid_custom_domain');
+    error.status = 400;
+    error.code = 'invalid_custom_domain';
+    throw error;
+  }
+
+  const exists = await db.query(
+    'select domain from tenant_domains where tenant_id = $1 and domain = $2 limit 1',
+    [tenantId, normalizedDomain]
+  );
+  if (!exists.rowCount) {
+    const error = new Error('domain_not_found');
+    error.status = 404;
+    error.code = 'domain_not_found';
+    throw error;
+  }
+
+  const provisioning = await provisionCustomDomainDns(normalizedDomain, {
+    apexIp: getPlatformDomainConfig().platformApexIp,
+  });
+  await persistDomainProvisioningState(db, tenantId, normalizedDomain, provisioning);
+
+  return buildTenantDomainsPayload(db, tenantId, {
+    ensurePlatformDomain: true,
+    autoCreateOptions: { onlyWhenMissing: false },
+  });
 }
