@@ -227,13 +227,13 @@ export function inferDomainMode(domain, platformBaseDomain = '') {
   return normalized.split('.').length > 2 ? 'subdomain' : 'apex';
 }
 
-export function buildDomainDnsPlan(domain, config = getPlatformDomainConfig()) {
+export function buildDomainDnsPlan(domain, config = getPlatformDomainConfig(), options = {}) {
   const normalizedDomain = normalizeDomainInput(domain);
   const mode = inferDomainMode(normalizedDomain, config.platformBaseDomain);
   const labels = normalizedDomain.split('.');
   const rootDomain = labels.length > 2 ? labels.slice(-2).join('.') : normalizedDomain;
   const hostLabel = labels.length > 2 ? labels.slice(0, -2).join('.') : '@';
-  const cnameTarget = config.platformCnameTarget || 'tu-host-de-publicacion';
+  const cnameTarget = normalizeDomainInput(options.cnameTarget || config.platformCnameTarget) || 'tu-host-de-publicacion';
   const apexIp = config.platformApexIp || 'tu-ip-publica';
 
   if (mode === 'platform') {
@@ -288,9 +288,9 @@ export function buildDomainDnsPlan(domain, config = getPlatformDomainConfig()) {
   };
 }
 
-export async function inspectDomainConnection(domain, config = getPlatformDomainConfig()) {
+export async function inspectDomainConnection(domain, config = getPlatformDomainConfig(), options = {}) {
   const normalizedDomain = normalizeDomainInput(domain);
-  const plan = buildDomainDnsPlan(normalizedDomain, config);
+  const plan = buildDomainDnsPlan(normalizedDomain, config, options);
   const checkedAt = new Date().toISOString();
 
   if (plan.connection_type === 'platform') {
@@ -316,8 +316,11 @@ export async function inspectDomainConnection(domain, config = getPlatformDomain
     resolveDnsWithFallback(resolveCname, normalizedDomain),
   ]);
 
+  const expectedCnameTargets = Array.isArray(options.expectedCnameTargets)
+    ? options.expectedCnameTargets.map((item) => normalizeDomainInput(item)).filter(Boolean)
+    : [normalizeDomainInput(options.cnameTarget || config.platformCnameTarget)].filter(Boolean);
   const matchesA = Boolean(config.platformApexIp) && aRecords.includes(config.platformApexIp);
-  const matchesCname = Boolean(config.platformCnameTarget) && cnameRecords.includes(config.platformCnameTarget);
+  const matchesCname = expectedCnameTargets.some((target) => cnameRecords.includes(target));
   const hasAnyRecord = aRecords.length > 0 || cnameRecords.length > 0;
 
   const vercelState = await getVercelProjectDomainStatus(normalizedDomain);
@@ -448,11 +451,20 @@ export async function buildTenantDomainsPayload(db, tenantId, options = {}) {
   const assignedPlatformDomain = platformDomain?.domain || null;
   const assignedPlatformSubdomain = extractPlatformSubdomain(assignedPlatformDomain, platformConfig.platformBaseDomain);
   const suggestedSubdomain = buildPlatformSuggestedSubdomain(context, assignedPlatformSubdomain);
+  const tenantCnameTarget = normalizeDomainInput(
+    assignedPlatformDomain ||
+    platformConfig.platformCnameTarget
+  );
 
   const enrichedDomains = await Promise.all(
     domains.map(async (item) => {
-      const plan = buildDomainDnsPlan(item.domain, platformConfig);
-      const verification = await inspectDomainConnection(item.domain, platformConfig);
+      const plan = buildDomainDnsPlan(item.domain, platformConfig, {
+        cnameTarget: tenantCnameTarget,
+      });
+      const verification = await inspectDomainConnection(item.domain, platformConfig, {
+        cnameTarget: tenantCnameTarget,
+        expectedCnameTargets: [tenantCnameTarget, platformConfig.platformCnameTarget],
+      });
       await persistDomainVerificationState(db, tenantId, item.domain, verification);
       return {
         ...item,
@@ -481,7 +493,7 @@ export async function buildTenantDomainsPayload(db, tenantId, options = {}) {
     platform: {
       enabled: Boolean(platformConfig.platformBaseDomain),
       base_domain: platformConfig.platformBaseDomain || null,
-      cname_target: platformConfig.platformCnameTarget || null,
+      cname_target: tenantCnameTarget || null,
       apex_ip: platformConfig.platformApexIp || null,
       assigned_domain: assignedPlatformDomain,
       assigned_subdomain: assignedPlatformSubdomain,
