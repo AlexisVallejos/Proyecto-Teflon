@@ -5,11 +5,13 @@ WITH seed AS (
     '636736e2-e135-44cd-ac5c-5d4ccb839a73'::uuid AS tenant_id,
     'PIQUIM'::text AS tenant_name
 )
-UPDATE tenants
+INSERT INTO tenants (id, name, status)
+SELECT tenant_id, tenant_name, 'active'
+FROM seed
+ON CONFLICT (id) DO UPDATE
 SET
-  name = (SELECT tenant_name FROM seed),
-  status = 'active'
-WHERE id = (SELECT tenant_id FROM seed);
+  name = EXCLUDED.name,
+  status = EXCLUDED.status;
 
 INSERT INTO tenant_settings (tenant_id, branding, theme, commerce)
 VALUES (
