@@ -3,6 +3,7 @@ import { Instagram, Facebook, Youtube, Music2, MessageCircle, Linkedin, Globe } 
 import { useTenant } from "../../context/TenantContext";
 import { navigate } from "../../utils/navigation";
 import { PIQUIM_FOOTER_DEFAULTS } from "../../data/piquimBranding";
+import { isPiquimTenantIdentity } from "../../utils/tenantBranding";
 
 const toArray = (value, fallback = []) => (Array.isArray(value) ? value : fallback);
 const SOCIAL_ICON_MAP = {
@@ -73,16 +74,21 @@ export default function Footer() {
     const branding = settings?.branding || {};
     const footer = branding.footer || {};
     const commerce = settings?.commerce || {};
-    const brandName = branding.name || tenant?.name || "PIQUIM";
-    const isPiquim = branding.design_preset === "piquim" || String(brandName).toLowerCase().includes("piquim");
+    const brandName = branding.name || tenant?.name || "Mi Negocio";
+    const isPiquim = isPiquimTenantIdentity({ tenant, settings });
+    const genericFooterDescription = "Soluciones sanitarias, griferia y accesorios con asesoramiento comercial.";
+    const genericLinks = [
+        { label: "Catalogo", href: "/catalog" },
+        { label: "Nosotros", href: "/about" },
+    ];
 
-    const footerDescription = footer.description || PIQUIM_FOOTER_DEFAULTS.description;
-    const shopLinks = toArray(footer.shopLinks, toArray(footer.quickLinks, PIQUIM_FOOTER_DEFAULTS.shopLinks));
-    const helpLinks = toArray(footer.helpLinks, PIQUIM_FOOTER_DEFAULTS.helpLinks);
-    const legalLinks = toArray(footer.legalLinks, PIQUIM_FOOTER_DEFAULTS.legalLinks);
+    const footerDescription = footer.description || (isPiquim ? PIQUIM_FOOTER_DEFAULTS.description : genericFooterDescription);
+    const shopLinks = toArray(footer.shopLinks, toArray(footer.quickLinks, isPiquim ? PIQUIM_FOOTER_DEFAULTS.shopLinks : genericLinks));
+    const helpLinks = toArray(footer.helpLinks, isPiquim ? PIQUIM_FOOTER_DEFAULTS.helpLinks : []);
+    const legalLinks = toArray(footer.legalLinks, isPiquim ? PIQUIM_FOOTER_DEFAULTS.legalLinks : [{ label: "Terminos", href: "/terms" }]);
     const socialLinks = normalizeSocials(footer).filter((item) => item?.label);
-    const newsletter = { ...PIQUIM_FOOTER_DEFAULTS.newsletter, ...(footer.newsletter || {}) };
-    const legalText = footer.legalText || PIQUIM_FOOTER_DEFAULTS.legalText;
+    const newsletter = { ...(isPiquim ? PIQUIM_FOOTER_DEFAULTS.newsletter : { enabled: false }), ...(footer.newsletter || {}) };
+    const legalText = footer.legalText || (isPiquim ? PIQUIM_FOOTER_DEFAULTS.legalText : `(c) 2026 ${brandName}. Todos los derechos reservados.`);
 
     const phone = footer.contact?.phone || footer.socials?.whatsapp || commerce.whatsapp_number || "";
 

@@ -1,5 +1,25 @@
 const DEFAULT_API_BASE = '';
 
+function getCurrentHostname() {
+    if (typeof window === 'undefined') return '';
+    return String(window.location.hostname || '').trim().toLowerCase();
+}
+
+function getCurrentPathname() {
+    if (typeof window === 'undefined') return '';
+    return String(window.location.pathname || '').trim().toLowerCase();
+}
+
+function isLocalHost(hostname = getCurrentHostname()) {
+    return ['localhost', '127.0.0.1', '::1'].includes(hostname) || hostname.endsWith('.localhost');
+}
+
+function isEditorContext() {
+    const hostname = getCurrentHostname();
+    const pathname = getCurrentPathname();
+    return hostname.startsWith('editor.') || pathname.startsWith('/admin');
+}
+
 function getStoredTenantId() {
     if (typeof window === 'undefined') {
         return '';
@@ -37,37 +57,16 @@ export function getApiBase() {
         }
         return '';
     }
-
-    if (typeof window !== 'undefined') {
-        try {
-            const configuredUrl = new URL(configuredBase);
-            const editorHost = String(import.meta.env.VITE_EDITOR_HOST || '').trim().toLowerCase();
-            const currentHost = String(window.location.hostname || '').trim().toLowerCase();
-            const configuredHost = configuredUrl.hostname.toLowerCase();
-            const isEditorApi =
-                configuredHost === editorHost ||
-                configuredHost.startsWith('editor.');
-            const isStorefrontHost =
-                currentHost &&
-                currentHost !== configuredHost &&
-                currentHost !== editorHost &&
-                !['localhost', '127.0.0.1'].includes(currentHost);
-
-            if (isEditorApi && isStorefrontHost) {
-                return window.location.origin.replace(/\/+$/, '');
-            }
-        } catch {
-            // Fall back to the configured API URL below.
-        }
-    }
-
     return configuredBase.replace(/\/+$/, '');
 }
 
 export function getTenantHeaders() {
     const rawEnvId = String(import.meta.env.VITE_TENANT_ID || '').trim();
     const envId = (rawEnvId === 'undefined' || rawEnvId === 'null') ? '' : rawEnvId;
-    const tenantId = envId || getStoredTenantId();
+    const forceEnvTenant = String(import.meta.env.VITE_FORCE_TENANT_ID || '').trim().toLowerCase() === 'true';
+    const allowEnvTenant = Boolean(import.meta.env.DEV) || isLocalHost() || forceEnvTenant;
+    const allowStoredTenant = Boolean(import.meta.env.DEV) || isLocalHost() || isEditorContext();
+    const tenantId = (allowEnvTenant ? envId : '') || (allowStoredTenant ? getStoredTenantId() : '');
     return tenantId ? { 'X-Tenant-Id': tenantId } : {};
 }
 

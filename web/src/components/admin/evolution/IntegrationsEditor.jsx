@@ -151,9 +151,9 @@ const IntegrationsEditor = ({ manager }) => {
             currentFrontendOrigin && expectedServiceOrigin === currentFrontendOrigin
                 ? '# VITE_API_URL no hace falta si frontend y API comparten el mismo host'
                 : `VITE_API_URL=${expectedServiceOrigin || 'https://editor.vase.ar'}`,
-            manifest?.tenant_id || import.meta.env.VITE_TENANT_ID
-                ? `VITE_TENANT_ID=${manifest?.tenant_id || import.meta.env.VITE_TENANT_ID}`
-                : '# VITE_TENANT_ID se deja vacio en el deploy central multi-cliente',
+            manifest?.tenant_id
+                ? `# VITE_TENANT_ID=${manifest.tenant_id}  # solo para desarrollo local`
+                : '# VITE_TENANT_ID=  # dejar vacio en produccion para resolver por dominio',
         ].join('\n'),
         [currentFrontendOrigin, expectedServiceOrigin, manifest]
     );

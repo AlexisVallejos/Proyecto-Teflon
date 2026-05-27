@@ -700,7 +700,7 @@ export default function ProductDetail() {
                             <div className="space-y-3">
                                 <div className="relative aspect-[1.06] overflow-hidden rounded-lg bg-[#FFD4B3]">
                                     <span className="absolute left-5 top-5 z-10 rounded-md bg-[#FF4D00] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white">
-                                        {view.extra?.badge || view.extra?.tag || "Producto Piquim"}
+                                        {view.extra?.badge || view.extra?.tag || "Producto"}
                                     </span>
                                     <img
                                         src={displayImage}
@@ -747,7 +747,7 @@ export default function ProductDetail() {
                                 </div>
 
                                 <p className="mt-5 max-w-[560px] text-sm leading-7 text-[#6F625C]">
-                                    {view.longDescription || view.shortDescription || "Producto profesional PIQUIM cargado desde el panel administrativo."}
+                                    {view.longDescription || view.shortDescription || "Producto cargado desde el panel administrativo."}
                                 </p>
 
                                 <div className="mt-6">

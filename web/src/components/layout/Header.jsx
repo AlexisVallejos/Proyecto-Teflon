@@ -13,8 +13,9 @@ import { useStore } from "../../context/StoreContext";
 import { useAuth } from "../../context/AuthContext";
 import { isExternalPath, navigate, normalizeInternalPath } from "../../utils/navigation";
 import { getApiBase, getTenantHeaders } from "../../utils/api";
+import { isPiquimTenantIdentity } from "../../utils/tenantBranding";
 
-const DEFAULT_PLACEHOLDER = "Busca productos, categorias o materia prima";
+const DEFAULT_PLACEHOLDER = "Busca productos, categorias o marcas";
 const HIDDEN_TOPICS = new Set(["buscador de tapas", "donde comprar", "mis proyectos", "messi"]);
 const SEARCH_HISTORY_KEY = "piquim_search_terms_v1";
 const SEARCH_HISTORY_LIMIT = 12;
@@ -516,7 +517,7 @@ export default function Header({
   const accountLabel = user ? "Mi cuenta" : "Ingresar";
   const isPiquimPreset = typeof isPiquimPresetProp === "boolean"
     ? isPiquimPresetProp
-    : (settings?.branding?.design_preset === "piquim" || normalizeLabel(resolvedBrand).includes("piquim"));
+    : isPiquimTenantIdentity({ tenant, settings });
 
   const mobilePrimaryLinks = useMemo(() => {
     const seen = new Set();

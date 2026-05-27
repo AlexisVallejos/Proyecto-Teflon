@@ -15,6 +15,7 @@ import {
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../../utils/storefrontTheme';
 import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../../data/piquimBranding';
 import { normalizePriceTierLabels } from '../../utils/priceTierLabels';
+import { isPiquimTenantIdentity, resolveTenantDesignPreset } from '../../utils/tenantBranding';
 
 const RESERVED_PLACEHOLDER_TERMS = new Set(['messi']);
 
@@ -29,15 +30,23 @@ const isReservedPlaceholder = (value) => RESERVED_PLACEHOLDER_TERMS.has(normaliz
 
 const PIQUIM_SECTION_TYPES = new Set(PIQUIM_HOME_SECTIONS.map((section) => section.type));
 const PIQUIM_ABOUT_SECTION_TYPES = new Set(PIQUIM_ABOUT_SECTIONS.map((section) => section.type));
+const GENERIC_FOOTER_DEFAULTS = {
+    description: 'Soluciones sanitarias, griferia y accesorios con asesoramiento comercial.',
+    shopLinks: [
+        { label: 'Catalogo', href: '/catalog' },
+        { label: 'Nosotros', href: '/about' },
+    ],
+    helpLinks: [{ label: 'Terminos', href: '/terms' }],
+    legalLinks: [{ label: 'Terminos y condiciones', href: '/terms' }],
+    newsletter: { enabled: false },
+    legalText: '(c) 2026 Sanitarios El Teflon. Todos los derechos reservados.',
+};
 
-const isPiquimBranding = (settings = {}) =>
-    settings?.branding?.design_preset === 'piquim' ||
-    String(settings?.branding?.name || '').toLowerCase().includes('piquim');
-
-const normalizeHomeSectionsForBrand = (settings = {}, sections = []) => {
+const normalizeHomeSectionsForBrand = (settings = {}, tenant = null, sections = []) => {
     const source = Array.isArray(sections) ? sections : [];
-    if (!isPiquimBranding(settings)) {
-        return source.length ? mergeSectionsWithDefaults('home', source) : DEFAULT_HOME_SECTIONS;
+    if (!isPiquimTenantIdentity({ tenant, settings })) {
+        const nonPiquimSections = source.filter((section) => !PIQUIM_SECTION_TYPES.has(section?.type));
+        return nonPiquimSections.length ? mergeSectionsWithDefaults('home', nonPiquimSections) : DEFAULT_HOME_SECTIONS;
     }
 
     const hasPiquimBlocks = source.some((section) => PIQUIM_SECTION_TYPES.has(section?.type));
@@ -47,10 +56,11 @@ const normalizeHomeSectionsForBrand = (settings = {}, sections = []) => {
     return mergeSectionsWithDefaults('piquim-home', source);
 };
 
-const normalizeAboutSectionsForBrand = (settings = {}, sections = []) => {
+const normalizeAboutSectionsForBrand = (settings = {}, tenant = null, sections = []) => {
     const source = Array.isArray(sections) ? sections : [];
-    if (!isPiquimBranding(settings)) {
-        return source.length ? mergeSectionsWithDefaults('about', source) : DEFAULT_ABOUT_SECTIONS;
+    if (!isPiquimTenantIdentity({ tenant, settings })) {
+        const nonPiquimSections = source.filter((section) => !PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+        return nonPiquimSections.length ? mergeSectionsWithDefaults('about', nonPiquimSections) : DEFAULT_ABOUT_SECTIONS;
     }
 
     const hasPiquimBlocks = source.some((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
@@ -83,7 +93,7 @@ const sortCategoriesForCleanup = (items) => {
 };
 
 export function useEditorState(user) {
-    const { refreshTenantSettings } = useTenant();
+    const { tenant, refreshTenantSettings } = useTenant();
     const HISTORY_LIMIT = 80;
 
     // Core State
@@ -94,16 +104,16 @@ export function useEditorState(user) {
         branding: {
             name: '',
             logo_url: '',
-            design_preset: 'piquim',
-            catalog_cards: PIQUIM_CATALOG_CARDS,
+            design_preset: 'sanitarios_industrial',
+            catalog_cards: [],
             admin_panel: DEFAULT_ADMIN_PANEL_BRANDING,
             navbar: { links: [] },
             footer: {
-                ...PIQUIM_FOOTER_DEFAULTS,
-                socialLinks: PIQUIM_FOOTER_DEFAULTS.socials,
+                ...GENERIC_FOOTER_DEFAULTS,
+                socialLinks: [],
                 socials: {},
                 contact: {},
-                quickLinks: PIQUIM_FOOTER_DEFAULTS.shopLinks,
+                quickLinks: GENERIC_FOOTER_DEFAULTS.shopLinks,
             }
         },
         theme: {
@@ -136,7 +146,7 @@ export function useEditorState(user) {
         });
 
     const [pageSections, rawSetPageSections] = useState({
-        home: PIQUIM_HOME_SECTIONS,
+        home: DEFAULT_HOME_SECTIONS,
         about: DEFAULT_ABOUT_SECTIONS,
     });
 
@@ -388,17 +398,23 @@ export function useEditorState(user) {
 
             if (settingsPayload) {
                 const data = settingsPayload;
+                const piquimTenant = isPiquimTenantIdentity({ tenant, settings: data.settings });
+                const footerDefaults = piquimTenant ? PIQUIM_FOOTER_DEFAULTS : GENERIC_FOOTER_DEFAULTS;
                 rawSetSettings(prev => ({
                     ...prev,
                     ...data.settings,
                     branding: {
                         ...prev.branding,
                         ...(data.settings?.branding || {}),
+                        design_preset: resolveTenantDesignPreset({ tenant, settings: data.settings }),
+                        catalog_cards: Array.isArray(data.settings?.branding?.catalog_cards)
+                            ? data.settings.branding.catalog_cards
+                            : (piquimTenant ? PIQUIM_CATALOG_CARDS : []),
                         footer: {
-                            ...(prev.branding?.footer || {}),
+                            ...footerDefaults,
                             ...(data.settings?.branding?.footer || {}),
                             newsletter: {
-                                ...((prev.branding?.footer || {}).newsletter || {}),
+                                ...(footerDefaults.newsletter || {}),
                                 ...((data.settings?.branding?.footer || {}).newsletter || {}),
                             },
                         },
@@ -430,7 +446,7 @@ export function useEditorState(user) {
                 if (Array.isArray(data.sections)) {
                     rawSetPageSections(prev => ({
                         ...prev,
-                        home: normalizeHomeSectionsForBrand(loadedSettings, data.sections),
+                        home: normalizeHomeSectionsForBrand(loadedSettings, tenant, data.sections),
                     }));
                 }
             }
@@ -440,7 +456,7 @@ export function useEditorState(user) {
                 if (Array.isArray(data.sections)) {
                     rawSetPageSections(prev => ({
                         ...prev,
-                        about: normalizeAboutSectionsForBrand(loadedSettings, data.sections),
+                        about: normalizeAboutSectionsForBrand(loadedSettings, tenant, data.sections),
                     }));
                 }
             }
@@ -460,7 +476,7 @@ export function useEditorState(user) {
         } finally {
             setLoading(false);
         }
-    }, [cleanupReservedCatalogEntries, refreshTenantSettings]);
+    }, [cleanupReservedCatalogEntries, refreshTenantSettings, tenant]);
 
     useEffect(() => {
         loadAllData();

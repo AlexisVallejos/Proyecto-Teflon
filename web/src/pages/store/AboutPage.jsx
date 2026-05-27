@@ -4,6 +4,7 @@ import PageBuilder from '../../components/PageBuilder';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { getDefaultSectionsForPage, mergeSectionsWithDefaults } from '../../data/defaultSections';
 import { useTenant } from '../../context/TenantContext';
+import { isPiquimTenantIdentity } from '../../utils/tenantBranding';
 
 const PIQUIM_ABOUT_SECTION_TYPES = new Set([
     'PiquimHero',
@@ -15,13 +16,23 @@ const PIQUIM_ABOUT_SECTION_TYPES = new Set([
 
 const shouldUseFetchedSections = (pageKey, sections = []) => {
     if (!Array.isArray(sections) || !sections.length) return false;
-    if (pageKey !== 'piquim-about') return true;
+    if (pageKey !== 'piquim-about') {
+        return sections.some((section) => !PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+    }
     return sections.some((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
 };
 
+const filterSectionsForPage = (pageKey, sections = []) => {
+    const source = Array.isArray(sections) ? sections : [];
+    if (pageKey === 'piquim-about') {
+        return source.filter((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+    }
+    return source.filter((section) => !PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+};
+
 export default function AboutPage() {
-    const { settings } = useTenant();
-    const isPiquim = settings?.branding?.design_preset === 'piquim';
+    const { tenant, settings } = useTenant();
+    const isPiquim = isPiquimTenantIdentity({ tenant, settings });
     const pageKey = isPiquim ? 'piquim-about' : 'about';
     const [sections, setSections] = useState(() => getDefaultSectionsForPage(pageKey));
 
@@ -39,7 +50,7 @@ export default function AboutPage() {
                 if (response.ok) {
                     const data = await response.json();
                     if (shouldUseFetchedSections(pageKey, data.sections)) {
-                        setSections(mergeSectionsWithDefaults(pageKey, data.sections));
+                        setSections(mergeSectionsWithDefaults(pageKey, filterSectionsForPage(pageKey, data.sections)));
                     }
                 }
             } catch (err) {

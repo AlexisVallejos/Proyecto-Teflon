@@ -3,19 +3,64 @@ import { getApiBase, getTenantHeaders } from '../utils/api';
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../utils/storefrontTheme';
 import { normalizePriceTierLabels } from '../utils/priceTierLabels';
 import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../data/piquimBranding';
+import { isPiquimTenantIdentity, resolveTenantDesignPreset } from '../utils/tenantBranding';
 import StoreSkeleton from '../components/StoreSkeleton';
 
 const DEFAULT_TENANT = {
     id: 'demo-tenant-id',
-    name: 'PIQUIM',
+    name: 'Mi Negocio',
 };
 
-const DEFAULT_SETTINGS = {
+const GENERIC_FOOTER_DEFAULTS = {
+    description: 'Soluciones sanitarias, griferia y accesorios con asesoramiento comercial para cada obra o renovacion.',
+    shopLinks: [
+        { label: 'Catalogo', href: '/catalog' },
+        { label: 'Nosotros', href: '/about' },
+        { label: 'Mi cuenta', href: '/profile' },
+    ],
+    helpLinks: [
+        { label: 'Carrito', href: '/cart' },
+        { label: 'Terminos', href: '/terms' },
+    ],
+    legalLinks: [{ label: 'Terminos y condiciones', href: '/terms' }],
+    newsletter: {
+        enabled: false,
+        title: 'Novedades',
+        description: '',
+        placeholder: 'tu@email.com',
+        buttonLabel: 'Enviar',
+    },
+    legalText: '(c) 2026 Sanitarios El Teflon. Todos los derechos reservados.',
+};
+
+const GENERIC_STOREFRONT_THEME = {
+    ...DEFAULT_STOREFRONT_LIGHT_THEME,
+    primary: '#f97316',
+    accent: '#111827',
+    background: '#f8f7f4',
+    text: '#111827',
+    secondary: '#64748b',
+    catalog: {
+        ...(DEFAULT_STOREFRONT_LIGHT_THEME.catalog || {}),
+        panel_bg: '#f1f5f9',
+        surface_bg: '#ffffff',
+        card_bg: '#ffffff',
+        border: '#dbe2ea',
+        muted_text: '#64748b',
+    },
+};
+
+const buildDefaultSettings = (tenant = DEFAULT_TENANT, rawSettings = {}) => {
+    const piquim = isPiquimTenantIdentity({ tenant, settings: rawSettings });
+    const footerDefaults = piquim ? PIQUIM_FOOTER_DEFAULTS : GENERIC_FOOTER_DEFAULTS;
+    const brandName = rawSettings?.branding?.name || tenant?.name || (piquim ? 'PIQUIM' : 'Mi Negocio');
+
+    return {
     branding: {
-        name: 'PIQUIM',
+        name: brandName,
         logo_url: '',
-        design_preset: 'piquim',
-        catalog_cards: PIQUIM_CATALOG_CARDS,
+        design_preset: resolveTenantDesignPreset({ tenant, settings: rawSettings }),
+        catalog_cards: piquim ? PIQUIM_CATALOG_CARDS : [],
         navbar: {
             links: [
                 { label: 'Inicio', href: '/' },
@@ -30,9 +75,9 @@ const DEFAULT_SETTINGS = {
             register_href: '/register',
         },
         footer: {
-            ...PIQUIM_FOOTER_DEFAULTS,
+            ...footerDefaults,
             whatsapp_enabled: true,
-            socialLinks: PIQUIM_FOOTER_DEFAULTS.socials,
+            socialLinks: footerDefaults.socials || [],
             socials: {
                 facebook: '',
                 instagram: '',
@@ -43,13 +88,13 @@ const DEFAULT_SETTINGS = {
             contact: {
                 address: 'Mar del Plata, Argentina',
                 phone: '',
-                email: 'ventas@piquim.local',
+                email: '',
             },
-            quickLinks: PIQUIM_FOOTER_DEFAULTS.shopLinks,
+            quickLinks: footerDefaults.shopLinks,
         },
     },
     theme: {
-        ...DEFAULT_STOREFRONT_LIGHT_THEME,
+        ...(piquim ? DEFAULT_STOREFRONT_LIGHT_THEME : GENERIC_STOREFRONT_THEME),
     },
     commerce: {
         currency: 'ARS',
@@ -62,7 +107,7 @@ const DEFAULT_SETTINGS = {
         mode: 'hybrid',
         whatsapp_number: '',
         address: 'Mar del Plata, Argentina',
-        email: 'ventas@piquim.local',
+        email: '',
         order_notification_email: '',
         admin_order_confirmation_label: 'En confirmacion',
         customer_order_processing_label: 'En proceso',
@@ -137,67 +182,73 @@ const DEFAULT_SETTINGS = {
             holder: '',
         },
     },
+    };
 };
+
+const DEFAULT_SETTINGS = buildDefaultSettings(DEFAULT_TENANT);
 
 export const TenantContext = createContext(null);
 
-function mergeTenantSettings(rawSettings = {}) {
+function mergeTenantSettings(rawSettings = {}, tenant = DEFAULT_TENANT) {
+    const defaults = buildDefaultSettings(tenant, rawSettings);
+    const piquim = isPiquimTenantIdentity({ tenant, settings: rawSettings });
     const rawBranding = rawSettings.branding || {};
     const rawFooter = rawBranding.footer || {};
 
     return {
         branding: {
-            ...DEFAULT_SETTINGS.branding,
+            ...defaults.branding,
             ...rawBranding,
+            design_preset: resolveTenantDesignPreset({ tenant, settings: rawSettings }),
             navbar: {
-                ...DEFAULT_SETTINGS.branding.navbar,
+                ...defaults.branding.navbar,
                 ...(rawBranding.navbar || {}),
             },
             footer: {
-                ...DEFAULT_SETTINGS.branding.footer,
+                ...defaults.branding.footer,
                 ...rawFooter,
                 socials: {
-                    ...DEFAULT_SETTINGS.branding.footer.socials,
+                    ...defaults.branding.footer.socials,
                     ...(rawFooter.socials || {}),
                 },
                 contact: {
-                    ...DEFAULT_SETTINGS.branding.footer.contact,
+                    ...defaults.branding.footer.contact,
                     ...(rawFooter.contact || {}),
                 },
                 quickLinks: Array.isArray(rawFooter.quickLinks)
                     ? rawFooter.quickLinks
-                    : DEFAULT_SETTINGS.branding.footer.quickLinks,
+                    : defaults.branding.footer.quickLinks,
                 shopLinks: Array.isArray(rawFooter.shopLinks)
                     ? rawFooter.shopLinks
-                    : DEFAULT_SETTINGS.branding.footer.shopLinks,
+                    : defaults.branding.footer.shopLinks,
                 helpLinks: Array.isArray(rawFooter.helpLinks)
                     ? rawFooter.helpLinks
-                    : DEFAULT_SETTINGS.branding.footer.helpLinks,
+                    : defaults.branding.footer.helpLinks,
                 legalLinks: Array.isArray(rawFooter.legalLinks)
                     ? rawFooter.legalLinks
-                    : DEFAULT_SETTINGS.branding.footer.legalLinks,
+                    : defaults.branding.footer.legalLinks,
                 socialLinks: Array.isArray(rawFooter.socialLinks)
                     ? rawFooter.socialLinks
-                    : DEFAULT_SETTINGS.branding.footer.socialLinks,
+                    : defaults.branding.footer.socialLinks,
                 newsletter: {
-                    ...(DEFAULT_SETTINGS.branding.footer.newsletter || {}),
+                    ...(defaults.branding.footer.newsletter || {}),
                     ...(rawFooter.newsletter || {}),
                 },
             },
-            catalog_cards: Array.isArray(rawBranding.catalog_cards)
+            catalog_cards: piquim && Array.isArray(rawBranding.catalog_cards)
                 ? rawBranding.catalog_cards
-                : DEFAULT_SETTINGS.branding.catalog_cards,
+                : defaults.branding.catalog_cards,
         },
         theme: {
-            ...DEFAULT_SETTINGS.theme,
+            ...defaults.theme,
             ...(rawSettings.theme || {}),
             catalog: {
-                ...(DEFAULT_SETTINGS.theme.catalog || {}),
+                ...(defaults.theme.catalog || {}),
                 ...(rawSettings.theme?.catalog || {}),
             },
         },
         commerce: {
-            ...DEFAULT_SETTINGS.commerce,
+            ...defaults.commerce,
             ...(rawSettings.commerce || {}),
             price_tier_labels: normalizePriceTierLabels(rawSettings.commerce?.price_tier_labels),
         },
@@ -223,8 +274,9 @@ export const TenantProvider = ({ children }) => {
             }
 
             const data = await response.json();
-            setTenant(data.tenant || DEFAULT_TENANT);
-            setSettings(mergeTenantSettings(data.settings || {}));
+            const nextTenant = data.tenant || DEFAULT_TENANT;
+            setTenant(nextTenant);
+            setSettings(mergeTenantSettings(data.settings || {}, nextTenant));
         } catch (err) {
             console.error('Failed to load tenant settings', err);
             setTenant(DEFAULT_TENANT);

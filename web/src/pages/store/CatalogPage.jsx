@@ -13,6 +13,7 @@ import { getLowStockThreshold, getStockStatus, isInStock } from "../../utils/sto
 import { createPlaceholderImage } from "../../utils/productImage";
 import { PIQUIM_CATALOG_CARDS } from "../../data/piquimBranding";
 import { PIQUIM_SUBCATALOGS } from "../../data/piquimSubcatalogs";
+import { isPiquimTenantIdentity } from "../../utils/tenantBranding";
 import PriceAccessPrompt from "../../components/PriceAccessPrompt";
 import StoreSkeleton from "../../components/StoreSkeleton";
 const FALLBACK_IMAGE = createPlaceholderImage({ label: "Producto", width: 720, height: 720 });
@@ -261,7 +262,8 @@ const findCatalogCardCategory = (categories, card) => {
 
 export default function CatalogPage() {
     const { search, showToast } = useStore();
-    const { settings } = useTenant();
+    const { tenant, settings } = useTenant();
+    const isPiquimTenant = isPiquimTenantIdentity({ tenant, settings });
     const { user, loading: authLoading } = useAuth();
     const currency = settings?.commerce?.currency || "ARS";
     const locale = settings?.commerce?.locale || "es-AR";
@@ -324,7 +326,9 @@ export default function CatalogPage() {
                 if (active && categoriesRes.ok) {
                     const categoriesData = await categoriesRes.json();
                     const normalizedCategories = Array.isArray(categoriesData)
-                        ? filterCategoryTree(categoriesData.map(normalizeCategory).filter(Boolean))
+                        ? (isPiquimTenant
+                            ? filterCategoryTree(categoriesData.map(normalizeCategory).filter(Boolean))
+                            : categoriesData.map(normalizeCategory).filter(Boolean))
                         : [];
                     setCategories(normalizedCategories);
                 }
@@ -332,7 +336,10 @@ export default function CatalogPage() {
                 if (active && brandsRes.ok) {
                     const brandsData = await brandsRes.json();
                     const normalizedBrands = Array.isArray(brandsData)
-                        ? brandsData.map(normalizeBrand).filter(Boolean).filter(b => isNotExcluded(b.name))
+                        ? brandsData
+                            .map(normalizeBrand)
+                            .filter(Boolean)
+                            .filter((brand) => !isPiquimTenant || isNotExcluded(brand.name))
                         : [];
                     const uniqueBrands = [...new Map(normalizedBrands.map((item) => [item.id.toLowerCase(), item])).values()];
                     setBrands(uniqueBrands);
@@ -347,7 +354,7 @@ export default function CatalogPage() {
         return () => {
             active = false;
         };
-    }, []);
+    }, [isPiquimTenant]);
 
     useEffect(() => {
         let active = true;
@@ -394,11 +401,11 @@ export default function CatalogPage() {
                 if (!active) return;
 
                 const items = Array.isArray(data.items) ? data.items : [];
-                const filteredItems = items.filter(product => {
+                const filteredItems = isPiquimTenant ? items.filter(product => {
                     const categoryName = product.category?.name || "";
                     const brandName = product.brand?.name || "";
                     return isNotExcluded(categoryName) && isNotExcluded(brandName) && isNotExcluded(product.name);
-                });
+                }) : items;
                 
                 setProducts(filteredItems);
                 
@@ -427,7 +434,7 @@ export default function CatalogPage() {
             active = false;
             controller.abort();
         };
-    }, [inStockOnly, limit, page, search, selectedBrand, selectedCategory, selectedMaxPrice, selectedMinPrice, sort]);
+    }, [inStockOnly, isPiquimTenant, limit, page, search, selectedBrand, selectedCategory, selectedMaxPrice, selectedMinPrice, sort]);
 
     const selectedCategoryEntry = useMemo(() => findCategory(categories, selectedCategory), [categories, selectedCategory]);
     const selectedBrandEntry = useMemo(() => findBrand(brands, selectedBrand), [brands, selectedBrand]);
@@ -600,6 +607,7 @@ export default function CatalogPage() {
     const quickCategories = useMemo(() => categoryTree.slice(0, 4), [categoryTree]);
     const quickBrands = useMemo(() => brands.slice(0, 4), [brands]);
     const catalogCards = useMemo(() => {
+        if (!isPiquimTenant) return [];
         const configured = settings?.branding?.catalog_cards;
         const source = Array.isArray(configured) && configured.length ? configured : PIQUIM_CATALOG_CARDS;
         const combinedPanaderia = PIQUIM_CATALOG_CARDS.find((card) => card.id === "panaderia") || {};
@@ -615,7 +623,7 @@ export default function CatalogPage() {
                     categorySlug: "panaderia",
                 };
             });
-    }, [settings?.branding?.catalog_cards]);
+    }, [isPiquimTenant, settings?.branding?.catalog_cards]);
 
     const handleCatalogCardClick = useCallback((card) => {
         const directSlug = normalizePiquimCatalogSlug(card?.categorySlug || card?.slug || card?.category || card?.id);
@@ -650,8 +658,10 @@ export default function CatalogPage() {
         if (selectedMinPrice || selectedMaxPrice || inStockOnly) {
             return "Resultados refinados por precio, disponibilidad y familias de producto.";
         }
-        return "Materia prima profesional para heladerias, panaderias y confiterias.";
-    }, [inStockOnly, search, selectedBrandEntry, selectedCategoryEntry, selectedMaxPrice, selectedMinPrice]);
+        return isPiquimTenant
+            ? "Materia prima profesional para heladerias, panaderias y confiterias."
+            : "Soluciones sanitarias, griferia y accesorios para obra, hogar y comercio.";
+    }, [inStockOnly, isPiquimTenant, search, selectedBrandEntry, selectedCategoryEntry, selectedMaxPrice, selectedMinPrice]);
 
     const isCatalogLanding = !search.trim()
         && !selectedCategory
@@ -661,7 +671,7 @@ export default function CatalogPage() {
         && !inStockOnly
         && normalizeSortValue(sort) === DEFAULT_SORT;
 
-    if (isCatalogLanding) {
+    if (isPiquimTenant && isCatalogLanding) {
         return (
             <StoreLayout>
                 <PiquimCatalogLanding cards={catalogCards} onSelectCard={handleCatalogCardClick} />
@@ -672,7 +682,7 @@ export default function CatalogPage() {
     const selectedSubcatalogKey = normalizePiquimCatalogSlug(selectedCategoryEntry?.slug || selectedCategoryEntry?.name || selectedCategory);
     const selectedSubcatalog = PIQUIM_SUBCATALOGS[selectedSubcatalogKey];
 
-    if (selectedSubcatalog) {
+    if (isPiquimTenant && selectedSubcatalog) {
         const subcatalogLabels = settings?.branding?.subcatalog_filters || {};
         return (
             <StoreLayout>

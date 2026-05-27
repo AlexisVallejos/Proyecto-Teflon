@@ -11,6 +11,7 @@ import FeaturedProducts from "../../components/blocks/FeaturedProducts";
 import Services from "../../components/blocks/Services";
 import { getDefaultSectionsForPage, mergeSectionsWithDefaults } from "../../data/defaultSections";
 import { useTenant } from "../../context/TenantContext";
+import { isPiquimTenantIdentity } from "../../utils/tenantBranding";
 
 const buildFeaturedCard = (product, index, isWholesale = false) => {
     const data = product.data || {};
@@ -61,20 +62,34 @@ const PIQUIM_SECTION_TYPES = new Set([
 
 const shouldUseFetchedSections = (pageKey, sections = []) => {
     if (!Array.isArray(sections) || !sections.length) return false;
-    if (pageKey !== 'piquim-home') return true;
+    if (pageKey !== 'piquim-home') {
+        return sections.some((section) => !PIQUIM_SECTION_TYPES.has(section?.type));
+    }
     return sections.some((section) => PIQUIM_SECTION_TYPES.has(section?.type));
+};
+
+const filterSectionsForPage = (pageKey, sections = []) => {
+    const source = Array.isArray(sections) ? sections : [];
+    if (pageKey === 'piquim-home') {
+        return source.filter((section) => PIQUIM_SECTION_TYPES.has(section?.type));
+    }
+    return source.filter((section) => !PIQUIM_SECTION_TYPES.has(section?.type));
 };
 
 export default function HomePage() {
     const { isWholesale } = useAuth();
-    const { settings } = useTenant();
-    const isPiquim = settings?.branding?.design_preset === 'piquim';
+    const { tenant, settings } = useTenant();
+    const isPiquim = isPiquimTenantIdentity({ tenant, settings });
     const pageKey = isPiquim ? 'piquim-home' : 'home';
     const [sections, setSections] = useState(() =>
         getDefaultSectionsForPage(pageKey)
     );
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [featuredLoaded, setFeaturedLoaded] = useState(false);
+
+    useEffect(() => {
+        setSections(getDefaultSectionsForPage(pageKey));
+    }, [pageKey]);
 
     useEffect(() => {
         async function loadHome() {
@@ -85,7 +100,7 @@ export default function HomePage() {
                 if (response.ok) {
                     const data = await response.json();
                     if (shouldUseFetchedSections(pageKey, data.sections)) {
-                        setSections(mergeSectionsWithDefaults(pageKey, data.sections));
+                        setSections(mergeSectionsWithDefaults(pageKey, filterSectionsForPage(pageKey, data.sections)));
                     }
                 }
 

@@ -6,12 +6,13 @@ import { useStore } from '../../context/StoreContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { normalizeInternalPath } from '../../utils/navigation';
+import { isPiquimTenantIdentity } from '../../utils/tenantBranding';
 
 export default function StoreLayout({ children }) {
     const { toast } = useStore();
     const { isWholesalePending } = useAuth();
-    const { settings } = useTenant();
-    const isPiquim = settings?.branding?.design_preset === 'piquim';
+    const { tenant, settings } = useTenant();
+    const isPiquim = isPiquimTenantIdentity({ tenant, settings });
 
     const defaultNavLinks = [
         { label: 'Inicio', href: '/' },

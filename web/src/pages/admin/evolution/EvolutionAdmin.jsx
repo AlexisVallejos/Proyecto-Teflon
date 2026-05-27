@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import { useEditorState } from '../../../hooks/admin/useEditorState';
 import { useAuth } from '../../../context/AuthContext';
+import { useTenant } from '../../../context/TenantContext';
 import { useToast } from '../../../context/ToastContext';
 import EvolutionLayout from '../../../components/admin/evolution/EvolutionLayout';
 import DesignEditor from '../../../components/admin/evolution/DesignEditor';
@@ -35,10 +36,7 @@ import {
     Globe,
     CreditCard,
 } from '@phosphor-icons/react';
-
-const isPiquimBranding = (settings = {}) =>
-    settings?.branding?.design_preset === 'piquim' ||
-    String(settings?.branding?.name || '').toLowerCase().includes('piquim');
+import { isPiquimTenantIdentity } from '../../../utils/tenantBranding';
 
 const StatCard = ({ label, value, trend, icon: Icon, color }) => (
     <div className="p-6 rounded-2xl bg-zinc-dark border border-white/5 hover:border-white/10 transition-all group overflow-hidden relative">
@@ -155,6 +153,7 @@ const SettingsEditor = ({ settings, setSettings }) => {
 
 const EvolutionAdmin = () => {
     const { user } = useAuth();
+    const { tenant } = useTenant();
     const { addToast } = useToast();
     const {
         activeModule,
@@ -480,8 +479,9 @@ const EvolutionAdmin = () => {
             );
         }
 
-        const homeEditorPageKey = isPiquimBranding(editor.settings) ? 'piquim-home' : 'home';
-        const aboutEditorPageKey = isPiquimBranding(editor.settings) ? 'piquim-about' : 'about';
+        const isPiquimTenant = isPiquimTenantIdentity({ tenant, settings: editor.settings });
+        const homeEditorPageKey = isPiquimTenant ? 'piquim-home' : 'home';
+        const aboutEditorPageKey = isPiquimTenant ? 'piquim-about' : 'about';
 
         switch (activeModule) {
             case 'home':
