@@ -1,5 +1,9 @@
 const DEFAULT_API_BASE = '';
 
+function getViteEnv() {
+    return import.meta.env || {};
+}
+
 function getCurrentHostname() {
     if (typeof window === 'undefined') return '';
     return String(window.location.hostname || '').trim().toLowerCase();
@@ -8,6 +12,11 @@ function getCurrentHostname() {
 function getCurrentPathname() {
     if (typeof window === 'undefined') return '';
     return String(window.location.pathname || '').trim().toLowerCase();
+}
+
+function getCurrentHost() {
+    if (typeof window === 'undefined') return '';
+    return String(window.location.host || window.location.hostname || '').trim().toLowerCase();
 }
 
 function isLocalHost(hostname = getCurrentHostname()) {
@@ -44,7 +53,8 @@ function getStoredTenantId() {
 }
 
 export function getApiBase() {
-    const configuredBase = String(import.meta.env.VITE_API_URL || DEFAULT_API_BASE).trim();
+    const env = getViteEnv();
+    const configuredBase = String(env.VITE_API_URL || DEFAULT_API_BASE).trim();
     if (!configuredBase) {
         if (typeof window !== 'undefined') {
             const isLocalVite =
@@ -61,13 +71,18 @@ export function getApiBase() {
 }
 
 export function getTenantHeaders() {
-    const rawEnvId = String(import.meta.env.VITE_TENANT_ID || '').trim();
+    const env = getViteEnv();
+    const rawEnvId = String(env.VITE_TENANT_ID || '').trim();
     const envId = (rawEnvId === 'undefined' || rawEnvId === 'null') ? '' : rawEnvId;
-    const forceEnvTenant = String(import.meta.env.VITE_FORCE_TENANT_ID || '').trim().toLowerCase() === 'true';
-    const allowEnvTenant = Boolean(import.meta.env.DEV) || isLocalHost() || forceEnvTenant;
-    const allowStoredTenant = Boolean(import.meta.env.DEV) || isLocalHost() || isEditorContext();
+    const forceEnvTenant = String(env.VITE_FORCE_TENANT_ID || '').trim().toLowerCase() === 'true';
+    const allowEnvTenant = Boolean(env.DEV) || isLocalHost() || forceEnvTenant;
+    const allowStoredTenant = Boolean(env.DEV) || isLocalHost() || isEditorContext();
     const tenantId = (allowEnvTenant ? envId : '') || (allowStoredTenant ? getStoredTenantId() : '');
-    return tenantId ? { 'X-Tenant-Id': tenantId } : {};
+    const storefrontHost = !isEditorContext() ? getCurrentHost() : '';
+    return {
+        ...(tenantId ? { 'X-Tenant-Id': tenantId } : {}),
+        ...(storefrontHost ? { 'X-Storefront-Host': storefrontHost } : {}),
+    };
 }
 
 export function getAuthHeaders() {

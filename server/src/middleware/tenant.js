@@ -1,6 +1,30 @@
 import { pool } from '../db.js';
 import { normalizeDomainInput } from '../services/tenantDomains.js';
 
+function firstHeaderValue(value) {
+  return String(value || '').split(',')[0].trim();
+}
+
+function getApiHost(req) {
+  return firstHeaderValue(
+    req.get('x-original-host') ||
+    req.get('x-forwarded-host') ||
+    req.hostname ||
+    req.get('host') ||
+    ''
+  );
+}
+
+export function resolveHostCandidates(req) {
+  const rawHost = firstHeaderValue(req.get('x-storefront-host')) || getApiHost(req);
+  const host = normalizeDomainInput(rawHost);
+  if (!host) return [];
+
+  return host.startsWith('www.')
+    ? [host, host.slice(4)]
+    : [host];
+}
+
 export async function resolveTenant(req, res, next) {
   try {
     const headerTenant = req.get('x-tenant-id');
@@ -26,18 +50,10 @@ export async function resolveTenant(req, res, next) {
     }
 
     if (!tenant) {
-      const forwardedHost = String(
-        req.get('x-original-host') ||
-        req.get('x-forwarded-host') ||
-        req.hostname ||
-        req.get('host') ||
-        ''
-      ).split(',')[0];
-      const host = normalizeDomainInput(forwardedHost);
-      if (host) {
-        const hostCandidates = host.startsWith('www.')
-          ? [host, host.slice(4)]
-          : [host];
+      const forwardedHost = firstHeaderValue(req.get('x-storefront-host')) || getApiHost(req);
+      const hostCandidates = resolveHostCandidates(req);
+      const host = hostCandidates[0] || '';
+      if (hostCandidates.length) {
         console.log(
           `Tenant resolution by host: raw="${forwardedHost}" normalized="${host}" candidates=[${hostCandidates.join(', ')}] path="${req.path}"`
         );
@@ -60,13 +76,7 @@ export async function resolveTenant(req, res, next) {
     }
 
     if (!tenant) {
-      const currentHost = String(
-        req.get('x-original-host') ||
-        req.get('x-forwarded-host') ||
-        req.get('host') ||
-        req.hostname ||
-        ''
-      ).toLowerCase();
+      const currentHost = getApiHost(req).toLowerCase();
       const isEditor = currentHost.startsWith('editor.');
 
       if (isEditor) {
