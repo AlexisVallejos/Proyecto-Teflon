@@ -8,6 +8,8 @@ import { ensureBaseSchema } from './services/bootstrapSchema.js';
 import { ensurePricingSchema } from './services/userPricing.js';
 import { ensureUserProfileSchema } from './services/userProfile.js';
 import { ensureProductSyncSchema } from './services/integration.service.js';
+import { ensureVaseBridgeSchema } from './services/vaseBridge.js';
+import { selectTeflonBootstrapTargetTenant } from './services/teflonBootstrapTarget.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_TEFLON_TENANT_ID = '636736e2-e135-44cd-ac5c-5d4ccb839a73';
@@ -178,21 +180,72 @@ const PIQUIM_DEFAULT_COMMERCE = {
   email: 'ventas@piquim.local',
 };
 
+async function resolveTeflonTenantBootstrapTarget() {
+  const fallback = {
+    id: TEFLON_TENANT_ID,
+    name: 'Sanitarios El Teflon',
+    external_source: null,
+    external_tenant_slug: null,
+    domains: ['teflon.vase.ar'],
+  };
+
+  const tenantsRes = await pool.query(
+    [
+      'SELECT',
+      't.id::text AS id,',
+      't.name,',
+      't.external_source,',
+      't.external_tenant_slug,',
+      "COALESCE(jsonb_agg(DISTINCT d.domain) FILTER (WHERE d.domain IS NOT NULL), '[]'::jsonb) AS domains",
+      'FROM tenants t',
+      'LEFT JOIN tenant_domains d ON d.tenant_id = t.id',
+      'WHERE t.id = $1::uuid',
+      "OR lower(coalesce(t.name, '')) LIKE '%teflon%'",
+      "OR lower(coalesce(t.external_tenant_slug, '')) LIKE '%teflon%'",
+      "OR lower(coalesce(d.domain, '')) LIKE '%teflon%'",
+      'GROUP BY t.id, t.name, t.external_source, t.external_tenant_slug',
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+
+  return selectTeflonBootstrapTargetTenant(tenantsRes.rows, TEFLON_TENANT_ID) || fallback;
+}
+
 async function ensureTeflonTenantBootstrap() {
   if (!UUID_PATTERN.test(TEFLON_TENANT_ID)) {
     console.warn(`Skipping Teflon bootstrap: TEFLON_TENANT_ID is not a valid UUID (${TEFLON_TENANT_ID}).`);
     return;
   }
 
-  await pool.query(
-    [
-      'INSERT INTO tenants (id, name, status)',
-      "VALUES ($1::uuid, 'Sanitarios El Teflon', 'active')",
-      'ON CONFLICT (id) DO UPDATE',
-      "SET name = 'Sanitarios El Teflon', status = 'active'",
-    ].join(' '),
-    [TEFLON_TENANT_ID]
-  );
+  const bootstrapTarget = await resolveTeflonTenantBootstrapTarget();
+  const teflonTenantId = String(bootstrapTarget?.id || TEFLON_TENANT_ID).trim();
+  const isFallbackTenant = teflonTenantId === TEFLON_TENANT_ID;
+
+  if (!UUID_PATTERN.test(teflonTenantId)) {
+    console.warn(`Skipping Teflon bootstrap: resolved tenant is not a valid UUID (${teflonTenantId}).`);
+    return;
+  }
+
+  if (!isFallbackTenant) {
+    console.log(`Teflon bootstrap target resolved from Vase tenant: ${teflonTenantId}`);
+  }
+
+  if (isFallbackTenant) {
+    await pool.query(
+      [
+        'INSERT INTO tenants (id, name, status)',
+        "VALUES ($1::uuid, 'Sanitarios El Teflon', 'active')",
+        'ON CONFLICT (id) DO UPDATE',
+        "SET name = 'Sanitarios El Teflon', status = 'active'",
+      ].join(' '),
+      [teflonTenantId]
+    );
+  } else {
+    await pool.query(
+      "UPDATE tenants SET status = 'active' WHERE id = $1::uuid",
+      [teflonTenantId]
+    );
+  }
 
   await pool.query(
     [
@@ -201,35 +254,66 @@ async function ensureTeflonTenantBootstrap() {
       'ON CONFLICT (tenant_id) DO UPDATE SET',
       "branding = CASE WHEN lower(coalesce(tenant_settings.branding->>'name', '')) LIKE '%piquim%'",
       "OR tenant_settings.branding->>'design_preset' = 'piquim'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%piquim%'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%heladeria%'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%panaderia%'",
+      "OR lower(coalesce(tenant_settings.commerce::text, '')) LIKE '%piquim%'",
       'THEN EXCLUDED.branding ELSE tenant_settings.branding END,',
       "theme = CASE WHEN lower(coalesce(tenant_settings.branding->>'name', '')) LIKE '%piquim%'",
       "OR tenant_settings.branding->>'design_preset' = 'piquim'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%piquim%'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%heladeria%'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%panaderia%'",
+      "OR lower(coalesce(tenant_settings.commerce::text, '')) LIKE '%piquim%'",
       'THEN EXCLUDED.theme ELSE tenant_settings.theme END,',
       "commerce = CASE WHEN lower(coalesce(tenant_settings.branding->>'name', '')) LIKE '%piquim%'",
       "OR tenant_settings.branding->>'design_preset' = 'piquim'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%piquim%'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%heladeria%'",
+      "OR lower(coalesce(tenant_settings.branding::text, '')) LIKE '%panaderia%'",
+      "OR lower(coalesce(tenant_settings.commerce::text, '')) LIKE '%piquim%'",
       'THEN EXCLUDED.commerce ELSE tenant_settings.commerce END,',
       'updated_at = now()',
     ].join(' '),
     [
-      TEFLON_TENANT_ID,
+      teflonTenantId,
       JSON.stringify(TEFLON_DEFAULT_BRANDING),
       JSON.stringify(TEFLON_DEFAULT_THEME),
       JSON.stringify(TEFLON_DEFAULT_COMMERCE),
     ]
   );
 
+  const bootstrapDomains = [
+    ['teflon.vase.ar', true],
+    ['sanitarioselteflon.com', false],
+    ['www.sanitarioselteflon.com', false],
+  ];
+  if (isFallbackTenant) {
+    bootstrapDomains.unshift(['localhost', true]);
+  }
+
+  for (const [domain, isPrimary] of bootstrapDomains) {
+    await pool.query(
+      [
+        'INSERT INTO tenant_domains (tenant_id, domain, is_primary)',
+        'VALUES ($1::uuid, $2, $3)',
+        'ON CONFLICT (domain) DO UPDATE',
+        'SET tenant_id = EXCLUDED.tenant_id, is_primary = EXCLUDED.is_primary',
+        'WHERE tenant_domains.tenant_id = EXCLUDED.tenant_id',
+        'OR tenant_domains.tenant_id = $4::uuid',
+      ].join(' '),
+      [teflonTenantId, domain, isPrimary, TEFLON_TENANT_ID]
+    );
+  }
+
   await pool.query(
     [
-      'INSERT INTO tenant_domains (tenant_id, domain, is_primary)',
-      'VALUES',
-      "($1::uuid, 'localhost', true),",
-      "($1::uuid, 'teflon.vase.ar', true),",
-      "($1::uuid, 'sanitarioselteflon.com', false),",
-      "($1::uuid, 'www.sanitarioselteflon.com', false)",
-      'ON CONFLICT (domain) DO UPDATE',
-      'SET tenant_id = EXCLUDED.tenant_id, is_primary = EXCLUDED.is_primary',
+      'UPDATE tenant_domains',
+      "SET is_primary = CASE WHEN domain = 'teflon.vase.ar' THEN true ELSE false END",
+      'WHERE tenant_id = $1::uuid',
+      "AND domain ~ '^teflon(-[0-9]+)?\\.vase\\.ar$'",
     ].join(' '),
-    [TEFLON_TENANT_ID]
+    [teflonTenantId]
   );
 
   await pool.query(
@@ -246,7 +330,7 @@ async function ensureTeflonTenantBootstrap() {
       'ON CONFLICT (tenant_id, slug) DO UPDATE',
       'SET name = EXCLUDED.name',
     ].join(' '),
-    [TEFLON_TENANT_ID]
+    [teflonTenantId]
   );
 
   await pool.query(
@@ -258,7 +342,7 @@ async function ensureTeflonTenantBootstrap() {
       "SELECT tenant_id, 'about' FROM seed",
       'ON CONFLICT (tenant_id, slug) DO NOTHING',
     ].join(' '),
-    [TEFLON_TENANT_ID]
+    [teflonTenantId]
   );
 
   await pool.query(
@@ -269,7 +353,7 @@ async function ensureTeflonTenantBootstrap() {
       'AND p.tenant_id = $1::uuid',
       "AND ps.type LIKE 'Piquim%'",
     ].join(' '),
-    [TEFLON_TENANT_ID]
+    [teflonTenantId]
   );
 
   await pool.query(
@@ -283,7 +367,7 @@ async function ensureTeflonTenantBootstrap() {
       "OR name ILIKE '%helado%'",
       ')',
     ].join(' '),
-    [TEFLON_TENANT_ID]
+    [teflonTenantId]
   );
 
   await pool.query(
@@ -292,7 +376,7 @@ async function ensureTeflonTenantBootstrap() {
       'WHERE tenant_id = $1::uuid',
       "AND slug IN ('heladeria', 'panaderia', 'confiteria')",
     ].join(' '),
-    [TEFLON_TENANT_ID]
+    [teflonTenantId]
   );
 }
 
@@ -434,6 +518,7 @@ async function runStartupMigrations() {
     ].join(' ')
   );
 
+  await ensureVaseBridgeSchema();
   await ensureProductSyncSchema();
   await ensureTeflonTenantBootstrap();
   await ensurePiquimTenantBootstrap();

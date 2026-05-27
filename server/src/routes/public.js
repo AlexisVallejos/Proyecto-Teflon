@@ -354,6 +354,7 @@ async function isReviewsEnabled(tenantId) {
 
 publicRouter.get('/tenant', async (req, res, next) => {
   try {
+    res.set('Cache-Control', 'no-store, max-age=0');
     const result = await pool.query(
       'select branding, theme, commerce from tenant_settings where tenant_id = $1',
       [req.tenant.id]
@@ -442,6 +443,7 @@ publicRouter.get('/brands', async (req, res, next) => {
 
 publicRouter.get('/pages/:slug', async (req, res, next) => {
   try {
+    res.set('Cache-Control', 'no-store, max-age=0');
     const pageRes = await pool.query(
       'select id from pages where tenant_id = $1 and slug = $2',
       [req.tenant.id, req.params.slug]
