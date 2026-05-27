@@ -180,9 +180,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         const rawEmail = String(email || '').trim();
-        const normalizedEmail = rawEmail.toLowerCase() === 'admin'
-            ? 'admin@piquim.local'
-            : rawEmail;
+        const normalizedEmail = rawEmail;
 
         const response = await fetch(`${getApiBase()}/auth/login`, {
             method: 'POST',
@@ -215,7 +213,7 @@ export const AuthProvider = ({ children }) => {
         }
         const rawEmail = String(email || '').trim();
         const normalizedEmail = rawEmail.toLowerCase() === 'admin'
-            ? 'admin@piquim.local'
+            ? rawEmail
             : rawEmail.toLowerCase();
 
         const response = await fetch(`${getApiBase()}/auth/request-login-code`, {
@@ -238,7 +236,7 @@ export const AuthProvider = ({ children }) => {
         }
         const rawEmail = String(email || '').trim();
         const normalizedEmail = rawEmail.toLowerCase() === 'admin'
-            ? 'admin@piquim.local'
+            ? rawEmail
             : rawEmail.toLowerCase();
         const response = await fetch(`${getApiBase()}/auth/login-with-code`, {
             method: 'POST',

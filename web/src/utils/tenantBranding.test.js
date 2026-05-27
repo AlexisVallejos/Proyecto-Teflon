@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   isPiquimTenantIdentity,
+  resolveTenantBrandName,
   resolveTenantDesignPreset,
 } from './tenantBranding.js';
 
@@ -20,6 +21,7 @@ test('does not classify Teflon as PIQUIM when stale settings contain the PIQUIM 
 
   assert.equal(isPiquimTenantIdentity({ tenant, settings }), false);
   assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'sanitarios_industrial');
+  assert.equal(resolveTenantBrandName({ tenant, settings }), 'Sanitarios El Teflon');
 });
 
 test('classifies the PIQUIM tenant as PIQUIM without requiring an explicit preset', () => {
@@ -66,4 +68,5 @@ test('uses tenant identity before stale branding name', () => {
 
   assert.equal(isPiquimTenantIdentity({ tenant, settings }), false);
   assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'sanitarios_industrial');
+  assert.equal(resolveTenantBrandName({ tenant, settings }), 'Sanitarios El Teflon');
 });

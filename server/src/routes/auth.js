@@ -71,8 +71,13 @@ function hashVerificationCode(code) {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 const PHONE_PATTERN = /^\+?[0-9()\-\s]{7,25}$/;
 const CUIL_PATTERN = /^\d{2}-?\d{8}-?\d{1}$/;
+const ENABLE_PIQUIM_ADMIN_ALIAS =
+  String(process.env.ENABLE_PIQUIM_BOOTSTRAP || process.env.ENABLE_PIQUIM_AUTH_ALIAS || '')
+    .trim()
+    .toLowerCase() === 'true';
 const PIQUIM_TENANT_IDS = new Set(
-  ['636736e2-e135-44cd-ac5c-5d4ccb839a73', process.env.PIQUIM_TENANT_ID]
+  String(ENABLE_PIQUIM_ADMIN_ALIAS ? (process.env.PIQUIM_TENANT_IDS || process.env.PIQUIM_TENANT_ID || '') : '')
+    .split(',')
     .filter(Boolean)
     .map((value) => String(value).trim().toLowerCase())
 );

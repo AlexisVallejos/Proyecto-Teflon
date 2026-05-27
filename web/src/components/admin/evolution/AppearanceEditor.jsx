@@ -9,10 +9,28 @@ import {
     getStorefrontThemePreset,
     DEFAULT_STOREFRONT_LIGHT_THEME,
 } from '../../../utils/storefrontTheme';
-import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../../../data/piquimBranding';
 
 const fieldClass =
     'admin-input-field w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-all duration-200';
+
+const GENERIC_FOOTER_DEFAULTS = {
+    shopLinks: [
+        { label: 'Catalogo', href: '/catalog' },
+        { label: 'Nosotros', href: '/about' },
+    ],
+    helpLinks: [
+        { label: 'Carrito', href: '/cart' },
+        { label: 'Terminos', href: '/terms' },
+    ],
+    legalLinks: [{ label: 'Terminos y condiciones', href: '/terms' }],
+    newsletter: {
+        enabled: false,
+        title: 'Novedades',
+        description: '',
+        placeholder: 'tu@email.com',
+        buttonLabel: 'Enviar',
+    },
+};
 
 const readImageAsDataUrl = (file) =>
     new Promise((resolve, reject) => {
@@ -169,13 +187,11 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
     const socialLinks = Array.isArray(footer?.socialLinks) ? footer.socialLinks : [];
     const contact = footer?.contact || {};
     const quickLinks = Array.isArray(footer?.quickLinks) ? footer.quickLinks : [];
-    const shopLinks = Array.isArray(footer?.shopLinks) ? footer.shopLinks : PIQUIM_FOOTER_DEFAULTS.shopLinks;
-    const helpLinks = Array.isArray(footer?.helpLinks) ? footer.helpLinks : PIQUIM_FOOTER_DEFAULTS.helpLinks;
-    const legalLinks = Array.isArray(footer?.legalLinks) ? footer.legalLinks : PIQUIM_FOOTER_DEFAULTS.legalLinks;
-    const newsletter = { ...PIQUIM_FOOTER_DEFAULTS.newsletter, ...(footer?.newsletter || {}) };
-    const catalogCards = Array.isArray(branding?.catalog_cards) && branding.catalog_cards.length
-        ? branding.catalog_cards
-        : PIQUIM_CATALOG_CARDS;
+    const shopLinks = Array.isArray(footer?.shopLinks) ? footer.shopLinks : GENERIC_FOOTER_DEFAULTS.shopLinks;
+    const helpLinks = Array.isArray(footer?.helpLinks) ? footer.helpLinks : GENERIC_FOOTER_DEFAULTS.helpLinks;
+    const legalLinks = Array.isArray(footer?.legalLinks) ? footer.legalLinks : GENERIC_FOOTER_DEFAULTS.legalLinks;
+    const newsletter = { ...GENERIC_FOOTER_DEFAULTS.newsletter, ...(footer?.newsletter || {}) };
+    const catalogCards = Array.isArray(branding?.catalog_cards) ? branding.catalog_cards : [];
     const storefrontMode = theme?.mode === 'dark' ? 'dark' : 'light';
     const adminMode = adminTheme?.mode === 'light' ? 'light' : 'dark';
     const storefrontPreview = getStorefrontThemePreset(storefrontMode, theme);
@@ -533,21 +549,21 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                     <div className="rounded-2xl border border-orange-400/20 bg-orange-500/10 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-200">Identidad Piquim</p>
+                                <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-200">Identidad Teflon</p>
                                 <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-                                    Activa el preset personalizado de navbar, footer y catalogo.
+                                    Activa el preset industrial para navbar, footer, catalogo y panel.
                                 </p>
                             </div>
                             <button
                                 type="button"
-                                onClick={() => updateBranding({ design_preset: 'piquim', catalog_cards: catalogCards })}
+                                onClick={() => updateBranding({ design_preset: 'sanitarios_industrial', catalog_cards: [] })}
                                 className={`rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] ${
-                                    branding.design_preset === 'piquim'
+                                    branding.design_preset === 'sanitarios_industrial'
                                         ? 'bg-orange-500 text-white'
                                         : 'border border-orange-400/30 text-orange-200'
                                 }`}
                             >
-                                {branding.design_preset === 'piquim' ? 'Piquim activo' : 'Activar Piquim'}
+                                {branding.design_preset === 'sanitarios_industrial' ? 'Teflon activo' : 'Activar Teflon'}
                             </button>
                         </div>
                     </div>
@@ -984,13 +1000,13 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         label="Texto legal inferior"
                         value={footer.legalText || ''}
                         onChange={(e) => updateFooter({ legalText: e.target.value })}
-                        placeholder="(c) 2026 Piquim Profesional S.A. - Mar del Plata, Argentina"
+                        placeholder="(c) 2026 Sanitarios El Teflon. Todos los derechos reservados."
                     />
                 </section>
 
                 <section className="space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4 xl:col-span-2">
                     <div className="space-y-1">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Tarjetas del catalogo Piquim</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400">Tarjetas del catalogo</h3>
                         <p className="text-xs text-zinc-500">Estas tarjetas aparecen arriba del catalogo publico y filtran productos por categoria.</p>
                     </div>
 
@@ -1001,31 +1017,31 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                     label="Titulo"
                                     value={card.title || ''}
                                     onChange={(e) => updateCatalogCard(index, { title: e.target.value })}
-                                    placeholder="Heladeria"
+                                    placeholder="Griferia"
                                 />
                                 <EvolutionInput
                                     label="Prefijo"
                                     value={card.prefix || ''}
                                     onChange={(e) => updateCatalogCard(index, { prefix: e.target.value })}
-                                    placeholder="01 - Frio que enamora"
+                                    placeholder="01 - Linea destacada"
                                 />
                                 <EvolutionInput
                                     label="Categoria filtro"
                                     value={card.category || ''}
                                     onChange={(e) => updateCatalogCard(index, { category: e.target.value })}
-                                    placeholder="Heladeria"
+                                    placeholder="Griferia"
                                 />
                                 <EvolutionInput
                                     label="Imagen URL"
                                     value={card.image || ''}
                                     onChange={(e) => updateCatalogCard(index, { image: e.target.value })}
-                                    placeholder="/piquim/catalog-heladeria.jpg"
+                                    placeholder="/catalog/griferia.jpg"
                                 />
                                 <EvolutionInput
                                     label="Tags separados por coma"
                                     value={Array.isArray(card.tags) ? card.tags.join(', ') : card.tags || ''}
                                     onChange={(e) => updateCatalogCardTags(index, e.target.value)}
-                                    placeholder="Pulpas, Bases, Neutros"
+                                    placeholder="Griferia, Sanitarios, Accesorios"
                                 />
                                 <EvolutionInput
                                     label="Descripcion"

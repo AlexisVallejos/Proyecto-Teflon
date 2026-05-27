@@ -3,12 +3,12 @@ import { getApiBase, getTenantHeaders } from '../utils/api';
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../utils/storefrontTheme';
 import { normalizePriceTierLabels } from '../utils/priceTierLabels';
 import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../data/piquimBranding';
-import { isPiquimTenantIdentity, resolveTenantDesignPreset } from '../utils/tenantBranding';
+import { isPiquimTenantIdentity, resolveTenantBrandName, resolveTenantDesignPreset } from '../utils/tenantBranding';
 import StoreSkeleton from '../components/StoreSkeleton';
 
 const DEFAULT_TENANT = {
-    id: 'demo-tenant-id',
-    name: 'Mi Negocio',
+    id: '636736e2-e135-44cd-ac5c-5d4ccb839a73',
+    name: 'Sanitarios El Teflon',
 };
 
 const GENERIC_FOOTER_DEFAULTS = {
@@ -53,7 +53,7 @@ const GENERIC_STOREFRONT_THEME = {
 const buildDefaultSettings = (tenant = DEFAULT_TENANT, rawSettings = {}) => {
     const piquim = isPiquimTenantIdentity({ tenant, settings: rawSettings });
     const footerDefaults = piquim ? PIQUIM_FOOTER_DEFAULTS : GENERIC_FOOTER_DEFAULTS;
-    const brandName = rawSettings?.branding?.name || tenant?.name || (piquim ? 'PIQUIM' : 'Mi Negocio');
+    const brandName = resolveTenantBrandName({ tenant, settings: rawSettings });
 
     return {
     branding: {
@@ -199,6 +199,7 @@ function mergeTenantSettings(rawSettings = {}, tenant = DEFAULT_TENANT) {
         branding: {
             ...defaults.branding,
             ...rawBranding,
+            name: resolveTenantBrandName({ tenant, settings: rawSettings }),
             design_preset: resolveTenantDesignPreset({ tenant, settings: rawSettings }),
             navbar: {
                 ...defaults.branding.navbar,

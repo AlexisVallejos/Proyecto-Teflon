@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { TenantProvider } from './context/TenantContext';
+import { TenantProvider, useTenant } from './context/TenantContext';
 import { ToastProvider } from './context/ToastContext';
 import { StoreProvider } from './context/StoreContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { navigate } from './utils/navigation';
 import { isEditorHost as resolveIsEditorHost } from './utils/vaseAuth';
+import { resolveTenantBrandName } from './utils/tenantBranding';
 
 // Store pages
 import HomePage from './pages/store/HomePage';
@@ -30,6 +31,7 @@ import PreviewPage from './pages/admin/evolution/PreviewPage';
 function AppContent() {
     const [route, setRoute] = useState(window.location.pathname);
     const { isAdmin, loading: authLoading, user } = useAuth();
+    const { tenant, settings } = useTenant();
     const isEditorHost = resolveIsEditorHost();
     const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     const allowLocalAdmin = isEditorHost || isLocalHost || import.meta.env.VITE_ALLOW_LOCAL_ADMIN === 'true';
@@ -61,6 +63,13 @@ function AppContent() {
         if (!isPreviewRoute && !isAdminRoute) return;
         navigate('/');
     }, [allowLocalAdmin, isAdminRoute, isPreviewRoute]);
+
+    useEffect(() => {
+        const brandName = resolveTenantBrandName({ tenant, settings });
+        document.title = isAdminRoute || isPreviewRoute
+            ? `${brandName} | Editor`
+            : brandName;
+    }, [isAdminRoute, isPreviewRoute, settings, tenant]);
 
     let Component = HomePage;
 

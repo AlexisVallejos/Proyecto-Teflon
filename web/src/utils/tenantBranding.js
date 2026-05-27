@@ -30,6 +30,18 @@ export const isPiquimTenantIdentity = ({ tenant = {}, settings = {} } = {}) =>
     return normalized === 'piquim' || normalized.includes('piquim');
   });
 
+export const resolveTenantBrandName = ({ tenant = {}, settings = {}, fallback = 'Sanitarios El Teflon' } = {}) => {
+  const tenantName = String(tenant?.name || '').trim();
+  const brandingName = String(settings?.branding?.name || '').trim();
+  const piquim = isPiquimTenantIdentity({ tenant, settings });
+
+  if (!piquim && tenantIdentityValues(tenant).length && normalizeText(brandingName).includes('piquim')) {
+    return tenantName || fallback;
+  }
+
+  return brandingName || tenantName || fallback;
+};
+
 export const resolveTenantDesignPreset = ({ tenant = {}, settings = {} } = {}) => {
   if (isPiquimTenantIdentity({ tenant, settings })) {
     return PIQUIM_DESIGN_PRESET;

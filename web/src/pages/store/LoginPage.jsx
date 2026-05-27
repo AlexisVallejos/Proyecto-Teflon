@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 import StoreLayout from '../../components/layout/StoreLayout';
 import { navigate, normalizeInternalPath } from '../../utils/navigation';
+import { resolveTenantBrandName } from '../../utils/tenantBranding';
 import {
     getExternalBusinessLaunchUrl,
     getExternalLoginUrl,
@@ -25,6 +27,9 @@ function getVerificationDeliveryNotice(verification, email) {
 
 export default function LoginPage() {
     const { login, verifyEmailCode, resendVerificationCode } = useAuth();
+    const { tenant, settings } = useTenant();
+    const brandName = resolveTenantBrandName({ tenant, settings });
+    const brandInitial = brandName.trim().charAt(0).toUpperCase() || 'S';
     const externalAuthEnabled = isExternalAuthEnabled();
     const externalLaunchUrl = getExternalBusinessLaunchUrl();
     const externalLoginUrl = getExternalLoginUrl();
@@ -221,9 +226,9 @@ export default function LoginPage() {
                     <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#ff4d00]/15 blur-2xl" />
                     <div className="relative text-center mb-8">
                         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ff4d00] text-xl font-black text-white shadow-[0_16px_35px_rgba(255,77,0,0.35)]">
-                            P
+                            {brandInitial}
                         </div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#ff4d00]">Panel Piquim</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#ff4d00]">Panel {brandName}</p>
                         <h2 className="mt-2 text-3xl font-black text-[#181411] dark:text-white">Iniciar sesion</h2>
                         <p className="text-[#8a7560] mt-2">Ingresa con usuario y contrasena</p>
                     </div>

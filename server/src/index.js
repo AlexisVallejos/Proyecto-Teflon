@@ -9,13 +9,124 @@ import { ensurePricingSchema } from './services/userPricing.js';
 import { ensureUserProfileSchema } from './services/userProfile.js';
 import { ensureProductSyncSchema } from './services/integration.service.js';
 
-const PIQUIM_TENANT_ID = String(
-  process.env.PIQUIM_TENANT_ID ||
-  process.env.PIQUIM_TENANT_IDS ||
-  ''
-).split(',')[0].trim();
-
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEFAULT_TEFLON_TENANT_ID = '636736e2-e135-44cd-ac5c-5d4ccb839a73';
+const TEFLON_TENANT_ID = String(
+  process.env.TEFLON_TENANT_ID ||
+  process.env.DEFAULT_TENANT_ID ||
+  DEFAULT_TEFLON_TENANT_ID
+).trim();
+const ENABLE_PIQUIM_BOOTSTRAP = String(process.env.ENABLE_PIQUIM_BOOTSTRAP || '').trim().toLowerCase() === 'true';
+const PIQUIM_TENANT_ID = ENABLE_PIQUIM_BOOTSTRAP
+  ? String(
+      process.env.PIQUIM_TENANT_ID ||
+      process.env.PIQUIM_TENANT_IDS ||
+      ''
+    ).split(',')[0].trim()
+  : '';
+
+const TEFLON_DEFAULT_BRANDING = {
+  name: 'Sanitarios El Teflon',
+  logo_url: '',
+  design_preset: 'sanitarios_industrial',
+  navbar: {
+    links: [
+      { label: 'Inicio', href: '/' },
+      { label: 'Catalogo', href: '/catalog' },
+      { label: 'Nosotros', href: '/about' },
+    ],
+    show_search: true,
+    show_wishlist: true,
+    show_cart: true,
+    show_account: true,
+    register_label: 'Registrarse',
+    register_href: '/register',
+  },
+  footer: {
+    description: 'Griferia, sanitarios, accesorios y materiales con asesoramiento para cada obra o renovacion.',
+    quickLinks: [
+      { label: 'Catalogo', href: '/catalog' },
+      { label: 'Nosotros', href: '/about' },
+    ],
+    shopLinks: [
+      { label: 'Griferia', href: '/catalog?category=griferia' },
+      { label: 'Sanitarios', href: '/catalog?category=sanitarios' },
+      { label: 'Accesorios', href: '/catalog?category=accesorios' },
+    ],
+    helpLinks: [
+      { label: 'Carrito', href: '/cart' },
+      { label: 'Terminos', href: '/terms' },
+    ],
+    legalLinks: [
+      { label: 'Terminos y condiciones', href: '/terms' },
+    ],
+    newsletter: {
+      enabled: false,
+      title: 'Novedades',
+      description: '',
+      placeholder: 'tu@email.com',
+      buttonLabel: 'Enviar',
+    },
+    legalText: '(c) 2026 Sanitarios El Teflon. Todos los derechos reservados.',
+    contact: {
+      address: 'Mar del Plata, Argentina',
+      phone: '',
+      email: '',
+    },
+    socials: {
+      instagram: '',
+      facebook: '',
+      youtube: '',
+      tiktok: '',
+      whatsapp: '',
+    },
+  },
+  admin_panel: {
+    title: 'Panel de administracion',
+    logo_url: '',
+  },
+  catalog_cards: [],
+};
+
+const TEFLON_DEFAULT_THEME = {
+  mode: 'light',
+  primary: '#f97316',
+  accent: '#111827',
+  background: '#f8f7f4',
+  text: '#111827',
+  secondary: '#64748b',
+  font_family: 'Inter, Manrope, sans-serif',
+  catalog: {
+    panel_bg: '#f1f5f9',
+    surface_bg: '#ffffff',
+    card_bg: '#ffffff',
+    border: '#dbe2ea',
+    muted_text: '#64748b',
+  },
+  admin_panel: {
+    mode: 'light',
+    accent: '#111111',
+    shell_bg: '#e7edf4',
+    sidebar_bg: '#f8fafc',
+    panel_bg: '#ffffff',
+    canvas_bg: '#eef3f8',
+    text: '#0f172a',
+    muted_text: '#475569',
+  },
+};
+
+const TEFLON_DEFAULT_COMMERCE = {
+  mode: 'hybrid',
+  currency: 'ARS',
+  locale: 'es-AR',
+  show_prices: true,
+  show_stock: true,
+  reviews_enabled: true,
+  tax_rate: 0.21,
+  address: 'Mar del Plata, Argentina',
+  email: '',
+  payment_methods: ['transfer', 'cash_on_pickup'],
+};
 
 const PIQUIM_DEFAULT_BRANDING = {
   name: 'PIQUIM',
@@ -66,6 +177,124 @@ const PIQUIM_DEFAULT_COMMERCE = {
   address: 'Mar del Plata, Argentina',
   email: 'ventas@piquim.local',
 };
+
+async function ensureTeflonTenantBootstrap() {
+  if (!UUID_PATTERN.test(TEFLON_TENANT_ID)) {
+    console.warn(`Skipping Teflon bootstrap: TEFLON_TENANT_ID is not a valid UUID (${TEFLON_TENANT_ID}).`);
+    return;
+  }
+
+  await pool.query(
+    [
+      'INSERT INTO tenants (id, name, status)',
+      "VALUES ($1::uuid, 'Sanitarios El Teflon', 'active')",
+      'ON CONFLICT (id) DO UPDATE',
+      "SET name = 'Sanitarios El Teflon', status = 'active'",
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+
+  await pool.query(
+    [
+      'INSERT INTO tenant_settings (tenant_id, branding, theme, commerce)',
+      'VALUES ($1::uuid, $2::jsonb, $3::jsonb, $4::jsonb)',
+      'ON CONFLICT (tenant_id) DO UPDATE SET',
+      "branding = CASE WHEN lower(coalesce(tenant_settings.branding->>'name', '')) LIKE '%piquim%'",
+      "OR tenant_settings.branding->>'design_preset' = 'piquim'",
+      'THEN EXCLUDED.branding ELSE tenant_settings.branding END,',
+      "theme = CASE WHEN lower(coalesce(tenant_settings.branding->>'name', '')) LIKE '%piquim%'",
+      "OR tenant_settings.branding->>'design_preset' = 'piquim'",
+      'THEN EXCLUDED.theme ELSE tenant_settings.theme END,',
+      "commerce = CASE WHEN lower(coalesce(tenant_settings.branding->>'name', '')) LIKE '%piquim%'",
+      "OR tenant_settings.branding->>'design_preset' = 'piquim'",
+      'THEN EXCLUDED.commerce ELSE tenant_settings.commerce END,',
+      'updated_at = now()',
+    ].join(' '),
+    [
+      TEFLON_TENANT_ID,
+      JSON.stringify(TEFLON_DEFAULT_BRANDING),
+      JSON.stringify(TEFLON_DEFAULT_THEME),
+      JSON.stringify(TEFLON_DEFAULT_COMMERCE),
+    ]
+  );
+
+  await pool.query(
+    [
+      'INSERT INTO tenant_domains (tenant_id, domain, is_primary)',
+      'VALUES',
+      "($1::uuid, 'localhost', true),",
+      "($1::uuid, 'teflon.vase.ar', true),",
+      "($1::uuid, 'sanitarioselteflon.com', false),",
+      "($1::uuid, 'www.sanitarioselteflon.com', false)",
+      'ON CONFLICT (domain) DO UPDATE',
+      'SET tenant_id = EXCLUDED.tenant_id, is_primary = EXCLUDED.is_primary',
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+
+  await pool.query(
+    [
+      'WITH seed AS (SELECT $1::uuid AS tenant_id)',
+      'INSERT INTO categories (tenant_id, name, slug, data)',
+      "SELECT tenant_id, 'Griferia', 'griferia', '{}'::jsonb FROM seed",
+      'UNION ALL',
+      "SELECT tenant_id, 'Sanitarios', 'sanitarios', '{}'::jsonb FROM seed",
+      'UNION ALL',
+      "SELECT tenant_id, 'Accesorios', 'accesorios', '{}'::jsonb FROM seed",
+      'UNION ALL',
+      "SELECT tenant_id, 'Repuestos', 'repuestos', '{}'::jsonb FROM seed",
+      'ON CONFLICT (tenant_id, slug) DO UPDATE',
+      'SET name = EXCLUDED.name',
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+
+  await pool.query(
+    [
+      'WITH seed AS (SELECT $1::uuid AS tenant_id)',
+      'INSERT INTO pages (tenant_id, slug)',
+      "SELECT tenant_id, 'home' FROM seed",
+      'UNION ALL',
+      "SELECT tenant_id, 'about' FROM seed",
+      'ON CONFLICT (tenant_id, slug) DO NOTHING',
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+
+  await pool.query(
+    [
+      'DELETE FROM page_sections ps',
+      'USING pages p',
+      'WHERE ps.page_id = p.id',
+      'AND p.tenant_id = $1::uuid',
+      "AND ps.type LIKE 'Piquim%'",
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+
+  await pool.query(
+    [
+      'DELETE FROM product_cache',
+      'WHERE tenant_id = $1::uuid',
+      'AND (',
+      "upper(coalesce(brand, '')) = 'PIQUIM'",
+      "OR coalesce(data->>'image', '') LIKE '/piquim/%'",
+      "OR sku = 'PROD-001'",
+      "OR name ILIKE '%helado%'",
+      ')',
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+
+  await pool.query(
+    [
+      'DELETE FROM categories',
+      'WHERE tenant_id = $1::uuid',
+      "AND slug IN ('heladeria', 'panaderia', 'confiteria')",
+    ].join(' '),
+    [TEFLON_TENANT_ID]
+  );
+}
 
 async function ensurePiquimTenantBootstrap() {
   if (!PIQUIM_TENANT_ID) return;
@@ -206,6 +435,7 @@ async function runStartupMigrations() {
   );
 
   await ensureProductSyncSchema();
+  await ensureTeflonTenantBootstrap();
   await ensurePiquimTenantBootstrap();
 }
 
