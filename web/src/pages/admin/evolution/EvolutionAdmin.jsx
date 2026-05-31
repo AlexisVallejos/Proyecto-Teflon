@@ -81,6 +81,7 @@ const Dashboard = () => (
 );
 
 const SettingsEditor = ({ settings, setSettings }) => {
+    const { user } = useAuth();
     const updateBranding = (field, value) => {
         setSettings(prev => ({
             ...prev,
@@ -114,14 +115,21 @@ const SettingsEditor = ({ settings, setSettings }) => {
                     <div className="space-y-4">
                         <EvolutionInput
                             label="Nombre de la Tienda"
-                            value={settings.branding.name}
+                            value={settings.branding?.name || ''}
                             onChange={(e) => updateBranding('name', e.target.value)}
                         />
                         <EvolutionInput
                             label="Logo URL"
-                            value={settings.branding.logo_url}
+                            value={settings.branding?.logo_url || ''}
                             onChange={(e) => updateBranding('logo_url', e.target.value)}
                         />
+                        {user?.role === 'master_admin' && (
+                            <EvolutionInput
+                                label="URL de Vista Previa (Master Admin)"
+                                value={settings.branding?.preview_url || ''}
+                                onChange={(e) => updateBranding('preview_url', e.target.value)}
+                            />
+                        )}
                     </div>
                 </div>
 

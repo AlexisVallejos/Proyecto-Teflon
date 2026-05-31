@@ -164,7 +164,7 @@ const DesignEditor = ({ pageSections, settings, onReorder }) => {
                         {/* Live Preview Iframe */}
                         <iframe
                             ref={iframeRef}
-                            src="/admin/preview"
+                            src={settings?.branding?.preview_url || "/admin/preview"}
                             className="w-full h-full border-none pointer-events-none"
                             title="Preview"
                         />
