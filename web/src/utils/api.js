@@ -81,15 +81,29 @@ function setStoredTenantId(tenantId) {
 
 export function getApiBase() {
     const env = getViteEnv();
+
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        const isLocal = isLocalHost(hostname);
+        const isLocalVite =
+            ['localhost', '127.0.0.1'].includes(hostname) &&
+            ['5173', '5174', '5175'].includes(window.location.port);
+        const isEditor = isEditorContext();
+
+        // On storefront custom domains (not editor, not localhost), always use own origin
+        // so that piquim.ar calls piquim.ar, not a hardcoded VITE_API_URL like editor.vase.ar
+        if (!isLocal && !isEditor) {
+            return window.location.origin.replace(/\/+$/, '');
+        }
+
+        if (isLocalVite) {
+            return 'http://localhost:4000';
+        }
+    }
+
     const configuredBase = String(env.VITE_API_URL || DEFAULT_API_BASE).trim();
     if (!configuredBase) {
         if (typeof window !== 'undefined') {
-            const isLocalVite =
-                ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
-                ['5173', '5174', '5175'].includes(window.location.port);
-            if (isLocalVite) {
-                return 'http://localhost:4000';
-            }
             return window.location.origin.replace(/\/+$/, '');
         }
         return '';
