@@ -116,6 +116,7 @@ const PageSectionsEditor = ({
     pageKey = 'home',
     sections = [],
     products = [],
+    customStaticSiteUrl = '',
     onChangeSections,
     onSave,
     isSaving,
@@ -388,7 +389,16 @@ const PageSectionsEditor = ({
             </aside>
 
             <section className="storefront-preview-root overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-white custom-scrollbar p-2 md:p-0 max-h-[50vh] lg:max-h-full">
-                <PageBuilder sections={previewSections} />
+                {customStaticSiteUrl ? (
+                    <iframe
+                        src={customStaticSiteUrl}
+                        title="Sitio personalizado publicado"
+                        className="block min-h-[720px] w-full border-0 bg-white"
+                        sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                    />
+                ) : (
+                    <PageBuilder sections={previewSections} />
+                )}
             </section>
         </div>
     );

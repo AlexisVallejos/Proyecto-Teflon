@@ -490,6 +490,7 @@ const EvolutionAdmin = () => {
         const isPiquimTenant = isPiquimTenantIdentity({ tenant, settings: editor.settings });
         const homeEditorPageKey = isPiquimTenant ? 'piquim-home' : 'home';
         const aboutEditorPageKey = isPiquimTenant ? 'piquim-about' : 'about';
+        const customStaticSiteUrl = String(editor.settings?.branding?.custom_static_site_url || '').trim();
 
         switch (activeModule) {
             case 'home':
@@ -498,6 +499,7 @@ const EvolutionAdmin = () => {
                         pageKey={homeEditorPageKey}
                         sections={editor.pageSections?.home || []}
                         products={editor.products}
+                        customStaticSiteUrl={customStaticSiteUrl}
                         onChangeSections={(nextSections) => handlePageSectionsChange('home', nextSections)}
                         onSave={handleSave}
                         isSaving={editor.saving}
@@ -509,6 +511,7 @@ const EvolutionAdmin = () => {
                         pageKey={aboutEditorPageKey}
                         sections={editor.pageSections?.about || []}
                         products={editor.products}
+                        customStaticSiteUrl={customStaticSiteUrl}
                         onChangeSections={(nextSections) => handlePageSectionsChange('about', nextSections)}
                         onSave={handleSave}
                         isSaving={editor.saving}

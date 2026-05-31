@@ -73,6 +73,38 @@ function getConfiguredTenantPreset(payload) {
   return '';
 }
 
+function getConfiguredTenantStaticSiteUrl(payload) {
+  const entries = String(process.env.VASE_BUSINESS_TENANT_STATIC_SITES || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  const lookup = new Map();
+  for (const entry of entries) {
+    const separatorIndex = entry.indexOf(':');
+    if (separatorIndex <= 0) continue;
+    const rawKey = entry.slice(0, separatorIndex);
+    const rawUrl = entry.slice(separatorIndex + 1);
+    const key = normalizeTenantPresetText(rawKey);
+    const url = String(rawUrl || '').trim();
+    if (key && url) {
+      lookup.set(key, url);
+    }
+  }
+
+  const candidates = [
+    payload.externalTenantId,
+    payload.externalTenantSlug,
+    payload.tenantName,
+  ].map(normalizeTenantPresetText).filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (lookup.has(candidate)) return lookup.get(candidate);
+  }
+
+  return '';
+}
+
 function resolvePayloadDesignPreset(rawPayload, normalizedPayload) {
   const explicitPreset = normalizeDesignPreset(
     rawPayload.design_preset ||
@@ -85,13 +117,27 @@ function resolvePayloadDesignPreset(rawPayload, normalizedPayload) {
   return getConfiguredTenantPreset(normalizedPayload) || DEFAULT_EXTERNAL_DESIGN_PRESET;
 }
 
-function buildDefaultTenantSettings(tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET) {
+function resolvePayloadStaticSiteUrl(rawPayload, normalizedPayload) {
+  return String(
+    rawPayload.custom_static_site_url ||
+    rawPayload.custom_site_url ||
+    rawPayload.static_site_url ||
+    rawPayload.public_url ||
+    rawPayload.storefront_public_url ||
+    rawPayload.branding?.custom_static_site_url ||
+    getConfiguredTenantStaticSiteUrl(normalizedPayload) ||
+    ''
+  ).trim();
+}
+
+function buildDefaultTenantSettings(tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET, staticSiteUrl = '') {
   const safeName = normalizeDisplayName(tenantName) || 'Vase Business';
 
   return {
     branding: {
       name: safeName,
       design_preset: normalizeDesignPreset(designPreset) || DEFAULT_EXTERNAL_DESIGN_PRESET,
+      ...(staticSiteUrl ? { custom_static_site_url: staticSiteUrl } : {}),
     },
     theme: {},
     commerce: {
@@ -135,6 +181,7 @@ function normalizeLaunchPayload(rawPayload) {
   return {
     ...normalizedPayload,
     designPreset: resolvePayloadDesignPreset(payload, normalizedPayload),
+    staticSiteUrl: resolvePayloadStaticSiteUrl(payload, normalizedPayload),
   };
 }
 
@@ -213,13 +260,13 @@ async function upsertTenant(client, payload) {
   return insertRes.rows[0];
 }
 
-async function ensureTenantSettings(client, tenantId, tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET) {
+async function ensureTenantSettings(client, tenantId, tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET, staticSiteUrl = '') {
   const existingSettingsRes = await client.query(
     'select tenant_id from tenant_settings where tenant_id = $1',
     [tenantId]
   );
 
-  const defaults = buildDefaultTenantSettings(tenantName, designPreset);
+  const defaults = buildDefaultTenantSettings(tenantName, designPreset, staticSiteUrl);
   if (existingSettingsRes.rowCount) {
     await client.query(
       [
@@ -367,7 +414,7 @@ export async function exchangeVaseLaunchToken(rawToken) {
     await client.query('BEGIN');
 
     const tenant = await upsertTenant(client, payload);
-    await ensureTenantSettings(client, tenant.id, tenant.name, payload.designPreset);
+    await ensureTenantSettings(client, tenant.id, tenant.name, payload.designPreset, payload.staticSiteUrl);
     await ensureTenantPlatformDomain(client, tenant.id, {
       preferredSubdomain: payload.externalTenantSlug || '',
       preferredLabels: [payload.displayName || '', payload.tenantName || ''],
