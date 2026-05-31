@@ -29,24 +29,39 @@ export function isEditorContext() {
     return hostname.startsWith('editor.') || pathname.startsWith('/admin');
 }
 
+function normalizeTenantId(value) {
+    const normalized = String(value || '').trim();
+    return (normalized === 'undefined' || normalized === 'null') ? '' : normalized;
+}
+
+function getStoredUser() {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const rawUser = localStorage.getItem('teflon_user');
+        return rawUser ? JSON.parse(rawUser) : null;
+    } catch (err) {
+        return null;
+    }
+}
+
 function getStoredTenantId() {
     if (typeof window === 'undefined') {
         return '';
     }
 
     try {
-        // Prioridad 1: Tenant seleccionado explícitamente para gestión
-        const activeTenant = localStorage.getItem('teflon_active_tenant');
-        if (activeTenant && activeTenant !== 'undefined' && activeTenant !== 'null') {
-            return String(activeTenant).trim();
+        const storedUser = getStoredUser();
+        const userTenantId = normalizeTenantId(storedUser?.tenant_id || storedUser?.tenantId);
+        const activeTenant = normalizeTenantId(localStorage.getItem('teflon_active_tenant'));
+
+        if (isEditorContext() && storedUser?.role !== 'master_admin' && userTenantId) {
+            return userTenantId;
         }
 
-        // Prioridad 2: Tenant asociado al usuario
-        const rawUser = localStorage.getItem('teflon_user');
-        if (!rawUser) return '';
-        const parsedUser = JSON.parse(rawUser);
-        const tid = String(parsedUser?.tenant_id || parsedUser?.tenantId || '').trim();
-        return (tid === 'undefined' || tid === 'null') ? '' : tid;
+        return activeTenant || userTenantId;
     } catch (err) {
         return '';
     }
@@ -54,8 +69,8 @@ function getStoredTenantId() {
 
 function setStoredTenantId(tenantId) {
     if (typeof window === 'undefined') return;
-    const normalized = String(tenantId || '').trim();
-    if (!normalized || normalized === 'undefined' || normalized === 'null') return;
+    const normalized = normalizeTenantId(tenantId);
+    if (!normalized) return;
 
     try {
         localStorage.setItem('teflon_active_tenant', normalized);
@@ -100,14 +115,14 @@ export function getTenantHeaders() {
 export async function ensureAdminTenantSelection(user = null) {
     if (!isEditorContext()) return '';
 
-    const currentTenantId = String(getTenantHeaders()['X-Tenant-Id'] || '').trim();
-    if (currentTenantId) return currentTenantId;
-
-    const userTenantId = String(user?.tenant_id || user?.tenantId || '').trim();
-    if (userTenantId && userTenantId !== 'undefined' && userTenantId !== 'null') {
+    const userTenantId = normalizeTenantId(user?.tenant_id || user?.tenantId);
+    if (user?.role !== 'master_admin' && userTenantId) {
         setStoredTenantId(userTenantId);
         return userTenantId;
     }
+
+    const currentTenantId = normalizeTenantId(getTenantHeaders()['X-Tenant-Id']);
+    if (currentTenantId) return currentTenantId;
 
     if (user?.role !== 'master_admin') return '';
 
@@ -128,7 +143,7 @@ export async function ensureAdminTenantSelection(user = null) {
         if (!selectedTenant?.id) return '';
 
         setStoredTenantId(selectedTenant.id);
-        return String(selectedTenant.id).trim();
+        return normalizeTenantId(selectedTenant.id);
     } catch (err) {
         return '';
     }

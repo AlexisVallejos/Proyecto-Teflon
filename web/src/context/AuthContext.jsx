@@ -42,6 +42,18 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         localStorage.removeItem('teflon_token');
         localStorage.removeItem('teflon_user');
+        localStorage.removeItem('teflon_active_tenant');
+    };
+
+    const persistSession = (token, nextUser) => {
+        setUser(nextUser || null);
+        localStorage.setItem('teflon_token', token);
+        localStorage.setItem('teflon_user', JSON.stringify(nextUser || null));
+
+        const tenantId = String(nextUser?.tenant_id || nextUser?.tenantId || '').trim();
+        if (tenantId && tenantId !== 'undefined' && tenantId !== 'null' && nextUser?.role !== 'master_admin') {
+            localStorage.setItem('teflon_active_tenant', tenantId);
+        }
     };
 
     const replaceBrowserUrl = (nextUrl) => {
@@ -105,9 +117,7 @@ export const AuthProvider = ({ children }) => {
                 try {
                     const data = await exchangeVaseSession(launchToken);
                     if (!active) return;
-                    setUser(data.user || null);
-                    localStorage.setItem('teflon_token', data.token);
-                    localStorage.setItem('teflon_user', JSON.stringify(data.user || null));
+                    persistSession(data.token, data.user || null);
                     removeLaunchTokenFromUrl();
                     dispatchTenantRefresh();
                     setLoading(false);
@@ -157,8 +167,7 @@ export const AuthProvider = ({ children }) => {
                 const data = await response.json();
                 const nextUser = data?.user || JSON.parse(storedUser);
                 if (!active) return;
-                setUser(nextUser);
-                localStorage.setItem('teflon_user', JSON.stringify(nextUser));
+                persistSession(token, nextUser);
             } catch (err) {
                 if (!active) return;
                 clearSession();
@@ -201,9 +210,7 @@ export const AuthProvider = ({ children }) => {
             throw new Error(`login_empty_response_${response.status}`);
         }
 
-        setUser(data.user);
-        localStorage.setItem('teflon_token', data.token);
-        localStorage.setItem('teflon_user', JSON.stringify(data.user));
+        persistSession(data.token, data.user);
         return data;
     };
 
@@ -251,9 +258,7 @@ export const AuthProvider = ({ children }) => {
             throw new Error(error.error || 'login_with_code_failed');
         }
         const data = await response.json();
-        setUser(data.user);
-        localStorage.setItem('teflon_token', data.token);
-        localStorage.setItem('teflon_user', JSON.stringify(data.user));
+        persistSession(data.token, data.user);
         return data;
     };
 
@@ -302,9 +307,7 @@ export const AuthProvider = ({ children }) => {
         const data = await response.json();
         const requiresApproval = data?.requires_approval || data?.user?.status === 'pending';
         if (!requiresApproval && data?.token && data?.user) {
-            setUser(data.user);
-            localStorage.setItem('teflon_token', data.token);
-            localStorage.setItem('teflon_user', JSON.stringify(data.user));
+            persistSession(data.token, data.user);
         }
         return data;
     };
