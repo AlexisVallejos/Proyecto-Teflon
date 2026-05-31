@@ -22,6 +22,40 @@ const PUBLIC_PRODUCT_VISIBILITY_SQL = [
   'and (o.hidden is null or o.hidden = false)',
 ].join(' ');
 
+const PUBLIC_PRODUCT_CATEGORY_SELECT_SQL = [
+  "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids,",
+  [
+    "coalesce((with recursive category_tree as (",
+    "select c.id as leaf_id, c.id, c.name, nullif(c.data->>'parent_id', '') as parent_id, c.name::text as path, 0 as depth",
+    'from product_categories pc',
+    'join categories c on c.id = pc.category_id',
+    'where pc.product_id = p.id and c.tenant_id = p.tenant_id',
+    'union',
+    "select tree.leaf_id, parent.id, parent.name, nullif(parent.data->>'parent_id', '') as parent_id, (parent.name || ' > ' || tree.path)::text as path, tree.depth + 1",
+    'from category_tree tree',
+    'join categories parent on parent.id::text = tree.parent_id',
+    'where parent.tenant_id = p.tenant_id and tree.depth < 8',
+    ')',
+    "select array_agg(distinct name order by name) from category_tree), '{}'::text[]) as category_names,",
+  ].join(' '),
+  [
+    "coalesce((with recursive category_tree as (",
+    "select c.id as leaf_id, c.id, c.name, nullif(c.data->>'parent_id', '') as parent_id, c.name::text as path, 0 as depth",
+    'from product_categories pc',
+    'join categories c on c.id = pc.category_id',
+    'where pc.product_id = p.id and c.tenant_id = p.tenant_id',
+    'union',
+    "select tree.leaf_id, parent.id, parent.name, nullif(parent.data->>'parent_id', '') as parent_id, (parent.name || ' > ' || tree.path)::text as path, tree.depth + 1",
+    'from category_tree tree',
+    'join categories parent on parent.id::text = tree.parent_id',
+    'where parent.tenant_id = p.tenant_id and tree.depth < 8',
+    ')',
+    'select array_agg(path order by path)',
+    'from (select distinct on (leaf_id) leaf_id, path from category_tree order by leaf_id, depth desc) paths),',
+    "'{}'::text[]) as category_paths",
+  ].join(' '),
+].join(' ');
+
 async function buildPricingContext(req) {
   const settingsRes = await pool.query(
     'select commerce from tenant_settings where tenant_id = $1',
@@ -158,6 +192,8 @@ function mapProductRow(row, pricingContext) {
     stock: row.stock,
     brand: row.brand,
     category_ids: row.category_ids || [],
+    category_names: row.category_names || [],
+    category_paths: row.category_paths || [],
     data,
     source_category: data.source_category || null,
     source_category_path: Array.isArray(data.source_category_path) ? data.source_category_path : [],
@@ -536,7 +572,7 @@ publicRouter.get('/products', async (req, res, next) => {
 
     const sql = [
       'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
-      "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+      PUBLIC_PRODUCT_CATEGORY_SELECT_SQL,
       'from product_cache p',
       'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
       `where ${where}`,
@@ -588,7 +624,7 @@ publicRouter.get('/products/:id', async (req, res, next) => {
     const result = await pool.query(
       [
         'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
-        "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+        PUBLIC_PRODUCT_CATEGORY_SELECT_SQL,
         'from product_cache p',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
         `where p.tenant_id = $1 and p.id = $2 and ${PUBLIC_PRODUCT_VISIBILITY_SQL}`,
@@ -607,7 +643,7 @@ publicRouter.get('/products/:id', async (req, res, next) => {
       const variationsRes = await pool.query(
         [
           'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
-          "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+          PUBLIC_PRODUCT_CATEGORY_SELECT_SQL,
           'from product_cache p',
           'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
           `where p.tenant_id = $1 and ${PUBLIC_PRODUCT_VISIBILITY_SQL}`,
@@ -797,7 +833,7 @@ publicRouter.get('/products/:id/related', async (req, res, next) => {
     const relatedRes = await pool.query(
       [
         'select distinct on (p.id) p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
-        "coalesce((select array_agg(pc2.category_id) from product_categories pc2 where pc2.product_id = p.id), '{}'::uuid[]) as category_ids",
+        PUBLIC_PRODUCT_CATEGORY_SELECT_SQL,
         'from product_cache p',
         'join product_categories pc on pc.product_id = p.id',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',
@@ -833,7 +869,7 @@ publicRouter.get('/collections/:slug', async (req, res, next) => {
     const productsRes = await pool.query(
       [
         'select p.id, p.erp_id, p.sku, p.name, p.description, p.price, p.price_wholesale, p.currency, p.stock, p.brand, p.data,',
-        "coalesce((select array_agg(pc.category_id) from product_categories pc where pc.product_id = p.id), '{}'::uuid[]) as category_ids",
+        PUBLIC_PRODUCT_CATEGORY_SELECT_SQL,
         'from collection_items ci',
         'join product_cache p on p.id = ci.product_id',
         'left join product_overrides o on o.product_id = p.id and o.tenant_id = p.tenant_id',

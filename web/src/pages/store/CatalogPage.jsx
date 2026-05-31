@@ -1152,11 +1152,15 @@ const getFlavorSearchTerms = (flavor) => [
     ...String(flavor?.name || "").split("/"),
 ].map((item) => String(item || "").trim()).filter(Boolean);
 
-const resolveConfiguredProductGroup = (catalog, product, labels = {}) => {
-    if (!Array.isArray(catalog?.productGroups) || !catalog.productGroups.length) return null;
+const resolveConfiguredProductGroups = (catalog, product, labels = {}) => {
+    if (!Array.isArray(catalog?.productGroups) || !catalog.productGroups.length) return [];
 
     const data = product?.data || {};
+    const categoryNames = Array.isArray(product?.category_names) ? product.category_names : [];
+    const categoryPaths = Array.isArray(product?.category_paths) ? product.category_paths : [];
     const sourcePath = [
+        ...categoryPaths,
+        ...categoryNames,
         ...(Array.isArray(product?.source_category_path) ? product.source_category_path : []),
         ...(Array.isArray(data?.source_category_path) ? data.source_category_path : []),
     ];
@@ -1172,6 +1176,15 @@ const resolveConfiguredProductGroup = (catalog, product, labels = {}) => {
         labels.format,
         ...sourcePath,
     ].filter(Boolean).join(" "));
+    const matches = [];
+    const seen = new Set();
+
+    const addMatch = (groupTitle, categoryTitle) => {
+        const key = `${groupTitle}::${categoryTitle}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        matches.push({ groupTitle, categoryTitle });
+    };
 
     for (const group of catalog.productGroups) {
         const groupKeywords = [
@@ -1185,23 +1198,20 @@ const resolveConfiguredProductGroup = (catalog, product, labels = {}) => {
         for (const category of categories) {
             const categoryKeywords = [category.title, ...(Array.isArray(category.keywords) ? category.keywords : [])];
             if (categoryKeywords.some((keyword) => matchesCatalogKeyword(haystack, keyword))) {
-                return {
-                    groupTitle: group.title,
-                    categoryTitle: category.title,
-                };
+                addMatch(group.title, category.title);
             }
         }
 
-        if (groupMatches) {
-            return {
-                groupTitle: group.title,
-                categoryTitle: categories[0]?.title || group.title,
-            };
+        if (groupMatches && !matches.some((item) => item.groupTitle === group.title)) {
+            addMatch(group.title, categories[0]?.title || group.title);
         }
     }
 
-    return null;
+    return matches;
 };
+
+const resolveConfiguredProductGroup = (catalog, product, labels = {}) =>
+    resolveConfiguredProductGroups(catalog, product, labels)[0] || null;
 
 const resolveConfiguredProductFlavor = (catalog, groupTitle, product, labels = {}) => {
     if (!Array.isArray(catalog?.productGroups) || !groupTitle) return null;
@@ -1210,7 +1220,11 @@ const resolveConfiguredProductFlavor = (catalog, groupTitle, product, labels = {
     if (!flavors.length) return null;
 
     const data = product?.data || {};
+    const categoryNames = Array.isArray(product?.category_names) ? product.category_names : [];
+    const categoryPaths = Array.isArray(product?.category_paths) ? product.category_paths : [];
     const sourcePath = [
+        ...categoryPaths,
+        ...categoryNames,
         ...(Array.isArray(product?.source_category_path) ? product.source_category_path : []),
         ...(Array.isArray(data?.source_category_path) ? data.source_category_path : []),
     ];
@@ -1263,10 +1277,18 @@ function PiquimSubcatalogPage({ catalog, products, currency, locale, onProductCl
     }, []);
 
     const normalizedProducts = useMemo(() => {
-        const mapped = (Array.isArray(products) ? products : []).map((product) => {
+        const mapped = (Array.isArray(products) ? products : []).flatMap((product) => {
             const data = product?.data || {};
             const specs = data?.specifications && typeof data.specifications === "object" ? data.specifications : {};
-            const category = String(product?.category?.name || data?.category || "").trim();
+            const categoryNames = Array.isArray(product?.category_names) ? product.category_names : [];
+            const categoryPaths = Array.isArray(product?.category_paths) ? product.category_paths : [];
+            const category = String(
+                categoryPaths[0] ||
+                categoryNames[0] ||
+                product?.category?.name ||
+                data?.category ||
+                ""
+            ).trim();
             const type = String(
                 specs.tipo ||
                 specs.tipo_producto ||
@@ -1282,10 +1304,12 @@ function PiquimSubcatalogPage({ catalog, products, currency, locale, onProductCl
                 data?.presentation ||
                 ""
             ).trim();
-            const configuredGroup = resolveConfiguredProductGroup(catalog, product, { category, type, format });
+            const configuredGroups = usesConfiguredGroups
+                ? resolveConfiguredProductGroups(catalog, product, { category, type, format })
+                : [resolveConfiguredProductGroup(catalog, product, { category, type, format })].filter(Boolean);
 
-            if (usesConfiguredGroups && !configuredGroup) {
-                return null;
+            if (usesConfiguredGroups && !configuredGroups.length) {
+                return [];
             }
 
             const variations = Array.isArray(product?.variations) ? product.variations : [];
@@ -1296,9 +1320,11 @@ function PiquimSubcatalogPage({ catalog, products, currency, locale, onProductCl
             const effectivePrice = variationPrices.length ? Math.min(...variationPrices) : unitPrice;
 
             const image = getRealProductImage(product);
-            const configuredFlavor = resolveConfiguredProductFlavor(catalog, configuredGroup?.groupTitle, product, { category, type, format });
+            const groupsToRender = configuredGroups.length ? configuredGroups : [null];
 
-            return {
+            return groupsToRender.map((configuredGroup) => {
+                const configuredFlavor = resolveConfiguredProductFlavor(catalog, configuredGroup?.groupTitle, product, { category, type, format });
+                return {
                 id: product?.id,
                 sku: String(product?.sku || product?.erp_id || product?.id || "").trim(),
                 name: String(product?.name || "").trim(),
@@ -1320,7 +1346,8 @@ function PiquimSubcatalogPage({ catalog, products, currency, locale, onProductCl
                 hasImage: Boolean(image),
                 alt: product?.alt || product?.name || "Producto",
                 temperature: `${category} ${type}`.toLowerCase(),
-            };
+                };
+            });
         }).filter((item) => item && item.id && item.name);
         return mapped;
     }, [catalog, products, usesConfiguredGroups]);
