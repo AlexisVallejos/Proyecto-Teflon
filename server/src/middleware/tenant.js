@@ -42,7 +42,7 @@ export async function resolveTenant(req, res, next) {
 
       if (uuidRegex.test(targetId)) {
         const result = await pool.query(
-          'select id, name from tenants where id = $1 and status = $2',
+          'select id, name, external_tenant_slug from tenants where id = $1 and status = $2',
           [targetId, 'active']
         );
         tenant = result.rows[0];
@@ -59,7 +59,7 @@ export async function resolveTenant(req, res, next) {
         );
         const result = await pool.query(
           [
-            'select t.id, t.name',
+            'select t.id, t.name, t.external_tenant_slug',
             'from tenant_domains d',
             'join tenants t on t.id = d.tenant_id',
             'where d.domain = any($1::text[]) and t.status = $2',

@@ -45,6 +45,11 @@ function inferDefaultDesignPreset(tenantName, tenantSlug = '') {
   return 'sanitarios_industrial';
 }
 
+function isPiquimTenantIdentity(tenantName, tenantSlug = '') {
+  const identity = normalizeTenantPresetText(`${tenantName} ${tenantSlug}`);
+  return identity.includes('piquim');
+}
+
 function buildDefaultTenantSettings(tenantName, tenantSlug = '') {
   const safeName = normalizeDisplayName(tenantName) || 'Vase Business';
 
@@ -175,11 +180,24 @@ async function ensureTenantSettings(client, tenantId, tenantName, tenantSlug = '
     [tenantId]
   );
 
+  const defaults = buildDefaultTenantSettings(tenantName, tenantSlug);
   if (existingSettingsRes.rowCount) {
+    if (isPiquimTenantIdentity(tenantName, tenantSlug)) {
+      await client.query(
+        [
+          'update tenant_settings',
+          "set branding = coalesce(branding, '{}'::jsonb) || $2::jsonb,",
+          "theme = coalesce(theme, '{}'::jsonb) || $3::jsonb,",
+          "commerce = coalesce(commerce, '{}'::jsonb) || $4::jsonb,",
+          'updated_at = now()',
+          'where tenant_id = $1',
+        ].join(' '),
+        [tenantId, defaults.branding, defaults.theme, defaults.commerce]
+      );
+    }
     return;
   }
 
-  const defaults = buildDefaultTenantSettings(tenantName, tenantSlug);
   await client.query(
     [
       'insert into tenant_settings (tenant_id, branding, theme, commerce)',
