@@ -507,19 +507,20 @@ publicRouter.get('/products', async (req, res, next) => {
       params.push(categoryAliases.length ? categoryAliases : [String(category)]);
       where += [
         ' and p.id in (',
+        'with recursive selected_categories as (',
+        'select c.id',
+        'from categories c',
+        'where c.tenant_id = $1',
+        `and (c.slug = any($${params.length}::text[]) or c.id::text = any($${params.length}::text[]))`,
+        'union',
+        'select child.id',
+        'from categories child',
+        'join selected_categories parent on nullif(child.data->>\'parent_id\', \'\') = parent.id::text',
+        'where child.tenant_id = $1',
+        ')',
         'select pc.product_id',
         'from product_categories pc',
-        'join categories c on c.id = pc.category_id',
-        `where c.slug = any($${params.length}::text[])`,
-        `or c.id::text = any($${params.length}::text[])`,
-        `or nullif(c.data->>'parent_id', '') = any($${params.length}::text[])`,
-        [
-          "or nullif(c.data->>'parent_id', '') in (",
-          'select parent.id::text',
-          'from categories parent',
-          `where parent.tenant_id = c.tenant_id and parent.slug = any($${params.length}::text[])`,
-          ')',
-        ].join(' '),
+        'where pc.category_id in (select id from selected_categories)',
         ')',
       ].join(' ');
     }
