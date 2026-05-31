@@ -8,22 +8,17 @@ async function cleanDatabase() {
     try {
         await client.query('BEGIN');
 
-        // 1. Eliminar todos los tenants (Borra páginas, dominios, ajustes, categorías, productos, etc en cascada)
-        const deleteTenantsRes = await client.query(`
-            DELETE FROM tenants 
-            RETURNING id
+        // Al usar TRUNCATE con CASCADE, PostgreSQL vaciará las tablas de tenants, users
+        // y de forma automática todas las tablas que dependan de ellas (orders, order_items, product_cache, etc.)
+        // sin que nos molesten los errores de llaves foráneas.
+        console.log('Vaciando tablas tenants, users y todas sus dependencias en cascada...');
+        
+        await client.query(`
+            TRUNCATE TABLE tenants, users CASCADE;
         `);
-
-        console.log(`✅ Se eliminaron todos los tenants (${deleteTenantsRes.rowCount}) y sus datos en cascada.`);
-
-        // 2. Eliminar todos los usuarios
-        const deleteUsersRes = await client.query(`
-            DELETE FROM users 
-        `);
-
-        console.log(`✅ Se eliminaron todos los usuarios (${deleteUsersRes.rowCount}).`);
 
         await client.query('COMMIT');
+        console.log('✅ Tablas vaciadas correctamente.');
         console.log('--- LIMPIEZA TOTAL COMPLETADA CON ÉXITO ---');
         console.log('Ahora la base de datos está completamente vacía (sin tenants ni usuarios).');
 
