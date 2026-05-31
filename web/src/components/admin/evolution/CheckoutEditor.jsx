@@ -337,7 +337,7 @@ const CheckoutEditor = ({ settings, setSettings, onSave, isSaving }) => {
                     <input
                         type="text"
                         value={settings?.commerce?.legal_company_name || ''}
-                        placeholder="Sanitarios El Teflon S.R.L."
+                        placeholder="Tu empresa S.R.L."
                         onChange={(e) => updateCommerceField('legal_company_name', e.target.value)}
                         className={fieldClass}
                     />

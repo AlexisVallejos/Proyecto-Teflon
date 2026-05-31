@@ -11,6 +11,7 @@ const EXTERNAL_SOURCE = 'vase';
 const BRIDGE_ISSUER = process.env.VASE_BUSINESS_SSO_ISSUER || 'vase-app';
 const BRIDGE_AUDIENCE = process.env.VASE_BUSINESS_SSO_AUDIENCE || 'vase-business';
 const ALLOWED_TENANT_ROLES = new Set(['OWNER', 'MANAGER']);
+const DEFAULT_EXTERNAL_DESIGN_PRESET = 'generic';
 
 function createBridgeError(code, status = 400) {
   const error = new Error(code);
@@ -39,24 +40,58 @@ function normalizeTenantPresetText(value) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-function inferDefaultDesignPreset(tenantName, tenantSlug = '') {
-  const identity = normalizeTenantPresetText(`${tenantName} ${tenantSlug}`);
-  if (identity.includes('piquim') || identity.includes('piquin')) return 'piquim';
-  return 'sanitarios_industrial';
+function normalizeDesignPreset(value) {
+  return normalizeTenantPresetText(value).replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-function isPiquimTenantIdentity(tenantName, tenantSlug = '') {
-  const identity = normalizeTenantPresetText(`${tenantName} ${tenantSlug}`);
-  return identity.includes('piquim') || identity.includes('piquin');
+function getConfiguredTenantPreset(payload) {
+  const entries = String(process.env.VASE_BUSINESS_TENANT_PRESETS || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  const lookup = new Map();
+  for (const entry of entries) {
+    const [rawKey, rawPreset] = entry.split(':');
+    const key = normalizeTenantPresetText(rawKey);
+    const preset = normalizeDesignPreset(rawPreset);
+    if (key && preset) {
+      lookup.set(key, preset);
+    }
+  }
+
+  const candidates = [
+    payload.externalTenantId,
+    payload.externalTenantSlug,
+    payload.tenantName,
+  ].map(normalizeTenantPresetText).filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (lookup.has(candidate)) return lookup.get(candidate);
+  }
+
+  return '';
 }
 
-function buildDefaultTenantSettings(tenantName, tenantSlug = '') {
+function resolvePayloadDesignPreset(rawPayload, normalizedPayload) {
+  const explicitPreset = normalizeDesignPreset(
+    rawPayload.design_preset ||
+    rawPayload.tenant_design_preset ||
+    rawPayload.editor_design_preset ||
+    rawPayload.branding?.design_preset
+  );
+  if (explicitPreset) return explicitPreset;
+
+  return getConfiguredTenantPreset(normalizedPayload) || DEFAULT_EXTERNAL_DESIGN_PRESET;
+}
+
+function buildDefaultTenantSettings(tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET) {
   const safeName = normalizeDisplayName(tenantName) || 'Vase Business';
 
   return {
     branding: {
       name: safeName,
-      design_preset: inferDefaultDesignPreset(safeName, tenantSlug),
+      design_preset: normalizeDesignPreset(designPreset) || DEFAULT_EXTERNAL_DESIGN_PRESET,
     },
     theme: {},
     commerce: {
@@ -87,7 +122,7 @@ function normalizeLaunchPayload(rawPayload) {
     throw createBridgeError('membership_forbidden', 403);
   }
 
-  return {
+  const normalizedPayload = {
     externalUserId: userId,
     email,
     displayName,
@@ -96,6 +131,10 @@ function normalizeLaunchPayload(rawPayload) {
     externalTenantSlug: tenantSlug,
     tenantName,
     externalTenantRole: tenantRole,
+  };
+  return {
+    ...normalizedPayload,
+    designPreset: resolvePayloadDesignPreset(payload, normalizedPayload),
   };
 }
 
@@ -174,27 +213,25 @@ async function upsertTenant(client, payload) {
   return insertRes.rows[0];
 }
 
-async function ensureTenantSettings(client, tenantId, tenantName, tenantSlug = '') {
+async function ensureTenantSettings(client, tenantId, tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET) {
   const existingSettingsRes = await client.query(
     'select tenant_id from tenant_settings where tenant_id = $1',
     [tenantId]
   );
 
-  const defaults = buildDefaultTenantSettings(tenantName, tenantSlug);
+  const defaults = buildDefaultTenantSettings(tenantName, designPreset);
   if (existingSettingsRes.rowCount) {
-    if (isPiquimTenantIdentity(tenantName, tenantSlug)) {
-      await client.query(
-        [
-          'update tenant_settings',
-          "set branding = coalesce(branding, '{}'::jsonb) || $2::jsonb,",
-          "theme = coalesce(theme, '{}'::jsonb) || $3::jsonb,",
-          "commerce = coalesce(commerce, '{}'::jsonb) || $4::jsonb,",
-          'updated_at = now()',
-          'where tenant_id = $1',
-        ].join(' '),
-        [tenantId, defaults.branding, defaults.theme, defaults.commerce]
-      );
-    }
+    await client.query(
+      [
+        'update tenant_settings',
+        "set branding = coalesce(branding, '{}'::jsonb) || $2::jsonb,",
+        "theme = coalesce(theme, '{}'::jsonb) || $3::jsonb,",
+        "commerce = coalesce(commerce, '{}'::jsonb) || $4::jsonb,",
+        'updated_at = now()',
+        'where tenant_id = $1',
+      ].join(' '),
+      [tenantId, defaults.branding, defaults.theme, defaults.commerce]
+    );
     return;
   }
 
@@ -330,7 +367,7 @@ export async function exchangeVaseLaunchToken(rawToken) {
     await client.query('BEGIN');
 
     const tenant = await upsertTenant(client, payload);
-    await ensureTenantSettings(client, tenant.id, tenant.name, payload.externalTenantSlug || '');
+    await ensureTenantSettings(client, tenant.id, tenant.name, payload.designPreset);
     await ensureTenantPlatformDomain(client, tenant.id, {
       preferredSubdomain: payload.externalTenantSlug || '',
       preferredLabels: [payload.displayName || '', payload.tenantName || ''],

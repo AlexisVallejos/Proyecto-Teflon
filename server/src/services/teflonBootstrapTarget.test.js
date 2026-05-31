@@ -49,3 +49,25 @@ test('ignores unrelated Vase tenants when choosing the Teflon bootstrap target',
 
   assert.equal(selected?.id, FALLBACK_TENANT_ID);
 });
+
+test('ignores Piquin tenants even if stale Teflon branding was written before', () => {
+  const selected = selectTeflonBootstrapTargetTenant(
+    [
+      {
+        id: 'e6b2d19f-78e1-4851-b267-8f8cfda2979c',
+        name: 'Sanitarios El Teflon',
+        external_tenant_slug: 'piquin',
+        domains: ['piquin.vase.ar'],
+      },
+      {
+        id: FALLBACK_TENANT_ID,
+        name: 'Sanitarios El Teflon',
+        external_tenant_slug: null,
+        domains: ['teflon.vase.ar'],
+      },
+    ],
+    FALLBACK_TENANT_ID
+  );
+
+  assert.equal(selected?.id, FALLBACK_TENANT_ID);
+});

@@ -43,14 +43,14 @@ export const DEFAULT_HOME_SECTIONS = [
             variant: 'sanitarios_industrial',
             slides: [
                 {
-                    label: 'Sanitarios El Teflon',
-                    title: 'SOLUCIONES\nPARA TU OBRA',
+                    label: 'Tienda personalizada',
+                    title: 'TU MARCA\nLISTA PARA VENDER',
                     description:
-                        'Griferia, sanitarios, accesorios y materiales para renovar banos, cocinas y espacios de uso diario.',
-                    featured: 'Atencion especializada',
+                        'Catalogo, pedidos y atencion comercial organizados para vender online con una experiencia clara.',
+                    featured: 'Atencion comercial',
                     cardEyebrow: 'Linea destacada',
-                    cardTitle: 'Accesorios sanitarios',
-                    specLabel: 'Stock y asesoramiento comercial',
+                    cardTitle: 'Catalogo destacado',
+                    specLabel: 'Stock, pedidos y consultas',
                     image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop',
                     primaryButtonLabel: 'VER CATALOGO',
                     primaryButtonLink: '/catalog',
@@ -58,13 +58,13 @@ export const DEFAULT_HOME_SECTIONS = [
                     secondaryButtonLink: '/about',
                 },
                 {
-                    label: 'Equipamiento y terminaciones',
-                    title: 'CALIDAD\nPARA CADA ESPACIO',
+                    label: 'Operacion comercial',
+                    title: 'PRODUCTOS\nSIEMPRE ORDENADOS',
                     description:
-                        'Seleccion de productos para instaladores, constructoras y clientes que buscan respaldo comercial.',
+                        'Una tienda preparada para presentar categorias, productos, promociones y canales de contacto.',
                     featured: 'Entrega coordinada',
-                    cardEyebrow: 'Proyecto comercial',
-                    cardTitle: 'Banos y cocinas',
+                    cardEyebrow: 'Gestion online',
+                    cardTitle: 'Pedidos y consultas',
                     specLabel: 'Catalogo actualizado',
                     image: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=2070&auto=format&fit=crop',
                     primaryButtonLabel: 'EXPLORAR LINEAS',
@@ -95,16 +95,16 @@ export const DEFAULT_HOME_SECTIONS = [
             ...getDefaultBrandMarqueeProps(),
             variant: 'grid_static',
             eyebrow: 'Marcas y lineas',
-            title: 'Todo para banos, cocinas e instalaciones',
-            subtitle: 'Un catalogo ordenado para comparar griferia, sanitarios, accesorios, repuestos y materiales de obra.',
+            title: 'Un catalogo ordenado para tu negocio',
+            subtitle: 'Categorias claras para comparar productos, consultar disponibilidad y avanzar con pedidos.',
             items: [
-                { id: 'brand-teflon-griferia', name: 'Griferia' },
-                { id: 'brand-teflon-sanitarios', name: 'Sanitarios' },
-                { id: 'brand-teflon-accesorios', name: 'Accesorios' },
-                { id: 'brand-teflon-repuestos', name: 'Repuestos' },
-                { id: 'brand-teflon-instalacion', name: 'Instalacion' },
-                { id: 'brand-teflon-cocinas', name: 'Cocinas' },
-                { id: 'brand-teflon-obras', name: 'Obras' },
+                { id: 'brand-generic-lineas', name: 'Lineas' },
+                { id: 'brand-generic-categorias', name: 'Categorias' },
+                { id: 'brand-generic-destacados', name: 'Destacados' },
+                { id: 'brand-generic-novedades', name: 'Novedades' },
+                { id: 'brand-generic-ofertas', name: 'Ofertas' },
+                { id: 'brand-generic-stock', name: 'Stock' },
+                { id: 'brand-generic-pedidos', name: 'Pedidos' },
             ],
             styles: {
                 backgroundColor: '#f8fafc',
@@ -125,7 +125,7 @@ export const DEFAULT_HOME_SECTIONS = [
         props: {
             variant: 'modern',
             title: 'Productos destacados',
-            subtitle: 'Los mas consultados para renovar banos, cocinas e instalaciones con respaldo comercial.',
+            subtitle: 'Los productos principales de la tienda listos para consultar, comparar y comprar.',
             ctaLabel: 'Ver catalogo completo',
             ctaLink: '/catalog',
             styles: {
@@ -146,12 +146,12 @@ export const DEFAULT_HOME_SECTIONS = [
         enabled: true,
         props: {
             title: 'Acompanamiento para elegir mejor',
-            subtitle: 'Atencion clara para resolver productos, medidas, compatibilidades y coordinacion de entrega.',
+            subtitle: 'Atencion clara para resolver productos, disponibilidad, pagos y coordinacion de entrega.',
             items: [
                 {
                     icon: 'support_agent',
-                    title: 'Asesoramiento especializado',
-                    text: 'Te ayudamos a comparar opciones segun uso, presupuesto, estilo y disponibilidad.',
+                    title: 'Atencion comercial',
+                    text: 'Ayudamos a responder consultas y convertir busquedas en pedidos concretos.',
                 },
                 {
                     icon: 'local_shipping',
@@ -184,10 +184,10 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutHero',
         enabled: true,
         props: {
-            tagline: 'Sanitarios El Teflon',
-            title: 'Soluciones sanitarias para obra, hogar y comercio',
+            tagline: 'Vase Business',
+            title: 'Una tienda online preparada para tu operacion',
             description:
-                'Acompanamos cada compra con catalogo claro, asesoramiento comercial y productos pensados para banos, cocinas e instalaciones.',
+                'Acompanamos cada venta con catalogo claro, canales de contacto y una experiencia adaptable a cada cliente.',
             primaryButton: { label: 'Ver catalogo', link: '/catalog' },
             secondaryButton: { label: 'Contactar ventas', link: '/about' },
             backgroundImage: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop',
@@ -208,15 +208,15 @@ export const DEFAULT_ABOUT_SECTIONS = [
             eyebrow: 'Como trabajamos',
             title: 'Atencion comercial para comprar con criterio.',
             paragraphs: [
-                'Sanitarios El Teflon organiza su catalogo para que cada cliente pueda comparar rubros, medidas, marcas y alternativas sin friccion.',
-                'El equipo acompana consultas de obra, reposicion y renovacion para transformar una busqueda amplia en una compra concreta.',
+                'La tienda organiza su catalogo para que cada cliente pueda comparar rubros, variantes y alternativas sin friccion.',
+                'El equipo acompana consultas comerciales para transformar una busqueda amplia en una compra concreta.',
             ],
             highlights: [
                 { icon: 'verified', title: 'Catalogo claro', text: 'Categorias y fichas orientadas a decision de compra real.' },
-                { icon: 'eco', title: 'Soluciones aplicables', text: 'Productos pensados para instalacion, reposicion y terminacion.' },
+                { icon: 'eco', title: 'Soluciones aplicables', text: 'Productos pensados para la necesidad real de cada cliente.' },
             ],
             image: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=2070&auto=format&fit=crop',
-            imageAlt: 'Bano moderno con griferia y sanitarios',
+            imageAlt: 'Espacio comercial moderno',
             styles: {
                 accentColor: '#f97316',
                 backgroundColor: '#ffffff',
@@ -231,10 +231,10 @@ export const DEFAULT_ABOUT_SECTIONS = [
         enabled: true,
         props: {
             items: [
-                { value: '+30', label: 'anos de oficio', accent: true },
+                { value: '+30', label: 'anos de experiencia', accent: true },
                 { value: '+200', label: 'productos' },
-                { value: '2', label: 'categorias principales' },
-                { value: 'Soporte', label: 'comercial y tecnico' },
+                { value: '24/7', label: 'catalogo online' },
+                { value: 'Soporte', label: 'comercial' },
             ],
             styles: {
                 backgroundColor: '#111827',
@@ -284,9 +284,9 @@ export const DEFAULT_ABOUT_SECTIONS = [
             anchor: 'equipo',
             title: 'Acompanamos proyectos, no solo pedidos.',
             quote:
-                'Cuando el catalogo, el stock y la comunicacion comercial se alinean, comprar sanitarios y accesorios deja de ser una friccion de obra.',
-            author: 'Equipo Sanitarios El Teflon',
-            role: 'Operacion comercial y soporte de producto',
+                'Cuando el catalogo, el stock y la comunicacion comercial se alinean, comprar online se vuelve simple.',
+            author: 'Equipo comercial',
+            role: 'Operacion y soporte de producto',
             avatarImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80&auto=format&fit=crop',
             backgroundImage: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop',
             styles: {
@@ -302,7 +302,7 @@ export const DEFAULT_ABOUT_SECTIONS = [
         type: 'AboutCTA',
         enabled: true,
         props: {
-            title: 'Necesitas resolver una compra para tu obra?',
+            title: 'Necesitas resolver una compra o consulta?',
             primaryLink: { label: 'Ver productos', link: '/catalog' },
             secondaryLink: { label: 'Hablar con ventas', link: '/about' },
             styles: {

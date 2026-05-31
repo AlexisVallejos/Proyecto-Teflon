@@ -8,12 +8,12 @@ import { isPiquimTenantIdentity, resolveTenantBrandName, resolveTenantDesignPres
 import StoreSkeleton from '../components/StoreSkeleton';
 
 const DEFAULT_TENANT = {
-    id: '636736e2-e135-44cd-ac5c-5d4ccb839a73',
-    name: 'Sanitarios El Teflon',
+    id: '',
+    name: 'Vase Business',
 };
 
 const GENERIC_FOOTER_DEFAULTS = {
-    description: 'Soluciones sanitarias, griferia y accesorios con asesoramiento comercial para cada obra o renovacion.',
+    description: 'Catalogo, pedidos y atencion comercial desde una tienda online personalizada.',
     shopLinks: [
         { label: 'Catalogo', href: '/catalog' },
         { label: 'Nosotros', href: '/about' },
@@ -31,7 +31,7 @@ const GENERIC_FOOTER_DEFAULTS = {
         placeholder: 'tu@email.com',
         buttonLabel: 'Enviar',
     },
-    legalText: '(c) 2026 Sanitarios El Teflon. Todos los derechos reservados.',
+    legalText: '(c) 2026 Vase Business. Todos los derechos reservados.',
 };
 
 const GENERIC_STOREFRONT_THEME = {

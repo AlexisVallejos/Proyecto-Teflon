@@ -549,9 +549,9 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                     <div className="rounded-2xl border border-orange-400/20 bg-orange-500/10 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-200">Identidad Teflon</p>
+                                <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-200">Plantilla base</p>
                                 <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-                                    Activa el preset industrial para navbar, footer, catalogo y panel.
+                                    Activa el preset visual base para navbar, footer, catalogo y panel.
                                 </p>
                             </div>
                             <button
@@ -563,7 +563,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                         : 'border border-orange-400/30 text-orange-200'
                                 }`}
                             >
-                                {branding.design_preset === 'sanitarios_industrial' ? 'Teflon activo' : 'Activar Teflon'}
+                                {branding.design_preset === 'sanitarios_industrial' ? 'Base activa' : 'Activar base'}
                             </button>
                         </div>
                     </div>
@@ -1000,7 +1000,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                         label="Texto legal inferior"
                         value={footer.legalText || ''}
                         onChange={(e) => updateFooter({ legalText: e.target.value })}
-                        placeholder="(c) 2026 Sanitarios El Teflon. Todos los derechos reservados."
+                        placeholder="(c) 2026 Tu empresa. Todos los derechos reservados."
                     />
                 </section>
 

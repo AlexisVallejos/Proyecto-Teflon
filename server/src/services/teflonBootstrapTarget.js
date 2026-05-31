@@ -37,7 +37,7 @@ function hasPiquimIdentity(row = {}) {
     ...normalizeDomains(row.domains),
   ].join(' '));
 
-  return identity.includes('piquim');
+  return identity.includes('piquim') || identity.includes('piquin');
 }
 
 function isExternalCandidate(row = {}, fallbackTenantId = '') {

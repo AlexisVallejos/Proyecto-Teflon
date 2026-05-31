@@ -1,5 +1,6 @@
 export const PIQUIM_DESIGN_PRESET = 'piquim';
-export const DEFAULT_NON_PIQUIM_DESIGN_PRESET = 'sanitarios_industrial';
+export const GENERIC_DESIGN_PRESET = 'generic';
+export const DEFAULT_NON_PIQUIM_DESIGN_PRESET = GENERIC_DESIGN_PRESET;
 
 const normalizeText = (value) =>
   String(value || '')
@@ -8,34 +9,25 @@ const normalizeText = (value) =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
-const tenantIdentityValues = (tenant = {}) => [
-  tenant?.name,
-  tenant?.slug,
-  tenant?.external_tenant_slug,
-  tenant?.externalTenantSlug,
-].filter((value) => String(value || '').trim());
+const resolveRawDesignPreset = (settings = {}) => normalizeText(settings?.branding?.design_preset);
 
-const brandingIdentityValues = (settings = {}) => {
-  const branding = settings?.branding || {};
-  return [
-    branding?.tenant_slug,
-    branding?.external_tenant_slug,
-    branding?.name,
-  ].filter((value) => String(value || '').trim());
+export const isPiquimTenantIdentity = ({ settings = {} } = {}) =>
+  resolveRawDesignPreset(settings) === PIQUIM_DESIGN_PRESET;
+
+const isExternalTenant = (tenant = {}) =>
+  Boolean(String(tenant?.external_tenant_slug || tenant?.externalTenantSlug || '').trim());
+
+const isKnownStaleBrandName = (value) => {
+  const normalized = normalizeText(value);
+  return normalized.includes('sanitarios') || normalized.includes('teflon');
 };
 
-export const isPiquimTenantIdentity = ({ tenant = {}, settings = {} } = {}) =>
-  (tenantIdentityValues(tenant).length ? tenantIdentityValues(tenant) : brandingIdentityValues(settings)).some((value) => {
-    const normalized = normalizeText(value);
-    return normalized === 'piquim' || normalized === 'piquin' || normalized.includes('piquim') || normalized.includes('piquin');
-  });
-
-export const resolveTenantBrandName = ({ tenant = {}, settings = {}, fallback = 'Sanitarios El Teflon' } = {}) => {
+export const resolveTenantBrandName = ({ tenant = {}, settings = {}, fallback = 'Vase Business' } = {}) => {
   const tenantName = String(tenant?.name || '').trim();
   const brandingName = String(settings?.branding?.name || '').trim();
   const piquim = isPiquimTenantIdentity({ tenant, settings });
 
-  if (!piquim && tenantIdentityValues(tenant).length && normalizeText(brandingName).includes('piquim')) {
+  if (!piquim && tenantName && isExternalTenant(tenant) && isKnownStaleBrandName(brandingName)) {
     return tenantName || fallback;
   }
 
@@ -43,12 +35,8 @@ export const resolveTenantBrandName = ({ tenant = {}, settings = {}, fallback = 
 };
 
 export const resolveTenantDesignPreset = ({ tenant = {}, settings = {} } = {}) => {
-  if (isPiquimTenantIdentity({ tenant, settings })) {
-    return PIQUIM_DESIGN_PRESET;
-  }
-
-  const rawPreset = normalizeText(settings?.branding?.design_preset);
-  if (rawPreset && rawPreset !== PIQUIM_DESIGN_PRESET) {
+  const rawPreset = resolveRawDesignPreset(settings);
+  if (rawPreset) {
     return rawPreset;
   }
 

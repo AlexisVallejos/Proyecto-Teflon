@@ -660,7 +660,7 @@ export default function CatalogPage() {
         }
         return isPiquimTenant
             ? "Materia prima profesional para heladerias, panaderias y confiterias."
-            : "Soluciones sanitarias, griferia y accesorios para obra, hogar y comercio.";
+            : "Catalogo online para consultar productos, disponibilidad y opciones comerciales.";
     }, [inStockOnly, isPiquimTenant, search, selectedBrandEntry, selectedCategoryEntry, selectedMaxPrice, selectedMinPrice]);
 
     const isCatalogLanding = !search.trim()

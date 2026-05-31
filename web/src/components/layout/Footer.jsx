@@ -77,7 +77,7 @@ export default function Footer() {
     const brandName = branding.name || tenant?.name || "Mi Negocio";
     const displayBrandName = String(brandName || "").toUpperCase();
     const isPiquim = isPiquimTenantIdentity({ tenant, settings });
-    const genericFooterDescription = "Soluciones integrales en sanitarios y griferia. Calidad y confianza en cada proyecto.";
+    const genericFooterDescription = "Catalogo, pedidos y atencion comercial desde una tienda online personalizada.";
     const genericLinks = [
         { label: "Inicio", href: "/" },
         { label: "Catalogo", href: "/catalog" },

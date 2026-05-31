@@ -31,7 +31,7 @@ const isReservedPlaceholder = (value) => RESERVED_PLACEHOLDER_TERMS.has(normaliz
 const PIQUIM_SECTION_TYPES = new Set(PIQUIM_HOME_SECTIONS.map((section) => section.type));
 const PIQUIM_ABOUT_SECTION_TYPES = new Set(PIQUIM_ABOUT_SECTIONS.map((section) => section.type));
 const GENERIC_FOOTER_DEFAULTS = {
-    description: 'Soluciones sanitarias, griferia y accesorios con asesoramiento comercial.',
+    description: 'Catalogo, pedidos y atencion comercial desde una tienda online personalizada.',
     shopLinks: [
         { label: 'Catalogo', href: '/catalog' },
         { label: 'Nosotros', href: '/about' },
@@ -39,7 +39,7 @@ const GENERIC_FOOTER_DEFAULTS = {
     helpLinks: [{ label: 'Terminos', href: '/terms' }],
     legalLinks: [{ label: 'Terminos y condiciones', href: '/terms' }],
     newsletter: { enabled: false },
-    legalText: '(c) 2026 Sanitarios El Teflon. Todos los derechos reservados.',
+    legalText: '(c) 2026 Vase Business. Todos los derechos reservados.',
 };
 
 const normalizeHomeSectionsForBrand = (settings = {}, tenant = null, sections = []) => {
@@ -104,7 +104,7 @@ export function useEditorState(user) {
         branding: {
             name: '',
             logo_url: '',
-            design_preset: 'sanitarios_industrial',
+            design_preset: 'generic',
             catalog_cards: [],
             admin_panel: DEFAULT_ADMIN_PANEL_BRANDING,
             navbar: { links: [] },

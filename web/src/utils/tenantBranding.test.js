@@ -7,24 +7,7 @@ import {
   resolveTenantDesignPreset,
 } from './tenantBranding.js';
 
-test('does not classify Teflon as PIQUIM when stale settings contain the PIQUIM preset', () => {
-  const tenant = {
-    name: 'Sanitarios El Teflon',
-    external_tenant_slug: 'teflon',
-  };
-  const settings = {
-    branding: {
-      name: 'Sanitarios El Teflon',
-      design_preset: 'piquim',
-    },
-  };
-
-  assert.equal(isPiquimTenantIdentity({ tenant, settings }), false);
-  assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'sanitarios_industrial');
-  assert.equal(resolveTenantBrandName({ tenant, settings }), 'Sanitarios El Teflon');
-});
-
-test('classifies the PIQUIM tenant as PIQUIM without requiring an explicit preset', () => {
+test('preset, not tenant name, controls PIQUIM classification', () => {
   const tenant = {
     name: 'PIQUIM',
     external_tenant_slug: 'piquim',
@@ -32,6 +15,23 @@ test('classifies the PIQUIM tenant as PIQUIM without requiring an explicit prese
   const settings = {
     branding: {
       name: 'PIQUIM',
+      design_preset: 'generic',
+    },
+  };
+
+  assert.equal(isPiquimTenantIdentity({ tenant, settings }), false);
+  assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'generic');
+});
+
+test('classifies PIQUIM only when design preset is explicit', () => {
+  const tenant = {
+    name: 'Cliente cualquiera',
+    external_tenant_slug: 'cliente-cualquiera',
+  };
+  const settings = {
+    branding: {
+      name: 'Cliente cualquiera',
+      design_preset: 'piquim',
     },
   };
 
@@ -39,14 +39,14 @@ test('classifies the PIQUIM tenant as PIQUIM without requiring an explicit prese
   assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'piquim');
 });
 
-test('classifies PIQUIN typo as PIQUIM brand tenant', () => {
+test('does not classify PIQUIN typo by name alone', () => {
   const tenant = {
     name: 'Piquin',
     external_tenant_slug: 'piquin',
   };
 
-  assert.equal(isPiquimTenantIdentity({ tenant, settings: {} }), true);
-  assert.equal(resolveTenantDesignPreset({ tenant, settings: {} }), 'piquim');
+  assert.equal(isPiquimTenantIdentity({ tenant, settings: {} }), false);
+  assert.equal(resolveTenantDesignPreset({ tenant, settings: {} }), 'generic');
 });
 
 test('keeps an explicit non-PIQUIM preset for non-PIQUIM tenants', () => {
@@ -64,19 +64,19 @@ test('keeps an explicit non-PIQUIM preset for non-PIQUIM tenants', () => {
   assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'home_decor');
 });
 
-test('uses tenant identity before stale branding name', () => {
+test('external tenant name wins over stale Teflon branding name', () => {
   const tenant = {
-    name: 'Sanitarios El Teflon',
-    external_tenant_slug: 'teflon',
+    name: 'Cliente Nuevo',
+    external_tenant_slug: 'cliente-nuevo',
   };
   const settings = {
     branding: {
-      name: 'PIQUIM',
-      design_preset: 'piquim',
+      name: 'Sanitarios El Teflon',
+      design_preset: 'generic',
     },
   };
 
   assert.equal(isPiquimTenantIdentity({ tenant, settings }), false);
-  assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'sanitarios_industrial');
-  assert.equal(resolveTenantBrandName({ tenant, settings }), 'Sanitarios El Teflon');
+  assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'generic');
+  assert.equal(resolveTenantBrandName({ tenant, settings }), 'Cliente Nuevo');
 });
