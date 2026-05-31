@@ -23,11 +23,6 @@ function isLocalHost(hostname = getCurrentHostname()) {
     return ['localhost', '127.0.0.1', '::1'].includes(hostname) || hostname.endsWith('.localhost');
 }
 
-function normalizeTenantId(value) {
-    const normalized = String(value || '').trim();
-    return (!normalized || normalized === 'undefined' || normalized === 'null') ? '' : normalized;
-}
-
 export function isEditorContext() {
     const hostname = getCurrentHostname();
     const pathname = getCurrentPathname();
@@ -40,22 +35,18 @@ function getStoredTenantId() {
     }
 
     try {
+        // Prioridad 1: Tenant seleccionado explícitamente para gestión
+        const activeTenant = localStorage.getItem('teflon_active_tenant');
+        if (activeTenant && activeTenant !== 'undefined' && activeTenant !== 'null') {
+            return String(activeTenant).trim();
+        }
+
+        // Prioridad 2: Tenant asociado al usuario
         const rawUser = localStorage.getItem('teflon_user');
-        const parsedUser = rawUser ? JSON.parse(rawUser) : null;
-        const userTenantId = normalizeTenantId(parsedUser?.tenant_id || parsedUser?.tenantId);
-        const userRole = String(parsedUser?.role || '').trim();
-
-        // In the editor, a Vase tenant session must win over an old cached tenant.
-        if (isEditorContext() && userTenantId && userRole !== 'master_admin') {
-            return userTenantId;
-        }
-
-        const activeTenant = normalizeTenantId(localStorage.getItem('teflon_active_tenant'));
-        if (activeTenant) {
-            return activeTenant;
-        }
-
-        return userTenantId;
+        if (!rawUser) return '';
+        const parsedUser = JSON.parse(rawUser);
+        const tid = String(parsedUser?.tenant_id || parsedUser?.tenantId || '').trim();
+        return (tid === 'undefined' || tid === 'null') ? '' : tid;
     } catch (err) {
         return '';
     }
@@ -63,8 +54,8 @@ function getStoredTenantId() {
 
 function setStoredTenantId(tenantId) {
     if (typeof window === 'undefined') return;
-    const normalized = normalizeTenantId(tenantId);
-    if (!normalized) return;
+    const normalized = String(tenantId || '').trim();
+    if (!normalized || normalized === 'undefined' || normalized === 'null') return;
 
     try {
         localStorage.setItem('teflon_active_tenant', normalized);
@@ -109,16 +100,11 @@ export function getTenantHeaders() {
 export async function ensureAdminTenantSelection(user = null) {
     if (!isEditorContext()) return '';
 
-    const userTenantId = normalizeTenantId(user?.tenant_id || user?.tenantId);
-    if (userTenantId && user?.role !== 'master_admin') {
-        setStoredTenantId(userTenantId);
-        return userTenantId;
-    }
-
-    const currentTenantId = normalizeTenantId(getTenantHeaders()['X-Tenant-Id']);
+    const currentTenantId = String(getTenantHeaders()['X-Tenant-Id'] || '').trim();
     if (currentTenantId) return currentTenantId;
 
-    if (userTenantId) {
+    const userTenantId = String(user?.tenant_id || user?.tenantId || '').trim();
+    if (userTenantId && userTenantId !== 'undefined' && userTenantId !== 'null') {
         setStoredTenantId(userTenantId);
         return userTenantId;
     }

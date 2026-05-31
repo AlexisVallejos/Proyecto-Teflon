@@ -1746,11 +1746,6 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                     <EvolutionInput label="Stat 2" value={block.props?.statCategories || ''} onChange={(e) => handlePropChange('statCategories', e.target.value)} />
                     <EvolutionInput label="Stat 3" value={block.props?.statYears || ''} onChange={(e) => handlePropChange('statYears', e.target.value)} />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                    <EvolutionInput label="Stat 1 texto" value={block.props?.statProductsLabel || ''} onChange={(e) => handlePropChange('statProductsLabel', e.target.value)} />
-                    <EvolutionInput label="Stat 2 texto" value={block.props?.statCategoriesLabel || ''} onChange={(e) => handlePropChange('statCategoriesLabel', e.target.value)} />
-                    <EvolutionInput label="Stat 3 texto" value={block.props?.statYearsLabel || ''} onChange={(e) => handlePropChange('statYearsLabel', e.target.value)} />
-                </div>
                 <div className="grid grid-cols-2 gap-3">
                     <EvolutionInput label="Boton primario" value={block.props?.primaryLabel || ''} onChange={(e) => handlePropChange('primaryLabel', e.target.value)} />
                     <EvolutionInput label="Link primario" value={block.props?.primaryHref || ''} onChange={(e) => handlePropChange('primaryHref', e.target.value)} />
@@ -1798,7 +1793,6 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
             <div className={panelClass}>
                 <SectionHeading icon={Baseline}>Tres mundos</SectionHeading>
                 <div className="space-y-3">
-                    <EvolutionInput label="Texto superior" value={block.props?.eyebrow || ''} onChange={(e) => handlePropChange('eyebrow', e.target.value)} />
                     <EvolutionInput label="Titulo (inicio)" value={block.props?.titleStart || ''} onChange={(e) => handlePropChange('titleStart', e.target.value)} />
                     <EvolutionInput label="Texto en acento naranja" value={block.props?.titleHighlight || ''} onChange={(e) => handlePropChange('titleHighlight', e.target.value)} />
                     <EvolutionInput label="Titulo (final)" value={block.props?.titleEnd || ''} onChange={(e) => handlePropChange('titleEnd', e.target.value)} />
