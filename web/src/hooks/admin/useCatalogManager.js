@@ -189,9 +189,9 @@ const buildProductFormFromProduct = (product) => {
     }
 
     const categoryIds = Array.isArray(product?.category_ids)
-        ? product.category_ids.filter(Boolean)
+        ? product.category_ids.map((id) => String(id).trim().toLowerCase()).filter(Boolean)
         : product?.category_id
-            ? [product.category_id].filter(Boolean)
+            ? [String(product.category_id).trim().toLowerCase()].filter(Boolean)
             : [];
 
     return {
@@ -250,15 +250,17 @@ const normalizeCategoryIds = (draft, availableCategories = []) => {
     );
     const validIds = new Set(
         (Array.isArray(availableCategories) ? availableCategories : [])
-            .map((item) => String(item?.id || '').trim())
+            .map((item) => String(item?.id || '').trim().toLowerCase())
             .filter(Boolean)
     );
 
     if (!validIds.size) {
-        return rawIds;
+        return rawIds.map((id) => String(id).trim().toLowerCase());
     }
 
-    return rawIds.filter((id) => validIds.has(String(id).trim()));
+    return rawIds
+        .map((id) => String(id).trim().toLowerCase())
+        .filter((id) => validIds.has(id));
 };
 
 const sanitizeDraftCategories = (draft, availableCategories = []) => {
@@ -345,11 +347,14 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
     }, [setCatalogInspectorSection]);
 
     const toggleProductCategorySelection = useCallback((categoryId) => {
+        const cleanId = String(categoryId).trim().toLowerCase();
         setProductDraft((prev) => {
-            const current = Array.isArray(prev.category_ids) ? prev.category_ids : [];
-            const next = current.includes(categoryId)
-                ? current.filter((id) => id !== categoryId)
-                : [...current, categoryId];
+            const current = (Array.isArray(prev.category_ids) ? prev.category_ids : [])
+                .map((id) => String(id).trim().toLowerCase())
+                .filter(Boolean);
+            const next = current.includes(cleanId)
+                ? current.filter((id) => id !== cleanId)
+                : [...current, cleanId];
             return {
                 ...prev,
                 category_ids: next,

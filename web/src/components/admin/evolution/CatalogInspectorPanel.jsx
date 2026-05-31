@@ -203,7 +203,11 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
     } = catalog;
 
     const isEditing = Boolean(editingProductId);
-    const selectedCategories = Array.isArray(productDraft.category_ids) ? productDraft.category_ids : [];
+    const selectedCategories = React.useMemo(() =>
+        (Array.isArray(productDraft.category_ids) ? productDraft.category_ids : [])
+            .map((id) => String(id).trim().toLowerCase())
+            .filter(Boolean)
+    , [productDraft.category_ids]);
     const specificationRows = Array.isArray(productDraft.specifications) ? productDraft.specifications : [];
     const syncMeta = SYNC_STATUS_META[productDraft.sync_status] || SYNC_STATUS_META.manual;
     const categoryOptions = React.useMemo(() => buildCategoryOptions(categories), [categories]);
@@ -213,7 +217,7 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
     );
     const sourceCategoryPath = Array.isArray(productDraft.source_category_path) ? productDraft.source_category_path.filter(Boolean) : [];
     const selectedCategoryEntries = React.useMemo(
-        () => categoryOptions.filter((option) => selectedCategories.includes(option.id)),
+        () => categoryOptions.filter((option) => selectedCategories.includes(String(option.id).trim().toLowerCase())),
         [categoryOptions, selectedCategories],
     );
     const selectedCategoryText = selectedCategoryEntries.map((entry) => `${entry.name} ${entry.path}`).join(' ');
@@ -618,103 +622,7 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
 
                 {catalogInspectorSection === 'categories' ? (
                     <div className="space-y-4">
-                        <div className="space-y-3 rounded-xl border border-evolution-indigo/30 bg-evolution-indigo/10 p-3">
-                            <div>
-                                <p className={sectionLabelClass}>Taxonomia Piquim</p>
-                                <p className="mt-1 text-[11px] text-zinc-950">
-                                    Usa estos campos para que el producto aparezca con su categoria, subcategoria y color en el catalogo Piquim.
-                                </p>
-                            </div>
 
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <div className="space-y-1">
-                                    <label className="pl-1 text-[10px] font-bold uppercase text-indigo-100">Categoria principal</label>
-                                    <select
-                                        value={piquimGroup?.title || ''}
-                                        onChange={(event) => applyPiquimTaxonomy({ groupTitle: event.target.value })}
-                                        className={fieldClass}
-                                    >
-                                        <option value="">Seleccionar</option>
-                                        {piquimCatalogGroups.map((group) => (
-                                            <option key={group.title} value={group.title} className="bg-zinc-900">
-                                                {group.title}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label className="pl-1 text-[10px] font-bold uppercase text-indigo-100">Subcategoria</label>
-                                    <select
-                                        value={piquimCategory || ''}
-                                        onChange={(event) => applyPiquimTaxonomy({
-                                            groupTitle: piquimGroup?.title || '',
-                                            categoryTitle: event.target.value,
-                                            flavorName: piquimFlavor,
-                                        })}
-                                        disabled={!piquimGroup}
-                                        className={fieldClass}
-                                    >
-                                        <option value="">Seleccionar</option>
-                                        {(Array.isArray(piquimGroup?.categories) ? piquimGroup.categories : []).map((category) => (
-                                            <option key={category.title} value={category.title} className="bg-zinc-900">
-                                                {category.title}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {Array.isArray(piquimGroup?.flavors) && piquimGroup.flavors.length ? (
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-100">Sabor / Color</p>
-                                        {piquimFlavor ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => applyPiquimTaxonomy({
-                                                    groupTitle: piquimGroup.title,
-                                                    categoryTitle: piquimCategory,
-                                                    flavorName: '',
-                                                })}
-                                                className="text-[10px] font-bold text-indigo-100/80 hover:text-white"
-                                            >
-                                                Limpiar
-                                            </button>
-                                        ) : null}
-                                    </div>
-                                    <div className="grid max-h-64 grid-cols-1 gap-2 overflow-auto pr-1 sm:grid-cols-2">
-                                        {piquimGroup.flavors.map((flavor) => {
-                                            const selected = piquimFlavor === flavor.name;
-                                            return (
-                                                <button
-                                                    key={`${piquimGroup.title}-${flavor.name}`}
-                                                    type="button"
-                                                    onClick={() => applyPiquimTaxonomy({
-                                                        groupTitle: piquimGroup.title,
-                                                        categoryTitle: piquimCategory || piquimGroup.categories?.[0]?.title || '',
-                                                        flavorName: flavor.name,
-                                                    })}
-                                                    className={cn(
-                                                        'flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors',
-                                                        selected
-                                                            ? 'border-evolution-indigo bg-evolution-indigo text-white'
-                                                            : 'border-white/10 bg-black/10 text-zinc-200 hover:border-white/25 hover:bg-white/10'
-                                                    )}
-                                                >
-                                                    <span
-                                                        className="size-4 shrink-0 rounded-full border border-white/30"
-                                                        style={{ backgroundColor: flavor.color || '#e5e7eb' }}
-                                                    />
-                                                    <span className="truncate text-xs font-bold">{flavor.name}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ) : null}
-
-                        </div>
 
                         <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
                             <div>
@@ -753,7 +661,7 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
                                     {isCategoryPickerOpen ? (
                                         <div className="custom-scrollbar max-h-72 space-y-2 overflow-auto rounded-xl border border-white/10 bg-black/20 p-2">
                                             {categoryOptions.map((category) => {
-                                                const selected = selectedCategories.includes(category.id);
+                                                const selected = selectedCategories.includes(String(category.id).trim().toLowerCase());
                                                 return (
                                                     <button
                                                         key={category.id}
