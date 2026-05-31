@@ -114,7 +114,7 @@ function resolvePayloadDesignPreset(rawPayload, normalizedPayload) {
   );
   if (explicitPreset) return explicitPreset;
 
-  return getConfiguredTenantPreset(normalizedPayload) || DEFAULT_EXTERNAL_DESIGN_PRESET;
+  return getConfiguredTenantPreset(normalizedPayload) || null;
 }
 
 function resolvePayloadStaticSiteUrl(rawPayload, normalizedPayload) {
@@ -130,15 +130,23 @@ function resolvePayloadStaticSiteUrl(rawPayload, normalizedPayload) {
   ).trim();
 }
 
-function buildDefaultTenantSettings(tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET, staticSiteUrl = '') {
+function buildDefaultTenantSettings(tenantName, designPreset = null, staticSiteUrl = '') {
   const safeName = normalizeDisplayName(tenantName) || 'Vase Business';
 
+  const branding = {
+    name: safeName,
+  };
+  if (designPreset) {
+    branding.design_preset = normalizeDesignPreset(designPreset);
+  } else {
+    branding.design_preset = DEFAULT_EXTERNAL_DESIGN_PRESET;
+  }
+  if (staticSiteUrl) {
+    branding.custom_static_site_url = staticSiteUrl;
+  }
+
   return {
-    branding: {
-      name: safeName,
-      design_preset: normalizeDesignPreset(designPreset) || DEFAULT_EXTERNAL_DESIGN_PRESET,
-      ...(staticSiteUrl ? { custom_static_site_url: staticSiteUrl } : {}),
-    },
+    branding,
     theme: {},
     commerce: {
       mode: 'hybrid',
@@ -260,28 +268,37 @@ async function upsertTenant(client, payload) {
   return insertRes.rows[0];
 }
 
-async function ensureTenantSettings(client, tenantId, tenantName, designPreset = DEFAULT_EXTERNAL_DESIGN_PRESET, staticSiteUrl = '') {
+async function ensureTenantSettings(client, tenantId, tenantName, designPreset = null, staticSiteUrl = '') {
   const existingSettingsRes = await client.query(
-    'select tenant_id from tenant_settings where tenant_id = $1',
+    'select branding, theme, commerce from tenant_settings where tenant_id = $1',
     [tenantId]
   );
 
-  const defaults = buildDefaultTenantSettings(tenantName, designPreset, staticSiteUrl);
+  const safeName = normalizeDisplayName(tenantName) || 'Vase Business';
+
   if (existingSettingsRes.rowCount) {
+    const existing = existingSettingsRes.rows[0];
+    const branding = existing.branding || {};
+    
+    const brandingUpdate = {
+      name: safeName,
+    };
+    if (designPreset) brandingUpdate.design_preset = normalizeDesignPreset(designPreset);
+    if (staticSiteUrl) brandingUpdate.custom_static_site_url = staticSiteUrl;
+
     await client.query(
       [
         'update tenant_settings',
         "set branding = coalesce(branding, '{}'::jsonb) || $2::jsonb,",
-        "theme = coalesce(theme, '{}'::jsonb) || $3::jsonb,",
-        "commerce = coalesce(commerce, '{}'::jsonb) || $4::jsonb,",
         'updated_at = now()',
         'where tenant_id = $1',
       ].join(' '),
-      [tenantId, defaults.branding, defaults.theme, defaults.commerce]
+      [tenantId, brandingUpdate]
     );
     return;
   }
 
+  const defaults = buildDefaultTenantSettings(tenantName, designPreset, staticSiteUrl);
   await client.query(
     [
       'insert into tenant_settings (tenant_id, branding, theme, commerce)',
