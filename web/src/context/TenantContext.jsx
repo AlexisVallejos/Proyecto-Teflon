@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getApiBase, getTenantHeaders } from '../utils/api';
+import { useAuth } from './AuthContext';
+import { getAdminTenantHeaders, getApiBase, getTenantHeaders, isEditorContext } from '../utils/api';
 import { DEFAULT_STOREFRONT_LIGHT_THEME } from '../utils/storefrontTheme';
 import { normalizePriceTierLabels } from '../utils/priceTierLabels';
 import { PIQUIM_CATALOG_CARDS, PIQUIM_FOOTER_DEFAULTS } from '../data/piquimBranding';
@@ -257,6 +258,7 @@ function mergeTenantSettings(rawSettings = {}, tenant = DEFAULT_TENANT) {
 }
 
 export const TenantProvider = ({ children }) => {
+    const { user, loading: authLoading } = useAuth();
     const [tenant, setTenant] = useState(DEFAULT_TENANT);
     const [settings, setSettings] = useState(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
@@ -266,8 +268,16 @@ export const TenantProvider = ({ children }) => {
             setLoading(true);
         }
         try {
+            const editorContext = isEditorContext();
+            const headers = editorContext ? await getAdminTenantHeaders(user) : getTenantHeaders();
+            if (editorContext && !headers['X-Tenant-Id']) {
+                setTenant(DEFAULT_TENANT);
+                setSettings(DEFAULT_SETTINGS);
+                return;
+            }
+
             const response = await fetch(`${getApiBase()}/public/tenant`, {
-                headers: getTenantHeaders(),
+                headers,
             });
 
             if (!response.ok) {
@@ -287,7 +297,7 @@ export const TenantProvider = ({ children }) => {
                 setLoading(false);
             }
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         let active = true;
@@ -301,7 +311,9 @@ export const TenantProvider = ({ children }) => {
             }
         };
 
-        fetchTenant();
+        if (!isEditorContext() || !authLoading) {
+            fetchTenant();
+        }
 
         const handleRefresh = () => {
             refreshTenantSettings();
@@ -312,7 +324,7 @@ export const TenantProvider = ({ children }) => {
             active = false;
             window.removeEventListener('tenant-settings-updated', handleRefresh);
         };
-    }, [refreshTenantSettings]);
+    }, [authLoading, refreshTenantSettings]);
 
     if (loading) {
         return <StoreSkeleton variant="page" />;

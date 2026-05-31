@@ -23,7 +23,7 @@ function isLocalHost(hostname = getCurrentHostname()) {
     return ['localhost', '127.0.0.1', '::1'].includes(hostname) || hostname.endsWith('.localhost');
 }
 
-function isEditorContext() {
+export function isEditorContext() {
     const hostname = getCurrentHostname();
     const pathname = getCurrentPathname();
     return hostname.startsWith('editor.') || pathname.startsWith('/admin');
@@ -49,6 +49,18 @@ function getStoredTenantId() {
         return (tid === 'undefined' || tid === 'null') ? '' : tid;
     } catch (err) {
         return '';
+    }
+}
+
+function setStoredTenantId(tenantId) {
+    if (typeof window === 'undefined') return;
+    const normalized = String(tenantId || '').trim();
+    if (!normalized || normalized === 'undefined' || normalized === 'null') return;
+
+    try {
+        localStorage.setItem('teflon_active_tenant', normalized);
+    } catch (err) {
+        // Ignore storage errors; callers will keep working without the persisted tenant.
     }
 }
 
@@ -83,6 +95,48 @@ export function getTenantHeaders() {
         ...(tenantId ? { 'X-Tenant-Id': tenantId } : {}),
         ...(storefrontHost ? { 'X-Storefront-Host': storefrontHost } : {}),
     };
+}
+
+export async function ensureAdminTenantSelection(user = null) {
+    if (!isEditorContext()) return '';
+
+    const currentTenantId = String(getTenantHeaders()['X-Tenant-Id'] || '').trim();
+    if (currentTenantId) return currentTenantId;
+
+    const userTenantId = String(user?.tenant_id || user?.tenantId || '').trim();
+    if (userTenantId && userTenantId !== 'undefined' && userTenantId !== 'null') {
+        setStoredTenantId(userTenantId);
+        return userTenantId;
+    }
+
+    if (user?.role !== 'master_admin') return '';
+
+    try {
+        const token = localStorage.getItem('teflon_token');
+        if (!token) return '';
+
+        const res = await fetch(`${getApiBase()}/api/platform/admin/tenants`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        if (!res.ok) return '';
+
+        const data = await res.json();
+        const tenants = Array.isArray(data?.items) ? data.items : [];
+        const selectedTenant = tenants.find((tenant) => tenant?.status === 'active') || tenants[0];
+        if (!selectedTenant?.id) return '';
+
+        setStoredTenantId(selectedTenant.id);
+        return String(selectedTenant.id).trim();
+    } catch (err) {
+        return '';
+    }
+}
+
+export async function getAdminTenantHeaders(user = null) {
+    await ensureAdminTenantSelection(user);
+    return getTenantHeaders();
 }
 
 export function getAuthHeaders() {

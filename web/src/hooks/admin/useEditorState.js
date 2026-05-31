@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { getApiBase, getTenantHeaders } from '../../utils/api';
+import { getAdminTenantHeaders, getApiBase, getTenantHeaders } from '../../utils/api';
 import {
     DEFAULT_ABOUT_SECTIONS,
     DEFAULT_HOME_SECTIONS,
@@ -350,7 +350,12 @@ export function useEditorState(user) {
         setLoading(true);
         try {
             const token = localStorage.getItem('teflon_token');
-            const headers = { ...getTenantHeaders(), 'Authorization': `Bearer ${token}` };
+            const tenantHeaders = await getAdminTenantHeaders(user);
+            if (!tenantHeaders['X-Tenant-Id']) {
+                console.warn('No active tenant selected for editor data load.');
+                return;
+            }
+            const headers = { ...tenantHeaders, 'Authorization': `Bearer ${token}` };
 
             const [settingsRes, homeRes, aboutRes, productsRes, categoriesRes, brandsRes] = await Promise.all([
                 fetch(`${getApiBase()}/tenant/settings`, { headers }),
@@ -476,7 +481,7 @@ export function useEditorState(user) {
         } finally {
             setLoading(false);
         }
-    }, [cleanupReservedCatalogEntries, refreshTenantSettings, tenant]);
+    }, [cleanupReservedCatalogEntries, refreshTenantSettings, tenant, user]);
 
     useEffect(() => {
         loadAllData();
@@ -487,8 +492,12 @@ export function useEditorState(user) {
         setSaving(true);
         try {
             const token = localStorage.getItem('teflon_token');
+            const tenantHeaders = await getAdminTenantHeaders(user);
+            if (!tenantHeaders['X-Tenant-Id']) {
+                return { success: false, code: 'tenant_required', error: 'tenant_required' };
+            }
             const headers = {
-                ...getTenantHeaders(),
+                ...tenantHeaders,
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             };
@@ -536,13 +545,17 @@ export function useEditorState(user) {
         setSaving(true);
         try {
             const token = localStorage.getItem('teflon_token');
+            const tenantHeaders = await getAdminTenantHeaders(user);
+            if (!tenantHeaders['X-Tenant-Id']) {
+                return { success: false, code: 'tenant_required', error: 'tenant_required' };
+            }
             const headers = {
-                ...getTenantHeaders(),
+                ...tenantHeaders,
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             };
 
-            const currentTenantId = getTenantHeaders()['X-Tenant-Id'];
+            const currentTenantId = tenantHeaders['X-Tenant-Id'];
             const response = await fetch(`${getApiBase()}/api/admin/settings/checkout`, {
                 method: 'PUT',
                 headers,
@@ -590,7 +603,7 @@ export function useEditorState(user) {
         } finally {
             setSaving(false);
         }
-    }, [loadAllData, refreshTenantSettings, settings]);
+    }, [loadAllData, refreshTenantSettings, settings, user]);
 
     const saveShippingSettings = saveCheckoutSettings;
 
