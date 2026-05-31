@@ -56,18 +56,38 @@ const normalizeHomeSectionsForBrand = (settings = {}, tenant = null, sections = 
     return mergeSectionsWithDefaults('piquim-home', source);
 };
 
+const STANDARD_ABOUT_SECTION_TYPES = new Set([
+    'AboutHero',
+    'AboutMission',
+    'AboutStats',
+    'AboutValues',
+    'AboutTeam',
+    'AboutCTA',
+]);
+
+const LEGACY_PIQUIM_ABOUT_SECTION_TYPES = new Set([
+    'PiquimHero',
+    'PiquimAnnounceBar',
+    'PiquimTresMundos',
+    'PiquimCatalog3Panel',
+    'PiquimCTABanner',
+]);
+
 const normalizeAboutSectionsForBrand = (settings = {}, tenant = null, sections = []) => {
     const source = Array.isArray(sections) ? sections : [];
-    if (!isPiquimTenantIdentity({ tenant, settings })) {
-        const nonPiquimSections = source.filter((section) => !PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+    const isPiquim = isPiquimTenantIdentity({ tenant, settings });
+    const pageKey = isPiquim ? 'piquim-about' : 'about';
+
+    if (pageKey === 'about') {
+        const nonPiquimSections = source.filter((section) => !LEGACY_PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
         return nonPiquimSections.length ? mergeSectionsWithDefaults('about', nonPiquimSections) : DEFAULT_ABOUT_SECTIONS;
     }
 
-    const hasPiquimBlocks = source.some((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
-    if (!source.length || !hasPiquimBlocks) {
+    const standardSections = source.filter((section) => STANDARD_ABOUT_SECTION_TYPES.has(section?.type));
+    if (!standardSections.length) {
         return PIQUIM_ABOUT_SECTIONS;
     }
-    return mergeSectionsWithDefaults('piquim-about', source);
+    return mergeSectionsWithDefaults('piquim-about', standardSections);
 };
 
 const getNavbarLinkLabel = (link) => {
