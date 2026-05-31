@@ -454,6 +454,11 @@ export function useEditorState(user) {
                         home: normalizeHomeSectionsForBrand(loadedSettings, tenant, data.sections),
                     }));
                 }
+            } else {
+                rawSetPageSections(prev => ({
+                    ...prev,
+                    home: normalizeHomeSectionsForBrand(loadedSettings, tenant, []),
+                }));
             }
 
             if (aboutRes.ok) {
@@ -464,6 +469,11 @@ export function useEditorState(user) {
                         about: normalizeAboutSectionsForBrand(loadedSettings, tenant, data.sections),
                     }));
                 }
+            } else {
+                rawSetPageSections(prev => ({
+                    ...prev,
+                    about: normalizeAboutSectionsForBrand(loadedSettings, tenant, []),
+                }));
             }
 
             if (productsRes.ok) {

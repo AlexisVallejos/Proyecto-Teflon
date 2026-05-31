@@ -15,3 +15,41 @@ webhooksRouter.post('/payments', async (req, res, next) => {
     return next(err);
   }
 });
+
+webhooksRouter.post('/vase-provision', async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const expectedSecret = process.env.VASE_WEBHOOK_SECRET || 'vase_provision_secret_2026';
+    if (!authHeader || authHeader !== `Bearer ${expectedSecret}`) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    const { tenant_id, preview_url } = req.body;
+    if (!tenant_id || !preview_url) {
+      return res.status(400).json({ error: 'missing_fields' });
+    }
+
+    const existing = await pool.query(
+      'select tenant_id from tenant_settings where tenant_id = $1',
+      [tenant_id]
+    );
+
+    const brandingUpdate = { preview_url };
+
+    if (!existing.rowCount) {
+      await pool.query(
+        'insert into tenant_settings (tenant_id, branding, theme, commerce) values ($1, $2::jsonb, $3::jsonb, $4::jsonb)',
+        [tenant_id, brandingUpdate, {}, {}]
+      );
+    } else {
+      await pool.query(
+        'update tenant_settings set branding = branding || $2::jsonb, updated_at = now() where tenant_id = $1',
+        [tenant_id, brandingUpdate]
+      );
+    }
+
+    return res.json({ ok: true, tenant_id, preview_url });
+  } catch (err) {
+    return next(err);
+  }
+});
