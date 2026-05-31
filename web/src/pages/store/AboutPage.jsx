@@ -6,7 +6,16 @@ import { getDefaultSectionsForPage, mergeSectionsWithDefaults } from '../../data
 import { useTenant } from '../../context/TenantContext';
 import { isPiquimTenantIdentity } from '../../utils/tenantBranding';
 
-const PIQUIM_ABOUT_SECTION_TYPES = new Set([
+const STANDARD_ABOUT_SECTION_TYPES = new Set([
+    'AboutHero',
+    'AboutMission',
+    'AboutStats',
+    'AboutValues',
+    'AboutTeam',
+    'AboutCTA',
+]);
+
+const LEGACY_PIQUIM_ABOUT_SECTION_TYPES = new Set([
     'PiquimHero',
     'PiquimAnnounceBar',
     'PiquimTresMundos',
@@ -16,18 +25,18 @@ const PIQUIM_ABOUT_SECTION_TYPES = new Set([
 
 const shouldUseFetchedSections = (pageKey, sections = []) => {
     if (!Array.isArray(sections) || !sections.length) return false;
-    if (pageKey !== 'piquim-about') {
-        return sections.some((section) => !PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+    if (pageKey === 'piquim-about') {
+        return sections.some((section) => STANDARD_ABOUT_SECTION_TYPES.has(section?.type));
     }
-    return sections.some((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+    return sections.some((section) => !LEGACY_PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
 };
 
 const filterSectionsForPage = (pageKey, sections = []) => {
     const source = Array.isArray(sections) ? sections : [];
     if (pageKey === 'piquim-about') {
-        return source.filter((section) => PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+        return source.filter((section) => STANDARD_ABOUT_SECTION_TYPES.has(section?.type));
     }
-    return source.filter((section) => !PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
+    return source.filter((section) => !LEGACY_PIQUIM_ABOUT_SECTION_TYPES.has(section?.type));
 };
 
 export default function AboutPage() {
