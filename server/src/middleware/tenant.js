@@ -80,9 +80,8 @@ export async function resolveTenant(req, res, next) {
       const isEditor = currentHost.startsWith('editor.');
 
       if (isEditor) {
-        console.log(`Editor host detected without explicit tenant (${currentHost}). Proceeding with null tenant for ${req.path}`);
-        req.tenant = { id: null, name: 'Editor' };
-        return next();
+        console.warn(`Editor host detected without tenant (${currentHost}). Rejecting ${req.path} with tenant_required.`);
+        return res.status(400).json({ error: 'tenant_required' });
       }
 
       console.warn(`Tenant not found. headerTenant="${headerTenant || ''}" host="${currentHost}" path="${req.path}"`);

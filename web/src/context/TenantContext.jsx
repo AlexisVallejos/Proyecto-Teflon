@@ -270,6 +270,7 @@ export const TenantProvider = ({ children }) => {
         try {
             const editorContext = isEditorContext();
             const headers = editorContext ? await getAdminTenantHeaders(user) : getTenantHeaders();
+            const token = editorContext ? localStorage.getItem('teflon_token') : '';
             if (editorContext && !headers['X-Tenant-Id']) {
                 setTenant(DEFAULT_TENANT);
                 setSettings(DEFAULT_SETTINGS);
@@ -277,7 +278,10 @@ export const TenantProvider = ({ children }) => {
             }
 
             const response = await fetch(`${getApiBase()}/public/tenant`, {
-                headers,
+                headers: {
+                    ...headers,
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
             });
 
             if (!response.ok) {

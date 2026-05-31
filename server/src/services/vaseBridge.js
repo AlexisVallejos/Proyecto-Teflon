@@ -41,13 +41,13 @@ function normalizeTenantPresetText(value) {
 
 function inferDefaultDesignPreset(tenantName, tenantSlug = '') {
   const identity = normalizeTenantPresetText(`${tenantName} ${tenantSlug}`);
-  if (identity.includes('piquim')) return 'piquim';
+  if (identity.includes('piquim') || identity.includes('piquin')) return 'piquim';
   return 'sanitarios_industrial';
 }
 
 function isPiquimTenantIdentity(tenantName, tenantSlug = '') {
   const identity = normalizeTenantPresetText(`${tenantName} ${tenantSlug}`);
-  return identity.includes('piquim');
+  return identity.includes('piquim') || identity.includes('piquin');
 }
 
 function buildDefaultTenantSettings(tenantName, tenantSlug = '') {

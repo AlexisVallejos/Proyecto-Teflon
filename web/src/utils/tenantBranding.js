@@ -27,7 +27,7 @@ const brandingIdentityValues = (settings = {}) => {
 export const isPiquimTenantIdentity = ({ tenant = {}, settings = {} } = {}) =>
   (tenantIdentityValues(tenant).length ? tenantIdentityValues(tenant) : brandingIdentityValues(settings)).some((value) => {
     const normalized = normalizeText(value);
-    return normalized === 'piquim' || normalized.includes('piquim');
+    return normalized === 'piquim' || normalized === 'piquin' || normalized.includes('piquim') || normalized.includes('piquin');
   });
 
 export const resolveTenantBrandName = ({ tenant = {}, settings = {}, fallback = 'Sanitarios El Teflon' } = {}) => {

@@ -39,6 +39,16 @@ test('classifies the PIQUIM tenant as PIQUIM without requiring an explicit prese
   assert.equal(resolveTenantDesignPreset({ tenant, settings }), 'piquim');
 });
 
+test('classifies PIQUIN typo as PIQUIM brand tenant', () => {
+  const tenant = {
+    name: 'Piquin',
+    external_tenant_slug: 'piquin',
+  };
+
+  assert.equal(isPiquimTenantIdentity({ tenant, settings: {} }), true);
+  assert.equal(resolveTenantDesignPreset({ tenant, settings: {} }), 'piquim');
+});
+
 test('keeps an explicit non-PIQUIM preset for non-PIQUIM tenants', () => {
   const tenant = {
     name: 'Sanitarios El Teflon',
