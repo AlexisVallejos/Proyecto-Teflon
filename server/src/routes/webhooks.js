@@ -34,7 +34,10 @@ webhooksRouter.post('/vase-provision', async (req, res, next) => {
       [tenant_id]
     );
 
-    const brandingUpdate = { preview_url };
+    const brandingUpdate = { 
+      preview_url,
+      design_preset: 'piquim' // Asignar el preset Piquim para los bloques
+    };
 
     if (!existing.rowCount) {
       await pool.query(
