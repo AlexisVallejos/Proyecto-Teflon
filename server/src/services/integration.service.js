@@ -527,7 +527,7 @@ const normalizeCategoryHierarchy = (raw) => {
   const explicitTokens = uniqueTextValues(
     splitCategoryPathTokens(explicitPath).map((value) => normalizeCategoryToken(value))
   );
-  if (explicitTokens.length > 1) {
+  if (explicitTokens.length) {
     return explicitTokens;
   }
 
@@ -558,7 +558,7 @@ const normalizeCategoryHierarchy = (raw) => {
     normalizeCategoryToken(firstTextAlias(raw, ['familia', 'family'])),
   ]);
 
-  return inferredPath.length > 1 ? inferredPath : [];
+  return inferredPath.length ? inferredPath : [];
 };
 
 const normalizeImageCollection = (images, fallbackAlt) => {

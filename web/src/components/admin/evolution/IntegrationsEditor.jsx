@@ -492,7 +492,7 @@ const IntegrationsEditor = ({ manager }) => {
                         </p>
                         {!shouldRequestProductImages ? (
                             <p className="text-[12px] leading-6 text-orange-200">
-                                Para Piquim no pedir imagenes al sistema de gestion. Las imagenes se cargan desde el panel web y quedan asociadas al SKU.
+                                Este contrato no solicita imagenes al sistema de gestion. Las imagenes se cargan desde el panel web y quedan asociadas al SKU.
                             </p>
                         ) : null}
                         <p className="text-[12px] leading-6 text-zinc-300">

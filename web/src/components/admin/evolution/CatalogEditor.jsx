@@ -195,12 +195,12 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                             <Package size={18} weight="bold" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Catalogo Piquim</p>
-                            <p className="text-sm font-bold text-white">Materia prima</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Catalogo</p>
+                            <p className="text-sm font-bold text-white">Productos</p>
                         </div>
                     </div>
                     <p className="text-[11px] text-zinc-500">
-                        Los productos se publican dentro de Heladeria o Panaderia/Confiteria desde el inspector.
+                        Los productos se publican con las categorias cargadas manualmente o sincronizadas desde el sistema de gestion.
                     </p>
                 </div>
 

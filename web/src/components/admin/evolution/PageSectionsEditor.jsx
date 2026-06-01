@@ -27,20 +27,20 @@ const HOME_SECTION_TYPES = [
 ];
 
 const PIQUIM_HOME_SECTION_TYPES = [
-    { type: 'PiquimHero', label: 'Piquim Hero' },
+    { type: 'PiquimHero', label: 'Portada video' },
     { type: 'PiquimAnnounceBar', label: 'Barra Anuncio' },
-    { type: 'PiquimTresMundos', label: 'Tres Mundos' },
-    { type: 'PiquimCatalog3Panel', label: 'Catalogo 3 Paneles' },
-    { type: 'PiquimFeaturedProducts', label: 'Destacados Piquim' },
-    { type: 'PiquimCTABanner', label: 'CTA Piquim' },
+    { type: 'PiquimTresMundos', label: 'Bloque destacado' },
+    { type: 'PiquimCatalog3Panel', label: 'Catalogo 3 paneles' },
+    { type: 'PiquimFeaturedProducts', label: 'Productos destacados' },
+    { type: 'PiquimCTABanner', label: 'Llamado a la accion' },
 ];
 
 const PIQUIM_ABOUT_SECTION_TYPES = [
-    { type: 'PiquimHero', label: 'Portada Piquim' },
+    { type: 'PiquimHero', label: 'Portada video' },
     { type: 'PiquimAnnounceBar', label: 'Barra Anuncio' },
-    { type: 'PiquimTresMundos', label: 'Nosotros Piquim' },
-    { type: 'PiquimCatalog3Panel', label: 'Lineas Piquim' },
-    { type: 'PiquimCTABanner', label: 'CTA Piquim' },
+    { type: 'PiquimTresMundos', label: 'Bloque destacado' },
+    { type: 'PiquimCatalog3Panel', label: 'Lineas de negocio' },
+    { type: 'PiquimCTABanner', label: 'Llamado a la accion' },
 ];
 
 const ABOUT_SECTION_TYPES = [
@@ -258,9 +258,9 @@ const PageSectionsEditor = ({
                             {pageKey === 'about'
                                 ? 'Sobre Nosotros'
                                 : pageKey === 'piquim-about'
-                                    ? 'Nosotros Piquim'
+                                    ? 'Nosotros'
                                 : pageKey === 'piquim-home'
-                                    ? 'Inicio Piquim'
+                                    ? 'Inicio'
                                     : 'Inicio'}
                         </p>
                         <h2 className="text-xl font-bold text-white">Bloques</h2>

@@ -41,12 +41,12 @@ const EvolutionLayout = ({
                     <div className="flex items-center justify-center w-20 h-20 rounded-3xl mb-8 shadow-2xl" style={{ backgroundColor: 'var(--admin-accent)', color: 'var(--admin-accent-contrast)' }}>
                         <Desktop size={40} weight="duotone" />
                     </div>
-                    <h1 className="text-2xl font-black mb-3 admin-text-primary tracking-tight">Experiencia de Escritorio</h1>
+                    <h1 className="text-2xl font-black mb-3 admin-text-primary tracking-tight">Panel de escritorio</h1>
                     <p className="text-sm admin-text-muted mb-8 leading-relaxed">
-                        El <b>Evolution Admin Panel</b> es una herramienta profesional de construcción. Para ofrecerte todas sus características avanzadas, requiere una pantalla más grande (resolución mínima de 1024px).
+                        El panel de administracion requiere una pantalla mas grande para editar catalogo, paginas y configuracion con precision.
                     </p>
                     <p className="text-[11px] font-bold uppercase tracking-[0.2em] admin-accent-text mb-12">
-                        Por favor, accede desde una PC o Laptop.
+                        Accede desde una computadora.
                     </p>
                     <button
                         onClick={() => window.location.href = '/'}

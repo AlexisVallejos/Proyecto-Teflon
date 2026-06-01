@@ -59,12 +59,26 @@ const StatCard = ({ label, value, trend, icon: Icon, color }) => (
     </div>
 );
 
-const Dashboard = () => (
+const getUserDisplayName = (user = {}) => {
+    const raw = user?.name || user?.full_name || user?.business_name || user?.email || '';
+    const value = String(raw || '').trim();
+    if (!value) return 'Administrador';
+    return value.includes('@') ? value.split('@')[0] : value;
+};
+
+const getStoreDisplayName = ({ tenant = {}, settings = {} } = {}) =>
+    String(settings?.branding?.name || tenant?.name || 'tu tienda').trim() || 'tu tienda';
+
+const Dashboard = ({ user, tenant, settings }) => {
+    const displayName = getUserDisplayName(user);
+    const storeName = getStoreDisplayName({ tenant, settings });
+
+    return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex items-center justify-between">
             <div className="space-y-1">
-                <h2 className="text-3xl font-bold text-white tracking-tight">Bienvenido de nuevo.</h2>
-                <p className="text-sm text-zinc-500 font-medium">Aquí tienes un resumen de tu tienda hoy.</p>
+                <h2 className="text-3xl font-bold text-white tracking-tight">Hola, {displayName}.</h2>
+                <p className="text-sm text-zinc-500 font-medium">Resumen operativo de {storeName}.</p>
             </div>
             <button className="h-10 px-4 rounded-lg bg-white/5 hover:bg-white/10 text-white text-xs font-bold border border-white/5 flex items-center gap-2 transition-all">
                 Descargar Informe
@@ -78,7 +92,8 @@ const Dashboard = () => (
             <StatCard label="Productos" value="482" icon={Package} />
         </div>
     </div>
-);
+    );
+};
 
 const SettingsEditor = ({ settings, setSettings }) => {
     const { user } = useAuth();
@@ -620,7 +635,7 @@ const EvolutionAdmin = () => {
                     />
                 );
             case 'dashboard':
-                return <Dashboard />;
+                return <Dashboard user={user} tenant={tenant} settings={editor.settings} />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center p-20 text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">

@@ -1063,7 +1063,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                                     label="Nombre"
                                     value={item?.name || ''}
                                     onChange={(event) => updateBrandItem(index, { name: event.target.value })}
-                                    placeholder="Ej: Roca"
+                                    placeholder="Ej: Marca aliada"
                                 />
                                 <EvolutionInput
                                     label="URL del logo"
@@ -1697,7 +1697,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
 
     const renderPiquimHeroEditor = () => (
         <div className={panelClass}>
-            <SectionHeading icon={Baseline}>Hero Piquim</SectionHeading>
+            <SectionHeading icon={Baseline}>Portada video</SectionHeading>
             <div className="space-y-3">
                 <EvolutionInput label="Badge superior" value={block.props?.badgeText || ''} onChange={(e) => handlePropChange('badgeText', e.target.value)} />
                 <EvolutionInput label="Titulo linea 1" value={block.props?.preTitle || ''} onChange={(e) => handlePropChange('preTitle', e.target.value)} />
@@ -1738,7 +1738,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                         </div>
                     </>
                 ) : (
-                    <p className="text-xs text-zinc-500">La imagen del balde fue removida de este bloque. Usa videos desktop/mobile.</p>
+                    <p className="text-xs text-zinc-500">Este bloque esta configurado para trabajar con videos desktop/mobile.</p>
                 )}
 
                 <div className="grid grid-cols-3 gap-2">
@@ -1791,7 +1791,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
 
         return (
             <div className={panelClass}>
-                <SectionHeading icon={Baseline}>Tres mundos</SectionHeading>
+                <SectionHeading icon={Baseline}>Bloque destacado</SectionHeading>
                 <div className="space-y-3">
                     <EvolutionInput label="Titulo (inicio)" value={block.props?.titleStart || ''} onChange={(e) => handlePropChange('titleStart', e.target.value)} />
                     <EvolutionInput label="Texto en acento naranja" value={block.props?.titleHighlight || ''} onChange={(e) => handlePropChange('titleHighlight', e.target.value)} />
@@ -1800,7 +1800,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div className="space-y-2">
                             <EvolutionInput
-                                label="Balde izquierdo (.png obligatorio)"
+                                label="Imagen izquierda (.png obligatorio)"
                                 value={block.props?.leftImage || ''}
                                 onChange={(event) => updatePngField('leftImage', event.target.value)}
                             />
@@ -1826,7 +1826,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                         </div>
                         <div className="space-y-2">
                             <EvolutionInput
-                                label="Balde derecho (.png obligatorio)"
+                                label="Imagen derecha (.png obligatorio)"
                                 value={block.props?.rightImage || ''}
                                 onChange={(event) => updatePngField('rightImage', event.target.value)}
                             />
@@ -1852,7 +1852,7 @@ const BlockPropertiesEditor = ({ block, onChange }) => {
                         </div>
                     </div>
                     <p className="text-xs text-zinc-400">
-                        Esta seccion usa solo 2 imagenes laterales (izquierda y derecha), exactamente como el diseno.
+                        Esta seccion usa solo 2 imagenes laterales: izquierda y derecha.
                     </p>
                 </div>
             </div>

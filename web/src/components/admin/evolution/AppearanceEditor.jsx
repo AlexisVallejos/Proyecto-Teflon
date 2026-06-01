@@ -1041,7 +1041,7 @@ const AppearanceEditor = ({ settings, setSettings, onSave, isSaving }) => {
                                     label="Tags separados por coma"
                                     value={Array.isArray(card.tags) ? card.tags.join(', ') : card.tags || ''}
                                     onChange={(e) => updateCatalogCardTags(index, e.target.value)}
-                                    placeholder="Griferia, Sanitarios, Accesorios"
+                                    placeholder="Categoria principal, Subcategoria, Linea"
                                 />
                                 <EvolutionInput
                                     label="Descripcion"

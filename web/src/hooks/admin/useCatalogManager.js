@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { getApiBase, getTenantHeaders } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import useEvolutionStore from '../../store/useEvolutionStore';
-import { PIQUIM_SUBCATALOGS } from '../../data/piquimSubcatalogs';
 
 const createEmptyProduct = () => ({
     name: '',
@@ -65,36 +64,6 @@ const mapSpecificationRowsToObject = (rows) => {
         return acc;
     }, {});
 };
-
-const normalizeCategoryName = (value) =>
-    String(value || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-
-const PIQUIM_CATEGORY_ROOT_LABELS = {
-    heladeria: 'Heladeria',
-    panaderia: 'Panaderia/Confiteria',
-};
-
-const buildPiquimCategoryBlueprint = () =>
-    Object.entries(PIQUIM_SUBCATALOGS)
-        .map(([slug, subcatalog]) => {
-            const groups = Array.isArray(subcatalog?.productGroups) ? subcatalog.productGroups : [];
-            if (!groups.length) return null;
-            return {
-                name: PIQUIM_CATEGORY_ROOT_LABELS[slug] || subcatalog.headingAccent || slug,
-                children: groups.map((group) => ({
-                    name: group.title,
-                    children: (Array.isArray(group.categories) ? group.categories : []).map((category) => ({
-                        name: category.title,
-                        children: [],
-                    })),
-                })),
-            };
-        })
-        .filter(Boolean);
 
 const parsePriceTierNumber = (value) => {
     if (typeof value === 'number') {
@@ -334,7 +303,6 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryParentId, setNewCategoryParentId] = useState('');
     const [categorySaving, setCategorySaving] = useState(false);
-    const [categorySeeding, setCategorySeeding] = useState(false);
     const [categoryDeletingId, setCategoryDeletingId] = useState(null);
     const [newBrandName, setNewBrandName] = useState('');
     const [brandSaving, setBrandSaving] = useState(false);
@@ -552,69 +520,6 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
             setCategorySaving(false);
         }
     }, [addToast, categories, newCategoryName, newCategoryParentId, setCategories]);
-
-    const handleSeedPiquimCategories = useCallback(async () => {
-        const blueprint = buildPiquimCategoryBlueprint();
-        if (!blueprint.length) return;
-
-        setCategorySeeding(true);
-        try {
-            const token = localStorage.getItem('teflon_token');
-            const headers = {
-                ...getTenantHeaders(),
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            };
-
-            const current = Array.isArray(categories) ? [...categories] : [];
-
-            const findExisting = (name, parentId) => {
-                const cleanName = normalizeCategoryName(name);
-                const cleanParent = parentId || null;
-                return current.find((item) =>
-                    normalizeCategoryName(item?.name) === cleanName
-                    && (item?.parent_id || null) === cleanParent
-                ) || null;
-            };
-
-            const createNode = async (name, parentId = null) => {
-                const existing = findExisting(name, parentId);
-                if (existing) return existing;
-
-                const res = await fetch(`${getApiBase()}/tenant/categories`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({ name, parent_id: parentId || null })
-                });
-
-                if (!res.ok) {
-                    throw new Error(`No se pudo crear la categoria ${name}`);
-                }
-
-                const created = await res.json();
-                current.push(created);
-                return created;
-            };
-
-            const walk = async (nodes, parentId = null) => {
-                for (const node of nodes) {
-                    const created = await createNode(node.name, parentId);
-                    if (Array.isArray(node.children) && node.children.length) {
-                        await walk(node.children, created.id);
-                    }
-                }
-            };
-
-            await walk(blueprint);
-            setCategories(current);
-            addToast('Categorias Piquim cargadas', 'success');
-        } catch (err) {
-            console.error('Failed to seed Piquim categories', err);
-            addToast('No se pudieron cargar las categorias Piquim', 'error');
-        } finally {
-            setCategorySeeding(false);
-        }
-    }, [addToast, categories, setCategories]);
 
     const handleDeleteCategory = useCallback(async (categoryId, categoryName) => {
         if (!categoryId) return;
@@ -887,7 +792,6 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         newCategoryName,
         newCategoryParentId,
         categorySaving,
-        categorySeeding,
         categoryDeletingId,
         newBrandName,
         brandSaving,
@@ -909,7 +813,6 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         setNewCategoryName,
         setNewCategoryParentId,
         handleCreateCategory,
-        handleSeedPiquimCategories,
         handleDeleteCategory,
         setNewBrandName,
         handleCreateBrand,

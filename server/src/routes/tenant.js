@@ -334,6 +334,7 @@ function normalizeStoredPriceTiers(data, priceRetail, priceWholesale) {
 
 function mapTenantProductRecord(row, priceTierLabels = {}) {
   const data = row?.data && typeof row.data === 'object' ? row.data : {};
+  const categoryIds = Array.isArray(row?.category_ids) ? row.category_ids : [];
   const fallbackDescription =
     data.long_description ||
     data.longDescription ||
@@ -355,6 +356,8 @@ function mapTenantProductRecord(row, priceTierLabels = {}) {
       normalizeStoredPriceTiers(data, row?.price, row?.price_wholesale),
       priceTierLabels
     ),
+    category_id: categoryIds[0] || '',
+    category_ids: categoryIds,
     source_category: data.source_category || null,
     source_category_path: Array.isArray(data.source_category_path) ? data.source_category_path : [],
   };

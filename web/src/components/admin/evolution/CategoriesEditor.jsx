@@ -79,7 +79,6 @@ const CategoriesEditor = ({ manager, categories = [], brands = [] }) => {
         newCategoryName,
         newCategoryParentId,
         categorySaving,
-        categorySeeding,
         categoryDeletingId,
         newBrandName,
         brandSaving,
@@ -87,7 +86,6 @@ const CategoriesEditor = ({ manager, categories = [], brands = [] }) => {
         setNewCategoryName,
         setNewCategoryParentId,
         handleCreateCategory,
-        handleSeedPiquimCategories,
         handleDeleteCategory,
         setNewBrandName,
         handleCreateBrand,
@@ -100,9 +98,9 @@ const CategoriesEditor = ({ manager, categories = [], brands = [] }) => {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight text-white">Categorias Piquim y marcas</h2>
+                <h2 className="text-3xl font-bold tracking-tight text-white">Categorias y marcas</h2>
                 <p className="text-sm text-zinc-400">
-                    Organiza las dos lineas principales de Piquim: Heladeria y Panaderia/Confiteria, con subcategorias para cada familia de materia prima.
+                    Organiza el arbol de rubros, subrubros y marcas que usan el catalogo y el sistema de gestion.
                 </p>
             </div>
 
@@ -113,19 +111,8 @@ const CategoriesEditor = ({ manager, categories = [], brands = [] }) => {
                 </div>
 
                 <div className="space-y-1">
-                    <p className={sectionLabelClass}>Lineas y familias</p>
-                    <p className="text-[11px] text-zinc-400">Usa raiz para Heladeria o Panaderia/Confiteria. Usa una categoria padre para crear familias internas.</p>
-                </div>
-
-                <div className="flex justify-end">
-                    <button
-                        type="button"
-                        onClick={handleSeedPiquimCategories}
-                        disabled={categorySeeding}
-                        className="rounded-xl bg-evolution-indigo px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-evolution-indigo/90 disabled:opacity-60"
-                    >
-                        {categorySeeding ? 'Cargando...' : 'Cargar categorias Piquim'}
-                    </button>
+                    <p className={sectionLabelClass}>Rubros y subrubros</p>
+                    <p className="text-[11px] text-zinc-400">Usa raiz para rubros principales. Usa una categoria padre para crear niveles internos.</p>
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_auto]">
@@ -141,7 +128,7 @@ const CategoriesEditor = ({ manager, categories = [], brands = [] }) => {
                         onChange={(e) => setNewCategoryParentId(e.target.value)}
                         className={fieldClass}
                     >
-                        <option value="">Raiz Piquim</option>
+                        <option value="">Raiz</option>
                         {parentCategoryOptions.map((parent) => (
                             <option key={parent.id} value={parent.id} className="bg-zinc-900">
                                 {'--'.repeat(parent.depth)} {parent.path}
@@ -182,14 +169,14 @@ const CategoriesEditor = ({ manager, categories = [], brands = [] }) => {
 
                 <div className="space-y-1">
                     <p className={sectionLabelClass}>Marcas</p>
-                    <p className="text-[11px] text-zinc-400">Ejemplo: PIQUIM, Linea Profesional, Ingredientes MDQ.</p>
+                    <p className="text-[11px] text-zinc-400">Ejemplo: marca principal, linea propia o proveedor.</p>
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
                     <input
                         type="text"
                         value={newBrandName}
-                        placeholder="Ej: PIQUIM"
+                        placeholder="Ej: Marca principal"
                         onChange={(e) => setNewBrandName(e.target.value)}
                         className={fieldClass}
                     />
