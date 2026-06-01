@@ -5,8 +5,12 @@ let productSyncSchemaPromise = null;
 
 const DEFAULT_SOURCE_SYSTEM = 'erp';
 const DEFAULT_UNCATEGORIZED_LABEL = 'Sin definir';
+const ENABLE_PIQUIM_INTEGRATION_RULES =
+  String(process.env.ENABLE_PIQUIM_BOOTSTRAP || process.env.ENABLE_PIQUIM_INTEGRATIONS || '')
+    .trim()
+    .toLowerCase() === 'true';
 const PIQUIM_TENANT_IDS = new Set(
-  String(process.env.PIQUIM_TENANT_IDS || process.env.PIQUIM_TENANT_ID || '636736e2-e135-44cd-ac5c-5d4ccb839a73')
+  String(ENABLE_PIQUIM_INTEGRATION_RULES ? (process.env.PIQUIM_TENANT_IDS || process.env.PIQUIM_TENANT_ID || '') : '')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean)
