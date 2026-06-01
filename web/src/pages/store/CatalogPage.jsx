@@ -847,7 +847,7 @@ export default function CatalogPage() {
                                 <p className="mt-2 text-sm">Prueba con otra categoria, otra marca o limpia los filtros activos.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 xl:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
                                 {catalogProducts.map((product) => (
                                     <CatalogProductCard
                                         key={product.id}
@@ -2643,7 +2643,7 @@ function CatalogProductCard({
             tabIndex={0}
             onClick={openProduct}
             onKeyDown={handleCardKeyDown}
-            className="group cursor-pointer overflow-hidden rounded-[14px] border shadow-sm outline-none transition-all duration-300 hover:-translate-y-1.5 hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/10 focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="group cursor-pointer overflow-hidden rounded-[16px] border shadow-sm outline-none transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 focus-visible:ring-2 focus-visible:ring-primary/40 md:rounded-[24px]"
             style={CATALOG_STYLES.card}
             aria-label={`Ver detalle de ${name}`}
         >
@@ -2651,7 +2651,7 @@ function CatalogProductCard({
                 <img
                     alt={name}
                     title={alt}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     src={image}
                     loading="lazy"
                 />
@@ -2687,13 +2687,13 @@ function CatalogProductCard({
                 </div>
 
                 {tag ? (
-                    <span className="absolute left-2.5 top-2.5 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
+                    <span className="absolute left-3 top-3 rounded-full bg-primary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white">
                         {String(tag).toLowerCase() === "nuevo" || String(tag).toLowerCase() === "new" ? "Nuevo" : tag}
                     </span>
                 ) : null}
             </div>
 
-            <div className="flex flex-col gap-2.5 p-2.5 md:p-3.5">
+            <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-5">
                 <div className="space-y-2">
                     <button
                         type="button"
@@ -2703,11 +2703,11 @@ function CatalogProductCard({
                         }}
                         className="text-left"
                     >
-                        <h3 className="text-sm md:text-base font-black leading-tight text-[#181411] transition-colors group-hover:text-primary dark:text-white">
+                        <h3 className="text-sm font-black leading-tight text-[#181411] transition-colors group-hover:text-primary dark:text-white md:text-lg">
                             {name}
                         </h3>
                     </button>
-                    <p className="hidden md:block line-clamp-2 text-xs leading-5" style={CATALOG_STYLES.muted}>{desc || "Producto profesional listo para tu obra."}</p>
+                    <p className="hidden line-clamp-2 text-sm leading-6 md:block" style={CATALOG_STYLES.muted}>{desc || "Producto profesional listo para tu obra."}</p>
                     {stockStatus ? (
                         <span
                             className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${stockStatus.bg} ${stockStatus.tone}`}
@@ -2727,7 +2727,7 @@ function CatalogProductCard({
                     ) : null}
                 </div>
 
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 mt-auto">
+                <div className="mt-auto flex flex-col justify-between gap-4 md:flex-row md:items-end">
                     <div className="min-w-0 flex flex-col">
                         {showPricesEnabled ? (
                             canViewPrices ? (
@@ -2736,7 +2736,7 @@ function CatalogProductCard({
                                         <span className="text-xs font-semibold text-slate-400 line-through mb-1">{formatCurrency(oldPrice, currency, locale)}</span>
                                     ) : null}
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-base md:text-lg font-black text-primary">
+                                        <span className="text-lg font-black text-primary md:text-2xl">
                                             {hasPriceRange
                                                 ? `Desde ${formatCurrency(minPrice, currency, locale)}`
                                                 : formatCurrency(price, currency, locale)}
@@ -2773,7 +2773,7 @@ function CatalogProductCard({
                                 event.stopPropagation();
                                 setExpanded((current) => !current);
                             }}
-                            className="inline-flex h-9 w-full md:w-auto items-center justify-center rounded-xl px-3 text-xs font-bold text-white transition-all hover:bg-primary"
+                            className="inline-flex h-10 w-full items-center justify-center rounded-xl px-4 text-sm font-bold text-white transition-all hover:bg-primary md:h-9 md:w-auto md:text-xs"
                             style={{ backgroundColor: "var(--color-accent, #181411)" }}
                         >
                             {expanded ? "Ocultar" : "Ver variantes"}
@@ -2786,9 +2786,9 @@ function CatalogProductCard({
                                 addToCart(product, 1);
                             }}
                             disabled={!inStock}
-                            className="inline-flex h-9 w-full md:w-9 items-center justify-center gap-2 rounded-xl bg-primary px-3 md:px-0 text-xs font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-60 md:h-10 md:w-10 md:px-0 md:text-xs"
                         >
-                            <CartPlusIcon className="size-4" />
+                            <CartPlusIcon className="size-5 md:size-4" />
                             <span className="md:hidden">Agregar al carrito</span>
                         </button>
                     )}
