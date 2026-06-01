@@ -1,6 +1,5 @@
 import React from 'react';
 import { Tag, BookmarkSimple } from '@phosphor-icons/react';
-import { PIQUIM_SUBCATALOGS } from '../../../data/piquimSubcatalogs';
 
 const fieldClass =
     "w-full rounded-xl border border-white/25 bg-zinc-900/70 px-3 py-2.5 text-sm text-white placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-evolution-indigo focus:ring-2 focus:ring-evolution-indigo/30";
@@ -10,22 +9,6 @@ const compactFieldClass =
 
 const sectionTitleClass = "text-[11px] font-bold uppercase tracking-widest text-evolution-indigo";
 const sectionLabelClass = "text-[10px] uppercase font-bold tracking-widest text-zinc-500";
-
-const PIQUIM_CATEGORY_ROOT_LABELS = {
-    heladeria: 'Heladeria',
-    panaderia: 'Panaderia/Confiteria',
-};
-
-const PIQUIM_CATEGORY_PREVIEW = Object.entries(PIQUIM_SUBCATALOGS)
-    .map(([slug, subcatalog]) => {
-        const groups = Array.isArray(subcatalog?.productGroups) ? subcatalog.productGroups : [];
-        if (!groups.length) return null;
-        return {
-            name: PIQUIM_CATEGORY_ROOT_LABELS[slug] || subcatalog.headingAccent || slug,
-            groups,
-        };
-    })
-    .filter(Boolean);
 
 const buildCategoryTree = (items = []) => {
     const byId = new Map();
@@ -134,30 +117,15 @@ const CategoriesEditor = ({ manager, categories = [], brands = [] }) => {
                     <p className="text-[11px] text-zinc-400">Usa raiz para Heladeria o Panaderia/Confiteria. Usa una categoria padre para crear familias internas.</p>
                 </div>
 
-                <div className="rounded-2xl border border-evolution-indigo/25 bg-evolution-indigo/10 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="space-y-2">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-evolution-indigo">Taxonomia Piquim lista</p>
-                            <p className="max-w-2xl text-xs leading-5 text-zinc-300">
-                                Carga en categorias el mismo arbol que usan los productos: Heladeria y Panaderia/Confiteria con sus grupos y subcategorias.
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {PIQUIM_CATEGORY_PREVIEW.map((catalog) => (
-                                    <span key={catalog.name} className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] font-bold text-zinc-200">
-                                        {catalog.name}: {catalog.groups.map((group) => group.title).join(', ')}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleSeedPiquimCategories}
-                            disabled={categorySeeding}
-                            className="rounded-xl bg-evolution-indigo px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-evolution-indigo/90 disabled:opacity-60"
-                        >
-                            {categorySeeding ? 'Cargando...' : 'Cargar categorias Piquim'}
-                        </button>
-                    </div>
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={handleSeedPiquimCategories}
+                        disabled={categorySeeding}
+                        className="rounded-xl bg-evolution-indigo px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-evolution-indigo/90 disabled:opacity-60"
+                    >
+                        {categorySeeding ? 'Cargando...' : 'Cargar categorias Piquim'}
+                    </button>
                 </div>
 
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_auto]">
