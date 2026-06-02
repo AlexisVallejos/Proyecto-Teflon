@@ -22,35 +22,30 @@ const getPanelInitial = (title = '') => {
     return safeTitle ? safeTitle.charAt(0).toUpperCase() : 'E';
 };
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed }) => (
+const SidebarItem = ({ icon: Icon, label, shortLabel, active, onClick, collapsed }) => (
     <button
         onClick={onClick}
         style={active ? { backgroundColor: 'var(--admin-accent-soft)', color: 'var(--admin-accent)' } : undefined}
         className={cn(
-            'admin-hover-surface flex w-full items-center rounded-lg p-3 group relative',
+            'admin-hover-surface group relative flex w-full items-center rounded-xl border border-transparent transition-all duration-200',
+            collapsed ? 'min-h-[62px] flex-col justify-center gap-1.5 px-2 py-2 text-center' : 'min-h-[46px] px-3 py-2.5',
             active ? 'border border-transparent' : 'border border-transparent admin-text-muted'
         )}
+        title={collapsed ? label : undefined}
     >
         <Icon
-            size={20}
+            size={collapsed ? 21 : 20}
             weight={active ? 'bold' : 'regular'}
             className={cn('shrink-0 transition-transform', active && 'scale-110')}
         />
         {!collapsed ? (
-            <span className="ml-3 whitespace-nowrap overflow-hidden text-sm font-medium transition-all duration-200 group-hover:translate-x-1">
+            <span className="ml-3 overflow-hidden whitespace-nowrap text-sm font-semibold transition-all duration-200 group-hover:translate-x-1">
                 {label}
             </span>
         ) : (
-            <div
-                style={{
-                    backgroundColor: 'var(--admin-panel-bg)',
-                    borderColor: 'var(--admin-border)',
-                    color: 'var(--admin-text)',
-                }}
-                className="pointer-events-none absolute left-full z-50 ml-4 whitespace-nowrap rounded border px-2 py-1 text-xs opacity-0 transition-opacity group-hover:opacity-100"
-            >
-                {label}
-            </div>
+            <span className="max-w-[78px] overflow-hidden text-ellipsis text-[10px] font-bold leading-tight tracking-tight">
+                {shortLabel || label}
+            </span>
         )}
     </button>
 );
@@ -64,17 +59,17 @@ const EvolutionSidebar = ({ branding }) => {
     } = useEvolutionStore();
 
     const modules = [
-        { id: 'home', label: 'Inicio', icon: HouseLine },
-        { id: 'about', label: 'Sobre nosotros', icon: Users },
-        { id: 'appearance', label: 'Apariencia', icon: Palette },
-        { id: 'catalog', label: 'Catalogo', icon: ShoppingBag },
-        { id: 'categories', label: 'Categorias', icon: Tag },
-        { id: 'pricing', label: 'Ofertas', icon: Percent },
-        { id: 'checkout', label: 'Checkout', icon: CreditCard },
-        { id: 'shipping', label: 'Envios', icon: Truck },
-        { id: 'notifications', label: 'Notificaciones', icon: Bell },
-        { id: 'integrations', label: 'Integraciones', icon: Plug },
-        { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'home', label: 'Inicio', shortLabel: 'Inicio', icon: HouseLine },
+        { id: 'about', label: 'Sobre nosotros', shortLabel: 'Nosotros', icon: Users },
+        { id: 'appearance', label: 'Apariencia', shortLabel: 'Apar.', icon: Palette },
+        { id: 'catalog', label: 'Catalogo', shortLabel: 'Catalogo', icon: ShoppingBag },
+        { id: 'categories', label: 'Categorias', shortLabel: 'Categorias', icon: Tag },
+        { id: 'pricing', label: 'Ofertas', shortLabel: 'Ofertas', icon: Percent },
+        { id: 'checkout', label: 'Checkout', shortLabel: 'Checkout', icon: CreditCard },
+        { id: 'shipping', label: 'Envios', shortLabel: 'Envios', icon: Truck },
+        { id: 'notifications', label: 'Notificaciones', shortLabel: 'Alertas', icon: Bell },
+        { id: 'integrations', label: 'Integraciones', shortLabel: 'Integr.', icon: Plug },
+        { id: 'users', label: 'Usuarios', shortLabel: 'Usuarios', icon: Users },
     ];
 
     const panelTitle = branding?.title || 'Panel de administracion';
@@ -87,10 +82,10 @@ const EvolutionSidebar = ({ branding }) => {
             <aside
                 className={cn(
                     'admin-sidebar-surface hidden md:flex h-screen flex-col border-r transition-all duration-300 ease-in-out shrink-0',
-                    isSidebarCollapsed ? 'w-[58px]' : 'w-[240px]'
+                    isSidebarCollapsed ? 'w-[104px]' : 'w-[272px]'
                 )}
             >
-                <div className="flex items-center justify-between p-4">
+                <div className={cn('flex items-center justify-between border-b p-4', isSidebarCollapsed && 'justify-center px-3')} style={{ borderColor: 'var(--admin-border)' }}>
                     {!isSidebarCollapsed ? (
                         <div className="flex min-w-0 items-center gap-3">
                             <div
@@ -132,12 +127,13 @@ const EvolutionSidebar = ({ branding }) => {
                     )}
                 </div>
 
-                <div className="flex-1 space-y-1 px-3">
+                <div className={cn('custom-scrollbar flex-1 space-y-1.5 overflow-y-auto py-3', isSidebarCollapsed ? 'px-2' : 'px-3')}>
                     {modules.map((module) => (
                         <SidebarItem
                             key={module.id}
                             icon={module.icon}
                             label={module.label}
+                            shortLabel={module.shortLabel}
                             active={activeModule === module.id}
                             onClick={() => setActiveModule(module.id)}
                             collapsed={isSidebarCollapsed}
@@ -145,12 +141,16 @@ const EvolutionSidebar = ({ branding }) => {
                     ))}
                 </div>
 
-                <div className="space-y-1 border-t p-3" style={{ borderColor: 'var(--admin-border)' }}>
+                <div className={cn('space-y-1.5 border-t p-3', isSidebarCollapsed && 'px-2')} style={{ borderColor: 'var(--admin-border)' }}>
                     <button
-                        className="admin-hover-surface flex w-full items-center rounded-lg p-3 admin-text-muted group"
+                        className={cn(
+                            'admin-hover-surface group flex w-full items-center rounded-xl admin-text-muted',
+                            isSidebarCollapsed ? 'min-h-[56px] flex-col justify-center gap-1 px-2 py-2' : 'p-3'
+                        )}
                         onClick={() => { }}
+                        title={isSidebarCollapsed ? 'Comandos' : undefined}
                     >
-                        <Command size={20} weight="regular" />
+                        <Command size={isSidebarCollapsed ? 20 : 20} weight="regular" />
                         {!isSidebarCollapsed ? (
                             <div className="ml-3 flex flex-1 items-center justify-between">
                                 <span className="text-sm font-medium">Comandos</span>
@@ -164,15 +164,24 @@ const EvolutionSidebar = ({ branding }) => {
                                     Ctrl+K
                                 </span>
                             </div>
-                        ) : null}
+                        ) : (
+                            <span className="text-[10px] font-bold leading-tight">Ctrl K</span>
+                        )}
                     </button>
 
                     <button
                         onClick={toggleSidebar}
-                        className="admin-hover-surface flex w-full items-center rounded-lg p-3 admin-text-muted"
+                        className={cn(
+                            'admin-hover-surface flex w-full items-center rounded-xl admin-text-muted',
+                            isSidebarCollapsed ? 'min-h-[52px] flex-col justify-center gap-1 px-2 py-2' : 'p-3'
+                        )}
+                        title={isSidebarCollapsed ? 'Expandir menu' : undefined}
                     >
                         {isSidebarCollapsed ? (
-                            <CaretRight size={20} className="mx-auto" />
+                            <>
+                                <CaretRight size={20} />
+                                <span className="text-[10px] font-bold leading-tight">Abrir</span>
+                            </>
                         ) : (
                             <div className="flex items-center">
                                 <CaretLeft size={20} />

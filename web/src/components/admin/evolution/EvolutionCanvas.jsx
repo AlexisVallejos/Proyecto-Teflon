@@ -220,7 +220,7 @@ const EvolutionCanvas = ({
 
     return (
         <main className="admin-canvas-surface relative flex flex-1 flex-col overflow-hidden">
-            <header className="admin-header-surface sticky top-0 z-40 flex h-14 items-center justify-between border-b px-6 backdrop-blur-md">
+            <header className="admin-header-surface sticky top-0 z-40 flex h-16 items-center justify-between border-b px-5 lg:px-6 backdrop-blur-md">
                 <div className="flex items-center gap-4">
                     <div className="space-y-0.5">
                         <p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">
@@ -255,7 +255,7 @@ const EvolutionCanvas = ({
                                 backgroundColor: 'var(--admin-hover)',
                                 borderColor: 'var(--admin-border)',
                             }}
-                            className="flex h-9 w-[280px] xl:w-[320px] items-center rounded-full border px-3"
+                            className="flex h-10 w-[260px] xl:w-[340px] items-center rounded-full border px-3"
                         >
                             <Search className="h-4 w-4 shrink-0 admin-text-muted" />
                             <input

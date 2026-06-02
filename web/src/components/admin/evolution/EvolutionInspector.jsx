@@ -41,7 +41,7 @@ const EvolutionInspector = ({
         <aside
             className={cn(
                 'admin-panel-surface z-50 flex h-screen shrink-0 flex-col border-l transition-all duration-300 ease-in-out',
-                isWideInspector ? 'w-[360px] lg:w-[460px] xl:w-[540px]' : 'w-[300px] lg:w-[360px]',
+                isWideInspector ? 'w-[340px] lg:w-[420px] xl:w-[500px]' : 'w-[300px] lg:w-[340px] xl:w-[360px]',
                 !isInspectorOpen && 'w-0 overflow-hidden border-none'
             )}
         >
