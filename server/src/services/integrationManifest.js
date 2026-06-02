@@ -238,8 +238,8 @@ export const buildProductSyncSchema = (baseUrl, { tenantId = null } = {}) => ({
     'El campo external_id es obligatorio para crear o actualizar sin ambiguedad.',
     'La API acepta hasta 10 tarifas libres mediante price_1 hasta price_10.',
     'El contrato publicado recomienda enviar solo price_1 hasta price_10; los aliases legacy siguen aceptandose solo por compatibilidad interna.',
-    'Usa category_path para enviar el arbol Categoria > Gran Familia > Familia. category_id queda reservado para un UUID real de categoria del ecommerce.',
-    'Si envias category_path, evita duplicarlo con campos legacy como family, grand_family, familia o gran_familia.',
+    'Usa category_path para enviar el arbol Categoria > Gran Familia > Familia. Si no lo envias, la API arma el arbol con categoria/rubro + gran_familia + familia cuando esos campos existen.',
+    'category_id queda reservado para un UUID real de categoria del ecommerce. Para sistemas de gestion, lo recomendado es category_path o campos de familia.',
     ...(isPiquimTenant(tenantId)
       ? [
           'Piquim no debe enviar imagenes desde el sistema de gestion: el sync de productos toma solo datos de texto, precios y stock.',

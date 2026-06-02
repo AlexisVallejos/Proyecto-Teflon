@@ -4,7 +4,6 @@ let productSyncSchemaReady = false;
 let productSyncSchemaPromise = null;
 
 const DEFAULT_SOURCE_SYSTEM = 'erp';
-const DEFAULT_UNCATEGORIZED_LABEL = 'Sin definir';
 const ENABLE_PIQUIM_INTEGRATION_RULES =
   String(process.env.ENABLE_PIQUIM_BOOTSTRAP || process.env.ENABLE_PIQUIM_INTEGRATIONS || '')
     .trim()
@@ -153,7 +152,7 @@ const normalizeBrandValue = (value) => {
 const normalizeCategoryToken = (value) => {
   const normalized = toTextOrNull(value);
   if (!normalized) return null;
-  if (isUndefinedLikeText(normalized)) return DEFAULT_UNCATEGORIZED_LABEL;
+  if (isUndefinedLikeText(normalized)) return null;
   return normalized;
 };
 
@@ -533,6 +532,11 @@ const normalizeCategoryHierarchy = (raw) => {
 
   const inferredPath = uniqueTextValues([
     normalizeCategoryToken(firstTextAlias(raw, [
+      'categoria',
+      'category',
+      'rubro',
+      'linea',
+      'line',
       'categoria_padre',
       'categoriaPadre',
       'categoria_raiz',
@@ -729,7 +733,7 @@ const normalizeSyncItem = (rawItem, fallbackSourceSystem = DEFAULT_SOURCE_SYSTEM
     hasCategoryIds: categoryIds.length > 0,
     hasCategoryLabels: categoryLabels.length > 0,
     hasCategoryRefs: categoryIds.length > 0 || categoryLabels.length > 0,
-    hasCategoryPath: categoryPathLabels.length > 1,
+    hasCategoryPath: categoryPathLabels.length > 0,
     hasSourceCategoryLabel: sourceCategoryLabel !== null,
     hasPriceRetail: priceRetailState.present || priceRetail != null,
     hasPriceWholesale: priceWholesaleState.present || priceWholesale != null,
@@ -1341,11 +1345,7 @@ export async function syncIntegrationProducts({
         const categoryLabelsForSync = piquimTenant && piquimRootCategoryLabels.length
           ? piquimRootCategoryLabels
           : [...item.categoryLabels];
-        const shouldAssignFallbackCategory =
-          !existing && !item.hasCategoryRefs && !item.hasCategoryPath;
-        if (shouldAssignFallbackCategory) {
-          categoryLabelsForSync.push(DEFAULT_UNCATEGORIZED_LABEL);
-        }
+        const shouldAssignFallbackCategory = false;
 
         const categoryPathResolution = !piquimTenant && item.hasCategoryPath
           ? await ensureCategoryPathForSync(client, {

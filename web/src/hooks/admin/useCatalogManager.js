@@ -241,6 +241,29 @@ const sanitizeDraftCategories = (draft, availableCategories = []) => {
     };
 };
 
+const normalizeCategoryNameKey = (value) =>
+    String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+const findCategoryByNameAndParent = (items = [], name, parentId = '') => {
+    const targetName = normalizeCategoryNameKey(name);
+    const targetParent = String(parentId || '').trim().toLowerCase();
+    return (Array.isArray(items) ? items : []).find((item) => {
+        const itemName = normalizeCategoryNameKey(item?.name);
+        const itemParent = String(item?.parent_id || '').trim().toLowerCase();
+        return itemName === targetName && itemParent === targetParent;
+    });
+};
+
+const getUndefinedCategoryIds = (items = []) =>
+    (Array.isArray(items) ? items : [])
+        .filter((item) => normalizeCategoryNameKey(item?.name) === 'sin definir')
+        .map((item) => String(item?.id || '').trim().toLowerCase())
+        .filter(Boolean);
+
 const mapProductPayloadToLocalItem = (payload, productId, categoryIds = []) => ({
     id: productId,
     sku: payload.sku || null,
@@ -520,6 +543,89 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
             setCategorySaving(false);
         }
     }, [addToast, categories, newCategoryName, newCategoryParentId, setCategories]);
+
+    const handleCreateCategoriesFromSourcePath = useCallback(async () => {
+        const sourcePath = (Array.isArray(productDraft.source_category_path) ? productDraft.source_category_path : [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+        if (!sourcePath.length) {
+            addToast('Este producto no tiene un arbol sincronizado para crear', 'error');
+            return;
+        }
+
+        setCategorySaving(true);
+        try {
+            const token = localStorage.getItem('teflon_token');
+            const headers = {
+                ...getTenantHeaders(),
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+
+            let nextCategories = Array.isArray(categories) ? [...categories] : [];
+            let parentId = '';
+            let finalCategory = null;
+            let createdCount = 0;
+
+            for (const name of sourcePath) {
+                const existing = findCategoryByNameAndParent(nextCategories, name, parentId);
+                if (existing?.id) {
+                    finalCategory = existing;
+                    parentId = existing.id;
+                    continue;
+                }
+
+                const res = await fetch(`${getApiBase()}/tenant/categories`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        name,
+                        parent_id: parentId || null,
+                    }),
+                });
+
+                if (!res.ok) {
+                    throw new Error('category_create_failed');
+                }
+
+                const created = await res.json();
+                nextCategories = [...nextCategories, created];
+                finalCategory = created;
+                parentId = created.id;
+                createdCount += 1;
+            }
+
+            setCategories(nextCategories);
+
+            if (finalCategory?.id) {
+                const finalId = String(finalCategory.id).trim().toLowerCase();
+                const undefinedIds = new Set(getUndefinedCategoryIds(nextCategories));
+                setProductDraft((prev) => {
+                    const current = (Array.isArray(prev.category_ids) ? prev.category_ids : [])
+                        .map((id) => String(id).trim().toLowerCase())
+                        .filter((id) => id && !undefinedIds.has(id));
+                    const next = Array.from(new Set([...current, finalId]));
+                    return {
+                        ...prev,
+                        category_id: next[0] || '',
+                        category_ids: next,
+                    };
+                });
+            }
+
+            addToast(
+                createdCount
+                    ? `Categorias creadas: ${createdCount}. Guarda el producto para confirmar.`
+                    : 'Categoria seleccionada desde el arbol sincronizado. Guarda el producto para confirmar.',
+                'success'
+            );
+        } catch (err) {
+            console.error('Failed to create categories from source path', err);
+            addToast('No se pudieron crear las categorias del arbol sincronizado', 'error');
+        } finally {
+            setCategorySaving(false);
+        }
+    }, [addToast, categories, productDraft.source_category_path, setCategories]);
 
     const handleDeleteCategory = useCallback(async (categoryId, categoryName) => {
         if (!categoryId) return;
@@ -813,6 +919,7 @@ export const useCatalogManager = ({ setProducts, categories, setCategories, bran
         setNewCategoryName,
         setNewCategoryParentId,
         handleCreateCategory,
+        handleCreateCategoriesFromSourcePath,
         handleDeleteCategory,
         setNewBrandName,
         handleCreateBrand,

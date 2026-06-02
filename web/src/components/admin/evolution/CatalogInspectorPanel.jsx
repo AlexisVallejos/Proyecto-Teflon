@@ -141,6 +141,7 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
         saving,
         uploading,
         deleteLoadingId,
+        categorySaving,
         stockEdits,
         stockSavingId,
         clearingFeatured,
@@ -150,6 +151,7 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
         handleCreateProduct,
         handleUpdateProduct,
         handleDeleteProduct,
+        handleCreateCategoriesFromSourcePath,
         handleToggleFeatured,
         handleClearFeatured,
         handleAddStock,
@@ -624,6 +626,14 @@ const CatalogInspectorPanel = ({ catalog, categories = [], brands = [] }) => {
                                             </span>
                                         ))}
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleCreateCategoriesFromSourcePath}
+                                        disabled={categorySaving}
+                                        className="flex min-h-10 w-full items-center justify-center rounded-xl border border-evolution-indigo/30 bg-evolution-indigo/10 px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-indigo-100 transition-colors hover:bg-evolution-indigo/20 disabled:opacity-60"
+                                    >
+                                        {categorySaving ? 'Creando categorias...' : 'Crear y seleccionar este arbol'}
+                                    </button>
                                 </div>
                             ) : (
                                 <p className="text-[11px] italic text-zinc-500">Este producto no tiene `category_path` sincronizado.</p>
