@@ -1,0 +1,21 @@
+{
+  "package": "sanitarios-el-teflon-vase",
+  "created_at": "2026-06-01",
+  "purpose": "Template importable para Vase con diseno comercial de Sanitarios El Teflon.",
+  "included_files": [
+    "README.md",
+    "vase-template.json",
+    "import-home.sql",
+    "package-manifest.json"
+  ],
+  "home_sections": [
+    "HeroSlider",
+    "BrandMarquee",
+    "FeaturedProducts",
+    "Services"
+  ],
+  "notes": [
+    "El paquete no incluye el build estatico general para no mezclar rutas o assets de otros clientes.",
+    "Los datos de contacto, URLs de logos y telefonos deben completarse desde el editor o desde el importador."
+  ]
+}
