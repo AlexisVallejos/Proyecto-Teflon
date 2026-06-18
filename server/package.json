@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "repair:sync-categories": "node scripts/repair-sync-categories.js"
   },
   "dependencies": {
     "basic-ftp": "^6.0.1",
