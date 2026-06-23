@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import useEvolutionStore from '../../../store/useEvolutionStore';
 import BlockPropertiesEditor from './BlockPropertiesEditor';
 import ProductPropertiesEditor from './ProductPropertiesEditor';
@@ -29,34 +29,62 @@ const EvolutionInspector = ({
         selectionData,
         selectedId,
         activeModule,
+        setInspectorOpen,
     } = useEvolutionStore();
 
     const hideFooterModules = ['catalog', 'categories', 'pricing', 'checkout', 'users', 'customers', 'tenants', 'notifications'];
     const allowSaveWithoutSelectionModules = ['design_live', 'settings_live', 'shipping', 'checkout'];
     const isWideInspector = activeModule === 'catalog' || activeModule === 'users';
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const compactQuery = window.matchMedia('(max-width: 1535px)');
+        const closeEmptyCompactInspector = () => {
+            if (compactQuery.matches && !selectedId) {
+                setInspectorOpen(false);
+            }
+        };
+
+        closeEmptyCompactInspector();
+        compactQuery.addEventListener?.('change', closeEmptyCompactInspector);
+
+        return () => {
+            compactQuery.removeEventListener?.('change', closeEmptyCompactInspector);
+        };
+    }, [activeModule, selectedId, setInspectorOpen]);
+
     if (!isInspectorOpen) return null;
 
     return (
+        <>
+        <button
+            type="button"
+            aria-label="Cerrar inspector"
+            onClick={toggleInspector}
+            className="fixed inset-0 z-[75] bg-slate-950/30 backdrop-blur-sm 2xl:hidden"
+        />
         <aside
             className={cn(
-                'admin-panel-surface z-50 flex h-screen shrink-0 flex-col border-l transition-all duration-300 ease-in-out',
-                isWideInspector ? 'w-[340px] lg:w-[420px] xl:w-[500px]' : 'w-[300px] lg:w-[340px] xl:w-[360px]',
+                'admin-panel-surface fixed inset-y-0 right-0 z-[80] flex h-[100dvh] max-w-full shrink-0 flex-col border-l shadow-2xl transition-all duration-300 ease-in-out 2xl:relative 2xl:z-50 2xl:shadow-none',
+                isWideInspector ? 'w-[min(100vw,360px)] 2xl:w-[400px]' : 'w-[min(100vw,304px)] 2xl:w-[328px]',
                 !isInspectorOpen && 'w-0 overflow-hidden border-none'
             )}
         >
-            <div className="admin-header-surface sticky top-0 z-10 flex h-14 items-center justify-between border-b px-4 backdrop-blur-md">
-                <div className="flex items-center gap-2">
-                    <Settings2 size={16} weight="bold" className="admin-text-muted" />
-                    <span className="text-[13px] font-medium uppercase tracking-wide admin-text-primary">
+            <div className="admin-header-surface sticky top-0 z-10 flex min-h-14 items-center justify-between border-b px-3 backdrop-blur-md">
+                <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--admin-accent-soft)] text-[var(--admin-accent)]">
+                        <Settings2 size={15} weight="bold" />
+                    </span>
+                    <span className="truncate text-[13px] font-semibold uppercase tracking-[0.14em] admin-text-primary">
                         Inspector
                     </span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                     <button
                         onClick={onUndo}
                         disabled={!canUndo}
-                        className="admin-hover-surface flex h-6 w-6 items-center justify-center rounded admin-text-muted disabled:cursor-not-allowed disabled:opacity-40"
+                        className="admin-hover-surface flex h-8 w-8 items-center justify-center rounded-lg admin-text-muted disabled:cursor-not-allowed disabled:opacity-40"
                         title="Deshacer"
                     >
                         <ArrowCounterClockwise size={14} weight="bold" />
@@ -64,14 +92,14 @@ const EvolutionInspector = ({
                     <button
                         onClick={onRedo}
                         disabled={!canRedo}
-                        className="admin-hover-surface flex h-6 w-6 items-center justify-center rounded admin-text-muted disabled:cursor-not-allowed disabled:opacity-40"
+                        className="admin-hover-surface flex h-8 w-8 items-center justify-center rounded-lg admin-text-muted disabled:cursor-not-allowed disabled:opacity-40"
                         title="Rehacer"
                     >
                         <ArrowClockwise size={14} weight="bold" />
                     </button>
                     <button
                         onClick={toggleInspector}
-                        className="admin-hover-surface flex h-6 w-6 items-center justify-center rounded admin-text-muted"
+                        className="admin-hover-surface flex h-8 w-8 items-center justify-center rounded-lg admin-text-muted"
                     >
                         <X size={16} weight="bold" />
                     </button>
@@ -80,8 +108,8 @@ const EvolutionInspector = ({
 
             <div
                 className={cn(
-                    'flex-1 space-y-8 p-6 animate-in fade-in duration-300',
-                    isWideInspector ? 'overflow-y-auto no-scrollbar' : 'overflow-auto custom-scrollbar'
+                    'flex-1 space-y-5 p-4 animate-in fade-in duration-300',
+                    isWideInspector ? 'overflow-y-auto custom-scrollbar' : 'overflow-auto custom-scrollbar'
                 )}
             >
                 {activeModule === 'catalog' ? (
@@ -102,7 +130,7 @@ const EvolutionInspector = ({
                             <div className="text-[10px] font-bold uppercase tracking-widest admin-accent-text">
                                 {selectionType || 'Elemento'}
                             </div>
-                            <h2 className="text-lg font-semibold tracking-tight admin-text-primary">
+                            <h2 className="text-base font-semibold tracking-tight admin-text-primary">
                                 {selectionData?.name || selectionData?.label || selectionData?.type || 'Sin nombre'}
                             </h2>
                         </div>
@@ -133,7 +161,7 @@ const EvolutionInspector = ({
                                     onChange={(event) => onDataChange(selectedId, { ...selectionData, name: event.target.value })}
                                 />
                                 <div
-                                    className="space-y-3 rounded-xl border p-4"
+                                    className="space-y-2.5 rounded-xl border p-3"
                                     style={{
                                         backgroundColor: 'var(--admin-hover)',
                                         borderColor: 'var(--admin-border-soft)',
@@ -152,7 +180,7 @@ const EvolutionInspector = ({
 
                         {!['block', 'product', 'category', 'brand', 'media'].includes(selectionType) ? (
                             <div
-                                className="space-y-3 rounded-xl border p-4"
+                                className="space-y-2.5 rounded-xl border p-3"
                                 style={{
                                     backgroundColor: 'var(--admin-hover)',
                                     borderColor: 'var(--admin-border-soft)',
@@ -187,7 +215,7 @@ const EvolutionInspector = ({
             </div>
 
             {hideFooterModules.includes(activeModule) ? null : (
-                <div className="admin-header-surface mt-auto border-t p-4 backdrop-blur-md">
+                <div className="admin-header-surface mt-auto border-t p-3 backdrop-blur-md">
                     <button
                         onClick={onSave}
                         disabled={(!selectedId && !allowSaveWithoutSelectionModules.includes(activeModule)) || isSaving}
@@ -196,7 +224,7 @@ const EvolutionInspector = ({
                             color: 'var(--admin-accent-contrast)',
                             boxShadow: '0 0 24px var(--admin-shadow)',
                         }}
-                        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg text-[13px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <Save size={18} weight="bold" className={cn(isSaving && 'animate-spin')} />
                         {isSaving ? 'Guardando...' : 'Guardar cambios'}
@@ -204,6 +232,7 @@ const EvolutionInspector = ({
                 </div>
             )}
         </aside>
+        </>
     );
 };
 

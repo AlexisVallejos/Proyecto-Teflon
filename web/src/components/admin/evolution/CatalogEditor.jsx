@@ -187,50 +187,50 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
         : null;
 
     return (
-        <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-3">
-                    <div className="flex items-center gap-3 rounded-xl border border-white/5 bg-zinc-dark/40 p-3 backdrop-blur-sm">
-                        <div className="rounded-lg bg-evolution-indigo/15 p-2 text-evolution-indigo">
-                            <Package size={18} weight="bold" />
+        <div className="flex h-full flex-col space-y-4 animate-in fade-in duration-500">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-2">
+                    <div className="admin-workspace-card flex items-center gap-2.5 rounded-[18px] p-3">
+                        <div className="rounded-xl bg-[var(--admin-accent-soft)] p-2 text-[var(--admin-accent)]">
+                            <Package size={16} weight="bold" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Catalogo</p>
-                            <p className="text-sm font-bold text-white">Productos</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--admin-muted-soft)]">Catalogo</p>
+                            <p className="text-sm font-semibold admin-text-primary">Productos</p>
                         </div>
                     </div>
-                    <p className="text-[11px] text-zinc-500">
+                    <p className="max-w-2xl text-[11px] leading-5 admin-text-muted">
                         Los productos se publican con las categorias cargadas manualmente o sincronizadas desde el sistema de gestion.
                     </p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="relative group">
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative group w-full sm:w-auto">
                         <MagnifyingGlass
                             size={16}
                             weight="bold"
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors group-focus-within:text-evolution-indigo"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--admin-muted-soft)] transition-colors group-focus-within:text-[var(--admin-accent)]"
                         />
                         <input
                             type="text"
                             placeholder="Buscar productos..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-64 rounded-xl border border-white/5 bg-zinc-dark/40 py-2 pl-10 pr-4 text-xs text-white placeholder:text-zinc-600 transition-all focus:border-evolution-indigo/50 focus:outline-none focus:ring-1 focus:ring-evolution-indigo/50"
+                            className="admin-input-field h-9 w-full rounded-xl border py-1.5 pl-9 pr-3 text-[13px] outline-none sm:w-64"
                         />
                     </div>
                     <button
                         onClick={handleAdd}
-                        className="group rounded-xl bg-evolution-indigo p-2 text-white shadow-glow transition-all hover:bg-evolution-indigo/90"
+                        className="admin-accent-button group flex h-9 w-9 items-center justify-center rounded-xl transition-all hover:opacity-90"
                         title="Crear producto"
                     >
-                        <Plus size={20} weight="bold" className="transition-transform duration-300 group-hover:rotate-90" />
+                        <Plus size={18} weight="bold" className="transition-transform duration-300 group-hover:rotate-90" />
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto custom-scrollbar pr-2 -mr-2">
-                <div className="grid grid-cols-2 gap-4 pb-10 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="-mr-2 flex-1 overflow-auto pr-2 custom-scrollbar">
+                <div className="grid grid-cols-1 gap-3 pb-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                     {visibleItems.map((item) => (
                         <div
                             key={item.id}
@@ -241,26 +241,26 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                                 }
                             }}
                             className={cn(
-                                'group relative cursor-pointer overflow-hidden rounded-2xl border border-white/5 bg-zinc-dark/20 p-3 transition-all hover:border-white/20 hover:bg-zinc-dark/40',
-                                selectedId === item.id && 'border-evolution-indigo ring-1 ring-evolution-indigo/20 bg-zinc-dark/60 shadow-glow'
+                                'group relative cursor-pointer overflow-hidden rounded-[18px] border border-[var(--admin-border-soft)] bg-[var(--admin-surface)] p-2.5 transition-all hover:-translate-y-0.5 hover:border-[var(--admin-border)] hover:bg-[var(--admin-surface-strong)] hover:shadow-[var(--admin-shadow-soft)]',
+                                selectedId === item.id && 'border-[var(--admin-accent-border)] bg-[var(--admin-accent-soft)] shadow-[var(--admin-shadow-soft)]'
                             )}
                         >
-                            <div className="relative mb-3 aspect-square overflow-hidden rounded-xl border border-white/5 bg-white/5">
+                            <div className="relative mb-2.5 aspect-square overflow-hidden rounded-xl border border-[var(--admin-border-soft)] bg-[var(--admin-hover)]">
                                 {item.image_url ? (
                                     <img
                                         src={item.image_url}
                                         alt={item.name}
-                                        className="h-full w-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-110 group-hover:opacity-100"
+                                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                                     />
                                 ) : (
-                                    <div className="flex h-full w-full flex-col items-center justify-center text-zinc-700 transition-colors group-hover:text-zinc-500">
-                                        <ImageIcon size={32} weight="thin" className="opacity-20" />
-                                        <span className="mt-2 text-[10px] font-bold uppercase tracking-widest opacity-20">No Image</span>
+                                    <div className="flex h-full w-full flex-col items-center justify-center admin-text-muted transition-colors">
+                                        <ImageIcon size={28} weight="thin" className="opacity-20" />
+                                        <span className="mt-1.5 text-[9px] font-bold uppercase tracking-widest opacity-20">No Image</span>
                                     </div>
                                 )}
 
                                 {Number(item.price) > 0 ? (
-                                <div className="absolute bottom-2 right-2 rounded-lg border border-white/10 bg-zinc-900/80 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-md">
+                                <div className="absolute bottom-2 right-2 rounded-xl border border-[var(--admin-border-soft)] bg-[var(--admin-surface-strong)] px-2 py-1 text-[10px] font-bold admin-text-primary backdrop-blur-md">
                                         ${Number(item.price)}
                                     </div>
                                 ) : null}
@@ -276,26 +276,26 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                                     >
                                         {item.is_visible_web !== false ? 'Visible' : 'Oculto'}
                                     </span>
-                                    <span className="rounded-md border border-white/10 bg-zinc-950/70 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-200 backdrop-blur-md">
+                                    <span className="rounded-md border border-[var(--admin-border-soft)] bg-[var(--admin-surface-strong)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] admin-text-primary backdrop-blur-md">
                                         {SYNC_STATUS_LABELS[item.sync_status] || 'Manual'}
                                     </span>
                                 </div>
                             </div>
 
                             <div className="space-y-1">
-                                <h4 className="truncate text-[13px] font-bold text-zinc-300 transition-colors group-hover:text-white">
+                                <h4 className="truncate text-[12px] font-semibold admin-text-primary">
                                     {item.name}
                                 </h4>
-                                <p className="truncate text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                                <p className="truncate text-[10px] uppercase tracking-[0.18em] text-[var(--admin-muted-soft)]">
                                     {item.source_system || 'admin'}
                                     {item.external_id ? ` · ${item.external_id}` : ''}
                                 </p>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono text-zinc-600">{item.sku || 'NO-SKU'}</span>
+                                    <span className="text-[10px] font-mono text-[var(--admin-muted-soft)]">{item.sku || 'NO-SKU'}</span>
                                     <span
                                         className={cn(
                                             'rounded px-1.5 py-0.5 text-[9px] font-bold uppercase',
-                                            Number(item.stock) > 0 ? 'text-emerald-500/80' : 'text-rose-500/80'
+                                            Number(item.stock) > 0 ? 'text-[var(--admin-success)]' : 'text-[var(--admin-danger)]'
                                         )}
                                     >
                                         {Number(item.stock) > 0 ? `Stock: ${item.stock}` : 'Agotado'}
@@ -307,7 +307,7 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                                 <button
                                     type="button"
                                     onClick={(event) => toggleActions(event, item.id)}
-                                    className="rounded-lg border border-white/10 bg-white/10 p-1.5 text-white backdrop-blur-md hover:bg-white/20"
+                                    className="rounded-xl border border-[var(--admin-border-soft)] bg-[var(--admin-surface-strong)] p-1.5 admin-text-primary backdrop-blur-md hover:bg-[var(--admin-hover-strong)]"
                                     title="Acciones"
                                 >
                                     <DotsThree size={14} weight="bold" />
@@ -315,7 +315,7 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                                 <button
                                     type="button"
                                     onClick={(event) => event.stopPropagation()}
-                                    className="rounded-lg bg-white p-1.5 text-zinc-900 shadow-xl transition-transform hover:scale-100 scale-90"
+                                    className="rounded-xl bg-[var(--admin-accent)] p-1.5 text-[var(--admin-accent-contrast)] shadow-xl transition-transform hover:scale-100 scale-90"
                                     title="Abrir producto"
                                 >
                                     <ArrowUpRight size={14} weight="bold" />
@@ -323,7 +323,7 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
 
                                 {openActionsId === item.id ? (
                                     <div
-                                        className="absolute right-0 top-9 z-20 w-44 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/95 p-1 shadow-2xl backdrop-blur-md"
+                                        className="absolute right-0 top-9 z-20 w-44 overflow-hidden rounded-xl border border-[var(--admin-border-soft)] bg-[var(--admin-surface-strong)] p-1 shadow-2xl backdrop-blur-md"
                                         onClick={(event) => event.stopPropagation()}
                                     >
                                         <button
@@ -341,8 +341,8 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                     ))}
 
                     {filteredItems.length === 0 ? (
-                        <div className="col-span-full flex flex-col items-center justify-center space-y-4 py-20 text-zinc-600">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-white/5 bg-white/5">
+                        <div className="col-span-full flex flex-col items-center justify-center space-y-4 py-20 admin-text-muted">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[var(--admin-border-soft)] bg-[var(--admin-hover)]">
                                 <MagnifyingGlass size={24} weight="thin" className="opacity-20" />
                             </div>
                             <p className="text-sm font-medium">No se encontraron resultados para "{searchQuery}"</p>
@@ -351,13 +351,13 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                 </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                <p className="text-[11px] font-medium italic text-zinc-500">
+            <div className="flex flex-col gap-2.5 border-t border-[var(--admin-border-soft)] pt-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-[11px] font-medium italic admin-text-muted">
                     {filteredItems.length > 0
                         ? `Mostrando ${Math.min((currentPage - 1) * PRODUCTS_PER_PAGE + 1, filteredItems.length)}-${Math.min(currentPage * PRODUCTS_PER_PAGE, filteredItems.length)} de ${filteredItems.length} productos filtrados.`
                         : `Mostrando 0 de ${normalizedProducts.length} productos.`}
                 </p>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-2.5">
                     {totalPages > 1 ? (
                         <div className="flex flex-wrap items-center gap-2">
                             {Array.from({ length: totalPages }, (_, index) => {
@@ -371,8 +371,8 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                                         className={cn(
                                             'rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors',
                                             active
-                                                ? 'border-evolution-indigo bg-evolution-indigo text-white'
-                                                : 'border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:text-white'
+                                                ? 'border-[var(--admin-accent)] bg-[var(--admin-accent)] text-[var(--admin-accent-contrast)]'
+                                                : 'border-[var(--admin-border-soft)] bg-[var(--admin-hover)] admin-text-muted hover:border-[var(--admin-border)] hover:text-[var(--admin-text)]'
                                         )}
                                     >
                                         {page}
@@ -381,7 +381,7 @@ const CatalogEditor = ({ products, onAddItem, onEditProduct, onDeleteProduct }) 
                             })}
                         </div>
                     ) : null}
-                    <button className="flex items-center gap-2 text-[11px] font-bold text-zinc-400 transition-colors hover:text-white">
+                    <button className="flex items-center gap-2 text-[11px] font-bold admin-text-muted transition-colors hover:text-[var(--admin-text)]">
                         <Funnel size={14} weight="bold" />
                         Filtros Avanzados
                     </button>

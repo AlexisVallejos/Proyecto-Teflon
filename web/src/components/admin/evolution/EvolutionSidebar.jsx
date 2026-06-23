@@ -27,23 +27,26 @@ const SidebarItem = ({ icon: Icon, label, shortLabel, active, onClick, collapsed
         onClick={onClick}
         style={active ? { backgroundColor: 'var(--admin-accent-soft)', color: 'var(--admin-accent)' } : undefined}
         className={cn(
-            'admin-hover-surface group relative flex w-full items-center rounded-xl border border-transparent transition-all duration-200',
-            collapsed ? 'min-h-[62px] flex-col justify-center gap-1.5 px-2 py-2 text-center' : 'min-h-[46px] px-3 py-2.5',
-            active ? 'border border-transparent' : 'border border-transparent admin-text-muted'
+            'admin-hover-surface group relative flex w-full items-center rounded-xl border transition-all duration-200',
+            collapsed ? 'min-h-[48px] flex-col justify-center gap-1 px-1.5 py-1.5 text-center' : 'min-h-9 px-2.5 py-1.5',
+            active ? 'border-[var(--admin-accent-border)] shadow-sm' : 'border-transparent admin-text-muted'
         )}
         title={collapsed ? label : undefined}
     >
+        {active && !collapsed ? (
+            <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[var(--admin-accent)]" />
+        ) : null}
         <Icon
-            size={collapsed ? 21 : 20}
+            size={collapsed ? 18 : 16}
             weight={active ? 'bold' : 'regular'}
-            className={cn('shrink-0 transition-transform', active && 'scale-110')}
+            className={cn('shrink-0 transition-transform', active && 'scale-105')}
         />
         {!collapsed ? (
-            <span className="ml-3 overflow-hidden whitespace-nowrap text-sm font-semibold transition-all duration-200 group-hover:translate-x-1">
+            <span className="ml-2.5 overflow-hidden whitespace-nowrap text-[12px] font-semibold transition-all duration-200 group-hover:translate-x-0.5">
                 {label}
             </span>
         ) : (
-            <span className="max-w-[78px] overflow-hidden text-ellipsis text-[10px] font-bold leading-tight tracking-tight">
+            <span className="max-w-[58px] overflow-hidden text-ellipsis text-[9px] font-bold leading-tight tracking-tight">
                 {shortLabel || label}
             </span>
         )}
@@ -58,19 +61,35 @@ const EvolutionSidebar = ({ branding }) => {
         toggleSidebar,
     } = useEvolutionStore();
 
-    const modules = [
-        { id: 'home', label: 'Inicio', shortLabel: 'Inicio', icon: HouseLine },
-        { id: 'about', label: 'Sobre nosotros', shortLabel: 'Nosotros', icon: Users },
-        { id: 'appearance', label: 'Apariencia', shortLabel: 'Apar.', icon: Palette },
-        { id: 'catalog', label: 'Catalogo', shortLabel: 'Catalogo', icon: ShoppingBag },
-        { id: 'categories', label: 'Categorias', shortLabel: 'Categorias', icon: Tag },
-        { id: 'pricing', label: 'Ofertas', shortLabel: 'Ofertas', icon: Percent },
-        { id: 'checkout', label: 'Checkout', shortLabel: 'Checkout', icon: CreditCard },
-        { id: 'shipping', label: 'Envios', shortLabel: 'Envios', icon: Truck },
-        { id: 'notifications', label: 'Notificaciones', shortLabel: 'Alertas', icon: Bell },
-        { id: 'integrations', label: 'Integraciones', shortLabel: 'Integr.', icon: Plug },
-        { id: 'users', label: 'Usuarios', shortLabel: 'Usuarios', icon: Users },
+    const moduleGroups = [
+        {
+            label: 'Sitio',
+            items: [
+                { id: 'home', label: 'Inicio', shortLabel: 'Inicio', icon: HouseLine },
+                { id: 'about', label: 'Sobre nosotros', shortLabel: 'Nosotros', icon: Users },
+                { id: 'appearance', label: 'Apariencia', shortLabel: 'Apar.', icon: Palette },
+            ],
+        },
+        {
+            label: 'Comercio',
+            items: [
+                { id: 'catalog', label: 'Catalogo', shortLabel: 'Catalogo', icon: ShoppingBag },
+                { id: 'categories', label: 'Categorias', shortLabel: 'Categorias', icon: Tag },
+                { id: 'pricing', label: 'Ofertas', shortLabel: 'Ofertas', icon: Percent },
+                { id: 'checkout', label: 'Checkout', shortLabel: 'Checkout', icon: CreditCard },
+                { id: 'shipping', label: 'Envios', shortLabel: 'Envios', icon: Truck },
+            ],
+        },
+        {
+            label: 'Operacion',
+            items: [
+                { id: 'notifications', label: 'Notificaciones', shortLabel: 'Alertas', icon: Bell },
+                { id: 'integrations', label: 'Integraciones', shortLabel: 'Integr.', icon: Plug },
+                { id: 'users', label: 'Usuarios', shortLabel: 'Usuarios', icon: Users },
+            ],
+        },
     ];
+    const modules = moduleGroups.flatMap((group) => group.items);
 
     const panelTitle = branding?.title || 'Panel de administracion';
     const companyName = branding?.companyName || 'Empresa';
@@ -81,32 +100,32 @@ const EvolutionSidebar = ({ branding }) => {
         <>
             <aside
                 className={cn(
-                    'admin-sidebar-surface hidden md:flex h-screen flex-col border-r transition-all duration-300 ease-in-out shrink-0',
-                    isSidebarCollapsed ? 'w-[104px]' : 'w-[272px]'
+                    'admin-sidebar-surface hidden 2xl:flex h-screen flex-col border-r transition-all duration-300 ease-in-out shrink-0',
+                    isSidebarCollapsed ? 'w-[76px]' : 'w-[232px]'
                 )}
             >
-                <div className={cn('flex items-center justify-between border-b p-4', isSidebarCollapsed && 'justify-center px-3')} style={{ borderColor: 'var(--admin-border)' }}>
+                <div className={cn('flex min-h-14 items-center justify-between border-b p-3', isSidebarCollapsed && 'justify-center px-2')} style={{ borderColor: 'var(--admin-border)' }}>
                     {!isSidebarCollapsed ? (
-                        <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-2.5">
                             <div
                                 style={{
                                     backgroundColor: panelLogo ? 'rgba(255,255,255,0.96)' : 'var(--admin-accent)',
                                     color: 'var(--admin-accent-contrast)',
                                     boxShadow: '0 0 24px var(--admin-shadow)',
                                 }}
-                                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl"
                             >
                                 {panelLogo ? (
-                                    <img src={panelLogo} alt={panelTitle} className="h-8 w-8 object-contain" />
+                                    <img src={panelLogo} alt={panelTitle} className="h-7 w-7 object-contain" />
                                 ) : (
-                                    <span className="text-sm font-black">{panelInitial}</span>
+                                    <span className="text-xs font-black">{panelInitial}</span>
                                 )}
                             </div>
                             <div className="min-w-0 space-y-0.5">
-                                <p className="truncate text-[11px] font-bold uppercase tracking-[0.22em] admin-accent-text">
+                                <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] admin-accent-text">
                                     {companyName}
                                 </p>
-                                <p className="truncate text-sm font-semibold admin-text-primary">{panelTitle}</p>
+                                <p className="truncate text-[13px] font-semibold tracking-tight admin-text-primary">{panelTitle}</p>
                             </div>
                         </div>
                     ) : (
@@ -116,44 +135,53 @@ const EvolutionSidebar = ({ branding }) => {
                                 color: 'var(--admin-accent-contrast)',
                                 boxShadow: '0 0 24px var(--admin-shadow)',
                             }}
-                            className="mx-auto flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl"
+                            className="mx-auto flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl"
                         >
                             {panelLogo ? (
-                                <img src={panelLogo} alt={panelTitle} className="h-7 w-7 object-contain" />
+                                <img src={panelLogo} alt={panelTitle} className="h-6 w-6 object-contain" />
                             ) : (
-                                <span className="text-sm font-black">{panelInitial}</span>
+                                <span className="text-xs font-black">{panelInitial}</span>
                             )}
                         </div>
                     )}
                 </div>
 
-                <div className={cn('custom-scrollbar flex-1 space-y-1.5 overflow-y-auto py-3', isSidebarCollapsed ? 'px-2' : 'px-3')}>
-                    {modules.map((module) => (
-                        <SidebarItem
-                            key={module.id}
-                            icon={module.icon}
-                            label={module.label}
-                            shortLabel={module.shortLabel}
-                            active={activeModule === module.id}
-                            onClick={() => setActiveModule(module.id)}
-                            collapsed={isSidebarCollapsed}
-                        />
+                <div className={cn('custom-scrollbar flex-1 space-y-3 overflow-y-auto py-3', isSidebarCollapsed ? 'px-1.5' : 'px-2.5')}>
+                    {moduleGroups.map((group) => (
+                        <div key={group.label} className="space-y-1">
+                            {!isSidebarCollapsed ? (
+                                <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--admin-muted-soft)]">
+                                    {group.label}
+                                </p>
+                            ) : null}
+                            {group.items.map((module) => (
+                                <SidebarItem
+                                    key={module.id}
+                                    icon={module.icon}
+                                    label={module.label}
+                                    shortLabel={module.shortLabel}
+                                    active={activeModule === module.id}
+                                    onClick={() => setActiveModule(module.id)}
+                                    collapsed={isSidebarCollapsed}
+                                />
+                            ))}
+                        </div>
                     ))}
                 </div>
 
-                <div className={cn('space-y-1.5 border-t p-3', isSidebarCollapsed && 'px-2')} style={{ borderColor: 'var(--admin-border)' }}>
+                <div className={cn('space-y-1 border-t p-2.5', isSidebarCollapsed && 'px-1.5')} style={{ borderColor: 'var(--admin-border)' }}>
                     <button
                         className={cn(
-                            'admin-hover-surface group flex w-full items-center rounded-xl admin-text-muted',
-                            isSidebarCollapsed ? 'min-h-[56px] flex-col justify-center gap-1 px-2 py-2' : 'p-3'
+                            'admin-hover-surface group flex w-full items-center rounded-xl border border-transparent admin-text-muted',
+                            isSidebarCollapsed ? 'min-h-[46px] flex-col justify-center gap-1 px-1.5 py-1.5' : 'p-2.5'
                         )}
                         onClick={() => { }}
                         title={isSidebarCollapsed ? 'Comandos' : undefined}
                     >
-                        <Command size={isSidebarCollapsed ? 20 : 20} weight="regular" />
+                        <Command size={18} weight="regular" />
                         {!isSidebarCollapsed ? (
                             <div className="ml-3 flex flex-1 items-center justify-between">
-                                <span className="text-sm font-medium">Comandos</span>
+                                <span className="text-[12px] font-medium">Comandos</span>
                                 <span
                                     style={{
                                         backgroundColor: 'var(--admin-hover)',
@@ -172,20 +200,20 @@ const EvolutionSidebar = ({ branding }) => {
                     <button
                         onClick={toggleSidebar}
                         className={cn(
-                            'admin-hover-surface flex w-full items-center rounded-xl admin-text-muted',
-                            isSidebarCollapsed ? 'min-h-[52px] flex-col justify-center gap-1 px-2 py-2' : 'p-3'
+                            'admin-hover-surface flex w-full items-center rounded-xl border border-transparent admin-text-muted',
+                            isSidebarCollapsed ? 'min-h-[44px] flex-col justify-center gap-1 px-1.5 py-1.5' : 'p-2.5'
                         )}
                         title={isSidebarCollapsed ? 'Expandir menu' : undefined}
                     >
                         {isSidebarCollapsed ? (
                             <>
-                                <CaretRight size={20} />
+                                <CaretRight size={18} />
                                 <span className="text-[10px] font-bold leading-tight">Abrir</span>
                             </>
                         ) : (
                             <div className="flex items-center">
-                                <CaretLeft size={20} />
-                                <span className="ml-3 text-sm">Contraer</span>
+                                <CaretLeft size={18} />
+                                <span className="ml-2.5 text-[12px]">Contraer</span>
                             </div>
                         )}
                     </button>
@@ -193,18 +221,18 @@ const EvolutionSidebar = ({ branding }) => {
             </aside>
 
             {/* Mobile Bottom Navigation */}
-            <nav className="md:hidden admin-sidebar-surface border-t flex items-center overflow-x-auto snap-x px-2 pb-safe pt-1 w-full shrink-0 z-50 hide-scrollbar order-last">
+            <nav className="fixed inset-x-0 bottom-0 z-[70] flex items-center gap-1 overflow-x-auto border-t admin-sidebar-surface px-2 py-1 2xl:hidden hide-scrollbar">
                 {modules.map((module) => (
                     <button
                         key={module.id}
                         onClick={() => setActiveModule(module.id)}
                         className={cn(
-                            'flex flex-col items-center justify-center p-2 rounded-lg shrink-0 snap-center min-w-[72px] transition-colors',
-                            activeModule === module.id ? 'admin-accent-text bg-[var(--admin-accent-soft)]' : 'admin-text-muted hover:bg-white/5'
+                            'flex min-h-10 min-w-[58px] shrink-0 flex-col items-center justify-center rounded-lg px-1.5 py-1 transition-colors',
+                            activeModule === module.id ? 'admin-accent-text bg-[var(--admin-accent-soft)]' : 'admin-text-muted hover:bg-[var(--admin-hover)]'
                         )}
                     >
-                        <module.icon size={22} weight={activeModule === module.id ? 'fill' : 'regular'} />
-                        <span className="text-[10px] whitespace-nowrap overflow-hidden text-ellipsis mt-1">{module.label}</span>
+                        <module.icon size={16} weight={activeModule === module.id ? 'fill' : 'regular'} />
+                        <span className="mt-0.5 max-w-[54px] overflow-hidden text-ellipsis whitespace-nowrap text-[8px] font-semibold">{module.shortLabel || module.label}</span>
                     </button>
                 ))}
             </nav>

@@ -698,14 +698,14 @@ export default function ProductDetail() {
 
                         <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] lg:gap-7">
                             <div className="space-y-3">
-                                <div className="relative aspect-[1.06] overflow-hidden rounded-lg bg-[#FFD4B3]">
+                                <div className="relative aspect-[1.06] overflow-hidden rounded-lg bg-white dark:bg-[#1a130c]">
                                     <span className="absolute left-5 top-5 z-10 rounded-md bg-[#FF4D00] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white">
                                         {view.extra?.badge || view.extra?.tag || "Producto"}
                                     </span>
                                     <img
                                         src={displayImage}
                                         alt={displayAlt}
-                                        className="h-full w-full object-contain p-5 md:p-7"
+                                        className="h-full w-full object-cover"
                                         loading="lazy"
                                     />
                                 </div>
@@ -717,7 +717,7 @@ export default function ProductDetail() {
                                                 key={img.url}
                                                 type="button"
                                                 onClick={() => setActiveImage(index)}
-                                                className={`aspect-square overflow-hidden rounded-md border bg-[#FFF6EF] transition-colors ${index === activeImage ? 'border-[#FF4D00]' : 'border-[#F2C9B2] hover:border-[#FF4D00]/70'}`}
+                                                className={`aspect-square overflow-hidden rounded-md border bg-white transition-colors dark:bg-[#1a130c] ${index === activeImage ? 'border-[#181411] dark:border-white' : 'border-[#e5e1de] hover:border-[#8a7560] dark:border-[#3d2f21] dark:hover:border-[#b8a795]'}`}
                                             >
                                                 <img src={img.url} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
                                             </button>

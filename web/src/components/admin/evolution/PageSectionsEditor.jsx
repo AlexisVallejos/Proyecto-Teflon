@@ -250,11 +250,11 @@ const PageSectionsEditor = ({
     };
 
     return (
-        <div className="grid h-full grid-cols-1 gap-2 md:gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-            <aside className="overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-zinc-dark/50 p-2 md:p-4 custom-scrollbar">
-                <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1fr)]">
+            <aside className="admin-workspace-card custom-scrollbar max-h-[calc(100dvh-8.5rem)] overflow-auto rounded-[18px] p-3 2xl:max-h-none">
+                <div className="mb-3 flex items-start justify-between gap-2.5">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--admin-muted-soft)]">
                             {pageKey === 'about'
                                 ? 'Sobre Nosotros'
                                 : pageKey === 'piquim-about'
@@ -263,13 +263,13 @@ const PageSectionsEditor = ({
                                     ? 'Inicio'
                                     : 'Inicio'}
                         </p>
-                        <h2 className="text-xl font-bold text-white">Bloques</h2>
+                        <h2 className="mt-0.5 text-base font-semibold tracking-tight admin-text-primary">Bloques</h2>
                     </div>
                     <button
                         type="button"
                         onClick={onSave}
                         disabled={isSaving}
-                        className="inline-flex items-center gap-1 rounded-lg bg-evolution-indigo px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-white disabled:opacity-50"
+                        className="admin-accent-button inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <FloppyDisk size={14} weight="bold" />
                         {isSaving ? 'Guardando' : 'Guardar'}
@@ -279,20 +279,20 @@ const PageSectionsEditor = ({
                 <button
                     type="button"
                     onClick={() => setShowAdd((prev) => !prev)}
-                    className="mb-3 inline-flex items-center gap-2 rounded-xl border border-evolution-indigo/40 bg-evolution-indigo/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-indigo-200"
+                    className="mb-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-[var(--admin-accent-border)] bg-[var(--admin-accent-soft)] px-3 text-[11px] font-bold uppercase tracking-wider text-[var(--admin-accent)]"
                 >
                     <Plus size={14} weight="bold" />
                     Anadir bloque
                 </button>
 
                 {showAdd ? (
-                    <div className="mb-4 grid grid-cols-1 gap-2 rounded-xl border border-white/10 bg-black/20 p-3">
+                    <div className="mb-3 grid grid-cols-1 gap-1.5 rounded-2xl border border-[var(--admin-border-soft)] bg-[var(--admin-hover)] p-2.5">
                         {sectionTypes.map((item) => (
                             <button
                                 key={item.type}
                                 type="button"
                                 onClick={() => handleAddSection(item.type)}
-                                className="rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-left text-xs font-bold text-zinc-200 hover:border-evolution-indigo/50 hover:bg-evolution-indigo/10"
+                                className="rounded-lg border border-[var(--admin-border-soft)] bg-[var(--admin-surface)] px-2.5 py-2 text-left text-[11px] font-semibold admin-text-primary hover:border-[var(--admin-accent-border)] hover:bg-[var(--admin-accent-soft)]"
                             >
                                 {item.label}
                             </button>
@@ -312,10 +312,10 @@ const PageSectionsEditor = ({
                                 onDrop={() => handleDrop(idx)}
                                 onDragEnd={() => setDraggedIndex(null)}
                                 className={cn(
-                                    'rounded-xl border p-3 transition-all',
+                                    'rounded-xl border p-2.5 transition-all',
                                     isSelected
-                                        ? 'border-evolution-indigo/50 bg-evolution-indigo/10'
-                                        : 'border-white/10 bg-white/5 hover:border-white/20',
+                                        ? 'border-[var(--admin-accent-border)] bg-[var(--admin-accent-soft)]'
+                                        : 'border-[var(--admin-border-soft)] bg-[var(--admin-surface)] hover:border-[var(--admin-border)]',
                                     draggedIndex === idx ? 'opacity-50' : ''
                                 )}
                             >
@@ -324,21 +324,21 @@ const PageSectionsEditor = ({
                                     onClick={() => handleSelectSection(section)}
                                     className="w-full text-left"
                                 >
-                                    <p className="truncate text-xs font-bold uppercase tracking-wider text-white">
+                                    <p className="truncate text-[11px] font-bold uppercase tracking-wider admin-text-primary">
                                         {getSectionTitle(section.type)}
                                     </p>
-                                    <p className="text-[11px] text-zinc-500">
+                                    <p className="mt-0.5 text-[10px] admin-text-muted">
                                         {section.enabled !== false ? 'Visible' : 'Oculto'}
                                     </p>
                                 </button>
 
-                                <div className="mt-3 flex items-center justify-between gap-1">
+                                <div className="mt-2 flex items-center justify-between gap-1">
                                     <div className="flex items-center gap-1">
                                         <button
                                             type="button"
                                             onClick={() => handleMoveSection(idx, -1)}
                                             disabled={idx === 0}
-                                            className="rounded-md border border-white/10 bg-white/5 p-1.5 text-zinc-300 disabled:opacity-40"
+                                            className="rounded-lg border border-[var(--admin-border-soft)] bg-[var(--admin-hover)] p-1.5 admin-text-muted disabled:opacity-40"
                                             title="Subir"
                                         >
                                             <ArrowUp size={12} weight="bold" />
@@ -347,7 +347,7 @@ const PageSectionsEditor = ({
                                             type="button"
                                             onClick={() => handleMoveSection(idx, 1)}
                                             disabled={idx === sections.length - 1}
-                                            className="rounded-md border border-white/10 bg-white/5 p-1.5 text-zinc-300 disabled:opacity-40"
+                                            className="rounded-lg border border-[var(--admin-border-soft)] bg-[var(--admin-hover)] p-1.5 admin-text-muted disabled:opacity-40"
                                             title="Bajar"
                                         >
                                             <ArrowDown size={12} weight="bold" />
@@ -355,7 +355,7 @@ const PageSectionsEditor = ({
                                         <button
                                             type="button"
                                             onClick={() => handleToggleEnabled(idx)}
-                                            className="rounded-md border border-white/10 bg-white/5 p-1.5 text-zinc-300"
+                                            className="rounded-lg border border-[var(--admin-border-soft)] bg-[var(--admin-hover)] p-1.5 admin-text-muted"
                                             title="Mostrar / Ocultar"
                                         >
                                             {section.enabled !== false ? (
@@ -369,7 +369,7 @@ const PageSectionsEditor = ({
                                     <button
                                         type="button"
                                         onClick={() => handleDeleteSection(idx)}
-                                        className="rounded-md border border-rose-500/30 bg-rose-500/10 p-1.5 text-rose-300"
+                                        className="rounded-lg border border-[color-mix(in_srgb,var(--admin-danger)_32%,var(--admin-border-soft))] bg-[color-mix(in_srgb,var(--admin-danger)_12%,transparent)] p-1.5 text-[var(--admin-danger)]"
                                         title="Eliminar"
                                     >
                                         <Trash size={12} weight="bold" />
@@ -380,14 +380,14 @@ const PageSectionsEditor = ({
                     })}
 
                     {!sections.length ? (
-                        <p className="rounded-xl border border-dashed border-white/15 p-4 text-center text-xs text-zinc-500">
+                        <p className="rounded-[18px] border border-dashed border-[var(--admin-border)] p-4 text-center text-xs admin-text-muted">
                             Todavia no hay bloques.
                         </p>
                     ) : null}
                 </div>
             </aside>
 
-            <section className="storefront-preview-root overflow-auto rounded-xl md:rounded-2xl border border-white/10 bg-white custom-scrollbar p-2 md:p-0 max-h-[50vh] lg:max-h-full">
+            <section className="storefront-preview-root custom-scrollbar max-h-[calc(100dvh-8.5rem)] overflow-auto rounded-[18px] border border-[var(--admin-border-soft)] bg-white p-1.5 shadow-[var(--admin-shadow-soft)] 2xl:max-h-full 2xl:p-0">
                 <PageBuilder sections={previewSections} />
             </section>
         </div>

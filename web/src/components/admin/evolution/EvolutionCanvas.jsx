@@ -22,6 +22,9 @@ import {
     RocketLaunch,
     ArrowCounterClockwise,
     ArrowClockwise,
+    FloppyDisk,
+    Eye,
+    Sliders,
 } from '@phosphor-icons/react';
 
 const iconButtonStyle = {
@@ -54,6 +57,28 @@ const getSearchItemIcon = (kind = '') => {
     }
 };
 
+const MODULE_LABELS = {
+    dashboard: 'Dashboard',
+    home: 'Inicio',
+    about: 'Sobre nosotros',
+    appearance: 'Apariencia',
+    catalog: 'Catalogo',
+    categories: 'Categorias',
+    pricing: 'Ofertas',
+    users: 'Usuarios',
+    customers: 'Usuarios',
+    checkout: 'Checkout',
+    shipping: 'Envios',
+    integrations: 'Integraciones',
+    notifications: 'Notificaciones',
+    tenants: 'Empresas',
+    legacy: 'Editor legacy',
+    design_live: 'Diseno en vivo',
+    catalog_live: 'Catalogo en vivo',
+    media: 'Biblioteca',
+    settings_live: 'Configuracion',
+};
+
 const EvolutionCanvas = ({
     children,
     branding,
@@ -63,6 +88,8 @@ const EvolutionCanvas = ({
     onRedo,
     canUndo,
     canRedo,
+    onSave,
+    isSaving,
 }) => {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
@@ -93,10 +120,11 @@ const EvolutionCanvas = ({
         'design_live',
     ].includes(activeModule);
     const isClientFocusMode = isStorefrontEditing && isSidebarCollapsed && !isInspectorOpen;
-    const canvasPaddingClass = isLegacy ? 'p-0' : (isStorefrontEditing ? 'p-3 md:p-4' : 'p-8');
+    const canvasPaddingClass = isLegacy ? 'p-0 pb-14 2xl:pb-0' : (isStorefrontEditing ? 'p-2.5 pb-14 lg:p-3 2xl:pb-3' : 'p-3 pb-14 lg:p-5 2xl:pb-5');
     const contentWidthClass = isLegacy || isStorefrontEditing ? 'mx-0 max-w-none' : 'mx-auto max-w-7xl';
     const adminTitle = branding?.title || 'Panel de administracion';
     const companyName = branding?.companyName || adminTitle;
+    const moduleTitle = MODULE_LABELS[activeModule] || activeModule;
     const profileName = user?.name || user?.email || 'Administrador';
     const profileEmail = user?.email || '';
     const profileRole = user?.role === 'master_admin' ? 'Master admin' : 'Admin';
@@ -218,21 +246,30 @@ const EvolutionCanvas = ({
         setIsDomainModalOpen(true);
     };
 
+    const openPreview = () => {
+        navigate('/admin/preview');
+    };
+
     return (
         <main className="admin-canvas-surface relative flex flex-1 flex-col overflow-hidden">
-            <header className="admin-header-surface sticky top-0 z-40 flex h-16 items-center justify-between border-b px-5 lg:px-6 backdrop-blur-md">
-                <div className="flex items-center gap-4">
+            <header className="admin-header-surface sticky top-0 z-40 flex min-h-14 flex-col gap-2 border-b px-3 py-2 backdrop-blur-md lg:flex-row lg:items-center lg:justify-between lg:px-4">
+                <div className="flex min-w-0 items-center gap-3">
                     <div className="space-y-0.5">
                         <p className="text-[10px] font-bold uppercase tracking-[0.24em] admin-accent-text">
                             {companyName}
                         </p>
-                        <h1 className="text-sm font-medium capitalize tracking-wide admin-text-primary">
-                            {activeModule}
+                        <h1 className="truncate text-[15px] font-semibold tracking-tight admin-text-primary">
+                            {adminTitle}
                         </h1>
+                    </div>
+                    <div className="hidden h-7 w-px bg-[var(--admin-border-soft)] 2xl:block" />
+                    <div className="hidden min-w-0 2xl:block">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--admin-muted-soft)]">Workspace</p>
+                        <p className="truncate text-[13px] font-medium admin-text-primary">{moduleTitle}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 md:gap-3">
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 gap-y-1 md:gap-2">
                     {isStorefrontEditing ? (
                         <button
                             type="button"
@@ -242,22 +279,22 @@ const EvolutionCanvas = ({
                                 borderColor: 'var(--admin-border)',
                                 color: 'var(--admin-text)',
                             }}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors hover:opacity-90"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors hover:opacity-90"
                         >
-                            {isClientFocusMode ? <FocusOff size={14} weight="bold" /> : <FocusOn size={14} weight="bold" />}
+                            {isClientFocusMode ? <FocusOff size={13} weight="bold" /> : <FocusOn size={13} weight="bold" />}
                             {isClientFocusMode ? 'Editar' : 'Ver cliente'}
                         </button>
                     ) : null}
 
-                    <div className="relative hidden lg:block" ref={searchRef}>
+                    <div className="relative hidden 2xl:block" ref={searchRef}>
                         <div
                             style={{
                                 backgroundColor: 'var(--admin-hover)',
                                 borderColor: 'var(--admin-border)',
                             }}
-                            className="flex h-10 w-[260px] xl:w-[340px] items-center rounded-full border px-3"
+                            className="flex h-8 w-[220px] xl:w-[280px] items-center rounded-full border px-2.5"
                         >
-                            <Search className="h-4 w-4 shrink-0 admin-text-muted" />
+                            <Search className="h-3.5 w-3.5 shrink-0 admin-text-muted" />
                             <input
                                 type="text"
                                 value={searchQuery}
@@ -268,7 +305,7 @@ const EvolutionCanvas = ({
                                 onFocus={() => setIsSearchOpen(true)}
                                 onKeyDown={handleSearchKeyDown}
                                 placeholder="Buscar modulo, producto, usuario o alerta..."
-                                className="ml-2 w-full bg-transparent text-[13px] outline-none placeholder:text-zinc-500 admin-text-primary"
+                                className="ml-2 w-full bg-transparent text-[12px] outline-none placeholder:text-zinc-500 admin-text-primary"
                             />
                         </div>
 
@@ -279,14 +316,14 @@ const EvolutionCanvas = ({
                                     borderColor: 'var(--admin-border)',
                                     boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)',
                                 }}
-                                className="absolute right-0 top-[calc(100%+10px)] z-50 w-[420px] overflow-hidden rounded-3xl border animate-in fade-in zoom-in-95 duration-200"
+                                className="absolute right-0 top-[calc(100%+8px)] z-50 w-[360px] overflow-hidden rounded-2xl border animate-in fade-in zoom-in-95 duration-200"
                             >
-                                <div className="border-b border-white/10 px-4 py-3">
+                                <div className="border-b border-white/10 px-3 py-2.5">
                                     <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">
                                         Busqueda global
                                     </p>
                                 </div>
-                                <div className="custom-scrollbar max-h-[420px] overflow-auto p-2">
+                                <div className="custom-scrollbar max-h-[360px] overflow-auto p-1.5">
                                     {filteredSearchItems.length ? (
                                         filteredSearchItems.map((item, index) => {
                                             const Icon = getSearchItemIcon(item.kind);
@@ -298,16 +335,16 @@ const EvolutionCanvas = ({
                                                     onClick={() => handleSearchSelect(item)}
                                                     onMouseEnter={() => setHighlightedSearchIndex(index)}
                                                     className={cn(
-                                                        'flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-all',
+                                                        'flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all',
                                                         isActive ? 'bg-white/10' : 'hover:bg-white/5'
                                                     )}
                                                 >
-                                                    <div className="rounded-2xl bg-white/10 p-2 text-zinc-200">
-                                                        <Icon size={16} weight="bold" />
+                                                    <div className="rounded-xl bg-white/10 p-1.5 text-zinc-200">
+                                                        <Icon size={14} weight="bold" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="truncate text-sm font-semibold text-white">{item.label}</p>
-                                                        <p className="mt-1 text-xs text-zinc-400">{item.description || 'Sin descripcion'}</p>
+                                                        <p className="truncate text-[13px] font-semibold text-white">{item.label}</p>
+                                                        <p className="mt-0.5 text-[11px] text-zinc-400">{item.description || 'Sin descripcion'}</p>
                                                     </div>
                                                 </button>
                                             );
@@ -347,10 +384,51 @@ const EvolutionCanvas = ({
 
                     <button
                         type="button"
-                        onClick={() => openDomainCenter('publish')}
-                        className="admin-accent-button hidden lg:inline-flex h-8 items-center gap-2 rounded-full px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
+                        onClick={onSave}
+                        disabled={isSaving}
+                            className="admin-accent-button inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
                     >
-                        <RocketLaunch size={14} weight="bold" />
+                        <FloppyDisk size={13} weight="bold" className={cn(isSaving && 'animate-pulse')} />
+                        <span className="hidden sm:inline">{isSaving ? 'Guardando' : 'Guardar'}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={openPreview}
+                        style={{
+                            backgroundColor: 'var(--admin-hover)',
+                            borderColor: 'var(--admin-border)',
+                            color: 'var(--admin-text)',
+                        }}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
+                    >
+                        <Eye size={13} weight="bold" />
+                        <span className="hidden 2xl:inline">Previsualizar</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setInspectorOpen(true)}
+                        style={{
+                            backgroundColor: 'var(--admin-hover)',
+                            borderColor: 'var(--admin-border)',
+                            color: 'var(--admin-text)',
+                        }}
+                        className={cn(
+                            'inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90 2xl:hidden',
+                            isInspectorOpen && 'hidden'
+                        )}
+                    >
+                        <Sliders size={13} weight="bold" />
+                        <span className="hidden sm:inline">Inspector</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => openDomainCenter('publish')}
+                        className="admin-accent-button hidden 2xl:inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
+                    >
+                        <RocketLaunch size={13} weight="bold" />
                         Publicar
                     </button>
 
@@ -362,9 +440,9 @@ const EvolutionCanvas = ({
                             borderColor: 'var(--admin-border)',
                             color: 'var(--admin-text)',
                         }}
-                        className="hidden lg:inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[11px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
+                        className="hidden 2xl:inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors hover:opacity-90"
                     >
-                        <Globe size={14} weight="bold" />
+                        <Globe size={13} weight="bold" />
                         Dominios
                     </button>
 
@@ -410,14 +488,14 @@ const EvolutionCanvas = ({
                                 borderColor: 'var(--admin-border)',
                                 color: 'var(--admin-text)',
                             }}
-                            className="flex h-9 items-center gap-2 rounded-full border pl-1.5 pr-2 transition-colors hover:opacity-90"
+                            className="flex h-8 items-center gap-1.5 rounded-full border pl-1 pr-1.5 transition-colors hover:opacity-90"
                         >
                             <div
                                 style={{
                                     background: 'linear-gradient(135deg, var(--admin-panel-bg), var(--admin-sidebar-bg))',
                                     borderColor: 'var(--admin-border)',
                                 }}
-                                className="flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold"
+                                className="flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold"
                             >
                                 {profileInitials}
                             </div>

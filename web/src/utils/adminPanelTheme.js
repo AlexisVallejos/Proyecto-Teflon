@@ -7,24 +7,24 @@ export const DEFAULT_ADMIN_PANEL_BRANDING = {
 
 export const DEFAULT_ADMIN_PANEL_THEME = {
     mode: 'dark',
-    accent: '#111111',
-    shell_bg: '#07070a',
-    sidebar_bg: '#09090b',
-    panel_bg: '#111113',
-    canvas_bg: '#0c0c0e',
-    text: '#f5f5f5',
-    muted_text: '#a1a1aa',
+    accent: '#47e098',
+    shell_bg: '#10141a',
+    sidebar_bg: '#181c22',
+    panel_bg: '#1c2026',
+    canvas_bg: '#10141a',
+    text: '#dfe2eb',
+    muted_text: '#bbcabe',
 };
 
 export const LIGHT_ADMIN_PANEL_THEME = {
     mode: 'light',
-    accent: '#111111',
-    shell_bg: '#e7edf4',
-    sidebar_bg: '#f8fafc',
+    accent: '#006d43',
+    shell_bg: '#f8faf8',
+    sidebar_bg: '#eceeec',
     panel_bg: '#ffffff',
-    canvas_bg: '#eef3f8',
-    text: '#0f172a',
-    muted_text: '#475569',
+    canvas_bg: '#f8faf8',
+    text: '#191c1b',
+    muted_text: '#6c7b70',
 };
 
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -116,6 +116,8 @@ export const buildAdminPanelCssVars = (resolvedTheme) => {
     const baseTheme = resolvedTheme?.mode === 'light' ? LIGHT_ADMIN_PANEL_THEME : DEFAULT_ADMIN_PANEL_THEME;
     const theme = { ...baseTheme, ...resolvedTheme };
     const accentIsLight = getLuminance(theme.accent) > 0.6;
+    const surfaceAlpha = theme.mode === 'light' ? 0.78 : 0.78;
+    const surfaceStrongAlpha = theme.mode === 'light' ? 0.96 : 0.94;
 
     return {
         '--admin-accent': theme.accent,
@@ -123,19 +125,26 @@ export const buildAdminPanelCssVars = (resolvedTheme) => {
         '--admin-sidebar-bg': theme.sidebar_bg,
         '--admin-panel-bg': theme.panel_bg,
         '--admin-canvas-bg': theme.canvas_bg,
+        '--admin-surface': toRgba(theme.panel_bg, surfaceAlpha, baseTheme.panel_bg),
+        '--admin-surface-strong': toRgba(theme.panel_bg, surfaceStrongAlpha, baseTheme.panel_bg),
         '--admin-header-bg': toRgba(theme.panel_bg, theme.mode === 'light' ? 0.94 : 0.86, baseTheme.panel_bg),
         '--admin-text': theme.text,
         '--admin-muted': theme.muted_text,
-        '--admin-border': toRgba(theme.text, theme.mode === 'light' ? 0.16 : 0.1, baseTheme.text),
-        '--admin-border-soft': toRgba(theme.text, theme.mode === 'light' ? 0.12 : 0.06, baseTheme.text),
+        '--admin-muted-soft': toRgba(theme.text, theme.mode === 'light' ? 0.48 : 0.52, baseTheme.text),
+        '--admin-border': toRgba(theme.muted_text, theme.mode === 'light' ? 0.22 : 0.4, baseTheme.muted_text),
+        '--admin-border-soft': toRgba(theme.muted_text, theme.mode === 'light' ? 0.14 : 0.28, baseTheme.muted_text),
         '--admin-hover': toRgba(theme.text, theme.mode === 'light' ? 0.055 : 0.06, baseTheme.text),
         '--admin-hover-strong': toRgba(theme.text, theme.mode === 'light' ? 0.095 : 0.12, baseTheme.text),
         '--admin-accent-soft': toRgba(theme.accent, theme.mode === 'light' ? 0.1 : 0.14, baseTheme.accent),
         '--admin-accent-soft-strong': toRgba(theme.accent, theme.mode === 'light' ? 0.16 : 0.22, baseTheme.accent),
         '--admin-accent-border': toRgba(theme.accent, theme.mode === 'light' ? 0.22 : 0.35, baseTheme.accent),
         '--admin-selection': toRgba(theme.accent, 0.3, baseTheme.accent),
-        '--admin-accent-contrast': accentIsLight ? '#111111' : '#ffffff',
+        '--admin-accent-contrast': accentIsLight ? '#003921' : '#ffffff',
         '--admin-shadow': toRgba(theme.accent, theme.mode === 'light' ? 0.14 : 0.24, baseTheme.accent),
+        '--admin-shadow-soft': theme.mode === 'light' ? '0 16px 34px rgba(25, 28, 27, 0.06)' : '0 18px 40px rgba(10, 14, 20, 0.2)',
+        '--admin-success': theme.mode === 'light' ? '#006d43' : '#47e098',
+        '--admin-warning': theme.mode === 'light' ? '#9e412a' : '#ffb5a2',
+        '--admin-danger': theme.mode === 'light' ? '#ba1a1a' : '#ffb4ab',
         '--admin-overlay-top': `linear-gradient(to bottom, ${toRgba(theme.panel_bg, theme.mode === 'light' ? 0.55 : 0.72, baseTheme.panel_bg)}, transparent)`,
         '--admin-overlay-bottom': `linear-gradient(to top, ${toRgba(theme.panel_bg, theme.mode === 'light' ? 0.2 : 0.35, baseTheme.panel_bg)}, transparent)`,
         '--admin-canvas-grid-dot': toRgba(theme.text, theme.mode === 'light' ? 0.06 : 0.05, baseTheme.text),

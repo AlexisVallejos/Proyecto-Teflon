@@ -1,0 +1,6 @@
+
+> dev
+> node --watch src/index.js
+
+Checking DB connection to: aws-1-us-east-1.pooler.supabase.com:5432/postgres
+Completed running 'src/index.js'. Waiting for file changes before restarting...

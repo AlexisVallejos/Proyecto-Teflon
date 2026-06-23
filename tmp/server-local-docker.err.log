@@ -1,0 +1,39 @@
+=postgresql://user:password@localhost:55432/teflon : El t‚rmino '=postgresql://user:password@localhost:55432/teflon' 
+no se reconoce como nombre de un cmdlet, funci¢n, archivo de script o programa ejecutable. Compruebe si escribi¢ 
+correctamente el nombre o, si incluy¢ una ruta de acceso, compruebe que dicha ruta es correcta e int‚ntelo de nuevo.
+En l¡nea: 1 Car cter: 1
++ ='postgresql://user:password@localhost:55432/teflon'; ='http://localh ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (=postgresql://u...st:55432/teflon:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+=http://localhost:5173,http://127.0.0.1:5173 : El t‚rmino '=http://localhost:5173,http://127.0.0.1:5173' no se 
+reconoce como nombre de un cmdlet, funci¢n, archivo de script o programa ejecutable. Compruebe si escribi¢ 
+correctamente el nombre o, si incluy¢ una ruta de acceso, compruebe que dicha ruta es correcta e int‚ntelo de nuevo.
+En l¡nea: 1 Car cter: 55
++ ... 55432/teflon'; ='http://localhost:5173,http://127.0.0.1:5173'; ='true ...
++                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (=http://localho.../127.0.0.1:5173:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+=true : El t‚rmino '=true' no se reconoce como nombre de un cmdlet, funci¢n, archivo de script o programa ejecutable. 
+Compruebe si escribi¢ correctamente el nombre o, si incluy¢ una ruta de acceso, compruebe que dicha ruta es correcta e 
+int‚ntelo de nuevo.
+En l¡nea: 1 Car cter: 103
++ ... lon'; ='http://localhost:5173,http://127.0.0.1:5173'; ='true'; ='4000 ...
++                                                           ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (=true:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+=4000 : El t‚rmino '=4000' no se reconoce como nombre de un cmdlet, funci¢n, archivo de script o programa ejecutable. 
+Compruebe si escribi¢ correctamente el nombre o, si incluy¢ una ruta de acceso, compruebe que dicha ruta es correcta e 
+int‚ntelo de nuevo.
+En l¡nea: 1 Car cter: 112
++ ... ttp://localhost:5173,http://127.0.0.1:5173'; ='true'; ='4000'; npm ru ...
++                                                           ~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (=4000:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+AUTH DISABLED: /tenant and /api/platform/admin routes are open without token.
+DB bootstrap warning: (ENOTFOUND) tenant/user postgres.zmpbjiplsonasppnnfrk not found
+Fatal startup error: (ENOTFOUND) tenant/user postgres.zmpbjiplsonasppnnfrk not found

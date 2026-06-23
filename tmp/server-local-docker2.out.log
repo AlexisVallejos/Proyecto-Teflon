@@ -1,0 +1,554 @@
+
+> dev
+> node --watch src/index.js
+
+Checking DB connection to: localhost:55432/teflon
+DB Connection OK
+Pricing schema ready
+User profile schema ready
+API listening on port 4000
+Tenant resolution by host: raw="localhost" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolution by host: raw="localhost" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Saving 4 sections for slug: home
+ - Section: HeroSlider, Props: {"variant":"sanitarios_industrial","slides":[{"label":"Tienda personalizada","title":"TU MARCA\nLISTA PARA VENDER","description":"Catalogo, pedidos y atencion comercial organizados para vender online con una experiencia clara.","featured":"Atencion comercial","cardEyebrow":"Linea destacada","cardTitle":"Catalogo destacado","specLabel":"Stock, pedidos y consultas","image":"https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop","primaryButtonLabel":"VER CATALOGO","primaryButtonLink":"/catalog","secondaryButtonLabel":"NOSOTROS","secondaryButtonLink":"/about"},{"label":"Operacion comercial","title":"PRODUCTOS\nSIEMPRE ORDENADOS","description":"Una tienda preparada para presentar categorias, productos, promociones y canales de contacto.","featured":"Entrega coordinada","cardEyebrow":"Gestion online","cardTitle":"Pedidos y consultas","specLabel":"Catalogo actualizado","image":"https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=2070&auto=format&fit=crop","primaryButtonLabel":"EXPLORAR LINEAS","primaryButtonLink":"/catalog","secondaryButtonLabel":"CONTACTO","secondaryButtonLink":"/about"}],"styles":{"backgroundColor":"#f97316","leftPanelColor":"#121212","titleColor":"#ffffff","textColor":"#f4f4f5","labelColor":"#f97316","primaryButtonBgColor":"#ffffff","primaryButtonTextColor":"#f97316","secondaryButtonBgColor":"#18181b","secondaryButtonTextColor":"#ffffff","secondaryButtonBorderColor":"#3f3f46"}}
+Saving 6 sections for slug: about
+ - Section: AboutHero, Props: {"tagline":"Vase Business","title":"Una tienda online preparada para tu operacion","description":"Acompanamos cada venta con catalogo claro, canales de contacto y una experiencia adaptable a cada cliente.","primaryButton":{"label":"Ver catalogo","link":"/catalog"},"secondaryButton":{"label":"Contactar ventas","link":"/about"},"backgroundImage":"https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop","styles":{"accentColor":"#f97316","overlayColor":"#111827","overlayOpacity":0.8,"textColor":"#f8fafc","mutedColor":"rgba(248,250,252,0.82)"}}
+ - Section: BrandMarquee, Props: {"eyebrow":"Marcas y lineas","title":"Un catalogo ordenado para tu negocio","subtitle":"Categorias claras para comparar productos, consultar disponibilidad y avanzar con pedidos.","speed":"medium","primaryButton":{"label":"","link":""},"items":[{"id":"brand-generic-lineas","name":"Lineas"},{"id":"brand-generic-categorias","name":"Categorias"},{"id":"brand-generic-destacados","name":"Destacados"},{"id":"brand-generic-novedades","name":"Novedades"},{"id":"brand-generic-ofertas","name":"Ofertas"},{"id":"brand-generic-stock","name":"Stock"},{"id":"brand-generic-pedidos","name":"Pedidos"}],"styles":{"backgroundColor":"#f8fafc","panelBackgroundColor":"#ffffff","titleColor":"#111827","subtitleColor":"#64748b","badgeBackgroundColor":"#f97316","badgeTextColor":"#ffffff","cardBackgroundColor":"#ffffff","cardBorderColor":"#dbe2ea"},"variant":"grid_static"}
+ - Section: AboutMission, Props: {"eyebrow":"Como trabajamos","title":"Atencion comercial para comprar con criterio.","paragraphs":["La tienda organiza su catalogo para que cada cliente pueda comparar rubros, variantes y alternativas sin friccion.","El equipo acompana consultas comerciales para transformar una busqueda amplia en una compra concreta."],"highlights":[{"icon":"verified","title":"Catalogo claro","text":"Categorias y fichas orientadas a decision de compra real."},{"icon":"eco","title":"Soluciones aplicables","text":"Productos pensados para la necesidad real de cada cliente."}],"image":"https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=2070&auto=format&fit=crop","imageAlt":"Espacio comercial moderno","styles":{"accentColor":"#f97316","backgroundColor":"#ffffff","textColor":"#111827","mutedColor":"#64748b"}}
+ - Section: FeaturedProducts, Props: {"variant":"modern","title":"Productos destacados","subtitle":"Los productos principales de la tienda listos para consultar, comparar y comprar.","ctaLabel":"Ver catalogo completo","ctaLink":"/catalog","styles":{"backgroundColor":"#ffffff","cardBackgroundColor":"#ffffff","titleColor":"#111827","subtitleColor":"#64748b","accentColor":"#f97316","priceColor":"#f97316","buttonBackgroundColor":"#111827","buttonTextColor":"#ffffff"}}
+ - Section: AboutStats, Props: {"items":[{"value":"+30","label":"anos de experiencia","accent":true},{"value":"+200","label":"productos"},{"value":"24/7","label":"catalogo online"},{"value":"Soporte","label":"comercial"}],"styles":{"backgroundColor":"#111827","accentColor":"#f97316","textColor":"#ffffff","mutedColor":"#cbd5e1"}}
+ - Section: Services, Props: {"title":"Acompanamiento para elegir mejor","subtitle":"Atencion clara para resolver productos, disponibilidad, pagos y coordinacion de entrega.","items":[{"icon":"support_agent","title":"Atencion comercial","text":"Ayudamos a responder consultas y convertir busquedas en pedidos concretos."},{"icon":"local_shipping","title":"Entrega coordinada","text":"Organizamos retiro o envio segun cobertura para que la compra llegue a tiempo."},{"icon":"shield","title":"Compra con respaldo","text":"Cada pedido conserva seguimiento comercial para resolver consultas y cambios."}],"styles":{"backgroundColor":"#111827","titleColor":"#ffffff","subtitleColor":"#cbd5e1","cardBackgroundColor":"#1f2937","cardTitleColor":"#ffffff","cardTextColor":"#cbd5e1","iconColor":"#f97316","iconBackgroundColor":"rgba(249, 115, 22, 0.16)"}}
+ - Section: AboutValues, Props: {"title":"Principios de trabajo","items":[{"icon":"quality","title":"Claridad","description":"La compra debe ser simple: producto, medida, uso y disponibilidad visibles."},{"icon":"commitment","title":"Continuidad","description":"El objetivo es resolver necesidades actuales y futuras de cada cliente."},{"icon":"innovation","title":"Criterio de producto","description":"Ordenamos variedad de rubros en decisiones concretas y aplicables."}],"styles":{"backgroundColor":"#f8fafc","cardBackground":"#ffffff","accentColor":"#f97316","textColor":"#111827","mutedColor":"#64748b"}}
+ - Section: AboutTeam, Props: {"anchor":"equipo","title":"Acompanamos proyectos, no solo pedidos.","quote":"Cuando el catalogo, el stock y la comunicacion comercial se alinean, comprar online se vuelve simple.","author":"Equipo comercial","role":"Operacion y soporte de producto","avatarImage":"https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80&auto=format&fit=crop","backgroundImage":"https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop","styles":{"backgroundColor":"#ffffff","overlayColor":"#111827","overlayOpacity":0.34,"textColor":"#111827"}}
+ - Section: AboutCTA, Props: {"title":"Necesitas resolver una compra o consulta?","primaryLink":{"label":"Ver productos","link":"/catalog"},"secondaryLink":{"label":"Hablar con ventas","link":"/about"},"styles":{"backgroundColor":"#ffffff","accentColor":"#f97316","textColor":"#111827","mutedColor":"#64748b"}}
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/pages/home"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/pages/home"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/pages/home"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/pages/home"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/tenant"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/categories"
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/brands"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/pages/home"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="localhost:5173" normalized="localhost" candidates=[localhost] path="/products"
+Tenant resolved by host "localhost": Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/tenant"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/tenant"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/tenant"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/products"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/categories"
+Tenant resolution by host: raw="127.0.0.1:5173" normalized="127.0.0.1" candidates=[127.0.0.1] path="/brands"
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Saving 4 sections for slug: home
+ - Section: HeroSlider, Props: {"variant":"sanitarios_industrial","slides":[{"image":"https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop","label":"Tienda personalizada","title":"TU MARCA\nLISTA PARA VENDER","featured":"Atencion comercial","cardTitle":"Catalogo destacado","specLabel":"Stock, pedidos y consultas","cardEyebrow":"Linea destacada","description":"Catalogo, pedidos y atencion comercial organizados para vender online con una experiencia clara.","primaryButtonLink":"/catalog","primaryButtonLabel":"VER CATALOGO","secondaryButtonLink":"/about","secondaryButtonLabel":"NOSOTROS"},{"image":"https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=2070&auto=format&fit=crop","label":"Operacion comercial","title":"PRODUCTOS\nSIEMPRE ORDENADOS","featured":"Entrega coordinada","cardTitle":"Pedidos y consultas","specLabel":"Catalogo actualizado","cardEyebrow":"Gestion online","description":"Una tienda preparada para presentar categorias, productos, promociones y canales de contacto.","primaryButtonLink":"/catalog","primaryButtonLabel":"EXPLORAR LINEAS","secondaryButtonLink":"/about","secondaryButtonLabel":"CONTACTO"}],"styles":{"backgroundColor":"#f97316","leftPanelColor":"#121212","titleColor":"#ffffff","textColor":"#f4f4f5","labelColor":"#f97316","primaryButtonBgColor":"#ffffff","primaryButtonTextColor":"#f97316","secondaryButtonBgColor":"#18181b","secondaryButtonTextColor":"#ffffff","secondaryButtonBorderColor":"#3f3f46"}}
+Saving 6 sections for slug: about
+ - Section: AboutHero, Props: {"tagline":"Vase Business","title":"Una tienda online preparada para tu operacion","description":"Acompanamos cada venta con catalogo claro, canales de contacto y una experiencia adaptable a cada cliente.","primaryButton":{"label":"Ver catalogo","link":"/catalog"},"secondaryButton":{"label":"Contactar ventas","link":"/about"},"backgroundImage":"https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop","styles":{"accentColor":"#f97316","overlayColor":"#111827","overlayOpacity":0.8,"textColor":"#f8fafc","mutedColor":"rgba(248,250,252,0.82)"}}
+ - Section: AboutMission, Props: {"eyebrow":"Como trabajamos","title":"Atencion comercial para comprar con criterio.","paragraphs":["La tienda organiza su catalogo para que cada cliente pueda comparar rubros, variantes y alternativas sin friccion.","El equipo acompana consultas comerciales para transformar una busqueda amplia en una compra concreta."],"highlights":[{"icon":"verified","text":"Categorias y fichas orientadas a decision de compra real.","title":"Catalogo claro"},{"icon":"eco","text":"Productos pensados para la necesidad real de cada cliente.","title":"Soluciones aplicables"}],"image":"https://images.unsplash.com/photo-1620626011761-996317b8d101?q=80&w=2070&auto=format&fit=crop","imageAlt":"Espacio comercial moderno","styles":{"accentColor":"#f97316","backgroundColor":"#ffffff","textColor":"#111827","mutedColor":"#64748b"}}
+ - Section: BrandMarquee, Props: {"eyebrow":"Marcas y lineas","title":"Un catalogo ordenado para tu negocio","subtitle":"Categorias claras para comparar productos, consultar disponibilidad y avanzar con pedidos.","speed":"medium","primaryButton":{"label":"","link":""},"items":[{"id":"brand-generic-lineas","name":"Lineas"},{"id":"brand-generic-categorias","name":"Categorias"},{"id":"brand-generic-destacados","name":"Destacados"},{"id":"brand-generic-novedades","name":"Novedades"},{"id":"brand-generic-ofertas","name":"Ofertas"},{"id":"brand-generic-stock","name":"Stock"},{"id":"brand-generic-pedidos","name":"Pedidos"}],"styles":{"backgroundColor":"#f8fafc","panelBackgroundColor":"#ffffff","titleColor":"#111827","subtitleColor":"#64748b","badgeBackgroundColor":"#f97316","badgeTextColor":"#ffffff","cardBackgroundColor":"#ffffff","cardBorderColor":"#dbe2ea"},"variant":"grid_static"}
+ - Section: AboutStats, Props: {"items":[{"label":"anos de experiencia","value":"+30","accent":true},{"label":"productos","value":"+200"},{"label":"catalogo online","value":"24/7"},{"label":"comercial","value":"Soporte"}],"styles":{"backgroundColor":"#111827","accentColor":"#f97316","textColor":"#ffffff","mutedColor":"#cbd5e1"}}
+ - Section: FeaturedProducts, Props: {"variant":"modern","title":"Productos destacados","subtitle":"Los productos principales de la tienda listos para consultar, comparar y comprar.","ctaLabel":"Ver catalogo completo","ctaLink":"/catalog","styles":{"backgroundColor":"#ffffff","cardBackgroundColor":"#ffffff","titleColor":"#111827","subtitleColor":"#64748b","accentColor":"#f97316","priceColor":"#f97316","buttonBackgroundColor":"#111827","buttonTextColor":"#ffffff"}}
+ - Section: AboutValues, Props: {"title":"Principios de trabajo","items":[{"icon":"quality","title":"Claridad","description":"La compra debe ser simple: producto, medida, uso y disponibilidad visibles."},{"icon":"commitment","title":"Continuidad","description":"El objetivo es resolver necesidades actuales y futuras de cada cliente."},{"icon":"innovation","title":"Criterio de producto","description":"Ordenamos variedad de rubros en decisiones concretas y aplicables."}],"styles":{"backgroundColor":"#f8fafc","cardBackground":"#ffffff","accentColor":"#f97316","textColor":"#111827","mutedColor":"#64748b"}}
+ - Section: Services, Props: {"title":"Acompanamiento para elegir mejor","subtitle":"Atencion clara para resolver productos, disponibilidad, pagos y coordinacion de entrega.","items":[{"icon":"support_agent","text":"Ayudamos a responder consultas y convertir busquedas en pedidos concretos.","title":"Atencion comercial"},{"icon":"local_shipping","text":"Organizamos retiro o envio segun cobertura para que la compra llegue a tiempo.","title":"Entrega coordinada"},{"icon":"shield","text":"Cada pedido conserva seguimiento comercial para resolver consultas y cambios.","title":"Compra con respaldo"}],"styles":{"backgroundColor":"#111827","titleColor":"#ffffff","subtitleColor":"#cbd5e1","cardBackgroundColor":"#1f2937","cardTitleColor":"#ffffff","cardTextColor":"#cbd5e1","iconColor":"#f97316","iconBackgroundColor":"rgba(249, 115, 22, 0.16)"}}
+ - Section: AboutTeam, Props: {"anchor":"equipo","title":"Acompanamos proyectos, no solo pedidos.","quote":"Cuando el catalogo, el stock y la comunicacion comercial se alinean, comprar online se vuelve simple.","author":"Equipo comercial","role":"Operacion y soporte de producto","avatarImage":"https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80&auto=format&fit=crop","backgroundImage":"https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=2070&auto=format&fit=crop","styles":{"backgroundColor":"#ffffff","overlayColor":"#111827","overlayOpacity":0.34,"textColor":"#111827"}}
+ - Section: AboutCTA, Props: {"title":"Necesitas resolver una compra o consulta?","primaryLink":{"label":"Ver productos","link":"/catalog"},"secondaryLink":{"label":"Hablar con ventas","link":"/about"},"styles":{"backgroundColor":"#ffffff","accentColor":"#f97316","textColor":"#111827","mutedColor":"#64748b"}}
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)
+Resolved tenant: Sanitarios El Teflon (636736e2-e135-44cd-ac5c-5d4ccb839a73)

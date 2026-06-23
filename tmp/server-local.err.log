@@ -1,0 +1,3 @@
+AUTH DISABLED: /tenant and /api/platform/admin routes are open without token.
+DB bootstrap warning: (ENOTFOUND) tenant/user postgres.zmpbjiplsonasppnnfrk not found
+Fatal startup error: (ENOTFOUND) tenant/user postgres.zmpbjiplsonasppnnfrk not found
